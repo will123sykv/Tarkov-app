@@ -31,8 +31,23 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
-      # Builds the NSIS installer and uploads it, latest.yml and the blockmap to a GitHub
-      # Release for this tag. electron-updater in installed copies reads latest.yml.
+      # electron-builder uploads the installer and its blockmap in parallel, and each upload
+      # creates the release if it doesn't exist yet, which left two releases for v1.0.0.
+      # Creating the draft first gives both uploads the same release to find.
+      - name: Create draft release
+        shell: bash
+        run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "${GITHUB_REF_NAME#v}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Builds the NSIS installer and uploads it, latest.yml and the blockmap into the draft.
+      # electron-updater in installed copies reads latest.yml.
       - run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release
+        shell: bash
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

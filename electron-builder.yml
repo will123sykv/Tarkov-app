@@ -26,4 +26,5 @@ publish:
   provider: github
   owner: will123sykv
   repo: Tarkov-app
-  releaseType: release
+  # The release workflow creates the draft and publishes it after every file is uploaded.
+  releaseType: draft
