@@ -1,10 +1,11 @@
 import { DEFAULT_FLEA_MIN_LEVEL, PRICE_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+import { DEFAULT_FLEA_FEE_RATES } from '../../shared/fleaFee'
 import { TARKOV_DEV_GAME_MODE } from '../../shared/gameModes'
 import type { DataMode, LootItem, PriceDataset, TraderPrice } from '../../shared/types'
 import { tarkovDevQuery, type FetchFn } from './http'
 
 export const PRICES_QUERY = `query LootPrices($gameMode: GameMode) {
-  fleaMarket(gameMode: $gameMode) { minPlayerLevel enabled }
+  fleaMarket(gameMode: $gameMode) { minPlayerLevel enabled foundInRaidRequired sellOfferFeeRate sellRequirementFeeRate }
   items(gameMode: $gameMode) {
     id
     name
@@ -15,6 +16,9 @@ export const PRICES_QUERY = `query LootPrices($gameMode: GameMode) {
     basePrice
     avg24hPrice
     lastLowPrice
+    lastOfferCount
+    low24hPrice
+    high24hPrice
     minLevelForFlea
     fleaMarketFee
     iconLink
@@ -34,6 +38,9 @@ export interface TarkovDevItem {
   basePrice: number | null
   avg24hPrice: number | null
   lastLowPrice: number | null
+  lastOfferCount?: number | null
+  low24hPrice?: number | null
+  high24hPrice?: number | null
   minLevelForFlea: number | null
   fleaMarketFee: number | null
   iconLink: string | null
@@ -43,7 +50,13 @@ export interface TarkovDevItem {
 }
 
 export interface TarkovDevPricesResponse {
-  fleaMarket: { minPlayerLevel: number | null; enabled: boolean | null } | null
+  fleaMarket: {
+    minPlayerLevel: number | null
+    enabled: boolean | null
+    foundInRaidRequired?: boolean | null
+    sellOfferFeeRate?: number | null
+    sellRequirementFeeRate?: number | null
+  } | null
   items: (TarkovDevItem | null)[] | null
 }
 
@@ -83,7 +96,11 @@ export function normalizeTarkovDevItem(raw: TarkovDevItem): LootItem | null {
     minLevelForFlea: positive(raw.minLevelForFlea),
     fleaPrice: positive(raw.lastLowPrice) ?? positive(raw.avg24hPrice),
     fleaFee: positive(raw.fleaMarketFee),
-    bestTrader: bestTraderOffer(raw)
+    bestTrader: bestTraderOffer(raw),
+    basePrice: positive(raw.basePrice),
+    offerCount: typeof raw.lastOfferCount === 'number' ? raw.lastOfferCount : null,
+    low24hPrice: positive(raw.low24hPrice),
+    high24hPrice: positive(raw.high24hPrice)
   }
 }
 
@@ -102,7 +119,14 @@ export function normalizeTarkovDev(
     source: 'tarkov.dev',
     fetchedAt,
     fleaMinLevel: positive(data.fleaMarket?.minPlayerLevel) ?? DEFAULT_FLEA_MIN_LEVEL,
-    items
+    items,
+    fleaFeeRates: {
+      sellOfferFeeRate: data.fleaMarket?.sellOfferFeeRate ?? DEFAULT_FLEA_FEE_RATES.sellOfferFeeRate,
+      sellRequirementFeeRate:
+        data.fleaMarket?.sellRequirementFeeRate ?? DEFAULT_FLEA_FEE_RATES.sellRequirementFeeRate
+    },
+    foundInRaidRequired:
+      typeof data.fleaMarket?.foundInRaidRequired === 'boolean' ? data.fleaMarket.foundInRaidRequired : null
   }
 }
 

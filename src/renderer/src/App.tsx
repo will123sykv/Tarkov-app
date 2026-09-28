@@ -10,6 +10,8 @@ import ModeBanner from './components/ModeBanner'
 import SettingsDialog from './components/SettingsDialog'
 import StatusBar from './components/StatusBar'
 import TopBar from './components/TopBar'
+import TrendsView from './components/TrendsView'
+import { useTrendRanking } from './lib/useTrendRanking'
 import { containerLootKey, useStore } from './store'
 
 export default function App(): React.JSX.Element {
@@ -55,8 +57,11 @@ export default function App(): React.JSX.Element {
     [selected]
   )
 
+  const trendsView = settings?.view === 'trends'
+  const trendRanking = useTrendRanking(settings, dataset, trendsView)
+
   const ranked = useMemo(() => {
-    if (!dataset || !settings) return []
+    if (!dataset || !settings || trendsView) return []
     return rankItems(
       dataset.items,
       ctx,
@@ -68,7 +73,7 @@ export default function App(): React.JSX.Element {
       },
       settings.sort
     )
-  }, [dataset, settings, ctx, containerFilter, search])
+  }, [dataset, settings, ctx, containerFilter, search, trendsView])
 
   if (initError) {
     return <div className="fatal">Failed to start: {initError}</div>
@@ -88,32 +93,36 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
       <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
-      <div className="workspace">
-        <ContainerSidebar
-          settings={settings}
-          catalog={catalog}
-          ranking={lootList ? ranking : null}
-          pricesLoaded={dataset !== null}
-        />
-        <main className="content">
-          <ContainerSummary
-            selected={selected}
-            mapName={mapName}
-            unavailableContainer={unavailableContainer}
+      {trendsView ? (
+        <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
+      ) : (
+        <div className="workspace">
+          <ContainerSidebar
+            settings={settings}
+            catalog={catalog}
+            ranking={lootList ? ranking : null}
             pricesLoaded={dataset !== null}
           />
-          <ItemTable
-            rows={ranked}
-            priceState={priceState}
-            sort={settings.sort}
-            showChance={selected !== null}
-            scopeLabel={selected ? `${selected.loot.name}${mapName ? ` on ${mapName}` : ''}` : null}
-          />
-        </main>
-      </div>
+          <main className="content">
+            <ContainerSummary
+              selected={selected}
+              mapName={mapName}
+              unavailableContainer={unavailableContainer}
+              pricesLoaded={dataset !== null}
+            />
+            <ItemTable
+              rows={ranked}
+              priceState={priceState}
+              sort={settings.sort}
+              showChance={selected !== null}
+              scopeLabel={selected ? `${selected.loot.name}${mapName ? ` on ${mapName}` : ''}` : null}
+            />
+          </main>
+        </div>
+      )}
       <StatusBar
         priceState={priceState}
-        shown={ranked.length}
+        shown={trendsView ? trendRanking.rows.length : ranked.length}
         total={dataset?.items.length ?? 0}
         playerLevel={playerLevel}
       />

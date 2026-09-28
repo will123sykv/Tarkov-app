@@ -44,6 +44,21 @@ describe('normalizeTarkovDev', () => {
     expect(get('Factory').fleaPrice).toBe(30_000)
     expect(normalizeTarkovDev({ fleaMarket: null, items: [] }, 'pve', 0).fleaMinLevel).toBe(15)
   })
+
+  it('keeps offer counts, the 24h range and the flea rules for trends', () => {
+    expect(get('LEDX')).toMatchObject({
+      basePrice: 331_200,
+      offerCount: 42,
+      low24hPrice: 1_050_000,
+      high24hPrice: 1_200_000
+    })
+    expect(get('GPU')).toMatchObject({ offerCount: null, low24hPrice: null, high24hPrice: null })
+    expect(dataset).toMatchObject({
+      foundInRaidRequired: false,
+      fleaFeeRates: { sellOfferFeeRate: 0.03, sellRequirementFeeRate: 0.03 }
+    })
+    expect(normalizeTarkovDev({ fleaMarket: null, items: [] }, 'pve', 0).foundInRaidRequired).toBeNull()
+  })
 })
 
 describe('fetchTarkovDev', () => {

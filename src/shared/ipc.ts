@@ -3,6 +3,8 @@ import type {
   ContainerLoot,
   DataMode,
   PriceState,
+  TrendAnalysis,
+  TrendSeries,
   PublicSettings,
   SettingsPatch,
   UpdaterStatus
@@ -16,6 +18,8 @@ export const IPC = {
   pricesState: 'prices:state',
   containersCatalog: 'containers:catalog',
   containersLoot: 'containers:loot',
+  trendsAnalyze: 'trends:analyze',
+  trendsSeries: 'trends:series',
   updaterStatus: 'updater:status',
   updaterGetStatus: 'updater:get-status',
   updaterCheck: 'updater:check',
@@ -33,6 +37,10 @@ export interface TarkovApi {
   getContainerCatalog(): Promise<ContainerCatalog>
   /** Loot per container for one map, or all maps combined when mapId is null. */
   getContainerLoot(mapId: string | null): Promise<ContainerLoot[]>
+  /** Time-of-day price patterns from the app's own recordings over the last `days` days. */
+  analyzeTrends(dataMode: DataMode, days: number): Promise<TrendAnalysis>
+  /** tarkov.dev's daily price history for one item (the last 60 days). */
+  getTrendSeries(dataMode: DataMode, itemId: string): Promise<TrendSeries>
   getUpdaterStatus(): Promise<UpdaterStatus>
   checkForUpdates(): Promise<UpdaterStatus>
   installUpdate(): Promise<void>

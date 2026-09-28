@@ -26,6 +26,9 @@ export interface JsonItem {
   avg24hPrice?: number | null
   lastLowPrice?: number | null
   minLevelForFlea?: number | null
+  lastOfferCount?: number | null
+  low24hPrice?: number | null
+  high24hPrice?: number | null
   iconLink?: string | null
   wikiLink?: string | null
   bsgCategoryId?: string | null
@@ -38,6 +41,7 @@ export interface JsonItemsData {
   items?: Collection<JsonItem> | null
   fleaMarket?: {
     minPlayerLevel?: number | null
+    foundInRaidRequired?: boolean | null
     sellOfferFeeRate?: number | null
     sellRequirementFeeRate?: number | null
   } | null
@@ -143,7 +147,11 @@ export function normalizeTarkovDevJson(
       minLevelForFlea: positive(raw.minLevelForFlea),
       fleaPrice,
       fleaFee: fleaPrice && basePrice ? fleaMarketFee(basePrice, fleaPrice, feeRates) : null,
-      bestTrader: bestTrader(raw)
+      bestTrader: bestTrader(raw),
+      basePrice,
+      offerCount: typeof raw.lastOfferCount === 'number' ? raw.lastOfferCount : null,
+      low24hPrice: positive(raw.low24hPrice),
+      high24hPrice: positive(raw.high24hPrice)
     })
   }
 
@@ -152,7 +160,9 @@ export function normalizeTarkovDevJson(
     source: 'tarkov.dev',
     fetchedAt,
     fleaMinLevel: positive(flea?.minPlayerLevel) ?? DEFAULT_FLEA_MIN_LEVEL,
-    items
+    items,
+    fleaFeeRates: feeRates,
+    foundInRaidRequired: typeof flea?.foundInRaidRequired === 'boolean' ? flea.foundInRaidRequired : null
   }
 }
 

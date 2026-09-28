@@ -6,7 +6,8 @@ import {
   MIN_REFRESH_INTERVAL_MIN
 } from './constants'
 import { isGameMode } from './gameModes'
-import type { GameMode, Settings, SortKey } from './types'
+import type { TrendSortKey } from './fleaTrends'
+import type { GameMode, Settings, SortKey, TrendSettings } from './types'
 
 const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
 
@@ -19,7 +20,37 @@ export const DEFAULT_SETTINGS: Settings = {
   minValuePerSlot: 0,
   sort: { key: 'valuePerSlot', dir: 'desc' },
   pool: { containerId: null, mapId: null },
-  containerSort: 'value'
+  containerSort: 'value',
+  view: 'loot',
+  trends: {
+    days: 7,
+    minOffers: 25,
+    minPrice: 5_000,
+    minProfit: 1_000,
+    minConsistency: 0.6,
+    sort: 'profit',
+    tradableOnly: true
+  },
+  backgroundRecording: false,
+  startWithWindows: false
+}
+
+const TREND_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency', 'offers', 'swing']
+const TREND_DAYS = [7, 14, 30] as const
+
+function sanitizeTrends(raw: unknown): TrendSettings {
+  const d = DEFAULT_SETTINGS.trends
+  const r = isRecord(raw) ? raw : {}
+  const share = Number(r.minConsistency)
+  return {
+    days: TREND_DAYS.find((n) => n === r.days) ?? d.days,
+    minOffers: clampInt(r.minOffers, 0, 100_000, d.minOffers),
+    minPrice: clampInt(r.minPrice, 0, 100_000_000, d.minPrice),
+    minProfit: clampInt(r.minProfit, -100_000_000, 100_000_000, d.minProfit),
+    minConsistency: Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : d.minConsistency,
+    sort: TREND_SORTS.includes(r.sort as TrendSortKey) ? (r.sort as TrendSortKey) : d.sort,
+    tradableOnly: typeof r.tradableOnly === 'boolean' ? r.tradableOnly : d.tradableOnly
+  }
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -73,7 +104,11 @@ export function sanitizeSettings(raw: unknown): Settings {
       containerId: optionalId(pool.containerId),
       mapId: optionalId(pool.mapId)
     },
-    containerSort: r.containerSort === 'name' ? 'name' : 'value'
+    containerSort: r.containerSort === 'name' ? 'name' : 'value',
+    view: r.view === 'trends' ? 'trends' : 'loot',
+    trends: sanitizeTrends(r.trends),
+    backgroundRecording: r.backgroundRecording === true,
+    startWithWindows: r.startWithWindows === true
   }
 }
 
@@ -83,6 +118,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     ...patch,
     playerLevels: { ...current.playerLevels, ...patch.playerLevels },
     sort: { ...current.sort, ...patch.sort },
-    pool: { ...current.pool, ...patch.pool }
+    pool: { ...current.pool, ...patch.pool },
+    trends: { ...current.trends, ...patch.trends }
   })
 }

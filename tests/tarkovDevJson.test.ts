@@ -46,6 +46,14 @@ describe('normalizeTarkovDevJson', () => {
     expect(get('Folder').category).toBeNull()
   })
 
+  it('keeps offer counts, the 24h range and the flea rules for trends', () => {
+    expect(get('LEDX')).toMatchObject({ offerCount: 42, low24hPrice: 1_050_000, high24hPrice: 1_200_000 })
+    expect(dataset).toMatchObject({
+      foundInRaidRequired: false,
+      fleaFeeRates: { sellOfferFeeRate: 0.03, sellRequirementFeeRate: 0.03 }
+    })
+  })
+
   it('computes flea fees locally from the base price and flea price', () => {
     expect(get('LEDX').fleaFee).toBe(fleaMarketFee(331_200, 1_100_000))
     expect(get('Red').fleaFee).toBeNull()

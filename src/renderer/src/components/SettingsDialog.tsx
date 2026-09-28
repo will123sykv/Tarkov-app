@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { UpdaterStatus } from '../../../shared/types'
 import { useStore } from '../store'
+import BackgroundToggles from './BackgroundToggles'
 
 const REFRESH_OPTIONS = [1, 2, 5, 10, 15, 30, 60]
 
@@ -78,6 +79,15 @@ export default function SettingsDialog(): React.JSX.Element | null {
           />
           Subtract flea listing fees from flea prices
         </label>
+      </section>
+
+      <section>
+        <h3>Background</h3>
+        <p className="hint">
+          Flea trends are recorded at each price refresh for the selected game mode. Keep the app in the tray
+          so recordings cover the whole day.
+        </p>
+        <BackgroundToggles settings={settings} />
       </section>
 
       <section>

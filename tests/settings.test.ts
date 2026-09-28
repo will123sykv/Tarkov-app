@@ -48,6 +48,48 @@ describe('sanitizeSettings', () => {
       playerLevels: { ...DEFAULT_SETTINGS.playerLevels, pve: 42 }
     })
     expect(merged.playerLevels).toEqual({ pvp: 15, pve: 42, season: 1 })
+    expect(
+      mergeSettings(DEFAULT_SETTINGS, { trends: { ...DEFAULT_SETTINGS.trends, days: 30 } }).trends
+    ).toEqual({ ...DEFAULT_SETTINGS.trends, days: 30 })
+  })
+
+  it('validates the flea trends view and background options', () => {
+    expect(
+      sanitizeSettings({
+        view: 'trends',
+        backgroundRecording: true,
+        startWithWindows: true,
+        trends: {
+          days: 14,
+          minOffers: 50.4,
+          minPrice: -5,
+          minProfit: -2_000,
+          minConsistency: 1.5,
+          sort: 'swing',
+          tradableOnly: false
+        }
+      })
+    ).toMatchObject({
+      view: 'trends',
+      backgroundRecording: true,
+      startWithWindows: true,
+      trends: {
+        days: 14,
+        minOffers: 50,
+        minPrice: 0,
+        minProfit: -2_000,
+        minConsistency: 1,
+        sort: 'swing',
+        tradableOnly: false
+      }
+    })
+    expect(
+      sanitizeSettings({
+        view: 'charts',
+        backgroundRecording: 'yes',
+        trends: { days: 10, sort: 'random', minConsistency: 'most' }
+      })
+    ).toMatchObject({ view: 'loot', backgroundRecording: false, trends: DEFAULT_SETTINGS.trends })
   })
 })
 

@@ -12,6 +12,9 @@
         "basePrice": 331200,
         "avg24hPrice": 1150000,
         "lastLowPrice": 1100000,
+        "lastOfferCount": 42,
+        "low24hPrice": 1050000,
+        "high24hPrice": 1200000,
         "minLevelForFlea": null,
         "iconLink": "https://assets.tarkov.dev/5c0530ee86f774697952d952-icon.webp",
         "wikiLink": "https://escapefromtarkov.fandom.com/wiki/LEDX_Skin_Transilluminator",
@@ -192,6 +195,7 @@
       "normalizedName": "flea-market",
       "minPlayerLevel": 15,
       "enabled": true,
+      "foundInRaidRequired": false,
       "sellOfferFeeRate": 0.03,
       "sellRequirementFeeRate": 0.03
     },

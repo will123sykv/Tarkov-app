@@ -6,15 +6,24 @@ import type { PriceState, UpdaterStatus } from '../shared/types'
 import type { ContainerLootData } from '../shared/containerData'
 import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
+import { createBackgroundMode, launchedHidden } from './background'
 import { registerIpc } from './ipc'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
 import { createSettingsStore } from './settings'
+import { createPriceRecorder } from './trends/recorder'
+import { createTrendService } from './trends/trendService'
 import { initUpdater } from './updater'
 
 const APP_ID = 'com.will123sykv.tarkovlootoptimiser'
 
 let mainWindow: BrowserWindow | null = null
+let showMainWindow = (): void => {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
 
 function send(channel: string, payload: PriceState | UpdaterStatus): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
@@ -28,7 +37,7 @@ function isSafeExternalUrl(url: string): boolean {
   }
 }
 
-function createWindow(): BrowserWindow {
+function createWindow(showWhenReady = true): BrowserWindow {
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
@@ -46,7 +55,7 @@ function createWindow(): BrowserWindow {
     }
   })
 
-  win.once('ready-to-show', () => win.show())
+  if (showWhenReady) win.once('ready-to-show', () => win.show())
 
   // Links (wiki pages, release notes) open in the user's browser, never inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -88,16 +97,45 @@ async function bootstrap(): Promise<void> {
     getTarkovMarketKey: settings.getTarkovMarketKey,
     log
   })
+  const recorder = createPriceRecorder({ dir: join(userData, 'trends') })
   const prices = createPriceController({
     service: priceService,
     getActiveDataMode: () => dataModeFor(settings.get().gameMode),
     getIntervalMs: () => settings.get().refreshIntervalMin * 60_000,
-    broadcast: (state) => send(IPC.pricesState, state)
+    broadcast: (state) => send(IPC.pricesState, state),
+    onFresh: (dataset) => void recorder.record(dataset).catch((err) => log(`Recording prices failed: ${err}`))
   })
   const containers = createContainerService(containerLootData as ContainerLootData)
 
-  registerIpc({ settings, prices, containers })
-  mainWindow = createWindow()
+  const trends = createTrendService({
+    recorder,
+    fetchFn,
+    getDataset: (dataMode) => prices.peek(dataMode)?.dataset ?? null
+  })
+
+  const background = createBackgroundMode({
+    isEnabled: () => settings.get().backgroundRecording,
+    getWindow: () => mainWindow
+  })
+  registerIpc({
+    settings,
+    prices,
+    containers,
+    trends,
+    onSettingsChanged: (previous, current) => {
+      if (
+        previous.backgroundRecording !== current.backgroundRecording ||
+        previous.startWithWindows !== current.startWithWindows
+      ) {
+        background.apply(current)
+      }
+    }
+  })
+  // Launched at Windows login with background recording on: stay in the tray.
+  mainWindow = createWindow(!(launchedHidden() && settings.get().backgroundRecording))
+  background.attach(mainWindow)
+  background.apply(settings.get())
+  showMainWindow = background.showWindow
   initUpdater((status) => send(IPC.updaterStatus, status))
 
   app.on('before-quit', () => prices.dispose())
@@ -106,11 +144,7 @@ async function bootstrap(): Promise<void> {
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
-  })
+  app.on('second-instance', () => showMainWindow())
 
   app.whenReady().then(() => {
     app.setAppUserModelId(APP_ID)

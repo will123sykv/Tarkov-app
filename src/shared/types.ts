@@ -1,3 +1,6 @@
+import type { FleaFeeRates } from './fleaFee'
+import type { HistoryPoint, TrendSortKey, TrendStats } from './fleaTrends'
+
 export type GameMode = 'pvp' | 'pve' | 'season'
 
 /** The price economy actually fetched. PvP Season has no tarkov.dev data, so it reads PvP. */
@@ -31,6 +34,13 @@ export interface LootItem {
   /** Flea listing fee for selling one unit at fleaPrice. */
   fleaFee: number | null
   bestTrader: TraderPrice | null
+  // Optional: absent from tarkov-market data and from caches written by older versions.
+  /** Handbook base price; the flea fee is computed from it. */
+  basePrice?: number | null
+  /** Offers currently up on the flea (a stand-in for how quickly the item sells). */
+  offerCount?: number | null
+  low24hPrice?: number | null
+  high24hPrice?: number | null
 }
 
 export interface PriceDataset {
@@ -40,6 +50,10 @@ export interface PriceDataset {
   fetchedAt: number
   fleaMinLevel: number
   items: LootItem[]
+  /** Flea listing fee rates, when the source reports them. */
+  fleaFeeRates?: FleaFeeRates
+  /** Whether only found-in-raid items can be listed on the flea. */
+  foundInRaidRequired?: boolean | null
 }
 
 export interface PriceFetchResult {
@@ -104,6 +118,29 @@ export interface Settings {
   pool: PoolSelection
   /** Order of the container list: by average value per search, or A–Z. */
   containerSort: 'value' | 'name'
+  view: AppView
+  trends: TrendSettings
+  /** Keep refreshing and recording prices in the system tray when the window is closed. */
+  backgroundRecording: boolean
+  /** Start hidden in the tray when Windows starts (only takes effect with background recording). */
+  startWithWindows: boolean
+}
+
+export type AppView = 'loot' | 'trends'
+
+export interface TrendSettings {
+  /** Lookback window for patterns, in days. */
+  days: 7 | 14 | 30
+  /** Liquidity: minimum average number of offers up. */
+  minOffers: number
+  minPrice: number
+  /** Minimum profit per unit after the listing fee. */
+  minProfit: number
+  /** Minimum share of days the trade would have paid off, 0–1. */
+  minConsistency: number
+  sort: TrendSortKey
+  /** Only items the player can buy and sell on the flea at their level. */
+  tradableOnly: boolean
 }
 
 /** Settings as exposed to the renderer: the API key itself never leaves the main process. */
@@ -124,4 +161,29 @@ export interface UpdaterStatus {
   version?: string
   percent?: number
   message?: string
+}
+
+export interface TrendAnalysis {
+  dataMode: DataMode
+  days: number
+  bucketHours: number
+  coverage: {
+    /** Recordings taken (each covers all recorded items). */
+    snapshots: number
+    /** Calendar days with at least one recording. */
+    days: number
+    firstAt: number | null
+    lastAt: number | null
+    /** Recordings per hour of the day (local time), to show gaps in coverage. */
+    snapshotsByHour: number[]
+    items: number
+  }
+  stats: Record<string, TrendStats>
+}
+
+export interface TrendSeries {
+  itemId: string
+  /** tarkov.dev's history: one point per day. */
+  daily: HistoryPoint[]
+  dailyError: string | null
 }

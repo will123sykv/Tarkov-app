@@ -11,7 +11,7 @@ const dataset = (fetchedAt: number, dataMode: DataMode = 'pvp'): PriceDataset =>
   items: []
 })
 
-function setup(cached: PriceDataset | null = null) {
+function setup(cached: PriceDataset | null = null, onFresh?: (dataset: PriceDataset) => void) {
   let clock = 10_000
   let active: DataMode = 'pvp'
   const timers: { fn: () => void; ms: number }[] = []
@@ -26,6 +26,7 @@ function setup(cached: PriceDataset | null = null) {
     getActiveDataMode: () => active,
     getIntervalMs: () => 5 * 60_000,
     broadcast: (s) => broadcasts.push(s),
+    onFresh,
     now: () => clock,
     setTimer: (fn, ms) => {
       timers.push({ fn, ms })
@@ -64,6 +65,18 @@ describe('price controller', () => {
     tick(5 * 60_000)
     timers.at(-1)!.fn()
     await vi.waitFor(() => expect(service.fetchFresh).toHaveBeenCalledTimes(2))
+  })
+
+  it('hands freshly fetched prices (not cached ones) to the recorder', async () => {
+    const onFresh = vi.fn()
+    const { controller, setResult } = setup(null, onFresh)
+    expect(controller.peek('pvp')).toBeNull()
+    await controller.refresh('pvp')
+    expect(onFresh).toHaveBeenCalledTimes(1)
+    expect(controller.peek('pvp')?.dataset?.fetchedAt).toBe(10_000)
+    setResult({ dataset: dataset(1), fromCache: true, error: 'offline' })
+    await controller.refresh('pvp')
+    expect(onFresh).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the previous data when a refresh fails', async () => {

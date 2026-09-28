@@ -2,15 +2,17 @@
  * Live check of the tarkov.dev sources the app uses. Runs in CI (non-blocking) so a format
  * change on tarkov.dev's side shows up quickly. Usage: npm run smoke:api
  *
- * json.tarkov.dev (the primary source) must work and still know most bundled container loot
- * items; the GraphQL fallback is only reported.
+ * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
+ * still carry what the flea trends view needs; the GraphQL fallback is only reported.
  */
-import type { DataMode } from '../src/shared/types'
+import { todaySwing } from '../src/shared/fleaTrends'
+import type { DataMode, PriceDataset } from '../src/shared/types'
 import { rankItems } from '../src/shared/valuation'
 import containerLoot from '../src/main/data/containerLoot.json'
 import { errorMessage } from '../src/main/pricing/http'
 import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
-import { fetchJsonData, fetchTarkovDevJson, jsonUrl, values } from '../src/main/pricing/tarkovDevJson'
+import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
+import { normalizeDailyHistory } from '../src/main/trends/trendService'
 
 function check(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
@@ -22,7 +24,7 @@ async function timed<T>(load: () => Promise<T>): Promise<[T, number]> {
   return [result, Date.now() - start]
 }
 
-async function smokeJson(dataMode: DataMode): Promise<void> {
+async function smokeJson(dataMode: DataMode): Promise<PriceDataset> {
   const [dataset, ms] = await timed(() => fetchTarkovDevJson(fetch, dataMode))
   const { items } = dataset
   const count = (predicate: (i: (typeof items)[number]) => unknown) => items.filter(predicate).length
@@ -66,6 +68,7 @@ async function smokeJson(dataMode: DataMode): Promise<void> {
       `${covered} of ${containerLoot.items.length} items known to tarkov.dev (${(coverage * 100).toFixed(1)}%)`
   )
   check(coverage >= 0.8, 'fewer than 80% of container loot items exist on tarkov.dev')
+  return dataset
 }
 
 async function reportGraphql(dataMode: DataMode): Promise<void> {
@@ -78,62 +81,51 @@ async function reportGraphql(dataMode: DataMode): Promise<void> {
 }
 
 /**
- * Informational: what the raw items dump and the per-item price history files contain, for the
- * flea trends feature (offer counts, 24h range, history granularity and size). Never fails.
+ * The flea trends view records the most-listed items and ranks them by offers and today's swing,
+ * and shows tarkov.dev's daily history per item: check those fields are still there.
  */
-async function probeTrendData(dataMode: DataMode): Promise<void> {
-  try {
-    const raw = await fetchJsonData<Record<string, unknown>>(fetch, dataMode, 'items')
-    const flea = raw.fleaMarket as Record<string, unknown> | undefined
-    console.log(`[probe ${dataMode}] fleaMarket keys: ${Object.keys(flea ?? {}).join(', ')}`)
-    console.log(`[probe ${dataMode}] fleaMarket.foundInRaidRequired = ${String(flea?.foundInRaidRequired)}`)
-    const items = values(raw.items as Record<string, Record<string, unknown>>)
-    const fields = ['lastOfferCount', 'low24hPrice', 'high24hPrice', 'changeLast48hPercent', 'basePrice']
-    for (const field of fields) {
-      const present = items.filter((i) => typeof i[field] === 'number').length
-      console.log(`[probe ${dataMode}] items with ${field}: ${present} of ${items.length}`)
-    }
-    const liquid = items
-      .filter((i) => typeof i.lastOfferCount === 'number')
-      .sort((a, b) => (b.lastOfferCount as number) - (a.lastOfferCount as number))
+async function smokeTrends(dataset: PriceDataset): Promise<void> {
+  const { items, dataMode } = dataset
+  const recordable = items
+    .filter((i) => !i.bannedOnFlea && (i.fleaPrice ?? 0) > 0 && (i.offerCount ?? 0) > 0)
+    .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
+  const withRange = items.filter((i) => todaySwing(i) !== null).length
+  console.log(
+    `[trends ${dataMode}] ${recordable.length} recordable items (offer count + flea price) · ` +
+      `${withRange} with a 24h range · found-in-raid required: ${String(dataset.foundInRaidRequired)} · ` +
+      `fee rates: ${JSON.stringify(dataset.fleaFeeRates)}`
+  )
+  check(recordable.length >= 300, 'fewer than 300 items have offer counts and flea prices to record')
+  check(withRange > 500, 'the 24h low/high prices are missing')
+  if (dataset.foundInRaidRequired)
+    console.log(`[trends ${dataMode}] note: the flea requires found-in-raid items`)
+
+  const swings = recordable
+    .filter((i) => (i.offerCount ?? 0) >= 25 && todaySwing(i) !== null)
+    .sort((a, b) => todaySwing(b)! - todaySwing(a)!)
+    .slice(0, 5)
+  for (const i of swings) {
     console.log(
-      `[probe ${dataMode}] offer count percentiles: ` +
-        [0.01, 0.05, 0.1, 0.25, 0.5]
-          .map((q) => `top ${q * 100}%≥${liquid[Math.floor(liquid.length * q)]?.lastOfferCount ?? '?'}`)
-          .join(', ')
+      `  ${i.name}: ${i.offerCount} offers, ₽${i.low24hPrice?.toLocaleString()}–₽${i.high24hPrice?.toLocaleString()} ` +
+        `(${Math.round(todaySwing(i)! * 100)}% swing)`
     )
-    for (const item of liquid.slice(0, 3)) {
-      const id = String(item.id)
-      const res = await fetch(jsonUrl(dataMode, `prices/${id}`))
-      const text = await res.text()
-      const body = JSON.parse(text) as { data?: Record<string, unknown>[] }
-      const points = Array.isArray(body.data) ? body.data : []
-      const times = points
-        .map((p) => Number(p.timestamp))
-        .filter(Number.isFinite)
-        .sort((a, b) => a - b)
-      const gaps = times
-        .slice(1)
-        .map((t, i) => t - times[i])
-        .sort((a, b) => a - b)
-      const median = gaps.length ? gaps[Math.floor(gaps.length / 2)] : NaN
-      console.log(
-        `[probe ${dataMode}] history ${id} (${item.lastOfferCount} offers): HTTP ${res.status}, ${text.length} bytes, ` +
-          `${points.length} points, span ${((times.at(-1)! - times[0]) / 3_600_000 / 24).toFixed(1)} days, ` +
-          `median gap ${(median / 60_000).toFixed(1)} min, keys: ${Object.keys(points[0] ?? {}).join(', ')}, ` +
-          `sample: ${JSON.stringify(points.at(-1))}`
-      )
-    }
-  } catch (err) {
-    console.log(`[probe ${dataMode}] failed: ${errorMessage(err)}`)
   }
+
+  const top = recordable[0]
+  const daily = normalizeDailyHistory(await fetchJsonData(fetch, dataMode, `prices/${top.id}`))
+  const priced = daily.filter((p) => p.priceMin !== null)
+  console.log(
+    `[trends ${dataMode}] daily history for ${top.name}: ${daily.length} points, ${priced.length} with a lowest price, ` +
+      `latest ${new Date(daily.at(-1)?.t ?? 0).toISOString()}`
+  )
+  check(priced.length >= 7, 'the daily price history has fewer than 7 points with a lowest price')
 }
 
 async function main(): Promise<void> {
   for (const mode of ['pvp', 'pve'] as const) {
-    await smokeJson(mode)
+    const dataset = await smokeJson(mode)
+    await smokeTrends(dataset)
     await reportGraphql(mode)
-    await probeTrendData(mode)
   }
   console.log('tarkov.dev smoke test passed')
 }

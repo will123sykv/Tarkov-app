@@ -9,6 +9,8 @@ import type {
   PriceState,
   PublicSettings,
   SettingsPatch,
+  TrendAnalysis,
+  TrendSeries,
   UpdaterStatus
 } from '../../shared/types'
 
@@ -20,6 +22,12 @@ interface AppStore {
   /** Container loot keyed by map id ('' = all maps combined). */
   containerLoot: Record<string, ContainerLoot[]>
   search: string
+  trendAnalysis: Partial<Record<DataMode, TrendAnalysis>>
+  trendsLoading: boolean
+  trendsError: string | null
+  /** Keyed by `${dataMode}:${itemId}`. */
+  trendSeries: Record<string, TrendSeries>
+  selectedTrendItem: string | null
   updater: UpdaterStatus
   appVersion: string
   settingsOpen: boolean
@@ -31,12 +39,22 @@ interface AppStore {
   refreshPrices(): Promise<void>
   setContainerMap(mapId: string | null): Promise<void>
   applyPriceState(state: PriceState): void
+  loadTrends(): Promise<void>
+  loadTrendSeries(itemId: string): Promise<void>
+  selectTrendItem(itemId: string | null): void
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
 }
 
 let unsubscribers: (() => void)[] = []
 let settingsRequest = 0
+/** When each trend series was fetched, so a long-running app picks up new daily prices. */
+const seriesFetchedAt = new Map<string, number>()
+const SERIES_MAX_AGE_MS = 60 * 60_000
+
+export function trendSeriesKey(dataMode: DataMode, itemId: string): string {
+  return `${dataMode}:${itemId}`
+}
 
 export function containerLootKey(mapId: string | null): string {
   return mapId ?? ''
@@ -56,6 +74,11 @@ export const useStore = create<AppStore>((set, get) => ({
   containerCatalog: null,
   containerLoot: {},
   search: '',
+  trendAnalysis: {},
+  trendsLoading: false,
+  trendsError: null,
+  trendSeries: {},
+  selectedTrendItem: null,
   updater: { state: 'idle' },
   appVersion: '',
   settingsOpen: false,
@@ -134,6 +157,41 @@ export const useStore = create<AppStore>((set, get) => ({
     })
   },
 
+  async loadTrends() {
+    const settings = get().settings
+    if (!settings) return
+    const dataMode = dataModeFor(settings.gameMode)
+    set({ trendsLoading: true })
+    try {
+      const analysis = await window.api.analyzeTrends(dataMode, settings.trends.days)
+      set((s) => ({ trendAnalysis: { ...s.trendAnalysis, [dataMode]: analysis }, trendsError: null }))
+    } catch (err) {
+      set({ trendsError: err instanceof Error ? err.message : String(err) })
+    } finally {
+      set({ trendsLoading: false })
+    }
+  },
+
+  async loadTrendSeries(itemId) {
+    const settings = get().settings
+    if (!settings) return
+    const dataMode = dataModeFor(settings.gameMode)
+    const key = trendSeriesKey(dataMode, itemId)
+    const cached = get().trendSeries[key]
+    if (cached && !cached.dailyError && Date.now() - (seriesFetchedAt.get(key) ?? 0) < SERIES_MAX_AGE_MS)
+      return
+    let series: TrendSeries
+    try {
+      series = await window.api.getTrendSeries(dataMode, itemId)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      series = { itemId, daily: [], dailyError: message }
+    }
+    seriesFetchedAt.set(key, Date.now())
+    set((s) => ({ trendSeries: { ...s.trendSeries, [key]: series } }))
+  },
+
+  selectTrendItem: (selectedTrendItem) => set({ selectedTrendItem }),
   setSearch: (search) => set({ search }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen })
 }))

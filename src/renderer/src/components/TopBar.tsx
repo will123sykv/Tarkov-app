@@ -1,7 +1,12 @@
 import { GAME_MODES } from '../../../shared/gameModes'
-import type { PriceState, PublicSettings } from '../../../shared/types'
+import type { AppView, PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import LevelInput from './LevelInput'
+
+const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
+  { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
+  { id: 'trends', label: 'Flea trends', subtitle: 'Best times to buy and sell' }
+]
 
 interface Props {
   settings: PublicSettings
@@ -14,6 +19,7 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
   const setPlayerLevel = useStore((s) => s.setPlayerLevel)
   const refreshPrices = useStore((s) => s.refreshPrices)
   const setSettingsOpen = useStore((s) => s.setSettingsOpen)
+  const updateSettings = useStore((s) => s.updateSettings)
   const level = settings.playerLevels[settings.gameMode]
   const refreshing = priceState?.refreshing ?? false
 
@@ -25,9 +31,23 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
         </span>
         <div>
           <h1>Tarkov Loot Optimiser</h1>
-          <p>Value per inventory slot</p>
+          <p>{VIEWS.find((v) => v.id === settings.view)?.subtitle}</p>
         </div>
       </div>
+
+      <nav className="view-tabs" role="tablist" aria-label="View">
+        {VIEWS.map((view) => (
+          <button
+            key={view.id}
+            role="tab"
+            aria-selected={settings.view === view.id}
+            className={settings.view === view.id ? 'active' : ''}
+            onClick={() => void updateSettings({ view: view.id })}
+          >
+            {view.label}
+          </button>
+        ))}
+      </nav>
 
       <div className="segmented" role="radiogroup" aria-label="Game mode">
         {GAME_MODES.map((mode) => (

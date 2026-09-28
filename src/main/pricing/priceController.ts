@@ -1,4 +1,4 @@
-import type { DataMode, PriceState } from '../../shared/types'
+import type { DataMode, PriceDataset, PriceState } from '../../shared/types'
 import type { PriceService } from './priceService'
 
 type TimerHandle = ReturnType<typeof setTimeout>
@@ -9,6 +9,8 @@ export interface PriceControllerDeps {
   getActiveDataMode: () => DataMode
   getIntervalMs: () => number
   broadcast: (state: PriceState) => void
+  /** Called with every freshly fetched (not cached) dataset, e.g. to record prices. */
+  onFresh?: (dataset: PriceDataset) => void
   now?: () => number
   setTimer?: (fn: () => void, ms: number) => TimerHandle
   clearTimer?: (handle: TimerHandle) => void
@@ -102,6 +104,7 @@ export function createPriceController(deps: PriceControllerDeps) {
       await ensureLoaded(dataMode)
       update(dataMode, { refreshing: true })
       const result = await deps.service.fetchFresh(dataMode)
+      if (result.dataset && !result.fromCache) deps.onFresh?.(result.dataset)
       const previous = states.get(dataMode)!
       // If every source failed, keep whatever we already had in memory: it is at least as new
       // as the cache file, and survives a failed cache write.
@@ -134,6 +137,8 @@ export function createPriceController(deps: PriceControllerDeps) {
 
   return {
     getState,
+    /** The current state if loaded, without starting a refresh. */
+    peek: (dataMode: DataMode): PriceState | null => states.get(dataMode) ?? null,
     refresh,
     /** Call after the game mode or refresh interval changes. */
     reschedule,

@@ -1,5 +1,31 @@
 const rub = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
+/** 4 → "04:00". */
+export function formatHour(hour: number): string {
+  return `${String(((Math.floor(hour) % 24) + 24) % 24).padStart(2, '0')}:00`
+}
+
+/** A time-of-day slot, e.g. 4, 1 → "04:00–05:00". */
+export function formatSlot(startHour: number, hours: number): string {
+  return `${formatHour(startHour)}–${formatHour(startHour + hours)}`
+}
+
+/** Compact roubles for axis ticks: 1500 → "₽1.5k", 2_000_000 → "₽2M". */
+export function formatRubShort(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 1_000_000) return `₽${+(value / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `₽${+(value / 1_000).toFixed(1)}k`
+  return `₽${Math.round(value)}`
+}
+
+/** Roubles to three significant figures for tight table cells: 595_719 → "₽596k", 99_807 → "₽99.8k". */
+export function formatRubCompact(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 999_500) return `₽${+(value / 1_000_000).toPrecision(3)}M`
+  if (abs >= 1_000) return `₽${+(value / 1_000).toPrecision(3)}k`
+  return `₽${Math.round(value)}`
+}
+
 export function formatRub(value: number | null | undefined): string {
   return value == null ? '—' : `₽${rub.format(Math.round(value))}`
 }
