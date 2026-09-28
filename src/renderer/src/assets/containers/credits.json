@@ -48,14 +48,6 @@
     "license": "CC BY-SA 3.0"
   },
   {
-    "id": "common-fund-stash",
-    "file": "common-fund-stash.webp",
-    "pageTitle": "Common fund stash",
-    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Common_fund_stash",
-    "wikiFile": "CFS_Map.png",
-    "license": "CC BY-SA 3.0"
-  },
-  {
     "id": "dead-scav",
     "file": "dead-scav.webp",
     "pageTitle": "Dead Scav",
@@ -106,9 +98,9 @@
   {
     "id": "lab-technician-body",
     "file": "lab-technician-body.webp",
-    "pageTitle": "Lab technician body",
-    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Lab_technician_body",
-    "wikiFile": "Saving_the_Mole_Map.png",
+    "pageTitle": "Civilian body",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Civilian_body",
+    "wikiFile": "Dead_Civilian_Loot_Container.png",
     "license": "CC BY-SA 3.0"
   },
   {
@@ -197,6 +189,14 @@
     "pageTitle": "Toolbox",
     "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Toolbox",
     "wikiFile": "Toolbox.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "weapon-box",
+    "file": "weapon-box.webp",
+    "pageTitle": "Weapon box (4x4)",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Weapon_box_(4x4)",
+    "wikiFile": "Weapon_Box_4x4.png",
     "license": "CC BY-SA 3.0"
   },
   {
