@@ -23,7 +23,8 @@
     "release": "electron-vite build && electron-builder --win --publish always",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "data:containers": "tsx scripts/build-container-loot.ts"
+    "data:containers": "tsx scripts/build-container-loot.ts",
+    "data:container-images": "tsx scripts/fetch-container-images.ts"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"

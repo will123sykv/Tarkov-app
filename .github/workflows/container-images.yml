@@ -1,0 +1,48 @@
+name: Container images
+
+# Downloads container pictures from the Tarkov wiki (which the development sandbox can't reach)
+# and commits them to the branch that triggered the run.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['**']
+    paths:
+      - scripts/fetch-container-images.ts
+      - scripts/containerImages.ts
+      - scripts/container-image-titles.json
+      - .github/workflows/container-images.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: container-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    name: Fetch container images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run data:container-images
+
+      # Pushes made with GITHUB_TOKEN don't start new workflow runs, so this can't loop.
+      - name: Commit images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/src/assets/containers
+          if git diff --cached --quiet; then
+            echo "Container images are up to date"
+            exit 0
+          fi
+          git commit -m "Update container images from the Tarkov wiki"
+          git push

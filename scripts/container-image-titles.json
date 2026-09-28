@@ -1,0 +1,14 @@
+{
+  "dead-scav": ["Dead Scav", "Scav body"],
+  "scav-body": ["Scav body", "Dead Scav"],
+  "pmc-body": ["PMC body", "Dead Scav"],
+  "civilian-body": ["Civilian body", "Dead Scav"],
+  "lab-technician-body": ["Lab technician body", "Dead Scav"],
+  "medbag-smu06": ["Medbag SMU06", "Medbag"],
+  "cash-register-tar2-2": ["Cash register TAR2-2", "Cash register"],
+  "bank-cash-register": ["Bank cash register", "Cash register"],
+  "bank-safe": ["Bank safe", "Safe"],
+  "medical-supply-crate": ["Medical supply crate", "Airdrop supply crate", "Airdrop"],
+  "ration-supply-crate": ["Ration supply crate", "Airdrop supply crate", "Airdrop"],
+  "technical-supply-crate": ["Technical supply crate", "Airdrop supply crate", "Airdrop"]
+}
