@@ -1,0 +1,29 @@
+appId: com.will123sykv.tarkovlootoptimiser
+productName: Tarkov Loot Optimiser
+copyright: Copyright © 2026 will123sykv
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # No spaces: GitHub rewrites spaces in asset names, which would break latest.yml.
+  artifactName: TarkovLootOptimiser-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Tarkov Loot Optimiser
+  uninstallDisplayName: Tarkov Loot Optimiser
+publish:
+  provider: github
+  owner: will123sykv
+  repo: Tarkov-app
+  releaseType: release
