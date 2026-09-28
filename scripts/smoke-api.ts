@@ -36,6 +36,7 @@ async function smokeJson(dataMode: DataMode): Promise<void> {
   check(count((i) => i.fleaPrice) > 500, 'expected flea prices for more than 500 items')
   check(count((i) => i.bestTrader) > 500, 'expected trader prices for more than 500 items')
   check(untranslated < items.length / 10, 'item names are not being translated')
+  check(count((i) => i.category) > items.length / 2, 'item categories are missing')
   check(
     items.some((i) => i.bestTrader && !/^[0-9a-f]{24}/.test(i.bestTrader.name)),
     'trader names are not being translated'

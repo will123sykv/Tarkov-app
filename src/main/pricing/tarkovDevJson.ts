@@ -29,6 +29,8 @@ export interface JsonItem {
   iconLink?: string | null
   wikiLink?: string | null
   bsgCategoryId?: string | null
+  /** Category ids, most specific first (what tarkov.dev's site reads). */
+  categories?: string[] | null
   sellToTrader?: { trader: string; priceRUB?: number | null }[] | null
 }
 
@@ -39,7 +41,7 @@ export interface JsonItemsData {
     sellOfferFeeRate?: number | null
     sellRequirementFeeRate?: number | null
   } | null
-  itemCategories?: Dict<{ name?: string | null }> | null
+  itemCategories?: Dict<{ name?: string | null; normalizedName?: string | null }> | null
 }
 
 export type JsonTraders = Dict<{ name?: string | null; normalizedName?: string | null }>
@@ -63,6 +65,11 @@ export function values<T>(collection: Collection<T> | null | undefined): T[] {
 /** Resolve a translation key, falling back to the key itself. */
 export function translator(lang: Dict<string>): (key: string | null | undefined) => string | null {
   return (key) => (key ? (lang[key] ?? key) : null)
+}
+
+function prettifySlug(slug: string): string {
+  const words = slug.replace(/[-_]+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /** Fetch one json.tarkov.dev file and unwrap its `data`. */
@@ -115,7 +122,12 @@ export function normalizeTarkovDevJson(
     const types = raw.types ?? []
     const fleaPrice = positive(raw.lastLowPrice) ?? positive(raw.avg24hPrice)
     const basePrice = positive(raw.basePrice)
-    const categoryKey = raw.bsgCategoryId ? input.items.itemCategories?.[raw.bsgCategoryId]?.name : null
+    const categoryId = raw.bsgCategoryId ?? raw.categories?.[0]
+    const categoryInfo = categoryId ? input.items.itemCategories?.[categoryId] : undefined
+    // Prefer the translated name; an untranslated key is worse than the category's slug.
+    const category =
+      (categoryInfo?.name && input.itemsLang[categoryInfo.name]) ||
+      (categoryInfo?.normalizedName ? prettifySlug(categoryInfo.normalizedName) : null)
     items.push({
       id: raw.id,
       name,
@@ -126,7 +138,7 @@ export function normalizeTarkovDevJson(
       height,
       slots: width * height,
       types,
-      category: itemText(categoryKey),
+      category,
       bannedOnFlea: types.includes('noFlea'),
       minLevelForFlea: positive(raw.minLevelForFlea),
       fleaPrice,

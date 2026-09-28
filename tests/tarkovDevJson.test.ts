@@ -28,7 +28,7 @@ describe('normalizeTarkovDevJson', () => {
     )
     expect(dataset).toMatchObject({ dataMode: 'pvp', source: 'tarkov.dev', fetchedAt: 42, fleaMinLevel: 15 })
     const comparable = (items: typeof dataset.items) =>
-      items.map(({ fleaFee: _fee, iconLink: _icon, ...rest }) => rest)
+      items.map(({ fleaFee: _fee, iconLink: _icon, category: _category, ...rest }) => rest)
     expect(comparable(dataset.items)).toEqual(comparable(graphql.items))
   })
 
@@ -38,6 +38,12 @@ describe('normalizeTarkovDevJson', () => {
       category: 'Electronics',
       bestTrader: { name: 'Mechanic', price: 105_600 }
     })
+  })
+
+  it('reads the category from the categories list, falling back to its slug when untranslated', () => {
+    expect(get('LEDX').category).toBe('Medical supplies')
+    expect(get('Factory').category).toBe('Mechanical key')
+    expect(get('Folder').category).toBeNull()
   })
 
   it('computes flea fees locally from the base price and flea price', () => {
