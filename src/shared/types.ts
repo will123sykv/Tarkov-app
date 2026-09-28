@@ -1,5 +1,3 @@
-import type { CategoryId } from './categories'
-
 export type GameMode = 'pvp' | 'pve' | 'season'
 
 /** The price economy actually fetched. PvP Season has no tarkov.dev data, so it reads PvP. */
@@ -61,19 +59,26 @@ export interface PriceState extends PriceFetchResult {
   nextRefreshAt: number | null
 }
 
-export interface MapPool {
+export interface ContainerCatalog {
+  source: string
+  sourceUrl: string
+  license: string
+  /** Month of the newest item in the loot tables (YYYY-MM). */
+  dataAsOf: string
+  maps: { id: string; name: string }[]
+  containers: { id: string; name: string; mapIds: string[] }[]
+}
+
+export interface ContainerLoot {
   id: string
   name: string
-  itemIds: string[]
+  /** Average number of items one search rolls. */
+  expectedCount: number
+  /** Share of the container's rolls that are each item; sums to 1. */
+  items: { id: string; chance: number }[]
 }
 
-export interface MapPoolsResult {
-  pools: MapPool[]
-  fetchedAt: number | null
-  error: string | null
-}
-
-export type SortKey = 'valuePerSlot' | 'worth' | 'flea' | 'trader' | 'slots' | 'name'
+export type SortKey = 'valuePerSlot' | 'worth' | 'flea' | 'trader' | 'slots' | 'name' | 'chance'
 
 export interface SortState {
   key: SortKey
@@ -81,7 +86,9 @@ export interface SortState {
 }
 
 export interface PoolSelection {
-  category: CategoryId
+  /** Container to show the loot of, or null for every item. */
+  containerId: string | null
+  /** Map whose loot tables to use, or null for all maps combined. */
   mapId: string | null
 }
 
@@ -95,6 +102,8 @@ export interface Settings {
   minValuePerSlot: number
   sort: SortState
   pool: PoolSelection
+  /** Order of the container list: by average value per search, or A–Z. */
+  containerSort: 'value' | 'name'
 }
 
 /** Settings as exposed to the renderer: the API key itself never leaves the main process. */

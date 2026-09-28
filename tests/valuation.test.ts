@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeTarkovDev, type TarkovDevPricesResponse } from '../src/main/pricing/tarkovDev'
 import type { SortState } from '../src/shared/types'
-import { evaluateItem, fleaAccess, rankItems, type RankFilters } from '../src/shared/valuation'
+import { evaluateItem, fleaAccess, rankItems, searchChance, type RankFilters } from '../src/shared/valuation'
 import { fixture } from './helpers'
 
 const { items } = normalizeTarkovDev(
@@ -17,8 +17,7 @@ const ctx = (playerLevel: number, subtractFleaFee = true) => ({
   subtractFleaFee
 })
 const filters = (overrides: Partial<RankFilters> = {}): RankFilters => ({
-  category: 'all',
-  mapItemIds: null,
+  container: null,
   search: '',
   hideLocked: false,
   minValuePerSlot: 0,
@@ -102,16 +101,7 @@ describe('rankItems', () => {
     ])
   })
 
-  it('filters by category, map, search and minimum value', () => {
-    expect(names(rankItems(items, ctx(15), filters({ category: 'keys' }), bySlotValue))).toEqual([
-      'Red',
-      'Factory'
-    ])
-    const customs = new Set(['57347ca924597744596b4e71', '5448ba0b4bdc2d02308b456c'])
-    expect(names(rankItems(items, ctx(15), filters({ mapItemIds: customs }), bySlotValue))).toEqual([
-      'GPU',
-      'Factory'
-    ])
+  it('filters by search and minimum value', () => {
     expect(names(rankItems(items, ctx(15), filters({ search: ' gpu ' }), bySlotValue))).toEqual(['GPU'])
     expect(names(rankItems(items, ctx(15), filters({ minValuePerSlot: 300_000 }), bySlotValue))).toEqual([
       'LEDX',
@@ -130,5 +120,49 @@ describe('rankItems', () => {
     ])
     expect(names(rankItems(items, ctx(15), filters(), { key: 'slots', dir: 'desc' }))[0]).toBe('GPU')
     expect(names(rankItems(items, ctx(15), filters(), { key: 'trader', dir: 'asc' }))[0]).toBe('Factory')
+  })
+
+  describe('with a container', () => {
+    // A made-up container: GPU is 60% of its rolls, the Factory key 30%, LEDX 10%.
+    const container = {
+      chances: new Map([
+        [byName('GPU').id, 0.6],
+        [byName('Factory').id, 0.3],
+        [byName('LEDX').id, 0.1]
+      ]),
+      expectedCount: 2
+    }
+
+    it('keeps only what can spawn in it and attaches spawn chances', () => {
+      const rows = rankItems(items, ctx(15), filters({ container }), bySlotValue)
+      expect(names(rows)).toEqual(['LEDX', 'GPU', 'Factory'])
+      const gpu = rows.find((r) => r.item.shortName === 'GPU')!
+      expect(gpu.chance).toBe(0.6)
+      expect(gpu.searchChance).toBeCloseTo(1 - 0.4 ** 2)
+    })
+
+    it('sorts by per-search chance', () => {
+      const rows = rankItems(items, ctx(15), filters({ container }), { key: 'chance', dir: 'desc' })
+      expect(names(rows)).toEqual(['GPU', 'Factory', 'LEDX'])
+    })
+
+    it('falls back to value per slot when sorting by chance without a container', () => {
+      expect(names(rankItems(items, ctx(15), filters(), { key: 'chance', dir: 'desc' }))).toEqual(
+        names(rankItems(items, ctx(15), filters(), bySlotValue))
+      )
+    })
+
+    it('leaves chance empty without a container', () => {
+      expect(rankItems(items, ctx(15), filters(), bySlotValue).every((r) => r.chance === null)).toBe(true)
+    })
+  })
+})
+
+describe('searchChance', () => {
+  it('is the chance of at least one hit across the rolls of a search', () => {
+    expect(searchChance(0.5, 1)).toBe(0.5)
+    expect(searchChance(0.5, 2)).toBe(0.75)
+    expect(searchChance(0.2, 0)).toBe(0)
+    expect(searchChance(1, 1.5)).toBe(1)
   })
 })

@@ -1,21 +1,24 @@
 import { useDeferredValue, useEffect, useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
+import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
-import { rankItems } from '../../shared/valuation'
+import { rankItems, type ContainerFilter } from '../../shared/valuation'
+import ContainerSidebar from './components/ContainerSidebar'
+import ContainerSummary from './components/ContainerSummary'
 import ItemTable from './components/ItemTable'
 import ModeBanner from './components/ModeBanner'
-import PoolSidebar from './components/PoolSidebar'
 import SettingsDialog from './components/SettingsDialog'
 import StatusBar from './components/StatusBar'
 import TopBar from './components/TopBar'
-import { useStore } from './store'
+import { containerLootKey, useStore } from './store'
 
 export default function App(): React.JSX.Element {
   const init = useStore((s) => s.init)
   const settings = useStore((s) => s.settings)
   const initError = useStore((s) => s.initError)
   const prices = useStore((s) => s.prices)
-  const mapPools = useStore((s) => s.mapPools)
+  const catalog = useStore((s) => s.containerCatalog)
+  const containerLoot = useStore((s) => s.containerLoot)
   const search = useDeferredValue(useStore((s) => s.search))
 
   useEffect(() => {
@@ -27,27 +30,45 @@ export default function App(): React.JSX.Element {
   const dataset = priceState?.dataset ?? null
   const fleaMinLevel = dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
   const playerLevel = settings ? settings.playerLevels[settings.gameMode] : 1
-  const selectedMap = settings?.pool.mapId
-    ? (mapPools[dataMode]?.pools.find((p) => p.id === settings.pool.mapId) ?? null)
-    : null
+  const subtractFleaFee = settings?.subtractFleaFee ?? true
+  const mapId = settings?.pool.mapId ?? null
+  const containerId = settings?.pool.containerId ?? null
 
-  const mapItemIds = useMemo(() => (selectedMap ? new Set(selectedMap.itemIds) : null), [selectedMap])
+  const ctx = useMemo(
+    () => ({ playerLevel, fleaMinLevel, subtractFleaFee }),
+    [playerLevel, fleaMinLevel, subtractFleaFee]
+  )
+  // What every item is worth to this player; shared by the container ranking and summary.
+  const values = useMemo(() => valuesById(dataset?.items ?? [], ctx), [dataset, ctx])
+  const lootList = containerLoot[containerLootKey(mapId)]
+  const ranking = useMemo(() => rankContainers(lootList ?? [], values), [lootList, values])
+  const selected = containerId ? (ranking.find((r) => r.loot.id === containerId) ?? null) : null
+
+  const containerFilter = useMemo<ContainerFilter | null>(
+    () =>
+      selected
+        ? {
+            chances: new Map(selected.loot.items.map((i) => [i.id, i.chance])),
+            expectedCount: selected.loot.expectedCount
+          }
+        : null,
+    [selected]
+  )
 
   const ranked = useMemo(() => {
     if (!dataset || !settings) return []
     return rankItems(
       dataset.items,
-      { playerLevel, fleaMinLevel, subtractFleaFee: settings.subtractFleaFee },
+      ctx,
       {
-        category: settings.pool.category,
-        mapItemIds,
+        container: containerFilter,
         search,
         hideLocked: settings.hideLocked,
         minValuePerSlot: settings.minValuePerSlot
       },
       settings.sort
     )
-  }, [dataset, settings, playerLevel, fleaMinLevel, mapItemIds, search])
+  }, [dataset, settings, ctx, containerFilter, search])
 
   if (initError) {
     return <div className="fatal">Failed to start: {initError}</div>
@@ -56,18 +77,39 @@ export default function App(): React.JSX.Element {
     return <div className="fatal muted">Loading…</div>
   }
 
+  const mapName = mapId ? (catalog?.maps.find((m) => m.id === mapId)?.name ?? null) : null
+  // A remembered container may not exist on the chosen map (e.g. no PC blocks on Factory).
+  const unavailableContainer =
+    containerId && lootList && !selected
+      ? (catalog?.containers.find((c) => c.id === containerId)?.name ?? null)
+      : null
+
   return (
     <div className="app">
       <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
       <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
       <div className="workspace">
-        <PoolSidebar settings={settings} dataMode={dataMode} />
-        <ItemTable
-          rows={ranked}
-          priceState={priceState}
-          sort={settings.sort}
-          selectedMapName={selectedMap?.name ?? null}
+        <ContainerSidebar
+          settings={settings}
+          catalog={catalog}
+          ranking={lootList ? ranking : null}
+          pricesLoaded={dataset !== null}
         />
+        <main className="content">
+          <ContainerSummary
+            selected={selected}
+            mapName={mapName}
+            unavailableContainer={unavailableContainer}
+            pricesLoaded={dataset !== null}
+          />
+          <ItemTable
+            rows={ranked}
+            priceState={priceState}
+            sort={settings.sort}
+            showChance={selected !== null}
+            scopeLabel={selected ? `${selected.loot.name}${mapName ? ` on ${mapName}` : ''}` : null}
+          />
+        </main>
       </div>
       <StatusBar
         priceState={priceState}

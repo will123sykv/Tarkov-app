@@ -3,8 +3,10 @@ import { join } from 'node:path'
 import { dataModeFor } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import type { PriceState, UpdaterStatus } from '../shared/types'
+import type { ContainerLootData } from '../shared/containerData'
+import { createContainerService } from './containers'
+import containerLootData from './data/containerLoot.json'
 import { registerIpc } from './ipc'
-import { createMapPoolService } from './pricing/mapPools'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
 import { createSettingsStore } from './settings'
@@ -30,7 +32,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1320,
     height: 860,
-    minWidth: 1100,
+    minWidth: 1200,
     minHeight: 600,
     show: false,
     backgroundColor: '#101214',
@@ -92,9 +94,9 @@ async function bootstrap(): Promise<void> {
     getIntervalMs: () => settings.get().refreshIntervalMin * 60_000,
     broadcast: (state) => send(IPC.pricesState, state)
   })
-  const mapPools = createMapPoolService({ fetchFn, cacheDir })
+  const containers = createContainerService(containerLootData as ContainerLootData)
 
-  registerIpc({ settings, prices, mapPools })
+  registerIpc({ settings, prices, containers })
   mainWindow = createWindow()
   initUpdater((status) => send(IPC.updaterStatus, status))
 

@@ -1,4 +1,3 @@
-import { isCategoryId } from './categories'
 import {
   DEFAULT_REFRESH_INTERVAL_MIN,
   MAX_PLAYER_LEVEL,
@@ -9,7 +8,7 @@ import {
 import { isGameMode } from './gameModes'
 import type { GameMode, Settings, SortKey } from './types'
 
-const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name']
+const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
 
 export const DEFAULT_SETTINGS: Settings = {
   gameMode: 'pvp',
@@ -19,7 +18,8 @@ export const DEFAULT_SETTINGS: Settings = {
   subtractFleaFee: true,
   minValuePerSlot: 0,
   sort: { key: 'valuePerSlot', dir: 'desc' },
-  pool: { category: 'all', mapId: null }
+  pool: { containerId: null, mapId: null },
+  containerSort: 'value'
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -30,6 +30,10 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
 
 export function clampPlayerLevel(value: unknown, fallback: number = MIN_PLAYER_LEVEL): number {
   return clampInt(value, MIN_PLAYER_LEVEL, MAX_PLAYER_LEVEL, fallback)
+}
+
+function optionalId(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,9 +70,10 @@ export function sanitizeSettings(raw: unknown): Settings {
       dir: sort.dir === 'asc' || sort.dir === 'desc' ? sort.dir : d.sort.dir
     },
     pool: {
-      category: isCategoryId(pool.category) ? pool.category : d.pool.category,
-      mapId: typeof pool.mapId === 'string' && pool.mapId ? pool.mapId : null
-    }
+      containerId: optionalId(pool.containerId),
+      mapId: optionalId(pool.mapId)
+    },
+    containerSort: r.containerSort === 'name' ? 'name' : 'value'
   }
 }
 

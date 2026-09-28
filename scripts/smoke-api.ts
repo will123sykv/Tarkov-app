@@ -2,12 +2,13 @@
  * Live check of the tarkov.dev sources the app uses. Runs in CI (non-blocking) so a format
  * change on tarkov.dev's side shows up quickly. Usage: npm run smoke:api
  *
- * json.tarkov.dev (the primary source) must work; the GraphQL fallback is only reported.
+ * json.tarkov.dev (the primary source) must work and still know most bundled container loot
+ * items; the GraphQL fallback is only reported.
  */
 import type { DataMode } from '../src/shared/types'
 import { rankItems } from '../src/shared/valuation'
+import containerLoot from '../src/main/data/containerLoot.json'
 import { errorMessage } from '../src/main/pricing/http'
-import { fetchJsonPools } from '../src/main/pricing/mapPools'
 import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
 import { fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
 
@@ -45,7 +46,7 @@ async function smokeJson(dataMode: DataMode): Promise<void> {
   const top = rankItems(
     items,
     { playerLevel: 62, fleaMinLevel: dataset.fleaMinLevel, subtractFleaFee: true },
-    { category: 'all', mapItemIds: null, search: '', hideLocked: false, minValuePerSlot: 0 },
+    { container: null, search: '', hideLocked: false, minValuePerSlot: 0 },
     { key: 'valuePerSlot', dir: 'desc' }
   ).slice(0, 5)
   for (const r of top) {
@@ -55,11 +56,16 @@ async function smokeJson(dataMode: DataMode): Promise<void> {
     )
   }
 
-  const [pools, mapMs] = await timed(() => fetchJsonPools(fetch, dataMode))
+  // The bundled container loot tables are a snapshot; flag it when too many of their items no
+  // longer exist on tarkov.dev (npm run data:containers refreshes them).
+  const known = new Set(items.map((i) => i.id))
+  const covered = containerLoot.items.filter((id) => known.has(id)).length
+  const coverage = covered / containerLoot.items.length
   console.log(
-    `[json ${dataMode}] map pools in ${mapMs} ms: ${pools.map((p) => `${p.name} (${p.itemIds.length})`).join(', ')}`
+    `[json ${dataMode}] container loot tables (as of ${containerLoot.dataAsOf}): ` +
+      `${covered} of ${containerLoot.items.length} items known to tarkov.dev (${(coverage * 100).toFixed(1)}%)`
   )
-  check(pools.length >= 5, 'expected loose loot for at least 5 maps')
+  check(coverage >= 0.8, 'fewer than 80% of container loot items exist on tarkov.dev')
 }
 
 async function reportGraphql(dataMode: DataMode): Promise<void> {

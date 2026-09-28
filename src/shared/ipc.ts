@@ -1,6 +1,7 @@
 import type {
+  ContainerCatalog,
+  ContainerLoot,
   DataMode,
-  MapPoolsResult,
   PriceState,
   PublicSettings,
   SettingsPatch,
@@ -13,7 +14,8 @@ export const IPC = {
   pricesGet: 'prices:get',
   pricesRefresh: 'prices:refresh',
   pricesState: 'prices:state',
-  poolsMaps: 'pools:maps',
+  containersCatalog: 'containers:catalog',
+  containersLoot: 'containers:loot',
   updaterStatus: 'updater:status',
   updaterGetStatus: 'updater:get-status',
   updaterCheck: 'updater:check',
@@ -28,7 +30,9 @@ export interface TarkovApi {
   /** Current price state; loads the cache and starts a refresh if the data is due. */
   getPrices(dataMode: DataMode): Promise<PriceState>
   refreshPrices(dataMode: DataMode): Promise<PriceState>
-  getMapPools(dataMode: DataMode, force?: boolean): Promise<MapPoolsResult>
+  getContainerCatalog(): Promise<ContainerCatalog>
+  /** Loot per container for one map, or all maps combined when mapId is null. */
+  getContainerLoot(mapId: string | null): Promise<ContainerLoot[]>
   getUpdaterStatus(): Promise<UpdaterStatus>
   checkForUpdates(): Promise<UpdaterStatus>
   installUpdate(): Promise<void>

@@ -273,7 +273,14 @@ select {
 
 .workspace {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 270px 1fr;
+  min-height: 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -284,6 +291,7 @@ select {
   padding: 14px;
   background: var(--panel);
   border-right: 1px solid var(--border);
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -324,7 +332,39 @@ input:focus {
   outline-offset: -1px;
 }
 
-.category-list {
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.mini-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.mini-toggle button {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mini-toggle button.active {
+  background: var(--panel-2);
+  color: var(--accent-strong);
+}
+
+.container-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -332,7 +372,10 @@ input:focus {
   gap: 2px;
 }
 
-.category-list button {
+.container-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   padding: 5px 10px;
   text-align: left;
@@ -342,14 +385,65 @@ input:focus {
   cursor: pointer;
 }
 
-.category-list button:hover {
+.container-list button span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.container-list .avg {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.container-list button:hover {
   background: var(--panel-2);
 }
 
-.category-list button.active {
+.container-list button.active {
   background: var(--panel-2);
   color: var(--accent-strong);
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.container-list button.active .avg {
+  color: var(--accent-strong);
+}
+
+/* Container summary */
+
+.summary {
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.summary-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.summary-title strong {
+  font-size: 15px;
+  color: var(--accent-strong);
+}
+
+.summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.summary-stats b {
+  font-family: var(--mono);
+  font-weight: 700;
 }
 
 .check {
@@ -387,6 +481,7 @@ button.link {
 /* Table */
 
 .table {
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -395,19 +490,27 @@ button.link {
 
 .row {
   display: grid;
-  grid-template-columns: 44px minmax(120px, 1fr) 48px 104px 116px 112px 104px 116px 84px;
+  grid-template-columns: 44px minmax(120px, 1fr) 48px 100px 112px 108px 100px 116px 84px;
   align-items: center;
   column-gap: 10px;
   padding: 0 12px;
 }
 
+.row.with-chance {
+  grid-template-columns: 44px minmax(120px, 1fr) 48px 100px 112px 108px 100px 64px 116px 84px;
+}
+
 /* The price source is always in the status bar, so drop the column when space is tight. */
-@media (max-width: 1240px) {
+@media (max-width: 1300px) {
   .row {
-    grid-template-columns: 44px minmax(120px, 1fr) 48px 104px 116px 112px 104px 116px;
+    grid-template-columns: 44px minmax(120px, 1fr) 48px 100px 112px 108px 100px 116px;
   }
 
-  .row > :nth-child(9) {
+  .row.with-chance {
+    grid-template-columns: 44px minmax(120px, 1fr) 48px 100px 112px 108px 100px 64px 116px;
+  }
+
+  .row > .col-source {
     display: none;
   }
 }

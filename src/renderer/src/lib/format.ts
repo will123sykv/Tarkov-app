@@ -20,3 +20,22 @@ export function formatCountdown(ms: number): string {
   const seconds = total % 60
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
+
+/** 0.024 → "2.4%", 0.5 → "50%", 0.0004 → "<0.1%". */
+export function formatPercent(fraction: number): string {
+  const percent = fraction * 100
+  if (percent > 0 && percent < 0.05) return '<0.1%'
+  const oneDecimal = Math.round(percent * 10) / 10
+  return oneDecimal >= 10 ? `${Math.round(percent)}%` : `${oneDecimal.toFixed(1)}%`
+}
+
+/** "2025-07" → "July 2025". */
+export function formatDataMonth(month: string): string {
+  const [year, m] = month.split('-').map(Number)
+  if (!year || !m) return month
+  return new Date(Date.UTC(year, m - 1, 1)).toLocaleString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC'
+  })
+}

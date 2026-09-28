@@ -2,17 +2,28 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef } from 'react'
 import type { PriceState, SortKey, SortState } from '../../../shared/types'
 import type { RankedItem } from '../../../shared/valuation'
-import { formatRub } from '../lib/format'
+import { formatPercent, formatRub } from '../lib/format'
 import { useStore } from '../store'
 
 interface Props {
   rows: RankedItem[]
   priceState: PriceState | null
   sort: SortState
-  selectedMapName: string | null
+  /** Show the per-search spawn chance column (a container is selected). */
+  showChance: boolean
+  /** e.g. "Jacket on Customs", for the empty state. */
+  scopeLabel: string | null
 }
 
-const COLUMNS: { key: SortKey | null; label: string; align?: 'right' }[] = [
+interface Column {
+  key: SortKey | null
+  label: string
+  align?: 'right'
+  className?: string
+  title?: string
+}
+
+const COLUMNS: Column[] = [
   { key: null, label: '' },
   { key: 'name', label: 'Item' },
   { key: 'slots', label: 'Size', align: 'right' },
@@ -20,22 +31,42 @@ const COLUMNS: { key: SortKey | null; label: string; align?: 'right' }[] = [
   { key: 'trader', label: 'Best trader', align: 'right' },
   { key: 'worth', label: 'Worth', align: 'right' },
   { key: 'valuePerSlot', label: '₽ / slot', align: 'right' },
+  {
+    key: 'chance',
+    label: 'Chance',
+    align: 'right',
+    className: 'col-chance',
+    title: 'Chance one search of this container turns up at least one'
+  },
   { key: null, label: 'Flea access' },
-  { key: null, label: 'Source' }
+  { key: null, label: 'Source', className: 'col-source' }
 ]
 
 const ROW_HEIGHT = 52
 
-function SortHeader({ sort }: { sort: SortState }): React.JSX.Element {
+function SortHeader({
+  sort,
+  columns,
+  rowClass
+}: {
+  sort: SortState
+  columns: Column[]
+  rowClass: string
+}): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
   function toggle(key: SortKey): void {
     const dir = sort.key === key ? (sort.dir === 'desc' ? 'asc' : 'desc') : key === 'name' ? 'asc' : 'desc'
     void updateSettings({ sort: { key, dir } })
   }
   return (
-    <div className="row header" role="row">
-      {COLUMNS.map((col, i) => (
-        <div key={i} role="columnheader" className={col.align === 'right' ? 'num' : ''}>
+    <div className={`${rowClass} header`} role="row">
+      {columns.map((col, i) => (
+        <div
+          key={i}
+          role="columnheader"
+          className={[col.align === 'right' ? 'num' : '', col.className ?? ''].join(' ').trim()}
+          title={col.title}
+        >
           {col.key ? (
             <button
               className={`sort ${sort.key === col.key ? 'active' : ''}`}
@@ -64,11 +95,13 @@ function AccessBadge({ row }: { row: RankedItem }): React.JSX.Element {
 function ItemRow({
   row,
   source,
-  cached
+  cached,
+  showChance
 }: {
   row: RankedItem
   source: string
   cached: boolean
+  showChance: boolean
 }): React.JSX.Element {
   const { item } = row
   const size = item.width && item.height ? `${item.width}×${item.height}` : `${item.slots}`
@@ -115,10 +148,20 @@ function ItemRow({
         {row.via && <small>via {row.via}</small>}
       </div>
       <div className="num per-slot">{formatRub(row.valuePerSlot)}</div>
+      {showChance && (
+        <div
+          className="num col-chance"
+          title={
+            row.chance != null ? `${formatPercent(row.chance)} of the items this container rolls` : undefined
+          }
+        >
+          {row.searchChance != null ? formatPercent(row.searchChance) : '—'}
+        </div>
+      )}
       <div>
         <AccessBadge row={row} />
       </div>
-      <div>
+      <div className="col-source">
         <span className="source" title={cached ? `Cached price from ${source}` : `Live price from ${source}`}>
           {source}
           {cached && ' *'}
@@ -128,7 +171,13 @@ function ItemRow({
   )
 }
 
-export default function ItemTable({ rows, priceState, sort, selectedMapName }: Props): React.JSX.Element {
+export default function ItemTable({
+  rows,
+  priceState,
+  sort,
+  showChance,
+  scopeLabel
+}: Props): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const refreshPrices = useStore((s) => s.refreshPrices)
   const virtualizer = useVirtualizer({
@@ -141,6 +190,8 @@ export default function ItemTable({ rows, priceState, sort, selectedMapName }: P
   const dataset = priceState?.dataset ?? null
   const source = dataset?.source ?? ''
   const cached = priceState?.fromCache ?? false
+  const columns = showChance ? COLUMNS : COLUMNS.filter((c) => c.key !== 'chance')
+  const rowClass = showChance ? 'row with-chance' : 'row'
 
   let empty: React.ReactNode = null
   if (!dataset) {
@@ -155,14 +206,12 @@ export default function ItemTable({ rows, priceState, sort, selectedMapName }: P
       <p>Fetching prices…</p>
     )
   } else if (rows.length === 0) {
-    empty = (
-      <p>No items match this pool{selectedMapName ? ` on ${selectedMapName}` : ''} and these filters.</p>
-    )
+    empty = <p>No items{scopeLabel ? ` from ${scopeLabel}` : ''} match these filters.</p>
   }
 
   return (
-    <main className="table" role="table" aria-label="Loot ranked by value per slot">
-      <SortHeader sort={sort} />
+    <div className="table" role="table" aria-label="Loot ranked by value per slot">
+      <SortHeader sort={sort} columns={columns} rowClass={rowClass} />
       <div className="table-body" ref={scrollRef}>
         {empty ? (
           <div className="empty">{empty}</div>
@@ -174,16 +223,16 @@ export default function ItemTable({ rows, priceState, sort, selectedMapName }: P
                 <div
                   key={row.item.id}
                   role="row"
-                  className={`row ${row.access.status !== 'sellable' ? 'not-sellable' : ''}`}
+                  className={`${rowClass} ${row.access.status !== 'sellable' ? 'not-sellable' : ''}`}
                   style={{ transform: `translateY(${v.start}px)`, height: ROW_HEIGHT }}
                 >
-                  <ItemRow row={row} source={source} cached={cached} />
+                  <ItemRow row={row} source={source} cached={cached} showChance={showChance} />
                 </div>
               )
             })}
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }

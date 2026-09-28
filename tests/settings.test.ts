@@ -24,15 +24,23 @@ describe('sanitizeSettings', () => {
       playerLevels: { pvp: 0, pve: 99, season: '20' },
       refreshIntervalMin: 0,
       sort: { key: 'bogus', dir: 'asc' },
-      pool: { category: 'nonsense', mapId: '' },
+      pool: { category: 'keys', containerId: 42, mapId: '' },
+      containerSort: 'price',
       hideLocked: 'yes'
     })
     expect(s.gameMode).toBe('pvp')
     expect(s.playerLevels).toEqual({ pvp: 1, pve: 62, season: 20 })
     expect(s.refreshIntervalMin).toBe(1)
     expect(s.sort).toEqual({ key: 'valuePerSlot', dir: 'asc' })
-    expect(s.pool).toEqual({ category: 'all', mapId: null })
+    expect(s.pool).toEqual({ containerId: null, mapId: null })
+    expect(s.containerSort).toBe('value')
     expect(s.hideLocked).toBe(false)
+  })
+
+  it('keeps a valid container and map selection', () => {
+    expect(
+      sanitizeSettings({ pool: { containerId: 'jacket', mapId: 'bigmap' }, containerSort: 'name' })
+    ).toMatchObject({ pool: { containerId: 'jacket', mapId: 'bigmap' }, containerSort: 'name' })
   })
 
   it('merges nested patches', () => {

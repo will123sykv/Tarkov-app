@@ -1,4 +1,3 @@
-import { categoryById, type CategoryId } from './categories'
 import type { LootItem, SortState } from './types'
 
 export type FleaStatus = 'sellable' | 'locked' | 'banned'
@@ -25,12 +24,22 @@ export interface RankedItem {
   worth: number
   via: 'flea' | 'trader' | null
   valuePerSlot: number
+  /** Share of the selected container's rolls that are this item; null without a container. */
+  chance: number | null
+  /** Approximate chance one search of the selected container turns up at least one. */
+  searchChance: number | null
+}
+
+export interface ContainerFilter {
+  /** Item id → share of the container's rolls. Items not in the map can't spawn there. */
+  chances: ReadonlyMap<string, number>
+  /** Average number of items one search rolls. */
+  expectedCount: number
 }
 
 export interface RankFilters {
-  category: CategoryId
-  /** Item ids that spawn on the selected map, or null for no map filter. */
-  mapItemIds: ReadonlySet<string> | null
+  /** Only show what can spawn in this container, or null for every item. */
+  container: ContainerFilter | null
   search: string
   hideLocked: boolean
   minValuePerSlot: number
@@ -63,12 +72,21 @@ export function evaluateItem(item: LootItem, ctx: ValuationContext): RankedItem 
     via = 'trader'
   }
 
-  return { item, access, fleaNet, worth, via, valuePerSlot: worth / Math.max(1, item.slots) }
+  return {
+    item,
+    access,
+    fleaNet,
+    worth,
+    via,
+    valuePerSlot: worth / Math.max(1, item.slots),
+    chance: null,
+    searchChance: null
+  }
 }
 
-function matchesCategory(item: LootItem, category: CategoryId): boolean {
-  const { types } = categoryById(category)
-  return types.length === 0 || types.some((t) => item.types.includes(t))
+/** Chance at least one of an item turns up when a search rolls `expectedCount` items. */
+export function searchChance(chance: number, expectedCount: number): number {
+  return 1 - Math.pow(1 - chance, Math.max(0, expectedCount))
 }
 
 function matchesSearch(item: LootItem, query: string): boolean {
@@ -90,6 +108,8 @@ function sortValue(r: RankedItem, key: SortState['key']): number | string {
       return r.item.slots
     case 'name':
       return r.item.name.toLowerCase()
+    case 'chance':
+      return r.searchChance ?? -1
   }
 }
 
@@ -103,8 +123,9 @@ export function compareRanked(a: RankedItem, b: RankedItem, sort: SortState): nu
 }
 
 /**
- * Filter a loot pool down to what the player cares about and rank it.
- * Weapon presets are skipped (they duplicate the base guns) as are items with no known sell price.
+ * Filter items (optionally to what a container can hold) down to what the player cares about
+ * and rank them. Weapon presets are skipped (they duplicate the base guns), as are items with
+ * no known sell price. Sorting by chance only applies with a container; otherwise it's ₽/slot.
  */
 export function rankItems(
   items: readonly LootItem[],
@@ -113,18 +134,25 @@ export function rankItems(
   sort: SortState
 ): RankedItem[] {
   const query = filters.search.trim().toLowerCase()
+  const { container } = filters
   const ranked: RankedItem[] = []
   for (const item of items) {
     if (item.types.includes('preset')) continue
-    if (filters.mapItemIds && !filters.mapItemIds.has(item.id)) continue
-    if (!matchesCategory(item, filters.category)) continue
+    const chance = container ? container.chances.get(item.id) : undefined
+    if (container && chance === undefined) continue
     if (!matchesSearch(item, query)) continue
 
     const r = evaluateItem(item, ctx)
+    if (container && chance !== undefined) {
+      r.chance = chance
+      r.searchChance = searchChance(chance, container.expectedCount)
+    }
     if (r.worth <= 0) continue
     if (filters.hideLocked && r.access.status !== 'sellable') continue
     if (r.valuePerSlot < filters.minValuePerSlot) continue
     ranked.push(r)
   }
-  return ranked.sort((a, b) => compareRanked(a, b, sort))
+  const effectiveSort: SortState =
+    sort.key === 'chance' && !container ? { key: 'valuePerSlot', dir: 'desc' } : sort
+  return ranked.sort((a, b) => compareRanked(a, b, effectiveSort))
 }

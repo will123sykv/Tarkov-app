@@ -1,49 +1,3 @@
-export type CategoryId =
-  | 'all'
-  | 'barter'
-  | 'keys'
-  | 'meds'
-  | 'provisions'
-  | 'ammo'
-  | 'weapons'
-  | 'mods'
-  | 'armor'
-  | 'carry'
-  | 'containers'
-  | 'gear'
-
-export interface Category {
-  id: CategoryId
-  label: string
-  /** tarkov.dev item types that belong to this pool; empty means everything. */
-  types: string[]
-}
-
-export const CATEGORIES: Category[] = [
-  { id: 'all', label: 'All items', types: [] },
-  { id: 'barter', label: 'Barter items', types: ['barter'] },
-  { id: 'keys', label: 'Keys & keycards', types: ['keys'] },
-  { id: 'meds', label: 'Meds & stims', types: ['meds', 'injectors'] },
-  { id: 'provisions', label: 'Food & drink', types: ['provisions'] },
-  { id: 'ammo', label: 'Ammo', types: ['ammo', 'ammoBox'] },
-  { id: 'weapons', label: 'Weapons', types: ['gun'] },
-  { id: 'mods', label: 'Weapon mods', types: ['mods', 'suppressor', 'pistolGrip'] },
-  { id: 'armor', label: 'Armor & helmets', types: ['armor', 'armorPlate', 'helmet'] },
-  { id: 'carry', label: 'Rigs & backpacks', types: ['rig', 'backpack'] },
-  { id: 'containers', label: 'Containers', types: ['container'] },
-  { id: 'gear', label: 'Other gear', types: ['headphones', 'glasses', 'wearable', 'grenade'] }
-]
-
-const CATEGORY_IDS = new Set<string>(CATEGORIES.map((c) => c.id))
-
-export function isCategoryId(value: unknown): value is CategoryId {
-  return typeof value === 'string' && CATEGORY_IDS.has(value)
-}
-
-export function categoryById(id: CategoryId): Category {
-  return CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[0]
-}
-
 // Ordered: the first matching rule wins, so specific phrases come before broad ones
 // ("medical supplies" are barter items, "weapon parts" are mods, not guns).
 const MARKET_TAG_RULES: [RegExp, string][] = [
@@ -79,7 +33,7 @@ const MARKET_TAG_RULES: [RegExp, string][] = [
 
 /**
  * tarkov-market tags are free-form category names ("Barter", "Weapon parts", …).
- * Translate them to tarkov.dev item types so category pools keep working on fallback data.
+ * Translate them to tarkov.dev item types so fallback data is typed like tarkov.dev data.
  */
 export function typesFromMarketTags(tags: string[]): string[] {
   const types = new Set<string>()

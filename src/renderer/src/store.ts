@@ -2,9 +2,10 @@ import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
 import type {
+  ContainerCatalog,
+  ContainerLoot,
   DataMode,
   GameMode,
-  MapPoolsResult,
   PriceState,
   PublicSettings,
   SettingsPatch,
@@ -15,8 +16,9 @@ interface AppStore {
   settings: PublicSettings | null
   initError: string | null
   prices: Partial<Record<DataMode, PriceState>>
-  mapPools: Partial<Record<DataMode, MapPoolsResult>>
-  mapPoolsLoading: boolean
+  containerCatalog: ContainerCatalog | null
+  /** Container loot keyed by map id ('' = all maps combined). */
+  containerLoot: Record<string, ContainerLoot[]>
   search: string
   updater: UpdaterStatus
   appVersion: string
@@ -27,7 +29,7 @@ interface AppStore {
   setGameMode(mode: GameMode): Promise<void>
   setPlayerLevel(level: number): Promise<void>
   refreshPrices(): Promise<void>
-  loadMapPools(force?: boolean): Promise<void>
+  setContainerMap(mapId: string | null): Promise<void>
   applyPriceState(state: PriceState): void
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
@@ -36,12 +38,23 @@ interface AppStore {
 let unsubscribers: (() => void)[] = []
 let settingsRequest = 0
 
+export function containerLootKey(mapId: string | null): string {
+  return mapId ?? ''
+}
+
+async function loadContainerLoot(mapId: string | null): Promise<void> {
+  const key = containerLootKey(mapId)
+  if (useStore.getState().containerLoot[key]) return
+  const loot = await window.api.getContainerLoot(mapId)
+  useStore.setState((s) => ({ containerLoot: { ...s.containerLoot, [key]: loot } }))
+}
+
 export const useStore = create<AppStore>((set, get) => ({
   settings: null,
   initError: null,
   prices: {},
-  mapPools: {},
-  mapPoolsLoading: false,
+  containerCatalog: null,
+  containerLoot: {},
   search: '',
   updater: { state: 'idle' },
   appVersion: '',
@@ -55,15 +68,15 @@ export const useStore = create<AppStore>((set, get) => ({
       api.onUpdaterStatus((updater) => set({ updater }))
     ]
     try {
-      const [settings, updater, appVersion] = await Promise.all([
+      const [settings, updater, appVersion, containerCatalog] = await Promise.all([
         api.getSettings(),
         api.getUpdaterStatus(),
-        api.getAppVersion()
+        api.getAppVersion(),
+        api.getContainerCatalog()
       ])
-      set({ settings, updater, appVersion })
-      const dataMode = dataModeFor(settings.gameMode)
-      get().applyPriceState(await api.getPrices(dataMode))
-      void get().loadMapPools()
+      set({ settings, updater, appVersion, containerCatalog })
+      await loadContainerLoot(settings.pool.mapId)
+      get().applyPriceState(await api.getPrices(dataModeFor(settings.gameMode)))
     } catch (err) {
       set({ initError: err instanceof Error ? err.message : String(err) })
     }
@@ -90,7 +103,6 @@ export const useStore = create<AppStore>((set, get) => ({
     await get().updateSettings({ gameMode })
     const dataMode = dataModeFor(gameMode)
     get().applyPriceState(await window.api.getPrices(dataMode))
-    if (!get().mapPools[dataMode]) void get().loadMapPools()
   },
 
   async setPlayerLevel(level) {
@@ -107,17 +119,10 @@ export const useStore = create<AppStore>((set, get) => ({
     get().applyPriceState(await window.api.refreshPrices(dataModeFor(settings.gameMode)))
   },
 
-  async loadMapPools(force = false) {
+  async setContainerMap(mapId) {
     const settings = get().settings
     if (!settings) return
-    const dataMode = dataModeFor(settings.gameMode)
-    set({ mapPoolsLoading: true })
-    try {
-      const result = await window.api.getMapPools(dataMode, force)
-      set((s) => ({ mapPools: { ...s.mapPools, [dataMode]: result } }))
-    } finally {
-      set({ mapPoolsLoading: false })
-    }
+    await Promise.all([get().updateSettings({ pool: { ...settings.pool, mapId } }), loadContainerLoot(mapId)])
   },
 
   applyPriceState(state) {
