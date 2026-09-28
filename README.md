@@ -64,8 +64,8 @@ Once there are **3 days** of recordings, each item gets:
   tarkov.dev's daily lowest price over the last 60 days (click a row).
 
 Until then, the list is ranked by **today's swing**: how far tarkov.dev's 24h high is above its 24h
-low. Ranges that include joke or mistaken listings (under half or over twice the current price)
-are ignored. The buy and sell columns say "collecting".
+low. Ranges that include bait or mistaken listings (under 2/3 or over 1.5× the current price) are
+ignored. The buy and sell columns say "collecting".
 
 Filters: minimum offers up, price, profit and share of days the trade worked, plus "only items I
 can trade at my level". Look back 7, 14 or 30 days. Weapon presets are left out.

@@ -217,7 +217,8 @@ describe('todaySwing', () => {
   it('ignores ranges that include joke listings far from the current price', () => {
     expect(todaySwing(item('a', { high24hPrice: 999_999 }))).toBeNull()
     expect(todaySwing(item('a', { low24hPrice: 1_000 }))).toBeNull()
-    expect(todaySwing(item('a', { low24hPrice: 5_000, high24hPrice: 20_000 }))).toBe(3)
+    expect(todaySwing(item('a', { high24hPrice: 16_000 }))).toBeNull()
+    expect(todaySwing(item('a', { low24hPrice: 7_000, high24hPrice: 14_000 }))).toBe(1)
     expect(todaySwing(item('a', { fleaPrice: null }))).toBeNull()
   })
 })
@@ -230,7 +231,7 @@ describe('rankTrends', () => {
   const locked = row(item('locked', { minLevelForFlea: 40 }), pattern())
   const unprofitable = row(item('unprofitable'), pattern({ profit: 500 }))
   const unreliable = row(item('unreliable'), pattern({ consistency: { wins: 3, days: 7 } }))
-  const unrecorded = row(item('unrecorded', { low24hPrice: 5_000, high24hPrice: 10_000 }))
+  const unrecorded = row(item('unrecorded', { low24hPrice: 7_000, high24hPrice: 14_000 }))
   const all = [liquid, thin, cheap, banned, locked, unprofitable, unreliable, unrecorded]
 
   it('keeps liquid, tradable items with a profitable, reliable pattern', () => {

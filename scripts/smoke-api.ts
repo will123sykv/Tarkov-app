@@ -109,7 +109,8 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
     .slice(0, 5)
   for (const i of swings) {
     console.log(
-      `  ${i.name}: ${i.offerCount} offers, ₽${i.low24hPrice?.toLocaleString()}–₽${i.high24hPrice?.toLocaleString()} ` +
+      `  ${i.name}: ${i.offerCount} offers, now ₽${i.fleaPrice?.toLocaleString()}, ` +
+        `24h ₽${i.low24hPrice?.toLocaleString()}–₽${i.high24hPrice?.toLocaleString()} ` +
         `(${Math.round(todaySwing(i)! * 100)}% swing)`
     )
   }

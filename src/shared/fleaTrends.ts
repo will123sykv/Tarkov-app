@@ -216,12 +216,12 @@ export interface TrendRow {
   access: FleaAccess
 }
 
-/** A 24h low or high this far from the current price is a joke or mistaken listing, not a swing. */
-const OUTLIER_FACTOR = 2
+/** A 24h low or high this far from the current price is a bait or mistaken listing, not a swing. */
+const OUTLIER_FACTOR = 1.5
 
 /**
  * Today's price range as a share of the low: (high24h − low24h) ÷ low24h. Null when unknown, or
- * when the range includes outlier listings (under half or over twice the current price), which
+ * when the range includes outlier listings (under 2/3 or over 1.5× the current price), which
  * tarkov.dev's 24h figures often do.
  */
 export function todaySwing(item: LootItem): number | null {
