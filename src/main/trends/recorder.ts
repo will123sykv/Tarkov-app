@@ -13,6 +13,11 @@ export interface RecorderOptions {
   intervalMs?: number
   /** How many of the most-listed items to record. */
   maxItems?: number
+  /**
+   * Skip items cheaper than this: a 30% swing on them can't clear the default ₽5,000 profit after
+   * the listing fee, so the slots go to pricier liquid items.
+   */
+  minPrice?: number
   retentionDays?: number
 }
 
@@ -30,6 +35,7 @@ export function createPriceRecorder(opts: RecorderOptions) {
   const now = opts.now ?? Date.now
   const intervalMs = opts.intervalMs ?? 15 * 60_000
   const maxItems = opts.maxItems ?? 300
+  const minPrice = Math.max(1, opts.minPrice ?? 10_000)
   const retentionDays = opts.retentionDays ?? 30
   const lastRecorded = new Map<DataMode, number>()
   const lastPruned = new Map<DataMode, string>()
@@ -57,7 +63,7 @@ export function createPriceRecorder(opts: RecorderOptions) {
           (i) =>
             !i.bannedOnFlea &&
             !i.types.includes('preset') &&
-            (i.fleaPrice ?? 0) > 0 &&
+            (i.fleaPrice ?? 0) >= minPrice &&
             (i.offerCount ?? 0) > 0
         )
         .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))

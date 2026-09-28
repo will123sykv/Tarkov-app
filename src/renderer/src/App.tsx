@@ -36,12 +36,19 @@ export default function App(): React.JSX.Element {
   const mapId = settings?.pool.mapId ?? null
   const containerId = settings?.pool.containerId ?? null
 
+  const trendsView = settings?.view === 'trends'
+  const trendRanking = useTrendRanking(settings, dataset, trendsView)
+
   const ctx = useMemo(
     () => ({ playerLevel, fleaMinLevel, subtractFleaFee }),
     [playerLevel, fleaMinLevel, subtractFleaFee]
   )
   // What every item is worth to this player; shared by the container ranking and summary.
-  const values = useMemo(() => valuesById(dataset?.items ?? [], ctx), [dataset, ctx])
+  // The loot view is hidden while the trends view is open, so skip the work.
+  const values = useMemo(
+    () => valuesById(trendsView ? [] : (dataset?.items ?? []), ctx),
+    [dataset, ctx, trendsView]
+  )
   const lootList = containerLoot[containerLootKey(mapId)]
   const ranking = useMemo(() => rankContainers(lootList ?? [], values), [lootList, values])
   const selected = containerId ? (ranking.find((r) => r.loot.id === containerId) ?? null) : null
@@ -56,9 +63,6 @@ export default function App(): React.JSX.Element {
         : null,
     [selected]
   )
-
-  const trendsView = settings?.view === 'trends'
-  const trendRanking = useTrendRanking(settings, dataset, trendsView)
 
   const ranked = useMemo(() => {
     if (!dataset || !settings || trendsView) return []

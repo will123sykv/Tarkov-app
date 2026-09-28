@@ -241,6 +241,11 @@ export interface TrendFilters {
   minProfit: number
   /** Share of days the trade would have made money, 0–1. */
   minConsistency: number
+  /**
+   * Minimum swing: today's 24h low→high while collecting, then the gap between the cheapest and
+   * dearest hour. 0 turns it off.
+   */
+  minSwing: number
   /** Only items the player can buy and sell on the flea at their level. */
   tradableOnly: boolean
 }
@@ -279,8 +284,9 @@ function sortValue(row: TrendRow, key: TrendSortKey): number {
 
 /**
  * Liquid, tradable items that pass the filters, best first. With `patternsOnly`, only items
- * with a measurable time-of-day pattern count, and the profit and consistency filters apply;
- * without it (while recordings are still too short) every liquid item is listed.
+ * with a measurable time-of-day pattern count, and the swing filter applies to the buy→sell gap
+ * along with the profit and consistency filters; without it (while recordings are still too
+ * short) the swing filter applies to today's 24h swing.
  */
 export function rankTrends(
   rows: readonly TrendRow[],
@@ -295,8 +301,9 @@ export function rankTrends(
       if (filters.tradableOnly && row.access.status !== 'sellable') return false
       if ((liquidity(row) ?? 0) < filters.minOffers) return false
       if ((row.stats?.latestMin ?? row.item.fleaPrice ?? 0) < filters.minPrice) return false
-      if (!patternsOnly) return true
+      if (!patternsOnly) return filters.minSwing <= 0 || (todaySwing(row.item) ?? -1) >= filters.minSwing
       if (!hasPattern(row)) return false
+      if ((row.stats!.spreadPct ?? -Infinity) < filters.minSwing) return false
       if ((row.stats!.profit ?? -Infinity) < filters.minProfit) return false
       return consistencyShare(row.stats) >= filters.minConsistency
     })

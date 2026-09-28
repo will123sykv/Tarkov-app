@@ -44,7 +44,7 @@ function clock(start = NOW) {
 }
 
 describe('createPriceRecorder', () => {
-  it('records the most-listed tradable items, one line per recording', async () => {
+  it('records the most-listed tradable items worth ₽10k or more, one line per recording', async () => {
     const dir = await tempDir()
     const c = clock()
     const recorder = createPriceRecorder({ dir, now: c.now, maxItems: 2 })
@@ -56,6 +56,7 @@ describe('createPriceRecorder', () => {
         item('unpriced', 5_000, { fleaPrice: null }),
         item('unknown', null),
         item('preset', 9_000, { types: ['preset'] }),
+        item('cheap', 8_000, { fleaPrice: 9_999 }),
         item('many', 300)
       ])
     )
@@ -81,7 +82,7 @@ describe('createPriceRecorder', () => {
   it('loads recordings within the look-back window and skips damaged lines', async () => {
     const dir = await tempDir()
     const c = clock(NOW - 10 * DAY)
-    const recorder = createPriceRecorder({ dir, now: c.now })
+    const recorder = createPriceRecorder({ dir, now: c.now, minPrice: 0 })
     await recorder.record(dataset([item('a', 50, { fleaPrice: 1 })]))
     c.advance(9 * DAY)
     await recorder.record(dataset([item('a', 50, { fleaPrice: 2 })]))
@@ -153,7 +154,7 @@ describe('createTrendService', () => {
   async function recorded(days: number) {
     const dir = await tempDir()
     const c = clock(NOW - days * DAY)
-    const recorder = createPriceRecorder({ dir, now: c.now })
+    const recorder = createPriceRecorder({ dir, now: c.now, minPrice: 0 })
     for (let t = NOW - days * DAY; t <= NOW; t += HOUR) {
       const hour = new Date(t).getUTCHours()
       const price = hour === 4 ? 8_000 : hour === 20 ? 13_000 : 10_000

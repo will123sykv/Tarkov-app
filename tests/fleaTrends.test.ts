@@ -202,6 +202,7 @@ const filters = (overrides: Partial<TrendFilters> = {}): TrendFilters => ({
   minPrice: 5_000,
   minProfit: 1_000,
   minConsistency: 0.6,
+  minSwing: 0,
   tradableOnly: true,
   ...overrides
 })
@@ -244,6 +245,24 @@ describe('rankTrends', () => {
     expect(ids(rankTrends(all, filters({ tradableOnly: false }), 'profit', true))).toContain('locked')
     expect(ids(rankTrends(all, filters({ minProfit: 0 }), 'profit', true))).toContain('unprofitable')
     expect(ids(rankTrends(all, filters({ minConsistency: 0.4 }), 'profit', true))).toContain('unreliable')
+  })
+
+  it("filters on today's swing while collecting, then on the buy→sell gap", () => {
+    const f = filters({ minSwing: 0.3 })
+    // Most fixtures swing 9k–11k today (22%); "unrecorded" swings 7k–14k (100%).
+    expect(ids(rankTrends(all, f, 'swing', false))).toEqual(['unrecorded'])
+    const outlier = row(item('outlier', { high24hPrice: 999_999 }))
+    const unknown = row(item('unknown', { low24hPrice: null }))
+    expect(ids(rankTrends([outlier, unknown], f, 'swing', false))).toEqual([])
+    expect(ids(rankTrends([outlier, unknown], filters(), 'swing', false))).toEqual(['outlier', 'unknown'])
+
+    // The recorded cycle's cheapest and dearest hours are 8k and 13k: a 62.5% gap.
+    const small = row(item('small'), pattern({ spreadPct: 0.25 }))
+    expect(ids(rankTrends([liquid, small], f, 'profit', true))).toEqual(['liquid'])
+    expect(ids(rankTrends([liquid, small], filters({ minSwing: 0.2 }), 'profit', true))).toEqual([
+      'liquid',
+      'small'
+    ])
   })
 
   it('never lists flea-banned items or weapon presets', () => {

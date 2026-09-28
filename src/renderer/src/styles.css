@@ -971,8 +971,15 @@ button.link {
   font-weight: 400;
 }
 
-.trends-table + .empty {
+.trends-table + .empty,
+.table-note + .empty {
   height: auto;
+}
+
+.table-note {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 12px;
 }
 
 .trend-detail {

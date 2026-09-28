@@ -1,19 +1,15 @@
-import { useEffect, useRef } from 'react'
-import {
-  consistencyShare,
-  hasPattern,
-  liquidity,
-  todaySwing,
-  type TrendSortKey
-} from '../../../shared/fleaTrends'
+import { useCallback, useEffect, useRef } from 'react'
+import type { TrendSortKey } from '../../../shared/fleaTrends'
 import { dataModeFor } from '../../../shared/gameModes'
 import type { PriceState, PublicSettings, TrendAnalysis, TrendSettings } from '../../../shared/types'
-import { formatAgo, formatPercent, formatRub, formatRubCompact, formatSlot } from '../lib/format'
+import { formatAgo, formatPercent, formatSlot } from '../lib/format'
 import { useNow } from '../lib/useNow'
 import { MIN_PATTERN_DAYS, type TrendRanking } from '../lib/useTrendRanking'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
+import NumberField from './NumberField'
 import TrendDetail from './TrendDetail'
+import TrendTableRow from './TrendTableRow'
 
 interface Props {
   settings: PublicSettings
@@ -21,7 +17,8 @@ interface Props {
   ranking: TrendRanking
 }
 
-const MAX_ROWS = 200
+const MAX_ROWS = 100
+const SWING_OPTIONS = [0, 0.1, 0.2, 0.3, 0.5, 0.75]
 const SORT_LABELS: Record<TrendSortKey, string> = {
   profit: 'Profit per unit',
   spread: 'Price spread',
@@ -76,15 +73,15 @@ interface SidebarProps {
   analysis: TrendAnalysis | undefined
   /** The sort in effect, when it differs from the chosen one. */
   sort: TrendSortKey
+  patternsReady: boolean
 }
 
-function Sidebar({ settings, analysis, sort }: SidebarProps): React.JSX.Element {
+function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
   const loadTrends = useStore((s) => s.loadTrends)
   const trendsLoading = useStore((s) => s.trendsLoading)
   const t = settings.trends
   const set = (patch: Partial<TrendSettings>): void => void updateSettings({ trends: { ...t, ...patch } })
-  const number = (value: string): number => Number(value) || 0
 
   return (
     <aside className="sidebar">
@@ -117,42 +114,52 @@ function Sidebar({ settings, analysis, sort }: SidebarProps): React.JSX.Element 
       <section>
         <h2>Filters</h2>
         <label className="field">
-          <span>Min offers up (sells quickly)</span>
-          <input
-            type="number"
-            min={0}
-            step={5}
-            value={t.minOffers}
-            onChange={(e) => set({ minOffers: number(e.target.value) })}
-          />
+          <span>Min swing</span>
+          <select value={t.minSwing} onChange={(e) => set({ minSwing: Number(e.target.value) })}>
+            {[...new Set([...SWING_OPTIONS, t.minSwing])]
+              .sort((a, b) => a - b)
+              .map((share) => (
+                <option key={share} value={share}>
+                  {share === 0 ? 'Any' : `${formatPercent(share)} or more`}
+                </option>
+              ))}
+          </select>
         </label>
-        <label className="field">
-          <span>Min price</span>
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            value={t.minPrice}
-            onChange={(e) => set({ minPrice: number(e.target.value) })}
-          />
-        </label>
-        <label className="field">
-          <span>Min profit per unit (after fee)</span>
-          <input
-            type="number"
-            step={500}
-            value={t.minProfit}
-            onChange={(e) => set({ minProfit: number(e.target.value) })}
-          />
-        </label>
+        <p className="hint">
+          {patternsReady
+            ? 'Between the cheapest and dearest hour of the day.'
+            : "Today's low to high, until patterns are ready."}
+        </p>
+        <NumberField
+          label="Min offers up (sells quickly)"
+          min={0}
+          step={5}
+          value={t.minOffers}
+          onCommit={(minOffers) => set({ minOffers })}
+        />
+        <NumberField
+          label="Min price"
+          min={0}
+          step={1000}
+          value={t.minPrice}
+          onCommit={(minPrice) => set({ minPrice })}
+        />
+        <NumberField
+          label="Min profit per unit (after fee)"
+          step={500}
+          value={t.minProfit}
+          onCommit={(minProfit) => set({ minProfit })}
+        />
         <label className="field">
           <span>Worked on at least</span>
           <select value={t.minConsistency} onChange={(e) => set({ minConsistency: Number(e.target.value) })}>
-            {[0, 0.5, 0.6, 0.7, 0.8].map((share) => (
-              <option key={share} value={share}>
-                {share === 0 ? 'Any share of days' : `${formatPercent(share)} of days`}
-              </option>
-            ))}
+            {[...new Set([0, 0.5, 0.6, 0.7, 0.8, t.minConsistency])]
+              .sort((a, b) => a - b)
+              .map((share) => (
+                <option key={share} value={share}>
+                  {share === 0 ? 'Any share of days' : `${formatPercent(share)} of days`}
+                </option>
+              ))}
           </select>
         </label>
         <label className="check">
@@ -194,12 +201,14 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
   const dataset = priceState?.dataset ?? null
   const lastLoad = useRef(0)
 
-  // Re-analyse when the view opens, the mode or window changes, and (at most once a minute)
-  // after refreshes, which add new recordings.
+  // Re-analyse when the view opens, the mode or window changes, once prices have loaded (profit
+  // needs each item's base price), and (at most once a minute) after refreshes, which add new
+  // recordings.
+  const hasPrices = dataset !== null
   useEffect(() => {
     lastLoad.current = Date.now()
     void loadTrends()
-  }, [loadTrends, dataMode, settings.trends.days])
+  }, [loadTrends, dataMode, settings.trends.days, hasPrices])
   useEffect(() => {
     if (Date.now() - lastLoad.current < 60_000) return
     lastLoad.current = Date.now()
@@ -208,6 +217,12 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
 
   const t = settings.trends
   const selectedRow = ranked.find((r) => r.item.id === selected) ?? null
+  const bucketHours = analysis?.bucketHours ?? 1
+  // Stable, so memoised rows don't all re-render when the selection changes.
+  const toggleItem = useCallback(
+    (itemId: string) => selectTrendItem(useStore.getState().selectedTrendItem === itemId ? null : itemId),
+    [selectTrendItem]
+  )
   const setSort = (key: TrendSortKey): void => void updateSettings({ trends: { ...t, sort: key } })
   const header = (key: TrendSortKey, label: string): React.JSX.Element => (
     <button className={`sort ${sort === key ? 'active' : ''}`} onClick={() => setSort(key)}>
@@ -218,7 +233,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
 
   return (
     <div className="trends">
-      <Sidebar settings={settings} analysis={analysis} sort={sort} />
+      <Sidebar settings={settings} analysis={analysis} sort={sort} patternsReady={patternsReady} />
       <main className="content">
         {dataset?.foundInRaidRequired && (
           <div className="banner error" role="status">
@@ -231,8 +246,12 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             <strong>Flea trends</strong>
             <span className="muted">
               {patternsReady
-                ? `Best time to buy and to sell, from ${analysis!.coverage.days} days of recordings`
+                ? `Best time to buy and to sell, from ${analysis!.coverage.days} days of recordings.`
                 : `Collecting prices (${analysis?.coverage.days ?? 0} of ${MIN_PATTERN_DAYS} days). Until then, items are ranked by today's price swing.`}
+              {t.minSwing > 0 &&
+                ` Showing items that swing ${formatPercent(t.minSwing)} or more ${
+                  patternsReady ? 'between their cheapest and dearest hour' : 'today'
+                }.`}
             </span>
           </div>
           <div className="summary-stats muted">
@@ -259,80 +278,31 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
               </tr>
             </thead>
             <tbody>
-              {ranked.slice(0, MAX_ROWS).map((row) => {
-                const { item, stats, access } = row
-                const swing = todaySwing(item)
-                const pattern = hasPattern(row) ? stats! : null
-                const bucket = analysis?.bucketHours ?? 1
-                return (
-                  <tr
-                    key={item.id}
-                    className={item.id === selected ? 'selected' : ''}
-                    onClick={() => selectTrendItem(item.id === selected ? null : item.id)}
-                    tabIndex={0}
-                    onKeyDown={(e) =>
-                      e.key === 'Enter' && selectTrendItem(item.id === selected ? null : item.id)
-                    }
-                  >
-                    <td className="name">
-                      <span title={item.name}>{item.name}</span>
-                      <small>
-                        {item.shortName}
-                        {access.status === 'locked' && ` · locked until level ${access.unlockLevel}`}
-                      </small>
-                    </td>
-                    <td className="num">{Math.round(liquidity(row) ?? 0).toLocaleString()}</td>
-                    <td className="num">{formatRub(item.fleaPrice)}</td>
-                    <td className="num">
-                      {item.low24hPrice && item.high24hPrice
-                        ? `${formatRubCompact(item.low24hPrice)}–${formatRubCompact(item.high24hPrice)}`
-                        : '—'}
-                      {swing !== null ? (
-                        <small>{formatPercent(swing)} swing</small>
-                      ) : (
-                        item.low24hPrice != null &&
-                        item.high24hPrice != null && <small>includes outlier offers</small>
-                      )}
-                    </td>
-                    <td>
-                      {pattern ? (
-                        <>
-                          {formatSlot(pattern.buy!.startHour, bucket)}
-                          <small>~{formatRubCompact(pattern.buy!.price)}</small>
-                        </>
-                      ) : (
-                        <span className="muted">{patternsReady ? 'not enough data' : 'collecting…'}</span>
-                      )}
-                    </td>
-                    <td>
-                      {pattern && (
-                        <>
-                          {formatSlot(pattern.sell!.startHour, bucket)}
-                          <small>
-                            ~{formatRubCompact(pattern.sell!.price)}
-                            {pattern.spreadPct !== null && ` (+${formatPercent(pattern.spreadPct)})`}
-                          </small>
-                        </>
-                      )}
-                    </td>
-                    <td className={`num ${pattern?.profit != null && pattern.profit > 0 ? 'profit' : ''}`}>
-                      {pattern?.profit != null ? formatRub(pattern.profit) : ''}
-                      {pattern?.fee != null && <small>after {formatRubCompact(pattern.fee)} fee</small>}
-                    </td>
-                    <td className="num">
-                      {pattern?.consistency
-                        ? `${pattern.consistency.wins} of ${pattern.consistency.days} days`
-                        : ''}
-                      {pattern?.consistency && <small>{formatPercent(consistencyShare(pattern))}</small>}
-                    </td>
-                  </tr>
-                )
-              })}
+              {ranked.slice(0, MAX_ROWS).map((row) => (
+                <TrendTableRow
+                  key={row.item.id}
+                  row={row}
+                  selected={row.item.id === selected}
+                  bucketHours={bucketHours}
+                  patternsReady={patternsReady}
+                  onSelect={toggleItem}
+                />
+              ))}
             </tbody>
           </table>
+          {ranked.length > MAX_ROWS && (
+            <p className="table-note muted">
+              Showing the top {MAX_ROWS} of {ranked.length.toLocaleString()}. Tighten the filters to narrow it
+              down.
+            </p>
+          )}
           {ranked.length === 0 && (
             <div className="empty">
-              <p>{dataset ? 'No items match these filters.' : 'Waiting for prices…'}</p>
+              <p>
+                {dataset
+                  ? 'No items match these filters. Try a lower minimum swing or fewer offers up.'
+                  : 'Waiting for prices…'}
+              </p>
             </div>
           )}
         </div>

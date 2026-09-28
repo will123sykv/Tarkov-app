@@ -24,10 +24,11 @@ export const DEFAULT_SETTINGS: Settings = {
   view: 'loot',
   trends: {
     days: 7,
-    minOffers: 25,
-    minPrice: 5_000,
-    minProfit: 1_000,
-    minConsistency: 0.6,
+    minOffers: 50,
+    minPrice: 20_000,
+    minProfit: 5_000,
+    minConsistency: 0.7,
+    minSwing: 0.3,
     sort: 'profit',
     tradableOnly: true
   },
@@ -38,16 +39,30 @@ export const DEFAULT_SETTINGS: Settings = {
 const TREND_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency', 'offers', 'swing']
 const TREND_DAYS = [7, 14, 30] as const
 
+/** 1.3.0's filter defaults. It saved them in full, so a block without `minSwing` came from it. */
+const TRENDS_1_3_0_DEFAULTS: Record<string, number> = {
+  minOffers: 25,
+  minPrice: 5_000,
+  minProfit: 1_000,
+  minConsistency: 0.6
+}
+
 function sanitizeTrends(raw: unknown): TrendSettings {
   const d = DEFAULT_SETTINGS.trends
-  const r = isRecord(raw) ? raw : {}
+  const r = isRecord(raw) ? { ...raw } : {}
+  if (!('minSwing' in r)) {
+    // Filters still at 1.3.0's defaults move to the tighter ones; ones the player changed stay.
+    for (const [key, old] of Object.entries(TRENDS_1_3_0_DEFAULTS)) if (r[key] === old) delete r[key]
+  }
   const share = Number(r.minConsistency)
+  const swing = Number(r.minSwing)
   return {
     days: TREND_DAYS.find((n) => n === r.days) ?? d.days,
     minOffers: clampInt(r.minOffers, 0, 100_000, d.minOffers),
     minPrice: clampInt(r.minPrice, 0, 100_000_000, d.minPrice),
     minProfit: clampInt(r.minProfit, -100_000_000, 100_000_000, d.minProfit),
     minConsistency: Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : d.minConsistency,
+    minSwing: Number.isFinite(swing) ? Math.min(2, Math.max(0, swing)) : d.minSwing,
     sort: TREND_SORTS.includes(r.sort as TrendSortKey) ? (r.sort as TrendSortKey) : d.sort,
     tradableOnly: typeof r.tradableOnly === 'boolean' ? r.tradableOnly : d.tradableOnly
   }

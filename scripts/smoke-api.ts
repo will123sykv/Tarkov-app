@@ -5,14 +5,18 @@
  * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
  * still carry what the flea trends view needs; the GraphQL fallback is only reported.
  */
-import { todaySwing } from '../src/shared/fleaTrends'
+import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
+import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { DataMode, PriceDataset } from '../src/shared/types'
-import { rankItems } from '../src/shared/valuation'
+import { fleaAccess, rankItems } from '../src/shared/valuation'
 import containerLoot from '../src/main/data/containerLoot.json'
 import { errorMessage } from '../src/main/pricing/http'
 import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
 import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
 import { normalizeDailyHistory } from '../src/main/trends/trendService'
+
+/** Matches the recorder's default price floor (src/main/trends/recorder.ts). */
+const RECORDER_MIN_PRICE = 10_000
 
 function check(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
@@ -89,12 +93,15 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
   const recordable = items
     .filter(
       (i) =>
-        !i.bannedOnFlea && !i.types.includes('preset') && (i.fleaPrice ?? 0) > 0 && (i.offerCount ?? 0) > 0
+        !i.bannedOnFlea &&
+        !i.types.includes('preset') &&
+        (i.fleaPrice ?? 0) >= RECORDER_MIN_PRICE &&
+        (i.offerCount ?? 0) > 0
     )
     .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
   const withRange = items.filter((i) => todaySwing(i) !== null).length
   console.log(
-    `[trends ${dataMode}] ${recordable.length} recordable items (offer count + flea price) · ` +
+    `[trends ${dataMode}] ${recordable.length} recordable items (offers up, flea price ≥ ₽${RECORDER_MIN_PRICE.toLocaleString()}) · ` +
       `${withRange} with a 24h range · found-in-raid required: ${String(dataset.foundInRaidRequired)} · ` +
       `fee rates: ${JSON.stringify(dataset.fleaFeeRates)}`
   )
@@ -103,11 +110,19 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
   if (dataset.foundInRaidRequired)
     console.log(`[trends ${dataMode}] note: the flea requires found-in-raid items`)
 
-  const swings = recordable
-    .filter((i) => (i.offerCount ?? 0) >= 25 && todaySwing(i) !== null)
-    .sort((a, b) => todaySwing(b)! - todaySwing(a)!)
-    .slice(0, 5)
-  for (const i of swings) {
+  // What the trends view lists before any recordings, with the default filters at level 62.
+  const rows = items.map((item) => ({
+    item,
+    stats: null,
+    access: fleaAccess(item, 62, dataset.fleaMinLevel)
+  }))
+  const listed = rankTrends(rows, DEFAULT_SETTINGS.trends, 'swing', false)
+  const d = DEFAULT_SETTINGS.trends
+  console.log(
+    `[trends ${dataMode}] ${listed.length} items listed while collecting with the defaults ` +
+      `(offers ≥ ${d.minOffers}, price ≥ ₽${d.minPrice.toLocaleString()}, swing ≥ ${d.minSwing * 100}%, level 62):`
+  )
+  for (const { item: i } of listed.slice(0, 5)) {
     console.log(
       `  ${i.name}: ${i.offerCount} offers, now ₽${i.fleaPrice?.toLocaleString()}, ` +
         `24h ₽${i.low24hPrice?.toLocaleString()}–₽${i.high24hPrice?.toLocaleString()} ` +

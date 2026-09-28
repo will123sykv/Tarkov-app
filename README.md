@@ -52,7 +52,8 @@ next time you close the app.
 
 tarkov.dev only publishes one historical price per day, so the app records prices itself. At each
 price refresh (at most every 15 minutes), it saves the lowest flea price and the number of offers
-up for the 300 most-listed items in the current game mode. Recordings are kept for 30 days.
+up for the 300 most-listed items worth ₽10,000 or more in the current game mode. Recordings are
+kept for 30 days.
 
 Once there are **3 days** of recordings, each item gets:
 
@@ -67,8 +68,18 @@ Until then, the list is ranked by **today's swing**: how far tarkov.dev's 24h hi
 low. Ranges that include bait or mistaken listings (under 2/3 or over 1.5× the current price) are
 ignored. The buy and sell columns say "collecting".
 
-Filters: minimum offers up, price, profit and share of days the trade worked, plus "only items I
-can trade at my level". Look back 7, 14 or 30 days. Weapon presets are left out.
+The list is kept short by default. It shows only items that:
+
+- **swing 30% or more**: today's low to high while collecting, then between the cheapest and
+  dearest hour once patterns are ready;
+- have **at least 50 offers up** and cost **₽20,000 or more**;
+- once patterns are ready, make **₽5,000 or more per unit** after the fee and would have worked on
+  **at least 70% of days**;
+- you can trade on the flea at your level.
+
+All of these can be loosened in the sidebar. Look back 7, 14 or 30 days. Weapon presets are left
+out. If you used 1.3.0, filters you'd left at its looser defaults move to these ones; any you
+changed stay as you set them.
 
 "High volume" means **many offers up**: sales volume isn't published anywhere, so the number of
 active listings stands in for how quickly an item sells. Patterns are only as good as the hours

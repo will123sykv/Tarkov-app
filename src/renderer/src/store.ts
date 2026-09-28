@@ -6,6 +6,7 @@ import type {
   ContainerLoot,
   DataMode,
   GameMode,
+  PriceDataset,
   PriceState,
   PublicSettings,
   SettingsPatch,
@@ -54,6 +55,10 @@ const SERIES_MAX_AGE_MS = 60 * 60_000
 
 export function trendSeriesKey(dataMode: DataMode, itemId: string): string {
   return `${dataMode}:${itemId}`
+}
+
+function sameFetch(a: PriceDataset, b: PriceDataset): boolean {
+  return a.fetchedAt === b.fetchedAt && a.source === b.source && a.items.length === b.items.length
 }
 
 export function containerLootKey(mapId: string | null): string {
@@ -153,7 +158,13 @@ export const useStore = create<AppStore>((set, get) => ({
       const current = s.prices[state.dataMode]
       // IPC replies and broadcasts can arrive out of order; keep the newest.
       if (current && current.revision > state.revision) return s
-      return { prices: { ...s.prices, [state.dataMode]: state } }
+      // Every broadcast (e.g. "refreshing…") carries a fresh copy of the whole dataset. Keep the
+      // copy already held when it's the same fetch, so rankings built on it aren't recomputed.
+      const dataset =
+        current?.dataset && state.dataset && sameFetch(current.dataset, state.dataset)
+          ? current.dataset
+          : state.dataset
+      return { prices: { ...s.prices, [state.dataMode]: { ...state, dataset } } }
     })
   },
 

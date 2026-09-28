@@ -53,6 +53,51 @@ describe('sanitizeSettings', () => {
     ).toEqual({ ...DEFAULT_SETTINGS.trends, days: 30 })
   })
 
+  it('defaults to tight flea trend filters', () => {
+    expect(DEFAULT_SETTINGS.trends).toMatchObject({
+      minOffers: 50,
+      minPrice: 20_000,
+      minProfit: 5_000,
+      minConsistency: 0.7,
+      minSwing: 0.3
+    })
+    expect(sanitizeSettings({ trends: { minSwing: 5 } }).trends.minSwing).toBe(2)
+    expect(sanitizeSettings({ trends: { minSwing: -1 } }).trends.minSwing).toBe(0)
+    expect(sanitizeSettings({ trends: { minSwing: 0 } }).trends.minSwing).toBe(0)
+  })
+
+  it("moves filters left at 1.3.0's defaults to the new ones, keeping the player's own", () => {
+    const saved130 = {
+      days: 14,
+      minOffers: 25,
+      minPrice: 5_000,
+      minProfit: 1_000,
+      minConsistency: 0.6,
+      sort: 'swing',
+      tradableOnly: true
+    }
+    expect(sanitizeSettings({ trends: saved130 }).trends).toEqual({
+      ...DEFAULT_SETTINGS.trends,
+      days: 14,
+      sort: 'swing'
+    })
+    expect(
+      sanitizeSettings({ trends: { ...saved130, minOffers: 80, minConsistency: 0.5 } }).trends
+    ).toMatchObject({
+      minOffers: 80,
+      minPrice: 20_000,
+      minProfit: 5_000,
+      minConsistency: 0.5,
+      minSwing: 0.3
+    })
+    // Saved by this version: the values are the player's, even when they match 1.3.0's.
+    expect(sanitizeSettings({ trends: { ...saved130, minSwing: 0.1 } }).trends).toMatchObject({
+      minOffers: 25,
+      minPrice: 5_000,
+      minSwing: 0.1
+    })
+  })
+
   it('validates the flea trends view and background options', () => {
     expect(
       sanitizeSettings({

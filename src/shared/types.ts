@@ -138,6 +138,8 @@ export interface TrendSettings {
   minProfit: number
   /** Minimum share of days the trade would have paid off, 0–1. */
   minConsistency: number
+  /** Minimum price swing, 0–2: today's 24h swing while collecting, then the buy→sell gap. */
+  minSwing: number
   sort: TrendSortKey
   /** Only items the player can buy and sell on the flea at their level. */
   tradableOnly: boolean
