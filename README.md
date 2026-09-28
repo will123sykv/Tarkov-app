@@ -25,8 +25,9 @@ next time you close the app.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
   also sort by worth, flea price, trader price, size or name.
 - **Live prices.** Flea and trader prices from [tarkov.dev](https://tarkov.dev), refreshed every
-  5 minutes by default (1–60 minutes in Settings). The status bar shows where prices came from
-  and how old they are.
+  5 minutes by default (1–60 minutes in Settings). The app reads the same data files tarkov.dev's
+  website uses (`json.tarkov.dev`) and falls back to tarkov.dev's GraphQL API if they're down.
+  The status bar shows where prices came from and how old they are.
 - **Works offline.** The last good prices are saved locally. If a refresh fails, the app keeps
   using them and shows a banner.
 - **Flea access by level.** Enter your PMC level (1–62). Each item is marked **Sellable**,
@@ -46,6 +47,7 @@ next time you close the app.
 | Locked or flea banned     | Best trader price                                                            |
 
 The flea price is the current lowest offer, or the 24h average if there is no current offer.
+The listing fee uses the same formula as tarkov.dev (without the Intelligence Center discount).
 You can turn off fee subtraction in Settings. Weapon presets and items with no known sell price
 are left out.
 
@@ -82,7 +84,7 @@ npm run typecheck
 npm run format       # Prettier
 npm run build        # compile main, preload and renderer into out/
 npm run dist         # build a Windows installer into dist/ (run on Windows)
-npm run smoke:api    # check the live tarkov.dev API still matches our queries
+npm run smoke:api    # check the live tarkov.dev data still matches what the app expects
 ```
 
 ### Project layout
@@ -90,7 +92,8 @@ npm run smoke:api    # check the live tarkov.dev API still matches our queries
 ```
 src/shared/     Types, game modes, categories, settings validation and the valuation logic
 src/main/       Electron main process: settings, price fetching and caching, auto-updater
-  pricing/      tarkov.dev and tarkov-market clients, fallback chain, refresh timer, map pools
+  pricing/      json.tarkov.dev, tarkov.dev GraphQL and tarkov-market clients, fallback chain,
+                refresh timer, map pools
 src/preload/    The typed bridge exposed to the UI as window.api
 src/renderer/   React UI (Zustand store, virtualized item table)
 tests/          Unit tests with API fixtures

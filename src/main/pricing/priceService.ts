@@ -4,6 +4,7 @@ import type { DataMode, PriceDataset, PriceFetchResult } from '../../shared/type
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, type FetchFn } from './http'
 import { fetchTarkovDev } from './tarkovDev'
+import { fetchTarkovDevJson } from './tarkovDevJson'
 import { enrichWithStaticData, fetchTarkovMarket } from './tarkovMarket'
 
 export interface PriceServiceDeps {
@@ -16,7 +17,7 @@ export interface PriceServiceDeps {
 
 export interface PriceService {
   loadCached(dataMode: DataMode): Promise<PriceDataset | null>
-  /** tarkov.dev → tarkov-market (when a key is set) → local cache. */
+  /** json.tarkov.dev → tarkov.dev GraphQL → tarkov-market (when a key is set) → local cache. */
   fetchFresh(dataMode: DataMode): Promise<PriceFetchResult>
 }
 
@@ -54,12 +55,18 @@ export function createPriceService(deps: PriceServiceDeps): PriceService {
   async function fetchFresh(dataMode: DataMode): Promise<PriceFetchResult> {
     const errors: string[] = []
 
-    try {
-      const dataset = await fetchTarkovDev(deps.fetchFn, dataMode, now())
-      await save(dataset)
-      return { dataset, fromCache: false, error: null }
-    } catch (err) {
-      errors.push(`tarkov.dev: ${errorMessage(err)}`)
+    const tarkovDevSources: [string, () => Promise<PriceDataset>][] = [
+      ['json.tarkov.dev', () => fetchTarkovDevJson(deps.fetchFn, dataMode, now())],
+      ['api.tarkov.dev', () => fetchTarkovDev(deps.fetchFn, dataMode, now())]
+    ]
+    for (const [label, load] of tarkovDevSources) {
+      try {
+        const dataset = await load()
+        await save(dataset)
+        return { dataset, fromCache: false, error: errors.length ? errors.join(' · ') : null }
+      } catch (err) {
+        errors.push(`${label}: ${errorMessage(err)}`)
+      }
     }
 
     const apiKey = deps.getTarkovMarketKey()

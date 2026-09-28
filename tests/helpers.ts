@@ -20,9 +20,14 @@ export function tempDir(): Promise<string> {
 
 type Route = (url: string, init?: RequestInit) => Response | Promise<Response>
 
-/** A fetch mock that answers tarkov.dev and tarkov-market requests with the given handlers. */
-export function mockFetch(routes: { tarkovDev?: Route; tarkovMarket?: Route }) {
+/**
+ * A fetch mock that answers json.tarkov.dev, the tarkov.dev GraphQL API and tarkov-market with
+ * the given handlers.
+ */
+export function mockFetch(routes: { tarkovDevJson?: Route; tarkovDev?: Route; tarkovMarket?: Route }) {
   return vi.fn<FetchFn>(async (url, init) => {
+    if (url.startsWith('https://json.tarkov.dev/') && routes.tarkovDevJson)
+      return routes.tarkovDevJson(url, init)
     if (url.startsWith('https://api.tarkov.dev/') && routes.tarkovDev) return routes.tarkovDev(url, init)
     if (url.startsWith('https://api.tarkov-market.app/') && routes.tarkovMarket)
       return routes.tarkovMarket(url, init)
@@ -35,4 +40,10 @@ export function requestBody(init: RequestInit | undefined): {
   variables: Record<string, unknown>
 } {
   return JSON.parse(String(init?.body))
+}
+
+/** Serves tests/fixtures/json-<file>.json for any json.tarkov.dev/<mode>/<file> request. */
+export const jsonFixtureRoute: Route = (url) => {
+  const file = new URL(url).pathname.split('/').pop()
+  return jsonResponse(fixture(`json-${file}.json`))
 }

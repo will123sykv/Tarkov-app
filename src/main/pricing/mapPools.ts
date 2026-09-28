@@ -1,9 +1,10 @@
 import { join } from 'node:path'
-import { MAP_POOL_TTL_MS, MAP_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+import { MAP_POOL_TTL_MS, LARGE_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import { TARKOV_DEV_GAME_MODE } from '../../shared/gameModes'
 import type { DataMode, MapPool, MapPoolsResult } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, tarkovDevQuery, type FetchFn } from './http'
+import { fetchJsonData, translator, values, type Collection } from './tarkovDevJson'
 
 export const MAP_LOOT_QUERY = `query MapLoot($gameMode: GameMode) {
   maps(gameMode: $gameMode) {
@@ -14,7 +15,7 @@ export const MAP_LOOT_QUERY = `query MapLoot($gameMode: GameMode) {
 }`
 
 export interface TarkovDevMap {
-  id: string
+  id: string | undefined
   name: string
   lootLoose: ({ items: ({ id: string } | null)[] | null } | null)[] | null
 }
@@ -33,6 +34,63 @@ export function reduceMapLoot(maps: (TarkovDevMap | null)[]): MapPool[] {
     if (ids.size > 0) pools.push({ id: map.id, name: map.name, itemIds: [...ids] })
   }
   return pools.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export interface JsonMap {
+  id: string
+  name?: string | null
+  lootLoose?: ({ items?: string[] | null } | null)[] | null
+}
+
+/** json.tarkov.dev stores maps keyed by id, with translation-key names and bare item ids. */
+export function mapPoolsFromJson(maps: Collection<JsonMap> | null | undefined, lang: Record<string, string>) {
+  const text = translator(lang)
+  return reduceMapLoot(
+    values(maps).map((map) => ({
+      id: map?.id,
+      name: text(map?.name) ?? '',
+      lootLoose: (map?.lootLoose ?? []).map((spawn) => ({
+        items: (spawn?.items ?? []).map((id) => ({ id }))
+      }))
+    }))
+  )
+}
+
+export async function fetchJsonPools(fetchFn: FetchFn, dataMode: DataMode): Promise<MapPool[]> {
+  const [data, lang] = await Promise.all([
+    fetchJsonData<{ maps?: Collection<JsonMap> | null }>(fetchFn, dataMode, 'maps'),
+    fetchJsonData<Record<string, string>>(fetchFn, dataMode, 'maps_en')
+  ])
+  return mapPoolsFromJson(data.maps, lang)
+}
+
+async function fetchGraphqlPools(fetchFn: FetchFn, dataMode: DataMode): Promise<MapPool[]> {
+  const data = await tarkovDevQuery<{ maps: (TarkovDevMap | null)[] | null }>(
+    fetchFn,
+    MAP_LOOT_QUERY,
+    { gameMode: TARKOV_DEV_GAME_MODE[dataMode] },
+    LARGE_REQUEST_TIMEOUT_MS
+  )
+  return reduceMapLoot(data.maps ?? [])
+}
+
+/** json.tarkov.dev first, then the GraphQL API. */
+export async function fetchMapPools(fetchFn: FetchFn, dataMode: DataMode): Promise<MapPool[]> {
+  const errors: string[] = []
+  const sources: [string, typeof fetchJsonPools][] = [
+    ['json.tarkov.dev', fetchJsonPools],
+    ['api.tarkov.dev', fetchGraphqlPools]
+  ]
+  for (const [label, load] of sources) {
+    try {
+      const pools = await load(fetchFn, dataMode)
+      if (pools.length > 0) return pools
+      errors.push(`${label}: no map loot data`)
+    } catch (err) {
+      errors.push(`${label}: ${errorMessage(err)}`)
+    }
+  }
+  throw new Error(errors.join(' · '))
 }
 
 interface MapPoolCache {
@@ -67,14 +125,7 @@ export function createMapPoolService(deps: MapPoolServiceDeps) {
       return { pools: cached.pools, fetchedAt: cached.fetchedAt, error: null }
     }
     try {
-      const data = await tarkovDevQuery<{ maps: (TarkovDevMap | null)[] | null }>(
-        deps.fetchFn,
-        MAP_LOOT_QUERY,
-        { gameMode: TARKOV_DEV_GAME_MODE[dataMode] },
-        MAP_REQUEST_TIMEOUT_MS
-      )
-      const fresh: MapPoolCache = { fetchedAt: now(), pools: reduceMapLoot(data.maps ?? []) }
-      if (fresh.pools.length === 0) throw new Error('no map loot data returned')
+      const fresh: MapPoolCache = { fetchedAt: now(), pools: await fetchMapPools(deps.fetchFn, dataMode) }
       memory.set(dataMode, fresh)
       await writeJsonFileAtomic(cachePath(dataMode), fresh).catch(() => {})
       return { pools: fresh.pools, fetchedAt: fresh.fetchedAt, error: null }
