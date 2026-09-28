@@ -48,8 +48,42 @@ async function smoke(dataMode: DataMode): Promise<void> {
   check(pools.length >= 5, 'expected loose loot for at least 5 maps')
 }
 
+// Each piece of the app's queries on its own, so a rejected query points at the field responsible.
+const PROBES: [string, string][] = [
+  ['items (no args)', '{ items(limit: 1) { id } }'],
+  ['items(gameMode)', '{ items(limit: 1, gameMode: regular) { id } }'],
+  ['fleaMarket(gameMode)', '{ fleaMarket(gameMode: regular) { minPlayerLevel enabled } }'],
+  ...[
+    'name shortName width height types',
+    'basePrice avg24hPrice lastLowPrice',
+    'minLevelForFlea',
+    'fleaMarketFee',
+    'iconLink wikiLink',
+    'category { name }',
+    'sellFor { priceRUB vendor { name normalizedName } }'
+  ].map((fields): [string, string] => [`item ${fields}`, `{ items(limit: 1) { id ${fields} } }`]),
+  ['maps lootLoose', '{ maps(limit: 1) { id name lootLoose { items { id } } } }']
+]
+
+async function probe(): Promise<void> {
+  console.log('Probing query parts individually:')
+  for (const [label, query] of PROBES) {
+    try {
+      await tarkovDevQuery(fetch, query, {}, MAP_REQUEST_TIMEOUT_MS)
+      console.log(`  ok    ${label}`)
+    } catch (err) {
+      console.log(`  FAIL  ${label}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+}
+
 async function main(): Promise<void> {
-  for (const mode of ['pvp', 'pve'] as const) await smoke(mode)
+  try {
+    for (const mode of ['pvp', 'pve'] as const) await smoke(mode)
+  } catch (err) {
+    await probe()
+    throw err
+  }
   console.log('tarkov.dev smoke test passed')
 }
 

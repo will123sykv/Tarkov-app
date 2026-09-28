@@ -6,6 +6,26 @@ export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/** Pull a readable reason out of an error response (GraphQL errors, {error|message}, or text). */
+export function describeErrorBody(body: string): string {
+  const text = body.trim()
+  if (!text) return ''
+  try {
+    const json = JSON.parse(text) as {
+      errors?: { message?: string }[]
+      error?: unknown
+      message?: unknown
+    }
+    const graphqlMessages = json.errors?.map((e) => e.message).filter(Boolean)
+    if (graphqlMessages?.length) return graphqlMessages.join('; ')
+    if (typeof json.error === 'string') return json.error
+    if (typeof json.message === 'string') return json.message
+    return ''
+  } catch {
+    return text.length > 200 ? `${text.slice(0, 200)}…` : text
+  }
+}
+
 export async function fetchJson(
   fetchFn: FetchFn,
   url: string,
@@ -16,7 +36,11 @@ export async function fetchJson(
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetchFn(url, { ...init, signal: controller.signal })
-    if (!res.ok) throw new Error(`HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`)
+    if (!res.ok) {
+      const status = `HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`
+      const detail = describeErrorBody(await res.text().catch(() => ''))
+      throw new Error(detail ? `${status}: ${detail}` : status)
+    }
     return await res.json()
   } catch (err) {
     if (controller.signal.aborted) throw new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`)

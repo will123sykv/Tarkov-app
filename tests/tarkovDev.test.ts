@@ -88,3 +88,19 @@ describe('fetchTarkovDev', () => {
     await pending
   })
 })
+
+describe('error bodies', () => {
+  it('includes the GraphQL error message from a rejected request', async () => {
+    const rejected = mockFetch({
+      tarkovDev: () => jsonResponse({ errors: [{ message: 'Unknown argument "gameMode"' }] }, 422)
+    })
+    await expect(fetchTarkovDev(rejected, 'pvp')).rejects.toThrow('HTTP 422: Unknown argument "gameMode"')
+  })
+
+  it('includes short plain-text bodies but not empty JSON', async () => {
+    const text = mockFetch({ tarkovDev: () => new Response('rate limited', { status: 429 }) })
+    await expect(fetchTarkovDev(text, 'pvp')).rejects.toThrow(/^HTTP 429: rate limited$/)
+    const empty = mockFetch({ tarkovDev: () => jsonResponse({}, 500) })
+    await expect(fetchTarkovDev(empty, 'pvp')).rejects.toThrow(/^HTTP 500$/)
+  })
+})
