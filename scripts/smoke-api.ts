@@ -12,7 +12,7 @@ import { fleaAccess, rankItems } from '../src/shared/valuation'
 import containerLoot from '../src/main/data/containerLoot.json'
 import { errorMessage } from '../src/main/pricing/http'
 import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
-import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
+import { fetchJsonData, fetchTarkovDevJson, jsonUrl, values } from '../src/main/pricing/tarkovDevJson'
 import { normalizeDailyHistory } from '../src/main/trends/trendService'
 
 /** Matches the recorder's default price floor (src/main/trends/recorder.ts). */
@@ -140,12 +140,137 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
   check(priced.length >= 7, 'the daily price history has fewer than 7 points with a lowest price')
 }
 
+/**
+ * Informational, for the upcoming quests and maps views: which task and map files json.tarkov.dev
+ * serves, what a task, objective and map look like, and tarkov.dev's map projection configs.
+ * Never fails.
+ */
+async function probeQuestData(dataMode: DataMode): Promise<void> {
+  const short = (value: unknown, max = 1500): string => JSON.stringify(value)?.slice(0, max) ?? 'undefined'
+  for (const file of ['tasks', 'tasks_en', 'maps', 'maps_en', 'quests', 'hideout']) {
+    try {
+      const res = await fetch(jsonUrl(dataMode, file))
+      const text = await res.text()
+      console.log(`[probe ${dataMode}] ${file}: HTTP ${res.status}, ${text.length} bytes`)
+      if (!res.ok) continue
+      const body = JSON.parse(text) as { data?: unknown }
+      const data = body.data as Record<string, unknown>
+      console.log(
+        `[probe ${dataMode}] ${file} data keys: ${short(Object.keys(data ?? {}).slice(0, 30), 600)}`
+      )
+      if (file === 'tasks') {
+        const tasks = values((data.tasks ?? data) as Record<string, Record<string, unknown>>)
+        console.log(
+          `[probe ${dataMode}] tasks: ${tasks.length}; first task keys: ${short(Object.keys(tasks[0] ?? {}))}`
+        )
+        console.log(`[probe ${dataMode}] first task: ${short(tasks[0], 2500)}`)
+        const types = new Map<string, number>()
+        const objectiveKeys = new Set<string>()
+        let withZones = 0
+        let withLocations = 0
+        for (const task of tasks) {
+          for (const o of (task.objectives as Record<string, unknown>[] | undefined) ?? []) {
+            types.set(String(o.type), (types.get(String(o.type)) ?? 0) + 1)
+            Object.keys(o).forEach((k) => objectiveKeys.add(k))
+            if (Array.isArray(o.zones) && o.zones.length) withZones++
+            if (Array.isArray(o.possibleLocations) && o.possibleLocations.length) withLocations++
+          }
+        }
+        console.log(`[probe ${dataMode}] objective types: ${short([...types])}`)
+        console.log(`[probe ${dataMode}] objective keys: ${short([...objectiveKeys])}`)
+        console.log(
+          `[probe ${dataMode}] objectives with zones: ${withZones}, with possibleLocations: ${withLocations}`
+        )
+        for (const type of ['giveItem', 'findQuestItem', 'visit', 'mark', 'shoot', 'extract']) {
+          const task = tasks.find((t) =>
+            (t.objectives as { type: string }[] | undefined)?.some((o) => o.type === type)
+          )
+          const objective = (task?.objectives as { type: string }[] | undefined)?.find((o) => o.type === type)
+          console.log(`[probe ${dataMode}] sample ${type} objective: ${short(objective, 1200)}`)
+        }
+        console.log(
+          `[probe ${dataMode}] other top-level task data: ${short(Object.keys(data).filter((k) => k !== 'tasks'))}`
+        )
+      }
+      if (file === 'maps') {
+        const maps = values((data.maps ?? data) as Record<string, Record<string, unknown>>)
+        console.log(
+          `[probe ${dataMode}] maps: ${maps.length}; first map keys: ${short(Object.keys(maps[0] ?? {}))}`
+        )
+        for (const m of maps) {
+          const size = (k: string): number => (Array.isArray(m[k]) ? (m[k] as unknown[]).length : -1)
+          console.log(
+            `  ${String(m.normalizedName ?? m.name)} (${String(m.id)}): extracts ${size('extracts')}, spawns ${size('spawns')}, ` +
+              `transits ${size('transits')}, lootContainers ${size('lootContainers')}, locks ${size('locks')}`
+          )
+        }
+        const withExtracts = maps.find((m) => Array.isArray(m.extracts) && (m.extracts as unknown[]).length)
+        console.log(
+          `[probe ${dataMode}] sample extract: ${short((withExtracts?.extracts as unknown[])?.[0], 800)}`
+        )
+        const withSpawns = maps.find((m) => Array.isArray(m.spawns) && (m.spawns as unknown[]).length)
+        console.log(`[probe ${dataMode}] sample spawn: ${short((withSpawns?.spawns as unknown[])?.[0], 600)}`)
+        console.log(
+          `[probe ${dataMode}] map without arrays: ${short(Object.fromEntries(Object.entries(maps[0] ?? {}).filter(([, v]) => !Array.isArray(v))), 1200)}`
+        )
+      }
+      if (file.endsWith('_en')) {
+        const sample = Object.entries(data ?? {}).slice(0, 5)
+        console.log(
+          `[probe ${dataMode}] ${file}: ${Object.keys(data ?? {}).length} entries, e.g. ${short(sample, 600)}`
+        )
+      }
+    } catch (err) {
+      console.log(`[probe ${dataMode}] ${file} failed: ${errorMessage(err)}`)
+    }
+  }
+}
+
+/** Informational: tarkov.dev's interactive map configs (MIT) and whether their images respond. */
+async function probeMapConfigs(): Promise<void> {
+  try {
+    const url = 'https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json'
+    const groups = (await (await fetch(url)).json()) as {
+      normalizedName: string
+      maps: Record<string, unknown>[]
+    }[]
+    for (const group of groups) {
+      for (const map of group.maps.filter((m) => m.projection === 'interactive')) {
+        const { layers, ...rest } = map
+        console.log(
+          `[probe maps] ${group.normalizedName}: ${JSON.stringify(rest)} layers: ${Array.isArray(layers) ? layers.length : 0}`
+        )
+      }
+    }
+    const customs = groups
+      .find((g) => g.normalizedName === 'customs')
+      ?.maps.find((m) => m.projection === 'interactive')
+    if (customs) {
+      const svg = await fetch(String(customs.svgPath), { method: 'HEAD' })
+      console.log(`[probe maps] customs svg: HTTP ${svg.status} ${svg.headers.get('content-length')} bytes`)
+      const tile = String(customs.tilePath).replace('{z}', '3').replace('{x}', '4').replace('{y}', '3')
+      const res = await fetch(tile, { method: 'HEAD' })
+      console.log(`[probe maps] customs tile ${tile}: HTTP ${res.status} ${res.headers.get('content-type')}`)
+    }
+    const layered = groups
+      .flatMap((g) => g.maps)
+      .find((m) => Array.isArray(m.layers) && (m.layers as unknown[]).length)
+    console.log(
+      `[probe maps] sample layer: ${JSON.stringify((layered?.layers as unknown[])?.[0])?.slice(0, 600)}`
+    )
+  } catch (err) {
+    console.log(`[probe maps] failed: ${errorMessage(err)}`)
+  }
+}
+
 async function main(): Promise<void> {
   for (const mode of ['pvp', 'pve'] as const) {
     const dataset = await smokeJson(mode)
     await smokeTrends(dataset)
     await reportGraphql(mode)
+    await probeQuestData(mode)
   }
+  await probeMapConfigs()
   console.log('tarkov.dev smoke test passed')
 }
 
