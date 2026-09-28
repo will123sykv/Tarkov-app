@@ -87,7 +87,10 @@ async function reportGraphql(dataMode: DataMode): Promise<void> {
 async function smokeTrends(dataset: PriceDataset): Promise<void> {
   const { items, dataMode } = dataset
   const recordable = items
-    .filter((i) => !i.bannedOnFlea && (i.fleaPrice ?? 0) > 0 && (i.offerCount ?? 0) > 0)
+    .filter(
+      (i) =>
+        !i.bannedOnFlea && !i.types.includes('preset') && (i.fleaPrice ?? 0) > 0 && (i.offerCount ?? 0) > 0
+    )
     .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
   const withRange = items.filter((i) => todaySwing(i) !== null).length
   console.log(

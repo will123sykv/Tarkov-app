@@ -55,6 +55,7 @@ describe('createPriceRecorder', () => {
         item('banned', 5_000, { bannedOnFlea: true }),
         item('unpriced', 5_000, { fleaPrice: null }),
         item('unknown', null),
+        item('preset', 9_000, { types: ['preset'] }),
         item('many', 300)
       ])
     )

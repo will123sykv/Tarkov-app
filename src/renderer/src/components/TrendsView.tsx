@@ -287,7 +287,12 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
                       {item.low24hPrice && item.high24hPrice
                         ? `${formatRubCompact(item.low24hPrice)}–${formatRubCompact(item.high24hPrice)}`
                         : '—'}
-                      {swing !== null && <small>{formatPercent(swing)} swing</small>}
+                      {swing !== null ? (
+                        <small>{formatPercent(swing)} swing</small>
+                      ) : (
+                        item.low24hPrice != null &&
+                        item.high24hPrice != null && <small>includes outlier offers</small>
+                      )}
                     </td>
                     <td>
                       {pattern ? (

@@ -63,9 +63,12 @@ Once there are **3 days** of recordings, each item gets:
 - charts of its lowest price by hour of day (with the middle half of prices shaded) and of
   tarkov.dev's daily lowest price over the last 60 days (click a row).
 
-Until then, the list is ranked by **today's swing** (how far today's high is above its low) and the buy and
-sell columns say "collecting". Filters: minimum offers up, price, profit and share of days the
-trade worked, plus "only items I can trade at my level". Look back 7, 14 or 30 days.
+Until then, the list is ranked by **today's swing**: how far tarkov.dev's 24h high is above its 24h
+low. Ranges that include joke or mistaken listings (under half or over twice the current price)
+are ignored. The buy and sell columns say "collecting".
+
+Filters: minimum offers up, price, profit and share of days the trade worked, plus "only items I
+can trade at my level". Look back 7, 14 or 30 days. Weapon presets are left out.
 
 "High volume" means **many offers up**: sales volume isn't published anywhere, so the number of
 active listings stands in for how quickly an item sells. Patterns are only as good as the hours

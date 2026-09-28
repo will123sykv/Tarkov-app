@@ -57,7 +57,7 @@ export interface TrendStats {
   profit: number | null
   /** Days on which buying in the buy slot and selling in the sell slot would have made money. */
   consistency: { wins: number; days: number } | null
-  /** Median over days of that day's (max − min) ÷ median lowest price. */
+  /** Median over days of that day's (dearest − cheapest hour) ÷ its median lowest price. */
   volatility: number | null
   avgOffers: number | null
   latestMin: number | null
@@ -182,10 +182,11 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
       comparable++
       if (daySell - dayFee > dayBuy) wins++
     }
-    const all = sorted(slots.flat())
-    if (all.length >= 3) {
-      const mid = quantile(all, 0.5)
-      if (mid > 0) dailyRanges.push((all[all.length - 1] - all[0]) / mid)
+    // Hourly medians, so a single silly listing doesn't count as the day's swing.
+    const hourly = sorted(slots.filter((values) => values.length).map(median))
+    if (hourly.length >= 3) {
+      const mid = quantile(hourly, 0.5)
+      if (mid > 0) dailyRanges.push((hourly[hourly.length - 1] - hourly[0]) / mid)
     }
   }
 
@@ -215,11 +216,21 @@ export interface TrendRow {
   access: FleaAccess
 }
 
-/** Today's price range as a share of the low: (high24h − low24h) ÷ low24h. */
+/** A 24h low or high this far from the current price is a joke or mistaken listing, not a swing. */
+const OUTLIER_FACTOR = 2
+
+/**
+ * Today's price range as a share of the low: (high24h − low24h) ÷ low24h. Null when unknown, or
+ * when the range includes outlier listings (under half or over twice the current price), which
+ * tarkov.dev's 24h figures often do.
+ */
 export function todaySwing(item: LootItem): number | null {
   const low = item.low24hPrice ?? null
   const high = item.high24hPrice ?? null
-  return low && high && high >= low ? (high - low) / low : null
+  const price = item.fleaPrice ?? null
+  if (!low || !high || !price || high < low) return null
+  if (high > price * OUTLIER_FACTOR || low < price / OUTLIER_FACTOR) return null
+  return (high - low) / low
 }
 
 export interface TrendFilters {
@@ -279,7 +290,8 @@ export function rankTrends(
 ): TrendRow[] {
   return rows
     .filter((row) => {
-      if (row.item.bannedOnFlea) return false
+      // Weapon presets duplicate their base guns.
+      if (row.item.bannedOnFlea || row.item.types.includes('preset')) return false
       if (filters.tradableOnly && row.access.status !== 'sellable') return false
       if ((liquidity(row) ?? 0) < filters.minOffers) return false
       if ((row.stats?.latestMin ?? row.item.fleaPrice ?? 0) < filters.minPrice) return false

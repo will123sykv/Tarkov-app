@@ -64,7 +64,16 @@ describe('analyzeHistory', () => {
     })
     expect(stats.buckets).toHaveLength(24)
     expect(stats.buckets[4]).toMatchObject({ median: 8_000, q1: 8_000, q3: 8_000, samples: 28 })
-    // Each day ranges from 8k to 13k around a 10k median.
+    // Each day's hours range from 8k to 13k around a 10k median.
+    expect(stats.volatility).toBeCloseTo(0.5)
+  })
+
+  it('keeps one silly listing a day out of the prices and the daily swing', () => {
+    const points = record(4, cycle).map((p) =>
+      new Date(p.t).getUTCHours() === 10 && new Date(p.t).getUTCMinutes() === 0 ? { ...p, priceMin: 1 } : p
+    )
+    const stats = analyzeHistory(points, opts())
+    expect(stats.buy).toEqual({ startHour: 4, price: 8_000 })
     expect(stats.volatility).toBeCloseTo(0.5)
   })
 
@@ -204,6 +213,13 @@ describe('todaySwing', () => {
     expect(todaySwing(item('a', { low24hPrice: null }))).toBeNull()
     expect(todaySwing(item('a', { low24hPrice: 12_000 }))).toBeNull()
   })
+
+  it('ignores ranges that include joke listings far from the current price', () => {
+    expect(todaySwing(item('a', { high24hPrice: 999_999 }))).toBeNull()
+    expect(todaySwing(item('a', { low24hPrice: 1_000 }))).toBeNull()
+    expect(todaySwing(item('a', { low24hPrice: 5_000, high24hPrice: 20_000 }))).toBe(3)
+    expect(todaySwing(item('a', { fleaPrice: null }))).toBeNull()
+  })
 })
 
 describe('rankTrends', () => {
@@ -229,7 +245,7 @@ describe('rankTrends', () => {
     expect(ids(rankTrends(all, filters({ minConsistency: 0.4 }), 'profit', true))).toContain('unreliable')
   })
 
-  it('never lists flea-banned items', () => {
+  it('never lists flea-banned items or weapon presets', () => {
     const none = filters({
       minOffers: 0,
       minPrice: 0,
@@ -237,8 +253,10 @@ describe('rankTrends', () => {
       minConsistency: 0,
       tradableOnly: false
     })
-    expect(ids(rankTrends(all, none, 'profit', true))).not.toContain('banned')
-    expect(ids(rankTrends(all, none, 'swing', false))).not.toContain('banned')
+    const preset = row(item('preset', { types: ['preset'] }), pattern())
+    expect(ids(rankTrends([...all, preset], none, 'profit', true))).not.toContain('banned')
+    expect(ids(rankTrends([...all, preset], none, 'swing', false))).not.toContain('banned')
+    expect(ids(rankTrends([...all, preset], none, 'swing', false))).not.toContain('preset')
   })
 
   it('lists every liquid item by today’s swing while recordings are too short', () => {

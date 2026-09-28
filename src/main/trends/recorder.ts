@@ -53,7 +53,13 @@ export function createPriceRecorder(opts: RecorderOptions) {
       const previous = lastRecorded.get(dataset.dataMode)
       if (previous !== undefined && t - previous < intervalMs) return 0
       const liquid = dataset.items
-        .filter((i) => !i.bannedOnFlea && (i.fleaPrice ?? 0) > 0 && (i.offerCount ?? 0) > 0)
+        .filter(
+          (i) =>
+            !i.bannedOnFlea &&
+            !i.types.includes('preset') &&
+            (i.fleaPrice ?? 0) > 0 &&
+            (i.offerCount ?? 0) > 0
+        )
         .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
         .slice(0, maxItems)
       if (liquid.length === 0) return 0
