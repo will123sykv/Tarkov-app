@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  package-windows:
+    name: Package Windows installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: windows-installer
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  # Hits the live tarkov.dev API to catch schema changes. Informational: an outage on their
+  # side should not block merging.
+  smoke-api:
+    name: tarkov.dev API smoke test
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run smoke:api

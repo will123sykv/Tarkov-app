@@ -1,0 +1,138 @@
+{
+  "data": {
+    "fleaMarket": { "minPlayerLevel": 15, "enabled": true },
+    "items": [
+      {
+        "id": "5c0530ee86f774697952d952",
+        "name": "LEDX Skin Transilluminator",
+        "shortName": "LEDX",
+        "width": 1,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 331200,
+        "avg24hPrice": 1150000,
+        "lastLowPrice": 1100000,
+        "minLevelForFlea": null,
+        "fleaMarketFee": 41000,
+        "iconLink": "https://assets.tarkov.dev/5c0530ee86f774697952d952-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/LEDX_Skin_Transilluminator",
+        "category": { "name": "Medical supplies" },
+        "sellFor": [
+          { "priceRUB": 265000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
+          { "priceRUB": 1100000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
+        ]
+      },
+      {
+        "id": "57347ca924597744596b4e71",
+        "name": "Graphics card",
+        "shortName": "GPU",
+        "width": 2,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 132000,
+        "avg24hPrice": 560000,
+        "lastLowPrice": 540000,
+        "minLevelForFlea": null,
+        "fleaMarketFee": 18000,
+        "iconLink": "https://assets.tarkov.dev/57347ca924597744596b4e71-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Graphics_card",
+        "category": { "name": "Electronics" },
+        "sellFor": [
+          { "priceRUB": 99000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
+          { "priceRUB": 105600, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } },
+          { "priceRUB": 540000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
+        ]
+      },
+      {
+        "id": "5c1d0efb86f7744baf2e7b7b",
+        "name": "TerraGroup Labs keycard (Red)",
+        "shortName": "Red",
+        "width": 1,
+        "height": 1,
+        "types": ["keys", "noFlea"],
+        "basePrice": 1000000,
+        "avg24hPrice": null,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "fleaMarketFee": null,
+        "iconLink": "https://assets.tarkov.dev/5c1d0efb86f7744baf2e7b7b-icon.webp",
+        "wikiLink": null,
+        "category": { "name": "Keycard" },
+        "sellFor": [{ "priceRUB": 700000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } }]
+      },
+      {
+        "id": "59faff1d86f7746c51718c9c",
+        "name": "Physical Bitcoin",
+        "shortName": "0.2BTC",
+        "width": 1,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 100000,
+        "avg24hPrice": 950000,
+        "lastLowPrice": 930000,
+        "minLevelForFlea": 30,
+        "fleaMarketFee": 30000,
+        "iconLink": "https://assets.tarkov.dev/59faff1d86f7746c51718c9c-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Physical_bitcoin",
+        "category": { "name": "Info" },
+        "sellFor": [
+          { "priceRUB": 400000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
+          { "priceRUB": 930000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
+        ]
+      },
+      {
+        "id": "5448ba0b4bdc2d02308b456c",
+        "name": "Factory emergency exit key",
+        "shortName": "Factory",
+        "width": 1,
+        "height": 1,
+        "types": ["keys"],
+        "basePrice": 7000,
+        "avg24hPrice": 30000,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "fleaMarketFee": 900,
+        "iconLink": null,
+        "wikiLink": null,
+        "category": { "name": "Mechanical Key" },
+        "sellFor": [{ "priceRUB": 3500, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } }]
+      },
+      {
+        "id": "5447a9cd4bdc2dbd208b4567-preset",
+        "name": "Colt M4A1 5.56x45 assault rifle Default",
+        "shortName": "M4A1",
+        "width": 4,
+        "height": 2,
+        "types": ["gun", "preset"],
+        "basePrice": 90000,
+        "avg24hPrice": 120000,
+        "lastLowPrice": 118000,
+        "minLevelForFlea": 25,
+        "fleaMarketFee": 5000,
+        "iconLink": null,
+        "wikiLink": null,
+        "category": { "name": "Assault rifle" },
+        "sellFor": [{ "priceRUB": 60000, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } }]
+      },
+      {
+        "id": "quest-item-no-price",
+        "name": "Secure Folder 0022",
+        "shortName": "Folder",
+        "width": 1,
+        "height": 1,
+        "types": ["noFlea"],
+        "basePrice": 0,
+        "avg24hPrice": null,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "fleaMarketFee": null,
+        "iconLink": null,
+        "wikiLink": null,
+        "category": null,
+        "sellFor": []
+      },
+      null,
+      { "id": "", "name": null }
+    ]
+  }
+}

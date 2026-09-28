@@ -1,0 +1,237 @@
+{
+  "data": {
+    "items": {
+      "5c0530ee86f774697952d952": {
+        "id": "5c0530ee86f774697952d952",
+        "name": "5c0530ee86f774697952d952 Name",
+        "shortName": "5c0530ee86f774697952d952 ShortName",
+        "normalizedName": "ledx-skin-transilluminator",
+        "width": 1,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 331200,
+        "avg24hPrice": 1150000,
+        "lastLowPrice": 1100000,
+        "minLevelForFlea": null,
+        "iconLink": "https://assets.tarkov.dev/5c0530ee86f774697952d952-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/LEDX_Skin_Transilluminator",
+        "categories": ["57864c8c245977548867e7f1", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "54cb57776803fa99248b456e",
+            "price": 265000,
+            "currency": "RUB",
+            "priceRUB": 265000
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "57347ca924597744596b4e71": {
+        "id": "57347ca924597744596b4e71",
+        "name": "57347ca924597744596b4e71 Name",
+        "shortName": "57347ca924597744596b4e71 ShortName",
+        "normalizedName": "graphics-card",
+        "width": 2,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 132000,
+        "avg24hPrice": 560000,
+        "lastLowPrice": 540000,
+        "minLevelForFlea": null,
+        "iconLink": "https://assets.tarkov.dev/57347ca924597744596b4e71-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Graphics_card",
+        "categories": ["57864a66245977548f04a81f", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "54cb57776803fa99248b456e",
+            "price": 99000,
+            "currency": "RUB",
+            "priceRUB": 99000
+          },
+          {
+            "trader": "5a7c2eca46aef81a7ca2145d",
+            "price": 105600,
+            "currency": "RUB",
+            "priceRUB": 105600
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "5c1d0efb86f7744baf2e7b7b": {
+        "id": "5c1d0efb86f7744baf2e7b7b",
+        "name": "5c1d0efb86f7744baf2e7b7b Name",
+        "shortName": "5c1d0efb86f7744baf2e7b7b ShortName",
+        "normalizedName": "terragroup-labs-keycard-red-",
+        "width": 1,
+        "height": 1,
+        "types": ["keys", "noFlea"],
+        "basePrice": 1000000,
+        "avg24hPrice": null,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "iconLink": "https://assets.tarkov.dev/5c1d0efb86f7744baf2e7b7b-icon.webp",
+        "wikiLink": null,
+        "categories": ["5c164d2286f774194c5e69fa", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "54cb57776803fa99248b456e",
+            "price": 700000,
+            "currency": "RUB",
+            "priceRUB": 700000
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "59faff1d86f7746c51718c9c": {
+        "id": "59faff1d86f7746c51718c9c",
+        "name": "59faff1d86f7746c51718c9c Name",
+        "shortName": "59faff1d86f7746c51718c9c ShortName",
+        "normalizedName": "physical-bitcoin",
+        "width": 1,
+        "height": 1,
+        "types": ["barter"],
+        "basePrice": 100000,
+        "avg24hPrice": 950000,
+        "lastLowPrice": 930000,
+        "minLevelForFlea": 30,
+        "iconLink": "https://assets.tarkov.dev/59faff1d86f7746c51718c9c-icon.webp",
+        "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Physical_bitcoin",
+        "categories": ["5448ecbe4bdc2d60728b4568", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "54cb57776803fa99248b456e",
+            "price": 400000,
+            "currency": "RUB",
+            "priceRUB": 400000
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "5448ba0b4bdc2d02308b456c": {
+        "id": "5448ba0b4bdc2d02308b456c",
+        "name": "5448ba0b4bdc2d02308b456c Name",
+        "shortName": "5448ba0b4bdc2d02308b456c ShortName",
+        "normalizedName": "factory-emergency-exit-key",
+        "width": 1,
+        "height": 1,
+        "types": ["keys"],
+        "basePrice": 7000,
+        "avg24hPrice": 30000,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "wikiLink": null,
+        "categories": ["5c99f98d86f7745c314214b3", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "5a7c2eca46aef81a7ca2145d",
+            "price": 3500,
+            "currency": "RUB",
+            "priceRUB": 3500
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "5447a9cd4bdc2dbd208b4567-preset": {
+        "id": "5447a9cd4bdc2dbd208b4567-preset",
+        "name": "5447a9cd4bdc2dbd208b4567-preset Name",
+        "shortName": "5447a9cd4bdc2dbd208b4567-preset ShortName",
+        "normalizedName": "colt-m4a1-5-56x45-assault-rifle-default",
+        "width": 4,
+        "height": 2,
+        "types": ["gun", "preset"],
+        "basePrice": 90000,
+        "avg24hPrice": 120000,
+        "lastLowPrice": 118000,
+        "minLevelForFlea": 25,
+        "wikiLink": null,
+        "categories": ["5447b5f14bdc2d61278b4567", "54009119af1c881c07000029"],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [
+          {
+            "trader": "5a7c2eca46aef81a7ca2145d",
+            "price": 60000,
+            "currency": "RUB",
+            "priceRUB": 60000
+          }
+        ],
+        "buyFromTrader": []
+      },
+      "quest-item-no-price": {
+        "id": "quest-item-no-price",
+        "name": "quest-item-no-price Name",
+        "shortName": "quest-item-no-price ShortName",
+        "normalizedName": "secure-folder-0022",
+        "width": 1,
+        "height": 1,
+        "types": ["noFlea"],
+        "basePrice": 0,
+        "avg24hPrice": null,
+        "lastLowPrice": null,
+        "minLevelForFlea": null,
+        "wikiLink": null,
+        "categories": [],
+        "handbookCategories": [],
+        "properties": null,
+        "sellToTrader": [],
+        "buyFromTrader": []
+      }
+    },
+    "fleaMarket": {
+      "name": "Flea Market",
+      "normalizedName": "flea-market",
+      "minPlayerLevel": 15,
+      "enabled": true,
+      "sellOfferFeeRate": 0.03,
+      "sellRequirementFeeRate": 0.03
+    },
+    "itemCategories": {
+      "57864c8c245977548867e7f1": {
+        "id": "57864c8c245977548867e7f1",
+        "name": "57864c8c245977548867e7f1 Name",
+        "normalizedName": "medical-supplies"
+      },
+      "54009119af1c881c07000029": {
+        "id": "54009119af1c881c07000029",
+        "name": "54009119af1c881c07000029 Name",
+        "normalizedName": "item"
+      },
+      "57864a66245977548f04a81f": {
+        "id": "57864a66245977548f04a81f",
+        "name": "57864a66245977548f04a81f Name",
+        "normalizedName": "electronics"
+      },
+      "5c164d2286f774194c5e69fa": {
+        "id": "5c164d2286f774194c5e69fa",
+        "name": "5c164d2286f774194c5e69fa Name",
+        "normalizedName": "keycard"
+      },
+      "5448ecbe4bdc2d60728b4568": {
+        "id": "5448ecbe4bdc2d60728b4568",
+        "name": "5448ecbe4bdc2d60728b4568 Name",
+        "normalizedName": "info"
+      },
+      "5c99f98d86f7745c314214b3": {
+        "id": "5c99f98d86f7745c314214b3",
+        "name": "5c99f98d86f7745c314214b3 Name",
+        "normalizedName": "mechanical-key"
+      },
+      "5447b5f14bdc2d61278b4567": {
+        "id": "5447b5f14bdc2d61278b4567",
+        "name": "5447b5f14bdc2d61278b4567 Name",
+        "normalizedName": "assault-rifle"
+      }
+    }
+  },
+  "translations": ["$.items.*.name", "$.items.*.shortName", "$.itemCategories.*.name"]
+}
