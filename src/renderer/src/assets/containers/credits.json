@@ -1,1 +1,218 @@
-[]
+[
+  {
+    "id": "bank-cash-register",
+    "file": "bank-cash-register.webp",
+    "pageTitle": "Bank cash register",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Bank_cash_register",
+    "wikiFile": "Bank_cash_register.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "bank-safe",
+    "file": "bank-safe.webp",
+    "pageTitle": "Bank safe",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Bank_safe",
+    "wikiFile": "Bank_safe.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "buried-barrel-cache",
+    "file": "buried-barrel-cache.webp",
+    "pageTitle": "Buried barrel cache",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Buried_barrel_cache",
+    "wikiFile": "Buried_Barrel_Cache.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "cash-register",
+    "file": "cash-register.webp",
+    "pageTitle": "Cash register",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Cash_register",
+    "wikiFile": "Register.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "cash-register-tar2-2",
+    "file": "cash-register-tar2-2.webp",
+    "pageTitle": "Cash register TAR2-2",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Cash_register_TAR2-2",
+    "wikiFile": "Register_TAR2-2.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "civilian-body",
+    "file": "civilian-body.webp",
+    "pageTitle": "Civilian body",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Civilian_body",
+    "wikiFile": "Dead_Civilian_Loot_Container.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "common-fund-stash",
+    "file": "common-fund-stash.webp",
+    "pageTitle": "Common fund stash",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Common_fund_stash",
+    "wikiFile": "CFS_Map.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "dead-scav",
+    "file": "dead-scav.webp",
+    "pageTitle": "Dead Scav",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Dead_Scav",
+    "wikiFile": "DeadScav.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "drawer",
+    "file": "drawer.webp",
+    "pageTitle": "Drawer",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Drawer",
+    "wikiFile": "Drawers.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "duffle-bag",
+    "file": "duffle-bag.webp",
+    "pageTitle": "Duffle bag",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Duffle_bag",
+    "wikiFile": "EfT_Item_Icon_116.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "grenade-box",
+    "file": "grenade-box.webp",
+    "pageTitle": "Grenade box",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Grenade_box",
+    "wikiFile": "GrenadeCrate.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "ground-cache",
+    "file": "ground-cache.webp",
+    "pageTitle": "Ground cache",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Ground_cache",
+    "wikiFile": "Groundcache.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "jacket",
+    "file": "jacket.webp",
+    "pageTitle": "Jacket",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Jacket",
+    "wikiFile": "Jackets.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "lab-technician-body",
+    "file": "lab-technician-body.webp",
+    "pageTitle": "Lab technician body",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Lab_technician_body",
+    "wikiFile": "Saving_the_Mole_Map.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "medbag-smu06",
+    "file": "medbag-smu06.webp",
+    "pageTitle": "Medbag",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Medbag",
+    "wikiFile": "Med_Bag.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "medcase",
+    "file": "medcase.webp",
+    "pageTitle": "Medcase",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Medcase",
+    "wikiFile": "Med_Case.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "medical-supply-crate",
+    "file": "medical-supply-crate.webp",
+    "pageTitle": "Medical supply crate",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Medical_supply_crate",
+    "wikiFile": "MedicalSupplyCrate.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "pc-block",
+    "file": "pc-block.webp",
+    "pageTitle": "PC block",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/PC_block",
+    "wikiFile": "Drive-in-PC.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "plastic-suitcase",
+    "file": "plastic-suitcase.webp",
+    "pageTitle": "Plastic suitcase",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Plastic_suitcase",
+    "wikiFile": "Plastic_suitcase.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "pmc-body",
+    "file": "pmc-body.webp",
+    "pageTitle": "PMC body",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/PMC_body",
+    "wikiFile": "DeadPMC-Container.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "ration-supply-crate",
+    "file": "ration-supply-crate.webp",
+    "pageTitle": "Ration supply crate",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Ration_supply_crate",
+    "wikiFile": "RationSupplyCrate.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "safe",
+    "file": "safe.webp",
+    "pageTitle": "Safe",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Safe",
+    "wikiFile": "Safe_Container.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "scav-body",
+    "file": "scav-body.webp",
+    "pageTitle": "Scav body",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Scav_body",
+    "wikiFile": "Scav_Body_Loot_Container.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "technical-supply-crate",
+    "file": "technical-supply-crate.webp",
+    "pageTitle": "Technical supply crate",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Technical_supply_crate",
+    "wikiFile": "TechSupplyCrate.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "toolbox",
+    "file": "toolbox.webp",
+    "pageTitle": "Toolbox",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Toolbox",
+    "wikiFile": "Toolbox.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "wooden-ammo-box",
+    "file": "wooden-ammo-box.webp",
+    "pageTitle": "Wooden ammo box",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Wooden_ammo_box",
+    "wikiFile": "AmmoBox_Container.png",
+    "license": "CC BY-SA 3.0"
+  },
+  {
+    "id": "wooden-crate",
+    "file": "wooden-crate.webp",
+    "pageTitle": "Wooden crate",
+    "pageUrl": "https://escapefromtarkov.fandom.com/wiki/Wooden_crate",
+    "wikiFile": "WoodenCrate.png",
+    "license": "CC BY-SA 3.0"
+  }
+]
