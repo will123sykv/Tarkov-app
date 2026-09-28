@@ -30,6 +30,9 @@ export interface PageImagesResponse {
   }
 }
 
+/** Lead images that are maps or quest diagrams rather than a picture of the container. */
+const NOT_A_PICTURE = /(^|[_\s-])map([_\s.-]|$)/i
+
 export function candidateTitles(
   containers: ContainerRef[],
   overrides: TitleOverrides
@@ -37,7 +40,10 @@ export function candidateTitles(
   return new Map(containers.map((c) => [c.id, overrides[c.id] ?? [c.name]]))
 }
 
-/** Pick, for each container, the first candidate title whose page has a lead image. */
+/**
+ * Pick, for each container, the first candidate title whose page has a lead image that shows
+ * the container (maps are skipped). An empty candidate list means "no picture".
+ */
 export function parsePageImages(
   response: PageImagesResponse,
   candidates: Map<string, string[]>
@@ -60,6 +66,7 @@ export function parsePageImages(
     for (const title of titles) {
       const page = pages.get(resolve(title))
       if (!page || page.missing || !page.thumbnail?.source) continue
+      if (page.pageimage && NOT_A_PICTURE.test(page.pageimage)) continue
       result.set(id, {
         pageTitle: page.title,
         source: page.thumbnail.source,

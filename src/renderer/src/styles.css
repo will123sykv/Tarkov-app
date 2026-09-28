@@ -369,12 +369,14 @@ input:focus {
   margin: 0;
   padding: 0;
   display: grid;
+  /* minmax(0, …) lets long names truncate instead of widening the sidebar. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 
 .container-list button {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
   width: 100%;
   padding: 5px 10px;
@@ -385,12 +387,80 @@ input:focus {
   cursor: pointer;
 }
 
-.container-list button span:first-child {
+.container-list .name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.container-list .thumb {
+  flex: 0 0 20px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.container-list .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Container hover card */
+
+.container-preview {
+  position: fixed;
+  z-index: 50;
+  width: 280px;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.container-preview img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.container-preview-empty {
+  display: grid;
+  place-items: center;
+  height: 110px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.container-preview-body {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  font-size: 13px;
+}
+
+.container-preview-body strong {
+  font-size: 14px;
+  color: var(--accent-strong);
+}
+
+.container-preview-body .credit {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .container-list .avg {

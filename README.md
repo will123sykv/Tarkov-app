@@ -40,7 +40,8 @@ next time you close the app.
   - a **Chance** column shows how likely one search is to turn up each item;
   - the container list is ranked by **average ₽ per search** at your level, so you can tell which
     containers are worth opening;
-  - pick a **map** to use that map's loot tables, or leave it on "All maps".
+  - pick a **map** to use that map's loot tables, or leave it on "All maps";
+  - each container has a picture: a thumbnail in the list and a larger one when you hover over it.
 - **Your settings are remembered** between sessions: mode, levels, container, map, filters and
   sort order.
 
@@ -95,6 +96,7 @@ npm run build        # compile main, preload and renderer into out/
 npm run dist         # build a Windows installer into dist/ (run on Windows)
 npm run smoke:api    # check the live tarkov.dev data still matches what the app expects
 npm run data:containers  # regenerate the bundled container loot tables (see below)
+npm run data:container-images  # re-download container pictures from the Tarkov wiki
 ```
 
 ### Project layout
@@ -124,6 +126,15 @@ archived [sp-tarkov/server-csharp](https://github.com/sp-tarkov/server-csharp) r
 if newer tables appear there. The CI smoke test warns when too many of the bundled items no
 longer exist on tarkov.dev.
 
+### Container pictures
+
+`src/renderer/src/assets/containers/` holds a picture of each container: the lead image of its
+page on the Official Escape from Tarkov Wiki, with `credits.json` recording where each came from.
+`npm run data:container-images` downloads them. The **Container images** workflow runs it in CI
+and commits the result whenever the script or `scripts/container-image-titles.json` changes (or
+when started by hand). That JSON file lists which wiki pages to try for a container when its page
+isn't named like the container, and an empty list means "no picture". Images of maps are skipped.
+
 ### Releasing
 
 CI (`.github/workflows/ci.yml`) runs on every push:
@@ -150,5 +161,6 @@ with the `latest.yml` file that installed copies read to find updates.
 
 Price and item data: [tarkov.dev](https://tarkov.dev) and [tarkov-market](https://tarkov-market.com).
 Container loot tables: the [SPT](https://github.com/sp-tarkov/server-csharp) project's server
-database (NCSA licence).
+database (NCSA licence). Container pictures: the
+[Official Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) (CC BY-SA 3.0).
 Not affiliated with or endorsed by Battlestate Games.

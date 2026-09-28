@@ -149,7 +149,11 @@ export default function SettingsDialog(): React.JSX.Element | null {
         <a href="https://tarkov-market.com" target="_blank" rel="noreferrer">
           tarkov-market
         </a>
-        . Not affiliated with Battlestate Games.
+        . Container images from the{' '}
+        <a href="https://escapefromtarkov.fandom.com" target="_blank" rel="noreferrer">
+          Official Escape from Tarkov Wiki
+        </a>{' '}
+        (CC BY-SA 3.0). Not affiliated with Battlestate Games.
       </footer>
     </dialog>
   )

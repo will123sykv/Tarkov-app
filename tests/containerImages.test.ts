@@ -25,7 +25,13 @@ const response: PageImagesResponse = {
       { title: 'Medbag', pageimage: 'Medbag.png', thumbnail: thumb('Medbag.png') },
       { title: 'Scav corpse', pageimage: 'Scav_corpse.jpg', thumbnail: thumb('Scav_corpse.jpg') },
       { title: 'PMC body', missing: true },
-      { title: 'Common fund stash' }
+      { title: 'Common fund stash' },
+      {
+        title: 'Lab technician body',
+        pageimage: 'Saving_the_Mole_Map.png',
+        thumbnail: thumb('Saving_the_Mole_Map.png')
+      },
+      { title: 'Civilian body', pageimage: 'Dead_Civilian.png', thumbnail: thumb('Dead_Civilian.png') }
     ]
   }
 }
@@ -36,9 +42,16 @@ describe('container images', () => {
       { id: 'jacket', name: 'Jacket' },
       { id: 'medbag-smu06', name: 'Medbag SMU06' },
       { id: 'pmc-body', name: 'PMC body' },
-      { id: 'common-fund-stash', name: 'Common fund stash' }
+      { id: 'common-fund-stash', name: 'Common fund stash' },
+      { id: 'lab-technician-body', name: 'Lab technician body' },
+      { id: 'jacket-without-picture', name: 'Jacket' }
     ],
-    { 'medbag-smu06': ['medbag SMU06'], 'pmc-body': ['PMC body', 'Dead Scav'] }
+    {
+      'medbag-smu06': ['medbag SMU06'],
+      'pmc-body': ['PMC body', 'Dead Scav'],
+      'lab-technician-body': ['Lab technician body', 'Civilian body'],
+      'jacket-without-picture': []
+    }
   )
 
   it('uses the container name unless an override lists titles', () => {
@@ -54,6 +67,14 @@ describe('container images', () => {
 
   it('falls through missing pages to the next candidate', () => {
     expect(parsePageImages(response, candidates).get('pmc-body')?.pageTitle).toBe('Scav corpse')
+  })
+
+  it('skips map images and falls back to the next candidate', () => {
+    expect(parsePageImages(response, candidates).get('lab-technician-body')?.file).toBe('Dead_Civilian.png')
+  })
+
+  it('gives no picture for an empty candidate list', () => {
+    expect(parsePageImages(response, candidates).has('jacket-without-picture')).toBe(false)
   })
 
   it('skips containers whose pages have no image', () => {

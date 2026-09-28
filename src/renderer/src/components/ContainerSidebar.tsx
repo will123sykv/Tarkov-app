@@ -1,7 +1,10 @@
+import { useRef, useState } from 'react'
 import type { RankedContainer } from '../../../shared/containerValue'
 import type { ContainerCatalog, PublicSettings } from '../../../shared/types'
+import { containerImage } from '../lib/containerImages'
 import { formatDataMonth, formatRub } from '../lib/format'
 import { useStore } from '../store'
+import ContainerPreview from './ContainerPreview'
 
 interface Props {
   settings: PublicSettings
@@ -22,6 +25,8 @@ export default function ContainerSidebar({
   const updateSettings = useStore((s) => s.updateSettings)
   const setContainerMap = useStore((s) => s.setContainerMap)
   const { pool, containerSort } = settings
+  const [preview, setPreview] = useState<{ id: string; top: number; left: number } | null>(null)
+  const previewRow = useRef<HTMLElement | null>(null)
 
   const containers = ranking
     ? containerSort === 'name'
@@ -30,9 +35,30 @@ export default function ContainerSidebar({
     : []
   const selectContainer = (containerId: string | null): void =>
     void updateSettings({ pool: { ...pool, containerId } })
+  const showPreview = (id: string, row: HTMLElement): void => {
+    previewRow.current = row
+    const rowRect = row.getBoundingClientRect()
+    const sidebarRect = row.closest('.sidebar')?.getBoundingClientRect()
+    setPreview({ id, top: rowRect.top, left: sidebarRect?.right ?? rowRect.right })
+  }
+  const hidePreview = (): void => {
+    previewRow.current = null
+    setPreview(null)
+  }
+  // Keep the card level with its row while the list scrolls (e.g. keyboard focus scrolling a
+  // row into view); hide it once the row leaves the visible part of the list.
+  const followRow = (e: React.UIEvent<HTMLElement>): void => {
+    const row = previewRow.current
+    if (!row || !preview) return
+    const rowRect = row.getBoundingClientRect()
+    const sidebarRect = e.currentTarget.getBoundingClientRect()
+    if (rowRect.bottom < sidebarRect.top || rowRect.top > sidebarRect.bottom) hidePreview()
+    else setPreview({ ...preview, top: rowRect.top })
+  }
+  const previewed = preview ? containers.find((c) => c.loot.id === preview.id) : undefined
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" onScroll={followRow}>
       <input
         className="search"
         type="search"
@@ -83,23 +109,43 @@ export default function ContainerSidebar({
               aria-pressed={pool.containerId === null}
               onClick={() => selectContainer(null)}
             >
-              <span>All items</span>
+              <span className="thumb all" aria-hidden>
+                ∗
+              </span>
+              <span className="name">All items</span>
             </button>
           </li>
-          {containers.map(({ loot, value }) => (
-            <li key={loot.id}>
-              <button
-                className={pool.containerId === loot.id ? 'active' : ''}
-                aria-pressed={pool.containerId === loot.id}
-                onClick={() => selectContainer(loot.id)}
-                title={`Average value of one search at your level, ~${loot.expectedCount.toFixed(1)} items`}
-              >
-                <span>{loot.name}</span>
-                <span className="avg">{pricesLoaded ? formatRub(value.average) : ''}</span>
-              </button>
-            </li>
-          ))}
+          {containers.map(({ loot, value }) => {
+            const image = containerImage(loot.id)
+            return (
+              <li key={loot.id}>
+                <button
+                  className={pool.containerId === loot.id ? 'active' : ''}
+                  aria-pressed={pool.containerId === loot.id}
+                  onClick={() => selectContainer(loot.id)}
+                  onMouseEnter={(e) => showPreview(loot.id, e.currentTarget)}
+                  onMouseLeave={hidePreview}
+                  onFocus={(e) => showPreview(loot.id, e.currentTarget)}
+                  onBlur={hidePreview}
+                >
+                  <span className="thumb" aria-hidden>
+                    {image && <img src={image.url} alt="" />}
+                  </span>
+                  <span className="name">{loot.name}</span>
+                  <span className="avg">{pricesLoaded ? formatRub(value.average) : ''}</span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
+        {preview && previewed && (
+          <ContainerPreview
+            container={previewed}
+            mapCount={catalog?.containers.find((c) => c.id === preview.id)?.mapIds.length ?? 0}
+            pricesLoaded={pricesLoaded}
+            anchor={preview}
+          />
+        )}
         {!ranking && <p className="hint">Loading container loot tables…</p>}
         {catalog && (
           <p className="hint">
