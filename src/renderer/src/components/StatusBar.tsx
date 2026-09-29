@@ -4,7 +4,8 @@ import { useNow } from '../lib/useNow'
 
 interface Props {
   priceState: PriceState | null
-  shown: number
+  /** Items listed in the current view; null in views that don't list items. */
+  shown: number | null
   total: number
   playerLevel: number
 }
@@ -28,7 +29,8 @@ export default function StatusBar({ priceState, shown, total, playerLevel }: Pro
     <footer className="statusbar">
       <span>{prices}</span>
       <span>
-        {shown.toLocaleString()} of {total.toLocaleString()} items · level {playerLevel}
+        {shown !== null && `${shown.toLocaleString()} of ${total.toLocaleString()} items · `}level{' '}
+        {playerLevel}
       </span>
       <span>{refresh}</span>
     </footer>

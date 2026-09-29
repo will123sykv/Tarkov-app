@@ -124,9 +124,36 @@ export interface Settings {
   backgroundRecording: boolean
   /** Start hidden in the tray when Windows starts (only takes effect with background recording). */
   startWithWindows: boolean
+  /** The game's Logs folder, when chosen by hand; null finds it automatically. */
+  gameLogsDir: string | null
+  quests: QuestSettings
+  maps: MapSettings
 }
 
-export type AppView = 'loot' | 'trends'
+export type AppView = 'loot' | 'trends' | 'quests' | 'maps' | 'raids'
+
+export type QuestStatusFilter = 'available' | 'active' | 'locked' | 'completed' | 'failed'
+
+export interface QuestSettings {
+  statuses: QuestStatusFilter[]
+  traderId: string | null
+  /** Only quests involving this map (a map id). */
+  mapId: string | null
+  kappaOnly: boolean
+  lightkeeperOnly: boolean
+  /** Hide the other faction's quests; null shows both. */
+  faction: 'USEC' | 'BEAR' | null
+}
+
+export interface MapSettings {
+  /** The map shown, by its normalized name (e.g. `customs`). */
+  mapKey: string
+  /** Which quests' objectives to mark: active ones, or active and available. */
+  questScope: 'active' | 'available' | 'none'
+  showExtracts: boolean
+  showSpawns: boolean
+  showTransits: boolean
+}
 
 export interface TrendSettings {
   /** Lookback window for patterns, in days. */

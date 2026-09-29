@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { UpdaterStatus } from '../../../shared/types'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
+import LogStatusPanel from './LogStatusPanel'
 
 const REFRESH_OPTIONS = [1, 2, 5, 10, 15, 30, 60]
 
@@ -80,6 +81,10 @@ export default function SettingsDialog(): React.JSX.Element | null {
           Subtract flea listing fees from flea prices
         </label>
       </section>
+
+      <div className="dialog-logs">
+        <LogStatusPanel />
+      </div>
 
       <section>
         <h3>Background</h3>

@@ -1,5 +1,5 @@
 /**
- * Regenerates src/main/data/mapConfigs.json from tarkov.dev's interactive map definitions
+ * Regenerates src/renderer/src/data/mapConfigs.json from tarkov.dev's interactive map definitions
  * (github.com/the-hideout/tarkov-dev, src/data/maps.json, MIT licence): how game coordinates
  * project onto each map image, and where the images are. The images themselves stay on
  * assets.tarkov.dev (CC BY-NC-SA 4.0) and are downloaded by the app when a map is opened.
@@ -11,7 +11,7 @@ import { dirname, resolve } from 'node:path'
 import type { MapConfig } from '../src/shared/questTypes'
 
 const SOURCE = 'https://raw.githubusercontent.com/the-hideout/tarkov-dev/main/src/data/maps.json'
-const OUT = resolve('src/main/data/mapConfigs.json')
+const OUT = resolve('src/renderer/src/data/mapConfigs.json')
 
 type Raw = Record<string, unknown>
 

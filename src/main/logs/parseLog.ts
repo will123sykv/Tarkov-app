@@ -32,8 +32,13 @@ function toEntry(header: RegExpExecArray, body: string[]): LogEntry {
  * Split log text into entries. With `complete: false` (the file may still be being written), the
  * last entry is held back and `consumed` stops where it starts, so the next read picks it up whole.
  */
-export function parseLogText(text: string, complete = true): { entries: LogEntry[]; consumed: number } {
+export function parseLogText(
+  text: string,
+  complete = true
+): { entries: LogEntry[]; consumed: number; starts: number[] } {
   const entries: LogEntry[] = []
+  /** Where each returned entry starts in `text`. */
+  const starts: number[] = []
   let header: RegExpExecArray | null = null
   let body: string[] = []
   let headerStart = 0
@@ -44,7 +49,10 @@ export function parseLogText(text: string, complete = true): { entries: LogEntry
     const line = text.slice(pos, lineEnd).replace(/\r$/, '')
     const match = HEADER.exec(line)
     if (match) {
-      if (header) entries.push(toEntry(header, body))
+      if (header) {
+        entries.push(toEntry(header, body))
+        starts.push(headerStart)
+      }
       header = match
       body = []
       headerStart = pos
@@ -53,10 +61,11 @@ export function parseLogText(text: string, complete = true): { entries: LogEntry
     }
     pos = end === -1 ? text.length : end + 1
   }
-  if (!header) return { entries, consumed: complete ? text.length : 0 }
+  if (!header) return { entries, consumed: complete ? text.length : 0, starts }
   if (complete) {
     entries.push(toEntry(header, body))
-    return { entries, consumed: text.length }
+    starts.push(headerStart)
+    return { entries, consumed: text.length, starts }
   }
-  return { entries, consumed: headerStart }
+  return { entries, consumed: headerStart, starts }
 }

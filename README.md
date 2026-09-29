@@ -2,8 +2,14 @@
 
 A Windows desktop app that tells you which Escape from Tarkov items are worth the space in your
 bag. Every item is ranked by **roubles per inventory slot**, using live flea market and trader
-prices, your PMC level and the game mode you play. A second view, **Flea trends**, finds liquid
-flea items whose price follows a daily pattern, and the best time of day to buy and to sell them.
+prices, your PMC level and the game mode you play. It also has:
+
+- **Flea trends:** liquid flea items whose price follows a daily pattern, and the best time of day
+  to buy and to sell them;
+- **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
+  reading the game's log files;
+- **Maps:** interactive maps with your quest objectives, extracts, transits and spawns;
+- **Raids:** your raid history and flea market sales, also from the logs.
 
 ## Download
 
@@ -45,6 +51,7 @@ next time you close the app.
   - each container has a picture: a thumbnail in the list and a larger one when you hover over it.
 - **Flea trends.** Switch to **Flea trends** in the top bar to find flea items you could buy at one
   time of day and sell at another for a profit (see below).
+- **Quests, maps and raids** from the game's own log files (see below).
 - **Your settings are remembered** between sessions: view, mode, levels, container, map, filters
   and sort order.
 
@@ -90,6 +97,31 @@ prices; use **Quit** in the tray menu to exit. **Start with Windows** starts it 
 tray. Past patterns are no guarantee, and the flea listing fee is charged when you list, even if
 the item doesn't sell.
 
+### Quests, maps and raids
+
+The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing
+is uploaded. It finds the game's `Logs` folder by itself (launcher and Steam installs); if it
+can't, choose it in the **Game logs** panel (in the Quests and Raids views, and Settings). It's in
+the game's install folder, or its `build` folder.
+
+- **Quests:** every quest, grouped by trader, marked **Available**, **Active**, **Locked** (with
+  what unlocks it), **Completed** or **Failed** at your level. Quests you start, finish or fail in
+  game are ticked off automatically, per game mode. The game only keeps logs for recent sessions,
+  so to catch up on older progress, open a quest you've reached and use **Mark this and everything
+  before it done**, which also completes everything that had to come before it. You can set any
+  quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
+  trader, map, faction, and Kappa or Lightkeeper. **Items needed** lists what your active quests
+  still want handed over, flagging found-in-raid items.
+- **Maps:** tarkov.dev's interactive maps with the objectives of your active (or available)
+  quests, extracts (PMC, scav, shared), transits and PMC spawns. **Show on map** on any objective
+  jumps to it. Map images are downloaded the first time you open a map and kept, so they work
+  offline afterwards.
+- **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
+  how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
+
+The game only writes its logs between raids, so updates appear once you're back in the menu. How a
+raid ended (survived, killed, run-through) isn't in the logs, and neither is the scav cooldown.
+
 ### How an item's worth is calculated
 
 | Flea access at your level | Worth                                                                        |
@@ -124,8 +156,10 @@ offline cache.
 
 ### Where data is stored
 
-Settings, the encrypted API key, the price cache and the flea price recordings (`trends\`, about 1
-MB a day) live in `%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.
+Settings, the encrypted API key, the price and quest caches, the flea price recordings (`trends\`,
+about 1 MB a day), your quest progress and raid history (`player.json`), where the app got to in the
+game's logs (`logs\`) and downloaded map images (`map-cache\`) live in
+`%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.
 
 ## Development
 
@@ -142,6 +176,7 @@ npm run dist         # build a Windows installer into dist/ (run on Windows)
 npm run smoke:api    # check the live tarkov.dev data still matches what the app expects
 npm run data:containers  # regenerate the bundled container loot tables (see below)
 npm run data:container-images  # re-download container pictures from the Tarkov wiki
+npm run data:maps    # regenerate the bundled map projections from tarkov.dev
 ```
 
 ### Project layout
@@ -154,9 +189,13 @@ src/main/       Electron main process: settings, price fetching and caching, aut
   pricing/      json.tarkov.dev, tarkov.dev GraphQL and tarkov-market clients, fallback chain,
                 refresh timer
   trends/       Flea price recorder and the trend analysis service
+  logs/         Finding and reading the game's log files
+  quests/       Quest and map data, and the player's progress and raid history
+  maps/         The map image cache (tarkov-map:// scheme)
   data/         containerLoot.json, generated by scripts/build-container-loot.ts
 src/preload/    The typed bridge exposed to the UI as window.api
-src/renderer/   React UI (Zustand store, virtualized item table)
+src/renderer/   React UI (Zustand store, virtualized item table, Leaflet maps); data/mapConfigs.json
+                is generated by scripts/build-map-configs.ts
 tests/          Unit tests with API fixtures
 ```
 
@@ -206,7 +245,12 @@ with the `latest.yml` file that installed copies read to find updates.
 
 ## Credits
 
-Price and item data: [tarkov.dev](https://tarkov.dev) and [tarkov-market](https://tarkov-market.com).
+Price, item, quest and map data: [tarkov.dev](https://tarkov.dev) and
+[tarkov-market](https://tarkov-market.com). Map projections: tarkov.dev's
+[site](https://github.com/the-hideout/tarkov-dev) (MIT). Map images:
+[tarkov.dev's SVG maps](https://github.com/the-hideout/tarkov-dev-svg-maps) by Shebuka and others
+(CC BY-NC-SA 4.0). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). The log formats
+follow what [TarkovMonitor](https://github.com/the-hideout/TarkovMonitor) documents.
 Container loot tables: the [SPT](https://github.com/sp-tarkov/server-csharp) project's server
 database (NCSA licence). Container pictures: the
 [Official Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) (CC BY-SA 3.0).

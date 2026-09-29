@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
+import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
+import type { ProgressEntry, QuestProgress } from '../../shared/questProgress'
+import type { QuestDataState } from '../../shared/questTypes'
 import type {
   ContainerCatalog,
   ContainerLoot,
@@ -29,6 +32,13 @@ interface AppStore {
   /** Keyed by `${dataMode}:${itemId}`. */
   trendSeries: Record<string, TrendSeries>
   selectedTrendItem: string | null
+  questData: Partial<Record<DataMode, QuestDataState>>
+  questProgress: Partial<Record<GameMode, QuestProgress>>
+  logHistory: Partial<Record<GameMode, LogHistory>>
+  logStatus: LogWatcherStatus | null
+  selectedQuest: string | null
+  /** A quest objective to centre the map on. */
+  mapFocus: { questId: string; objectiveId: string | null } | null
   updater: UpdaterStatus
   appVersion: string
   settingsOpen: boolean
@@ -43,6 +53,14 @@ interface AppStore {
   loadTrends(): Promise<void>
   loadTrendSeries(itemId: string): Promise<void>
   selectTrendItem(itemId: string | null): void
+  loadQuestData(force?: boolean): Promise<void>
+  loadPlayerData(): Promise<void>
+  setQuestStatus(questId: string, status: ProgressEntry['status'] | null): Promise<void>
+  markQuestsUpTo(questId: string): Promise<void>
+  rescanLogs(): Promise<void>
+  chooseLogsFolder(): Promise<void>
+  selectQuest(questId: string | null): void
+  showOnMap(questId: string, objectiveId: string | null, mapKey: string): Promise<void>
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
 }
@@ -84,6 +102,12 @@ export const useStore = create<AppStore>((set, get) => ({
   trendsError: null,
   trendSeries: {},
   selectedTrendItem: null,
+  questData: {},
+  questProgress: {},
+  logHistory: {},
+  logStatus: null,
+  selectedQuest: null,
+  mapFocus: null,
   updater: { state: 'idle' },
   appVersion: '',
   settingsOpen: false,
@@ -93,8 +117,16 @@ export const useStore = create<AppStore>((set, get) => ({
     unsubscribers.forEach((off) => off())
     unsubscribers = [
       api.onPriceState((state) => get().applyPriceState(state)),
-      api.onUpdaterStatus((updater) => set({ updater }))
+      api.onUpdaterStatus((updater) => set({ updater })),
+      api.onQuestProgress(({ gameMode, progress }) =>
+        set((s) => ({ questProgress: { ...s.questProgress, [gameMode]: progress } }))
+      ),
+      api.onLogHistory(({ gameMode, history }) =>
+        set((s) => ({ logHistory: { ...s.logHistory, [gameMode]: history } }))
+      ),
+      api.onLogStatus((logStatus) => set({ logStatus }))
     ]
+    void api.getLogStatus().then((logStatus) => set((s) => (s.logStatus ? s : { logStatus })))
     try {
       const [settings, updater, appVersion, containerCatalog] = await Promise.all([
         api.getSettings(),
@@ -203,6 +235,78 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   selectTrendItem: (selectedTrendItem) => set({ selectedTrendItem }),
+
+  async loadQuestData(force = false) {
+    const settings = get().settings
+    if (!settings) return
+    const dataMode = dataModeFor(settings.gameMode)
+    const current = get().questData[dataMode]
+    if (current?.loading) return
+    set((s) => ({
+      questData: {
+        ...s.questData,
+        [dataMode]: { dataset: current?.dataset ?? null, fromCache: false, error: null, loading: true }
+      }
+    }))
+    try {
+      const state = await window.api.getQuestData(dataMode, force)
+      set((s) => ({ questData: { ...s.questData, [dataMode]: state } }))
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err)
+      set((s) => ({
+        questData: {
+          ...s.questData,
+          [dataMode]: { dataset: current?.dataset ?? null, fromCache: true, error, loading: false }
+        }
+      }))
+    }
+  },
+
+  async loadPlayerData() {
+    const settings = get().settings
+    if (!settings) return
+    const gameMode = settings.gameMode
+    const [progress, history] = await Promise.all([
+      window.api.getQuestProgress(gameMode),
+      window.api.getLogHistory(gameMode)
+    ])
+    set((s) => ({
+      questProgress: { ...s.questProgress, [gameMode]: progress },
+      logHistory: { ...s.logHistory, [gameMode]: history }
+    }))
+  },
+
+  async setQuestStatus(questId, status) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const progress = await window.api.setQuestStatus(gameMode, questId, status)
+    set((s) => ({ questProgress: { ...s.questProgress, [gameMode]: progress } }))
+  },
+
+  async markQuestsUpTo(questId) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const progress = await window.api.markQuestsUpTo(gameMode, questId)
+    set((s) => ({ questProgress: { ...s.questProgress, [gameMode]: progress } }))
+  },
+
+  async rescanLogs() {
+    set({ logStatus: await window.api.rescanLogs() })
+  },
+
+  async chooseLogsFolder() {
+    const settings = await window.api.chooseLogsFolder()
+    if (settings) set({ settings })
+  },
+
+  selectQuest: (selectedQuest) => set({ selectedQuest }),
+
+  async showOnMap(questId, objectiveId, mapKey) {
+    const settings = get().settings
+    if (!settings) return
+    set({ mapFocus: { questId, objectiveId }, selectedQuest: questId })
+    await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
+  },
   setSearch: (search) => set({ search }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen })
 }))

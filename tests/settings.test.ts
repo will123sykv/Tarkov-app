@@ -98,6 +98,54 @@ describe('sanitizeSettings', () => {
     })
   })
 
+  it('validates the quests, maps and raids settings', () => {
+    expect(
+      sanitizeSettings({
+        view: 'maps',
+        gameLogsDir: 'D:\\Games\\EFT\\Logs',
+        quests: {
+          statuses: ['active', 'bogus', 'completed'],
+          traderId: 't',
+          mapId: '',
+          kappaOnly: true,
+          faction: 'BEAR'
+        },
+        maps: { mapKey: 'streets-of-tarkov', questScope: 'available', showSpawns: true }
+      })
+    ).toMatchObject({
+      view: 'maps',
+      gameLogsDir: 'D:\\Games\\EFT\\Logs',
+      quests: {
+        statuses: ['active', 'completed'],
+        traderId: 't',
+        mapId: null,
+        kappaOnly: true,
+        lightkeeperOnly: false,
+        faction: 'BEAR'
+      },
+      maps: {
+        mapKey: 'streets-of-tarkov',
+        questScope: 'available',
+        showExtracts: true,
+        showSpawns: true,
+        showTransits: true
+      }
+    })
+    expect(
+      sanitizeSettings({
+        view: 'nope',
+        gameLogsDir: 5,
+        quests: { faction: 'Scav' },
+        maps: { mapKey: '../x', questScope: 'x' }
+      })
+    ).toMatchObject({
+      view: 'loot',
+      gameLogsDir: null,
+      quests: DEFAULT_SETTINGS.quests,
+      maps: { mapKey: 'customs', questScope: 'active' }
+    })
+  })
+
   it('validates the flea trends view and background options', () => {
     expect(
       sanitizeSettings({

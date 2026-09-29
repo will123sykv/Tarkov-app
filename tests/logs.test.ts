@@ -79,7 +79,7 @@ describe('parseLogText', () => {
     const partial = parseLogText(text, false)
     expect(partial.entries).toHaveLength(7)
     expect(text.slice(partial.consumed)).toBe(line('18:50:00', 'application', 'half writ'))
-    expect(parseLogText('no header yet', false)).toEqual({ entries: [], consumed: 0 })
+    expect(parseLogText('no header yet', false)).toEqual({ entries: [], consumed: 0, starts: [] })
   })
 
   it('handles Windows line endings, times without an offset and broken JSON', () => {
@@ -291,6 +291,25 @@ describe('createLogWatcher', () => {
       foldersRead: 2,
       events: { quests: 3, flea: 1, raids: 1 }
     })
+  })
+
+  it('takes events from both files in time order while they are still being written', async () => {
+    const { current, watcher, batches } = await setup()
+    // The raid's start is the last line of application.log, held back while the file may grow;
+    // its end, later on, is already in notifications.log.
+    await writeFile(
+      join(current, '2026.09.20_18-00-00_1.0 application.log'),
+      `${APPLICATION.split('\n').slice(0, 6).join('\n')}\n`
+    )
+    await appendFile(
+      join(current, '2026.09.20_18-00-00_1.0 notifications.log'),
+      `${notification('18:50:00', chat(10, `${questStarted} description t 0`))}\n`
+    )
+    await watcher.poll()
+    expect(batches.flatMap((b) => kinds(b.events))).not.toContain('raid:bigmap')
+    await watcher.poll()
+    const raid = batches.flatMap((b) => b.events).find((e) => e.kind === 'raid')
+    expect(raid?.kind === 'raid' && raid.raid.startedAt).toBe(Date.parse('2026-09-20T18:06:00.123+01:00'))
   })
 
   it('only reads what was added, and remembers where it was across restarts', async () => {

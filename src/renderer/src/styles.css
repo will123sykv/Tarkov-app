@@ -1161,3 +1161,543 @@ button.link {
 .chart-tooltip-row span {
   color: var(--muted);
 }
+
+/* Five views: keep the top bar on one line at the minimum window width. */
+.view-tabs button,
+.segmented button,
+.topbar-actions .button,
+.brand h1 {
+  white-space: nowrap;
+}
+
+@media (max-width: 1500px) {
+  .topbar {
+    gap: 16px;
+  }
+
+  .brand > div {
+    display: none;
+  }
+
+  .view-tabs button {
+    padding: 7px 9px;
+  }
+}
+
+.badge.info {
+  background: rgba(106, 159, 212, 0.16);
+  color: var(--info);
+}
+
+.badge.muted {
+  background: rgba(141, 146, 150, 0.14);
+  color: var(--muted);
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+  vertical-align: 1px;
+}
+
+.tag.fir {
+  background: rgba(217, 164, 65, 0.16);
+  color: var(--warn);
+}
+
+button.link.active {
+  color: var(--accent-strong);
+}
+
+.check .grow {
+  flex: 1;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sidebar .hint.path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.segmented.small button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.summary-stats .search {
+  width: 240px;
+  padding: 4px 10px;
+}
+
+/* Quests */
+
+.quests,
+.maps,
+.raids {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.quests .sidebar .check,
+.maps .sidebar .check {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.quests-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  min-height: 0;
+}
+
+.quest-list {
+  overflow-y: auto;
+  padding: 4px 0 16px;
+}
+
+.quest-list h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 8px 16px 6px;
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.quest-list ul,
+.map-objectives,
+.legend,
+.map-counts,
+.any-of-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.quest-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 16px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+}
+
+.quest-row:hover {
+  background: var(--panel);
+}
+
+.quest-row.selected {
+  background: var(--panel-2);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.quest-row .badge {
+  justify-self: start;
+}
+
+.quest-name span,
+.quest-name small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quest-name span {
+  font-weight: 500;
+}
+
+.quest-name small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.quest-flags {
+  display: flex;
+  gap: 4px;
+}
+
+.quest-flags abbr {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.quest-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.quest-detail.placeholder {
+  justify-content: center;
+  text-align: center;
+}
+
+.quest-detail > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quest-detail > header strong {
+  display: block;
+  font-size: 16px;
+  color: var(--accent-strong);
+}
+
+.quest-detail > header .muted {
+  display: block;
+  font-size: 12px;
+}
+
+.quest-detail > .button.small {
+  align-self: flex-start;
+}
+
+.quest-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.lock-reasons {
+  margin: 0;
+  padding: 8px 12px 8px 26px;
+  background: rgba(141, 146, 150, 0.08);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.quest-links {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.quest-detail h4,
+.needed-items h4 {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.objectives {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.objective-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.objective-item img,
+.item-cell img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  background: var(--panel-2);
+  border-radius: 3px;
+}
+
+.objective details {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.objective summary {
+  cursor: pointer;
+}
+
+.any-of {
+  max-height: 160px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+.objective-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.wiki-link {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.needed-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px 24px;
+}
+
+.needed-table {
+  margin-top: 10px;
+}
+
+.needed-table td {
+  vertical-align: middle;
+}
+
+.item-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.any-of-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+/* Maps */
+
+.map-content {
+  position: relative;
+}
+
+.map-canvas,
+.leaflet-host {
+  position: absolute;
+  inset: 0;
+}
+
+.leaflet-container {
+  background: #0b0d0f;
+  font: inherit;
+}
+
+.leaflet-tooltip {
+  width: max-content;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+  max-width: 280px;
+  white-space: normal;
+}
+
+.leaflet-tooltip-left::before,
+.leaflet-tooltip-right::before,
+.leaflet-tooltip-top::before,
+.leaflet-tooltip-bottom::before {
+  display: none;
+}
+
+.leaflet-bar a {
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.leaflet-bar a:hover {
+  background: var(--panel);
+  color: var(--accent-strong);
+}
+
+.map-error,
+.map-selected {
+  position: absolute;
+  z-index: 1000;
+  padding: 6px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.map-error {
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  color: var(--warn);
+}
+
+.map-selected {
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-selected strong {
+  color: var(--accent-strong);
+}
+
+.button.icon.small {
+  padding: 2px 7px;
+}
+
+.legend {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #101214;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.map-objectives {
+  display: grid;
+  gap: 2px;
+}
+
+.map-objectives button {
+  display: grid;
+  width: 100%;
+  padding: 5px 0;
+  color: var(--text);
+  text-decoration: none;
+  text-align: left;
+  font-size: 12px;
+}
+
+.map-objectives button span {
+  color: var(--muted);
+}
+
+.map-objectives button:hover strong,
+.map-objectives button.active strong {
+  color: var(--accent-strong);
+}
+
+.sidebar .credit a {
+  color: var(--muted);
+}
+
+/* Raids */
+
+.raids-content {
+  overflow-y: auto;
+}
+
+.raids-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 12px 16px 24px;
+}
+
+.raids-tables h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+
+.dim-row td {
+  color: var(--muted);
+}
+
+.raids-tables td:first-child {
+  white-space: nowrap;
+}
+
+.stat-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.stat-list dt {
+  color: var(--muted);
+}
+
+.stat-list dd {
+  margin: 0;
+  font-family: var(--mono);
+  text-align: right;
+}
+
+.map-counts {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.map-counts li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.dialog-logs section {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-logs h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+
+.dialog-logs .hint {
+  margin: 0 0 6px;
+  font-size: 12px;
+}

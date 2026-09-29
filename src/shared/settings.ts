@@ -7,7 +7,16 @@ import {
 } from './constants'
 import { isGameMode } from './gameModes'
 import type { TrendSortKey } from './fleaTrends'
-import type { GameMode, Settings, SortKey, TrendSettings } from './types'
+import type {
+  AppView,
+  GameMode,
+  MapSettings,
+  QuestSettings,
+  QuestStatusFilter,
+  Settings,
+  SortKey,
+  TrendSettings
+} from './types'
 
 const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
 
@@ -33,7 +42,54 @@ export const DEFAULT_SETTINGS: Settings = {
     tradableOnly: true
   },
   backgroundRecording: false,
-  startWithWindows: false
+  startWithWindows: false,
+  gameLogsDir: null,
+  quests: {
+    statuses: ['available', 'active'],
+    traderId: null,
+    mapId: null,
+    kappaOnly: false,
+    lightkeeperOnly: false,
+    faction: null
+  },
+  maps: {
+    mapKey: 'customs',
+    questScope: 'active',
+    showExtracts: true,
+    showSpawns: false,
+    showTransits: true
+  }
+}
+
+const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'maps', 'raids']
+const QUEST_STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'completed', 'failed']
+
+function sanitizeQuests(raw: unknown): QuestSettings {
+  const d = DEFAULT_SETTINGS.quests
+  const r = isRecord(raw) ? raw : {}
+  const statuses = Array.isArray(r.statuses)
+    ? QUEST_STATUSES.filter((s) => (r.statuses as unknown[]).includes(s))
+    : d.statuses
+  return {
+    statuses,
+    traderId: optionalId(r.traderId),
+    mapId: optionalId(r.mapId),
+    kappaOnly: r.kappaOnly === true,
+    lightkeeperOnly: r.lightkeeperOnly === true,
+    faction: r.faction === 'USEC' || r.faction === 'BEAR' ? r.faction : null
+  }
+}
+
+function sanitizeMaps(raw: unknown): MapSettings {
+  const d = DEFAULT_SETTINGS.maps
+  const r = isRecord(raw) ? raw : {}
+  return {
+    mapKey: typeof r.mapKey === 'string' && /^[a-z0-9-]{1,40}$/.test(r.mapKey) ? r.mapKey : d.mapKey,
+    questScope: r.questScope === 'available' || r.questScope === 'none' ? r.questScope : 'active',
+    showExtracts: typeof r.showExtracts === 'boolean' ? r.showExtracts : d.showExtracts,
+    showSpawns: typeof r.showSpawns === 'boolean' ? r.showSpawns : d.showSpawns,
+    showTransits: typeof r.showTransits === 'boolean' ? r.showTransits : d.showTransits
+  }
 }
 
 const TREND_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency', 'offers', 'swing']
@@ -120,10 +176,14 @@ export function sanitizeSettings(raw: unknown): Settings {
       mapId: optionalId(pool.mapId)
     },
     containerSort: r.containerSort === 'name' ? 'name' : 'value',
-    view: r.view === 'trends' ? 'trends' : 'loot',
+    view: VIEWS.includes(r.view as AppView) ? (r.view as AppView) : 'loot',
     trends: sanitizeTrends(r.trends),
     backgroundRecording: r.backgroundRecording === true,
-    startWithWindows: r.startWithWindows === true
+    startWithWindows: r.startWithWindows === true,
+    gameLogsDir:
+      typeof r.gameLogsDir === 'string' && r.gameLogsDir.length <= 1024 ? r.gameLogsDir || null : null,
+    quests: sanitizeQuests(r.quests),
+    maps: sanitizeMaps(r.maps)
   }
 }
 
@@ -134,6 +194,8 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     playerLevels: { ...current.playerLevels, ...patch.playerLevels },
     sort: { ...current.sort, ...patch.sort },
     pool: { ...current.pool, ...patch.pool },
-    trends: { ...current.trends, ...patch.trends }
+    trends: { ...current.trends, ...patch.trends },
+    quests: { ...current.quests, ...patch.quests },
+    maps: { ...current.maps, ...patch.maps }
   })
 }

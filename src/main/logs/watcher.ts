@@ -94,7 +94,11 @@ export function createLogWatcher(deps: LogWatcherDeps) {
     const state = saved!
     const dir = join(logsDir, folder)
     const files = (await readdir(dir).catch(() => [] as string[])).filter((f) => WATCHED_FILE.test(f)).sort()
-    const entries: LogEntry[] = []
+    // Each growing file holds back its last entry. Events from different files are only interpreted
+    // up to the earliest held-back entry, so they're always taken in time order (a raid's end in
+    // notifications.log never before its start in application.log).
+    const reads: { key: string; offset: number; text: string; parsed: ReturnType<typeof parseLogText> }[] = []
+    let cutoff = Infinity
     for (const file of files) {
       const key = `${folder}/${file}`
       const path = join(dir, file)
@@ -109,8 +113,18 @@ export function createLogWatcher(deps: LogWatcherDeps) {
       lastSize.set(key, size)
       const text = (await readRange(path, offset, size)).toString('utf8')
       const parsed = parseLogText(text, settled)
-      entries.push(...parsed.entries)
-      state.offsets[key] = offset + Buffer.byteLength(text.slice(0, parsed.consumed), 'utf8')
+      const held =
+        parsed.consumed < text.length ? parseLogText(text.slice(parsed.consumed)).entries[0] : undefined
+      if (held) cutoff = Math.min(cutoff, held.t)
+      reads.push({ key, offset, text, parsed })
+    }
+    const entries: LogEntry[] = []
+    for (const { key, offset, text, parsed } of reads) {
+      const stop = parsed.entries.findIndex((e) => e.t >= cutoff)
+      const taken = stop === -1 ? parsed.entries : parsed.entries.slice(0, stop)
+      const consumed = stop === -1 ? parsed.consumed : parsed.starts[stop]
+      entries.push(...taken)
+      state.offsets[key] = offset + Buffer.byteLength(text.slice(0, consumed), 'utf8')
     }
     if (!entries.length) return []
     entries.sort((a, b) => a.t - b.t)

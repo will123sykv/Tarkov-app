@@ -1,15 +1,19 @@
-import { app, BrowserWindow, net, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, net, protocol, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
 import { dataModeFor } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
-import type { PriceState, UpdaterStatus } from '../shared/types'
 import type { ContainerLootData } from '../shared/containerData'
 import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
 import { createBackgroundMode, launchedHidden } from './background'
 import { registerIpc } from './ipc'
+import { locateLogsDir } from './logs/locate'
+import { createLogWatcher } from './logs/watcher'
+import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
+import { createPlayerStore } from './quests/playerStore'
+import { createQuestDataService } from './quests/questData'
 import { createSettingsStore } from './settings'
 import { createPriceRecorder } from './trends/recorder'
 import { createTrendService } from './trends/trendService'
@@ -25,7 +29,15 @@ let showMainWindow = (): void => {
   mainWindow.focus()
 }
 
-function send(channel: string, payload: PriceState | UpdaterStatus): void {
+// Map images are served from a disk cache through this scheme (see maps/mapAssets.ts).
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: MAP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true }
+  }
+])
+
+function send(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
 }
 
@@ -113,6 +125,21 @@ async function bootstrap(): Promise<void> {
     getDataset: (dataMode) => prices.peek(dataMode)?.dataset ?? null
   })
 
+  protocol.handle(MAP_SCHEME, createMapAssetHandler({ cacheDir: join(userData, 'map-cache'), fetchFn }))
+  const questData = createQuestDataService({ fetchFn, cacheDir })
+  const player = createPlayerStore({ file: join(userData, 'player.json') })
+  const logs = createLogWatcher({
+    stateFile: join(userData, 'logs', 'state.json'),
+    locate: () => locateLogsDir(settings.get().gameLogsDir),
+    onEvents: async (events, reset) => {
+      for (const gameMode of await player.applyEvents(events, reset)) {
+        send(IPC.questsProgressChanged, { gameMode, progress: await player.progress(gameMode) })
+        send(IPC.logsHistoryChanged, { gameMode, history: await player.history(gameMode) })
+      }
+    },
+    onStatus: (status) => send(IPC.logsStatusChanged, status)
+  })
+
   const background = createBackgroundMode({
     isEnabled: () => settings.get().backgroundRecording,
     getWindow: () => mainWindow
@@ -122,7 +149,11 @@ async function bootstrap(): Promise<void> {
     prices,
     containers,
     trends,
+    questData,
+    player,
+    logs,
     onSettingsChanged: (previous, current) => {
+      if (previous.gameLogsDir !== current.gameLogsDir) void logs.poll()
       if (
         previous.backgroundRecording !== current.backgroundRecording ||
         previous.startWithWindows !== current.startWithWindows
@@ -137,8 +168,12 @@ async function bootstrap(): Promise<void> {
   background.apply(settings.get())
   showMainWindow = background.showWindow
   initUpdater((status) => send(IPC.updaterStatus, status))
+  logs.start()
 
-  app.on('before-quit', () => prices.dispose())
+  app.on('before-quit', () => {
+    prices.dispose()
+    logs.stop()
+  })
 }
 
 if (!app.requestSingleInstanceLock()) {

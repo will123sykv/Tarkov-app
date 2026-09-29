@@ -6,6 +6,9 @@ import { rankItems, type ContainerFilter } from '../../shared/valuation'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
 import ItemTable from './components/ItemTable'
+import MapsView from './components/MapsView'
+import QuestsView from './components/QuestsView'
+import RaidsView from './components/RaidsView'
 import ModeBanner from './components/ModeBanner'
 import SettingsDialog from './components/SettingsDialog'
 import StatusBar from './components/StatusBar'
@@ -36,7 +39,9 @@ export default function App(): React.JSX.Element {
   const mapId = settings?.pool.mapId ?? null
   const containerId = settings?.pool.containerId ?? null
 
-  const trendsView = settings?.view === 'trends'
+  const view = settings?.view ?? 'loot'
+  const trendsView = view === 'trends'
+  const lootView = view === 'loot'
   const trendRanking = useTrendRanking(settings, dataset, trendsView)
 
   const ctx = useMemo(
@@ -46,8 +51,8 @@ export default function App(): React.JSX.Element {
   // What every item is worth to this player; shared by the container ranking and summary.
   // The loot view is hidden while the trends view is open, so skip the work.
   const values = useMemo(
-    () => valuesById(trendsView ? [] : (dataset?.items ?? []), ctx),
-    [dataset, ctx, trendsView]
+    () => valuesById(lootView ? (dataset?.items ?? []) : [], ctx),
+    [dataset, ctx, lootView]
   )
   const lootList = containerLoot[containerLootKey(mapId)]
   const ranking = useMemo(() => rankContainers(lootList ?? [], values), [lootList, values])
@@ -65,7 +70,7 @@ export default function App(): React.JSX.Element {
   )
 
   const ranked = useMemo(() => {
-    if (!dataset || !settings || trendsView) return []
+    if (!dataset || !settings || !lootView) return []
     return rankItems(
       dataset.items,
       ctx,
@@ -77,7 +82,7 @@ export default function App(): React.JSX.Element {
       },
       settings.sort
     )
-  }, [dataset, settings, ctx, containerFilter, search, trendsView])
+  }, [dataset, settings, ctx, containerFilter, search, lootView])
 
   if (initError) {
     return <div className="fatal">Failed to start: {initError}</div>
@@ -97,8 +102,14 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
       <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
-      {trendsView ? (
+      {view === 'trends' ? (
         <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
+      ) : view === 'quests' ? (
+        <QuestsView settings={settings} priceState={priceState} />
+      ) : view === 'maps' ? (
+        <MapsView settings={settings} />
+      ) : view === 'raids' ? (
+        <RaidsView settings={settings} priceState={priceState} />
       ) : (
         <div className="workspace">
           <ContainerSidebar
@@ -126,7 +137,7 @@ export default function App(): React.JSX.Element {
       )}
       <StatusBar
         priceState={priceState}
-        shown={trendsView ? trendRanking.rows.length : ranked.length}
+        shown={trendsView ? trendRanking.rows.length : lootView ? ranked.length : null}
         total={dataset?.items.length ?? 0}
         playerLevel={playerLevel}
       />
