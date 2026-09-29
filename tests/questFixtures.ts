@@ -1,0 +1,179 @@
+import type { QuestDataInput } from '../src/main/quests/questData'
+
+// Shaped like json.tarkov.dev's `tasks`, `maps` and `traders` files (as the CI probe logged them).
+
+export const PRAPOR = '54cb50c76803fa8b248b4571'
+export const THERAPIST = '54cb57776803fa99248b456e'
+export const CUSTOMS = '56f40101d2720b2a4d8b45d6'
+export const WOODS = '5704e3c2d2720bac5b8b4567'
+
+export const Q = {
+  debut: '5936d90786f7742b1420ba5b',
+  checking: '5936da9e86f7742d65037edf',
+  shootout: '5bc4776586f774512d07cf05',
+  firstAid: '5967733e86f774602332fc84',
+  kappaOnly: '5c51aac186f77432ea65c552',
+  usecOnly: '6179b5eabca27a099552e052'
+}
+
+const quest = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  name: `${id} name`,
+  normalizedName: id,
+  trader: PRAPOR,
+  wikiLink: `https://escapefromtarkov.fandom.com/wiki/${id}`,
+  minPlayerLevel: 1,
+  taskRequirements: [],
+  traderRequirements: [],
+  objectives: [],
+  kappaRequired: false,
+  lightkeeperRequired: false,
+  factionName: 'Any',
+  experience: 1000,
+  map: null,
+  ...extra
+})
+
+export const RAW_QUEST_DATA: QuestDataInput = {
+  tasks: {
+    tasks: [
+      quest(Q.debut, {
+        objectives: [
+          {
+            id: 'o-debut-shoot',
+            description: 'o-debut-shoot',
+            type: 'shoot',
+            count: 5,
+            optional: false,
+            zones: [],
+            maps: [CUSTOMS]
+          },
+          {
+            id: 'o-debut-give',
+            description: 'o-debut-give',
+            type: 'giveItem',
+            count: 2,
+            optional: false,
+            items: ['5448be9a4bdc2dfd2f8b456a'],
+            foundInRaid: true
+          }
+        ]
+      }),
+      quest(Q.checking, {
+        minPlayerLevel: 2,
+        map: CUSTOMS,
+        taskRequirements: [{ task: Q.debut, status: ['complete'] }],
+        objectives: [
+          {
+            id: 'o-checking-find',
+            description: 'o-checking-find',
+            type: 'findQuestItem',
+            count: 1,
+            optional: false,
+            possibleLocations: [{ map: CUSTOMS, positions: [{ x: 10, y: 1, z: -20 }] }],
+            maps: [CUSTOMS],
+            questItem: '590c62a386f77412b0130255'
+          },
+          {
+            id: 'o-checking-visit',
+            description: 'o-checking-visit',
+            type: 'visit',
+            optional: true,
+            zones: [
+              {
+                id: 'zone',
+                map: CUSTOMS,
+                position: { x: 100, y: 2, z: 50 },
+                outline: [
+                  { x: 95, y: 2, z: 45 },
+                  { x: 105, y: 2, z: 45 },
+                  { x: 105, y: 2, z: 55 }
+                ],
+                top: 4,
+                bottom: 0
+              },
+              { id: 'broken', map: CUSTOMS }
+            ],
+            maps: [CUSTOMS]
+          }
+        ]
+      }),
+      quest(Q.shootout, {
+        minPlayerLevel: 10,
+        trader: THERAPIST,
+        map: WOODS,
+        taskRequirements: [
+          { task: Q.checking, status: ['active', 'complete'] },
+          { task: Q.debut, status: ['complete'] }
+        ],
+        objectives: [
+          {
+            id: 'o-shootout-give',
+            description: 'o-shootout-give',
+            type: 'giveItem',
+            count: 3,
+            optional: false,
+            items: ['5448be9a4bdc2dfd2f8b456a', '5751a89d24597722aa0e8db0'],
+            foundInRaid: false
+          }
+        ]
+      }),
+      quest(Q.firstAid, { trader: THERAPIST, taskRequirements: [{ task: Q.debut, status: ['failed'] }] }),
+      quest(Q.kappaOnly, { kappaRequired: true, lightkeeperRequired: true, minPlayerLevel: 40 }),
+      quest(Q.usecOnly, { factionName: 'USEC' }),
+      { name: 'no id' }
+    ],
+    questItems: { '590c62a386f77412b0130255': { name: '590c62a386f77412b0130255 Name' } }
+  },
+  tasksLang: {
+    [`${Q.debut} name`]: 'Debut',
+    [`${Q.checking} name`]: 'Checking',
+    [`${Q.shootout} name`]: 'Shootout Picnic',
+    [`${Q.firstAid} name`]: 'First Aid',
+    [`${Q.kappaOnly} name`]: 'Collector',
+    [`${Q.usecOnly} name`]: 'USEC Only',
+    'o-debut-shoot': 'Eliminate 5 Scavs on Customs',
+    'o-debut-give': 'Hand over 2 MP-133 shotguns',
+    'o-checking-find': 'Obtain the Bronze pocket watch',
+    'o-checking-visit': 'Visit the trailer park',
+    'o-shootout-give': 'Hand over 3 of either item',
+    '590c62a386f77412b0130255 Name': 'Bronze pocket watch'
+  },
+  maps: {
+    maps: [
+      {
+        id: CUSTOMS,
+        name: `${CUSTOMS} Name`,
+        normalizedName: 'customs',
+        nameId: 'bigmap',
+        extracts: [
+          {
+            name: 'ZB-1011',
+            faction: 'pmc',
+            position: { x: -17.5, y: 2, z: -61.3 },
+            outline: [{ x: -13.9, y: 0.2, z: -66.6 }]
+          },
+          { name: 'No position', faction: 'scav' }
+        ],
+        spawns: [
+          { position: { x: 1, y: 0, z: 2 }, sides: ['pmc'], categories: ['player'] },
+          { position: { x: 3, y: 0, z: 4 }, sides: ['all'], categories: ['bot'] }
+        ],
+        transits: [{ description: 'transitWoods', position: { x: 5, y: 0, z: 6 } }],
+        lootContainers: [{ huge: true }]
+      },
+      { id: WOODS, name: `${WOODS} Name`, normalizedName: 'woods', nameId: 'Woods', extracts: [], spawns: [] }
+    ]
+  },
+  mapsLang: {
+    [`${CUSTOMS} Name`]: 'Customs',
+    [`${WOODS} Name`]: 'Woods',
+    'ZB-1011': 'ZB-1011',
+    transitWoods: 'Transit to Woods'
+  },
+  traders: {
+    [PRAPOR]: { id: PRAPOR, name: `${PRAPOR} Nickname` },
+    [THERAPIST]: { id: THERAPIST, name: `${THERAPIST} Nickname` }
+  },
+  tradersLang: { [`${PRAPOR} Nickname`]: 'Prapor', [`${THERAPIST} Nickname`]: 'Therapist' }
+}

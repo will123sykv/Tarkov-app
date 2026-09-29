@@ -24,7 +24,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "data:containers": "tsx scripts/build-container-loot.ts",
-    "data:container-images": "tsx scripts/fetch-container-images.ts"
+    "data:container-images": "tsx scripts/fetch-container-images.ts",
+    "data:maps": "tsx scripts/build-map-configs.ts"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
