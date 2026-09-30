@@ -25,14 +25,18 @@ export default function StatusBar({ priceState, shown, total, playerLevel }: Pro
   else if (priceState?.nextRefreshAt)
     refresh = `Next refresh in ${formatCountdown(priceState.nextRefreshAt - now)}`
 
+  // Fixed cells, so the level and the countdown keep their place and size whatever the view, the
+  // time or the prices line say; the prices line gives way (with an ellipsis) when space is short.
   return (
     <footer className="statusbar">
-      <span>{prices}</span>
-      <span>
-        {shown !== null && `${shown.toLocaleString()} of ${total.toLocaleString()} items · `}level{' '}
-        {playerLevel}
+      <span className="statusbar-prices" title={prices}>
+        {prices}
       </span>
-      <span>{refresh}</span>
+      <span className="statusbar-count">
+        {shown !== null && `${shown.toLocaleString()} of ${total.toLocaleString()} items`}
+      </span>
+      <span className="statusbar-level">level {playerLevel}</span>
+      <span className="statusbar-refresh">{refresh}</span>
     </footer>
   )
 }
