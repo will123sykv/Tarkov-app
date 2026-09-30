@@ -64,3 +64,26 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
+      # Temporary 1.6.1 probe (informational).
+      - run: npx tsx scripts/probe-161.ts
+        if: always()
+        continue-on-error: true
+
+  # Temporary 1.6.1 probe: db4tarkov's map tiles as base64 (informational).
+  probe-tiles:
+    name: Probe map tiles (${{ matrix.slug }})
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        slug: [reserve, interchange, lighthouse, streets]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npx tsx scripts/probe-161.ts --dump=${{ matrix.slug }}
