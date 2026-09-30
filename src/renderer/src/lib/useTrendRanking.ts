@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
-import { rankTrends, type TrendRow, type TrendSortKey } from '../../../shared/fleaTrends'
+import { rankTrends, trendFunnel, type TrendRow, type TrendSortKey } from '../../../shared/fleaTrends'
 import { dataModeFor } from '../../../shared/gameModes'
 import type { PriceDataset, PublicSettings, TrendAnalysis } from '../../../shared/types'
 import { fleaAccess } from '../../../shared/valuation'
@@ -14,6 +14,8 @@ const PATTERN_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consis
 export interface TrendRanking {
   analysis: TrendAnalysis | undefined
   rows: TrendRow[]
+  /** Items left after each filter, in order (see `trendFunnel`). */
+  funnel: ReturnType<typeof trendFunnel>
   patternsReady: boolean
   /** The sort in effect, which may differ from the saved one while collecting. */
   sort: TrendSortKey
@@ -34,15 +36,18 @@ export function useTrendRanking(
   const level = settings ? settings.playerLevels[settings.gameMode] : 1
   const fleaMinLevel = dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
 
-  const rows = useMemo(() => {
-    if (!active || !dataset || !filters) return []
+  const { rows, funnel } = useMemo(() => {
+    if (!active || !dataset || !filters) return { rows: [], funnel: [] }
     const all: TrendRow[] = dataset.items.map((item) => ({
       item,
       stats: analysis?.stats[item.id] ?? null,
       access: fleaAccess(item, level, fleaMinLevel)
     }))
-    return rankTrends(all, filters, sort, patternsReady)
+    return {
+      rows: rankTrends(all, filters, sort, patternsReady),
+      funnel: trendFunnel(all, filters, patternsReady)
+    }
   }, [active, dataset, analysis, level, fleaMinLevel, filters, sort, patternsReady])
 
-  return { analysis, rows, patternsReady, sort }
+  return { analysis, rows, funnel, patternsReady, sort }
 }

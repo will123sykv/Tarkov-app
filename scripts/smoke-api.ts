@@ -129,6 +129,8 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
     `[trends ${dataMode}] ${listed.length} items listed while collecting with the defaults ` +
       `(offers ≥ ${d.minOffers}, price ≥ ₽${d.minPrice.toLocaleString()}, swing ≥ ${d.minSwing * 100}%, level 62):`
   )
+  if (listed.length < 20)
+    console.log(`[trends ${dataMode}] warning: the default filters list fewer than 20 items while collecting`)
   for (const { item: i } of listed.slice(0, 5)) {
     console.log(
       `  ${i.name}: ${i.offerCount} offers, now ₽${i.fleaPrice?.toLocaleString()}, ` +

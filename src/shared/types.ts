@@ -107,6 +107,8 @@ export interface PoolSelection {
 }
 
 export interface Settings {
+  /** Bumped when a default changes, so settings saved with the old default can move to the new one. */
+  settingsVersion: number
   gameMode: GameMode
   /** Each mode is a separate in-game character, so each keeps its own level. */
   playerLevels: Record<GameMode, number>

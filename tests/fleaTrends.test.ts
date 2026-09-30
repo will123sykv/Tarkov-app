@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { fleaMarketFee } from '../src/shared/fleaFee'
 import {
   analyzeHistory,
+  currentSwing,
   rankTrends,
+  trendFunnel,
   todaySwing,
   type HistoryPoint,
   type TrendFilters,
@@ -157,6 +159,21 @@ describe('analyzeHistory', () => {
     expect(stats.consistency).toEqual({ wins: 4, days: 4 })
   })
 
+  it("measures the last 24 hours' range from hourly medians, once 6 hours are recorded", () => {
+    // Cheapest at 04:00 (8k), dearest at 20:00 (13k), with one bait listing at 99,999 that a single
+    // scan picked up: it's outvoted within its hour.
+    const points = record(1, cycle)
+    points[40] = { ...points[40], priceMin: 99_999 }
+    expect(analyzeHistory(points, opts()).recent).toEqual({
+      low: 8_000,
+      high: 13_000,
+      swing: 5 / 8,
+      hours: 24
+    })
+    // Five hours aren't enough to judge the day by.
+    expect(analyzeHistory(record(1, cycle, NOW - 5 * HOUR).slice(0, 20), opts()).recent).toBeNull()
+  })
+
   it('uses the dataset fee rates', () => {
     const feeRates = { sellOfferFeeRate: 0.05, sellRequirementFeeRate: 0.05 }
     const stats = analyzeHistory(record(4, cycle), opts({ feeRates }))
@@ -189,8 +206,9 @@ function item(id: string, overrides: Partial<LootItem> = {}): LootItem {
   }
 }
 
+/** A week's pattern; no recorded last-24-hours range unless given, so today's swing is tarkov.dev's. */
 function pattern(overrides: Partial<TrendStats> = {}): TrendRow['stats'] {
-  return { ...analyzeHistory(record(7, cycle), opts()), ...overrides }
+  return { ...analyzeHistory(record(7, cycle), opts()), recent: null, ...overrides }
 }
 
 function row(lootItem: LootItem, stats: TrendRow['stats'] = null, level = 20): TrendRow {
@@ -207,6 +225,20 @@ const filters = (overrides: Partial<TrendFilters> = {}): TrendFilters => ({
   ...overrides
 })
 const ids = (rows: TrendRow[]): string[] => rows.map((r) => r.item.id)
+
+describe('currentSwing', () => {
+  it("prefers the recordings' last 24 hours to tarkov.dev's range, which bait listings inflate", () => {
+    const bait = item('bait', { high24hPrice: 99_999 })
+    expect(currentSwing(row(bait))).toBeNull()
+    expect(
+      currentSwing(row(bait, pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12 } })))
+    ).toBe(0.2)
+    expect(currentSwing(row(item('a')))).toBeCloseTo(2_000 / 9_000)
+    // While collecting, the swing filter goes by it.
+    const recorded = row(bait, pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12 } }))
+    expect(ids(rankTrends([recorded], filters({ minSwing: 0.15 }), 'swing', false))).toEqual(['bait'])
+  })
+})
 
 describe('todaySwing', () => {
   it("is today's range as a share of the low", () => {
@@ -247,7 +279,7 @@ describe('rankTrends', () => {
     expect(ids(rankTrends(all, filters({ minConsistency: 0.4 }), 'profit', true))).toContain('unreliable')
   })
 
-  it("filters on today's swing while collecting, then on the buy→sell gap", () => {
+  it("filters on today's swing while collecting, then on the typical day's swing", () => {
     const f = filters({ minSwing: 0.3 })
     // Most fixtures swing 9k–11k today (22%); "unrecorded" swings 7k–14k (100%).
     expect(ids(rankTrends(all, f, 'swing', false))).toEqual(['unrecorded'])
@@ -256,13 +288,33 @@ describe('rankTrends', () => {
     expect(ids(rankTrends([outlier, unknown], f, 'swing', false))).toEqual([])
     expect(ids(rankTrends([outlier, unknown], filters(), 'swing', false))).toEqual(['outlier', 'unknown'])
 
-    // The recorded cycle's cheapest and dearest hours are 8k and 13k: a 62.5% gap.
-    const small = row(item('small'), pattern({ spreadPct: 0.25 }))
-    expect(ids(rankTrends([liquid, small], f, 'profit', true))).toEqual(['liquid'])
-    expect(ids(rankTrends([liquid, small], filters({ minSwing: 0.2 }), 'profit', true))).toEqual([
-      'liquid',
-      'small'
+    // The recorded days swing between 8k and 13k; a calmer item's days swing 25%. The gap between
+    // the usual cheapest and dearest hour doesn't count here (profit and consistency judge that).
+    expect(liquid.stats!.volatility).toBeGreaterThan(0.3)
+    const calm = row(item('calm'), pattern({ volatility: 0.25 }))
+    const narrowGap = row(item('narrowGap'), pattern({ spreadPct: 0.05 }))
+    expect(ids(rankTrends([liquid, calm, narrowGap], f, 'profit', true))).toEqual(['liquid', 'narrowGap'])
+    expect(ids(rankTrends([liquid, calm], filters({ minSwing: 0.2 }), 'profit', true)).sort()).toEqual([
+      'calm',
+      'liquid'
     ])
+  })
+
+  it('counts what each filter leaves, in order, to explain a short list', () => {
+    expect(trendFunnel(all, filters({ minSwing: 0.3 }), true)).toEqual([
+      { key: null, count: 7 },
+      { key: 'tradableOnly', count: 6 },
+      { key: 'minOffers', count: 5 },
+      { key: 'minPrice', count: 4 },
+      { key: 'pattern', count: 3 },
+      { key: 'minSwing', count: 3 },
+      { key: 'minProfit', count: 2 },
+      { key: 'minConsistency', count: 1 }
+    ])
+    expect(trendFunnel(all, filters({ minSwing: 0.3 }), false).map((s) => s.count)).toEqual([7, 6, 5, 4, 1])
+    expect(trendFunnel(all, filters(), false).at(-1)!.count).toBe(
+      rankTrends(all, filters(), 'swing', false).length
+    )
   })
 
   it('never lists flea-banned items or weapon presets', () => {

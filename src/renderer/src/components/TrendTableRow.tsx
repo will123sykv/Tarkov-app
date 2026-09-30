@@ -1,9 +1,9 @@
 import { memo } from 'react'
 import {
   consistencyShare,
+  currentSwing,
   hasPattern,
   liquidity,
-  todaySwing,
   type TrendRow
 } from '../../../shared/fleaTrends'
 import { formatPercent, formatRub, formatRubCompact, formatSlot } from '../lib/format'
@@ -19,7 +19,8 @@ interface Props {
 /** One flea trends row. Memoised: selecting a row or a price refresh only re-renders what changed. */
 function TrendTableRow({ row, selected, bucketHours, patternsReady, onSelect }: Props): React.JSX.Element {
   const { item, stats, access } = row
-  const swing = todaySwing(item)
+  const swing = currentSwing(row)
+  const recent = stats?.recent ?? null
   const pattern = hasPattern(row) ? stats! : null
   return (
     <tr
@@ -38,13 +39,17 @@ function TrendTableRow({ row, selected, bucketHours, patternsReady, onSelect }: 
       <td className="num">{Math.round(liquidity(row) ?? 0).toLocaleString()}</td>
       <td className="num">{formatRub(item.fleaPrice)}</td>
       <td className="num">
-        {item.low24hPrice && item.high24hPrice
-          ? `${formatRubCompact(item.low24hPrice)}–${formatRubCompact(item.high24hPrice)}`
-          : '—'}
+        {recent
+          ? `${formatRubCompact(recent.low)}–${formatRubCompact(recent.high)}`
+          : item.low24hPrice && item.high24hPrice
+            ? `${formatRubCompact(item.low24hPrice)}–${formatRubCompact(item.high24hPrice)}`
+            : '—'}
         {swing !== null ? (
-          <small>{formatPercent(swing)} swing</small>
+          <small title={recent ? `From your recordings (${recent.hours} hours)` : 'tarkov.dev’s 24h range'}>
+            {formatPercent(swing)} swing{recent ? '' : ' (tarkov.dev)'}
+          </small>
         ) : (
-          item.low24hPrice != null && item.high24hPrice != null && <small>includes outlier offers</small>
+          item.low24hPrice != null && item.high24hPrice != null && <small>includes bait offers</small>
         )}
       </td>
       <td>

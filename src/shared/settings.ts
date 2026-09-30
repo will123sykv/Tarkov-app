@@ -20,7 +20,11 @@ import type {
 
 const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
 
+/** 2: 1.5.0's looser flea trends defaults. */
+const SETTINGS_VERSION = 2
+
 export const DEFAULT_SETTINGS: Settings = {
+  settingsVersion: SETTINGS_VERSION,
   gameMode: 'pvp',
   playerLevels: { pvp: 15, pve: 15, season: 1 },
   hideLocked: false,
@@ -33,11 +37,11 @@ export const DEFAULT_SETTINGS: Settings = {
   view: 'loot',
   trends: {
     days: 7,
-    minOffers: 50,
-    minPrice: 20_000,
-    minProfit: 5_000,
-    minConsistency: 0.7,
-    minSwing: 0.3,
+    minOffers: 25,
+    minPrice: 10_000,
+    minProfit: 2_000,
+    minConsistency: 0.6,
+    minSwing: 0.15,
     sort: 'profit',
     tradableOnly: true
   },
@@ -105,13 +109,24 @@ const TRENDS_1_3_0_DEFAULTS: Record<string, number> = {
   minConsistency: 0.6
 }
 
-function sanitizeTrends(raw: unknown): TrendSettings {
+/** 1.3.1's tighter defaults, which left the list empty; saved before settings had a version. */
+const TRENDS_1_3_1_DEFAULTS: Record<string, number> = {
+  minOffers: 50,
+  minPrice: 20_000,
+  minProfit: 5_000,
+  minConsistency: 0.7,
+  minSwing: 0.3
+}
+
+function sanitizeTrends(raw: unknown, version: number): TrendSettings {
   const d = DEFAULT_SETTINGS.trends
   const r = isRecord(raw) ? { ...raw } : {}
-  if (!('minSwing' in r)) {
-    // Filters still at 1.3.0's defaults move to the tighter ones; ones the player changed stay.
-    for (const [key, old] of Object.entries(TRENDS_1_3_0_DEFAULTS)) if (r[key] === old) delete r[key]
+  // Filters still at an older version's defaults move to the current ones; ones the player changed stay.
+  const drop = (defaults: Record<string, number>): void => {
+    for (const [key, old] of Object.entries(defaults)) if (r[key] === old) delete r[key]
   }
+  if (!('minSwing' in r)) drop(TRENDS_1_3_0_DEFAULTS)
+  else if (version < 2) drop(TRENDS_1_3_1_DEFAULTS)
   const share = Number(r.minConsistency)
   const swing = Number(r.minSwing)
   return {
@@ -157,7 +172,10 @@ export function sanitizeSettings(raw: unknown): Settings {
     playerLevels[mode] = clampPlayerLevel(levels[mode], d.playerLevels[mode])
   }
 
+  const version = typeof r.settingsVersion === 'number' ? r.settingsVersion : 1
+
   return {
+    settingsVersion: SETTINGS_VERSION,
     gameMode: isGameMode(r.gameMode) ? r.gameMode : d.gameMode,
     playerLevels,
     hideLocked: typeof r.hideLocked === 'boolean' ? r.hideLocked : d.hideLocked,
@@ -179,7 +197,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     },
     containerSort: r.containerSort === 'name' ? 'name' : 'value',
     view: VIEWS.includes(r.view as AppView) ? (r.view as AppView) : 'loot',
-    trends: sanitizeTrends(r.trends),
+    trends: sanitizeTrends(r.trends, version),
     backgroundRecording: r.backgroundRecording === true,
     startWithWindows: r.startWithWindows === true,
     gameLogsDir:

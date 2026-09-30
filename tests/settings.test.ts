@@ -53,13 +53,13 @@ describe('sanitizeSettings', () => {
     ).toEqual({ ...DEFAULT_SETTINGS.trends, days: 30 })
   })
 
-  it('defaults to tight flea trend filters', () => {
+  it('defaults to flea trend filters that still list items', () => {
     expect(DEFAULT_SETTINGS.trends).toMatchObject({
-      minOffers: 50,
-      minPrice: 20_000,
-      minProfit: 5_000,
-      minConsistency: 0.7,
-      minSwing: 0.3
+      minOffers: 25,
+      minPrice: 10_000,
+      minProfit: 2_000,
+      minConsistency: 0.6,
+      minSwing: 0.15
     })
     expect(sanitizeSettings({ trends: { minSwing: 5 } }).trends.minSwing).toBe(2)
     expect(sanitizeSettings({ trends: { minSwing: -1 } }).trends.minSwing).toBe(0)
@@ -85,17 +85,42 @@ describe('sanitizeSettings', () => {
       sanitizeSettings({ trends: { ...saved130, minOffers: 80, minConsistency: 0.5 } }).trends
     ).toMatchObject({
       minOffers: 80,
-      minPrice: 20_000,
-      minProfit: 5_000,
+      minPrice: 10_000,
+      minProfit: 2_000,
       minConsistency: 0.5,
-      minSwing: 0.3
+      minSwing: 0.15
     })
-    // Saved by this version: the values are the player's, even when they match 1.3.0's.
+    // Saved by a later version: the values are the player's, even when they match 1.3.0's.
     expect(sanitizeSettings({ trends: { ...saved130, minSwing: 0.1 } }).trends).toMatchObject({
       minOffers: 25,
       minPrice: 5_000,
       minSwing: 0.1
     })
+  })
+
+  it("moves filters left at 1.3.1's tight defaults (which emptied the list) to the new ones, once", () => {
+    const saved131 = {
+      days: 7,
+      minOffers: 50,
+      minPrice: 20_000,
+      minProfit: 5_000,
+      minConsistency: 0.7,
+      minSwing: 0.3,
+      sort: 'profit',
+      tradableOnly: true
+    }
+    const migrated = sanitizeSettings({ trends: saved131 })
+    expect(migrated.trends).toEqual(DEFAULT_SETTINGS.trends)
+    expect(migrated.settingsVersion).toBe(2)
+    expect(sanitizeSettings({ trends: { ...saved131, minOffers: 80 } }).trends).toMatchObject({
+      minOffers: 80,
+      minSwing: 0.15
+    })
+    // Chosen again after the update: kept.
+    expect(sanitizeSettings({ settingsVersion: 2, trends: saved131 }).trends.minSwing).toBe(0.3)
+    expect(mergeSettings(migrated, { trends: { ...migrated.trends, minSwing: 0.3 } }).trends.minSwing).toBe(
+      0.3
+    )
   })
 
   it('validates the quests, maps and raids settings', () => {

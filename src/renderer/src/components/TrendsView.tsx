@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react'
-import type { TrendSortKey } from '../../../shared/fleaTrends'
+import type { TrendFilterKey, TrendSortKey } from '../../../shared/fleaTrends'
 import { dataModeFor } from '../../../shared/gameModes'
 import type { PriceState, PublicSettings, TrendAnalysis, TrendSettings } from '../../../shared/types'
-import { formatAgo, formatPercent, formatSlot } from '../lib/format'
+import { formatAgo, formatPercent, formatRub, formatSlot } from '../lib/format'
 import { useNow } from '../lib/useNow'
 import { MIN_PATTERN_DAYS, type TrendRanking } from '../lib/useTrendRanking'
 import { useStore } from '../store'
@@ -18,7 +18,10 @@ interface Props {
 }
 
 const MAX_ROWS = 100
-const SWING_OPTIONS = [0, 0.1, 0.2, 0.3, 0.5, 0.75]
+/** Below this many items, the view explains which filters removed the rest. */
+const FEW_ROWS = 10
+const SWING_OPTIONS = [0, 0.1, 0.15, 0.2, 0.3, 0.5, 0.75]
+const CONSISTENCY_OPTIONS = [0, 0.5, 0.6, 0.7, 0.8]
 const SORT_LABELS: Record<TrendSortKey, string> = {
   profit: 'Profit per unit',
   spread: 'Price spread',
@@ -26,6 +29,134 @@ const SORT_LABELS: Record<TrendSortKey, string> = {
   volatility: 'Usual daily swing',
   offers: 'Offers up',
   swing: "Today's swing"
+}
+
+/** What's left after a filter, in words. */
+function stepLabel(
+  key: TrendFilterKey | null,
+  t: TrendSettings,
+  level: number,
+  patternsReady: boolean
+): string {
+  switch (key) {
+    case null:
+      return 'items on the flea market'
+    case 'tradableOnly':
+      return `you can trade at level ${level}`
+    case 'minOffers':
+      return `with ${t.minOffers}+ offers up`
+    case 'minPrice':
+      return `at ${formatRub(t.minPrice)} or more`
+    case 'pattern':
+      return 'with a time-of-day pattern in the recordings'
+    case 'minSwing':
+      return `swinging ${formatPercent(t.minSwing)}+ ${patternsReady ? 'on a usual day' : 'today'}`
+    case 'minProfit':
+      return `making ${formatRub(t.minProfit)}+ after the fee`
+    case 'minConsistency':
+      return `that worked on ${formatPercent(t.minConsistency)}+ of days`
+  }
+}
+
+/** The next looser setting of a filter, with a description, or null when it can't go lower. */
+function loosen(
+  key: TrendFilterKey,
+  t: TrendSettings
+): { patch: Partial<TrendSettings>; text: string } | null {
+  const lower = (options: number[], value: number): number | undefined =>
+    [...options].reverse().find((o) => o < value)
+  switch (key) {
+    case 'tradableOnly':
+      return t.tradableOnly ? { patch: { tradableOnly: false }, text: 'include items above my level' } : null
+    case 'minOffers': {
+      const v = Math.floor(t.minOffers / 10) * 5
+      return t.minOffers > 0 ? { patch: { minOffers: v }, text: `min offers ${t.minOffers} → ${v}` } : null
+    }
+    case 'minPrice': {
+      const v = Math.floor(t.minPrice / 2000) * 1000
+      return t.minPrice > 0
+        ? { patch: { minPrice: v }, text: `min price ${formatRub(t.minPrice)} → ${formatRub(v)}` }
+        : null
+    }
+    case 'minSwing': {
+      const v = lower(SWING_OPTIONS, t.minSwing)
+      return v === undefined
+        ? null
+        : {
+            patch: { minSwing: v },
+            text: `min swing ${formatPercent(t.minSwing)} → ${v === 0 ? 'any' : formatPercent(v)}`
+          }
+    }
+    case 'minProfit': {
+      const v = Math.floor(t.minProfit / 1000) * 500
+      return t.minProfit > 0
+        ? { patch: { minProfit: v }, text: `min profit ${formatRub(t.minProfit)} → ${formatRub(v)}` }
+        : null
+    }
+    case 'minConsistency': {
+      const v = lower(CONSISTENCY_OPTIONS, t.minConsistency)
+      return v === undefined
+        ? null
+        : {
+            patch: { minConsistency: v },
+            text: `worked on ${formatPercent(t.minConsistency)} → ${v === 0 ? 'any share' : formatPercent(v)} of days`
+          }
+    }
+    case 'pattern':
+      return null
+  }
+}
+
+/** Why the list is short: how many items each filter leaves, and a button to loosen the tightest. */
+function FilterFunnel({
+  settings,
+  ranking
+}: {
+  settings: PublicSettings
+  ranking: TrendRanking
+}): React.JSX.Element {
+  const updateSettings = useStore((s) => s.updateSettings)
+  const t = settings.trends
+  const level = settings.playerLevels[settings.gameMode]
+  const { funnel, rows, patternsReady } = ranking
+  // Offer to loosen the filter that removes the most items.
+  let chosen: { patch: Partial<TrendSettings>; text: string } | null = null
+  let biggestDrop = 0
+  for (let i = 1; i < funnel.length; i++) {
+    const { key, count } = funnel[i]
+    const change = key ? loosen(key, t) : null
+    const drop = funnel[i - 1].count - count
+    if (change && drop > biggestDrop) {
+      chosen = change
+      biggestDrop = drop
+    }
+  }
+  return (
+    <div className="trend-funnel">
+      <p>
+        <strong>
+          {rows.length === 0 ? 'No items pass the filters.' : `Only ${rows.length} items pass the filters.`}
+        </strong>{' '}
+        What each one leaves:
+      </p>
+      <ol>
+        {funnel.map((step) => (
+          <li key={step.key ?? 'all'}>
+            <span className="num">{step.count.toLocaleString()}</span>{' '}
+            {stepLabel(step.key, t, level, patternsReady)}
+          </li>
+        ))}
+      </ol>
+      {chosen && (
+        <button
+          className="button small"
+          onClick={() => void updateSettings({ trends: { ...t, ...chosen.patch } })}
+        >
+          Loosen: {chosen.text}
+        </button>
+      )}
+    </div>
+  )
 }
 
 /** "01:00–08:00, 23:00–00:00" for the hours with no recordings. */
@@ -127,8 +258,8 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
         </label>
         <p className="hint">
           {patternsReady
-            ? 'Between the cheapest and dearest hour of the day.'
-            : "Today's low to high, until patterns are ready."}
+            ? "A usual day's cheapest hour to its dearest, from the recordings."
+            : "Today's low to high: from the recordings once there are 6 hours of them, before that tarkov.dev's 24h range (which bait offers can inflate)."}
         </p>
         <NumberField
           label="Min offers up (sells quickly)"
@@ -250,7 +381,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
                 : `Collecting prices (${analysis?.coverage.days ?? 0} of ${MIN_PATTERN_DAYS} days). Until then, items are ranked by today's price swing.`}
               {t.minSwing > 0 &&
                 ` Showing items that swing ${formatPercent(t.minSwing)} or more ${
-                  patternsReady ? 'between their cheapest and dearest hour' : 'today'
+                  patternsReady ? 'on a usual day' : 'today'
                 }.`}
             </span>
           </div>
@@ -296,15 +427,12 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
               down.
             </p>
           )}
-          {ranked.length === 0 && (
+          {!dataset && (
             <div className="empty">
-              <p>
-                {dataset
-                  ? 'No items match these filters. Try a lower minimum swing or fewer offers up.'
-                  : 'Waiting for prices…'}
-              </p>
+              <p>Waiting for prices…</p>
             </div>
           )}
+          {dataset && ranked.length < FEW_ROWS && <FilterFunnel settings={settings} ranking={ranking} />}
         </div>
 
         {selectedRow && (

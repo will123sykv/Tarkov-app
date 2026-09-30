@@ -63,9 +63,14 @@ export interface TrendStats {
   latestMin: number | null
   /** Hours from the start of the buy slot to the start of the sell slot. */
   holdHours: number | null
+  /** The last 24 hours' cheapest and dearest hour (hourly medians), once enough hours are recorded. */
+  recent: { low: number; high: number; swing: number; hours: number } | null
 }
 
 const MIN_DAYS = 3
+/** Hours with recordings in the last 24 needed before their range stands in for tarkov.dev's. */
+const RECENT_MIN_HOURS = 6
+const HOUR = 3_600_000
 /** A time slot counts once it has prices from this many different days. */
 const MIN_SLOT_DAYS = 2
 /** At least this share of time slots needs data for a pattern to count. */
@@ -91,7 +96,8 @@ function emptyStats(
   insufficient: string,
   samples: number,
   days: number,
-  latestMin: number | null
+  latestMin: number | null,
+  recent: TrendStats['recent']
 ): TrendStats {
   return {
     insufficient,
@@ -107,8 +113,29 @@ function emptyStats(
     volatility: null,
     avgOffers: null,
     latestMin,
-    holdHours: null
+    holdHours: null,
+    recent
   }
+}
+
+/**
+ * The last 24 hours' price range from the recordings. Hourly medians, so a bait listing or a
+ * moment when the cheap offers sold out doesn't count as the swing (tarkov.dev's own 24h high is
+ * mostly such listings).
+ */
+function recentRange(window: readonly HistoryPoint[], now: number): TrendStats['recent'] {
+  const byHour = new Map<number, number[]>()
+  for (let i = window.length - 1; i >= 0 && window[i].t >= now - 24 * HOUR; i--) {
+    const hour = Math.floor(window[i].t / HOUR)
+    const values = byHour.get(hour)
+    if (values) values.push(window[i].priceMin!)
+    else byHour.set(hour, [window[i].priceMin!])
+  }
+  if (byHour.size < RECENT_MIN_HOURS) return null
+  const medians = [...byHour.values()].map(median)
+  const low = Math.min(...medians)
+  const high = Math.max(...medians)
+  return { low, high, swing: low > 0 ? (high - low) / low : 0, hours: byHour.size }
 }
 
 /**
@@ -121,6 +148,7 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
     .filter((p) => p.t >= from && p.t <= opts.now && p.priceMin != null && p.priceMin > 0)
     .sort((a, b) => a.t - b.t)
   const latestMin = window.at(-1)?.priceMin ?? null
+  const recent = recentRange(window, opts.now)
   const slotCount = Math.round(24 / opts.bucketHours)
   const slotOf = (t: number): number => Math.min(slotCount - 1, Math.floor(opts.hourOf(t) / opts.bucketHours))
 
@@ -139,7 +167,7 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
   }
 
   if (byDay.size < MIN_DAYS)
-    return emptyStats(`only ${byDay.size} day(s) of prices`, window.length, byDay.size, latestMin)
+    return emptyStats(`only ${byDay.size} day(s) of prices`, window.length, byDay.size, latestMin, recent)
 
   const slotDays = Array.from({ length: slotCount }, () => 0)
   for (const slots of byDay.values()) slots.forEach((values, slot) => values.length && slotDays[slot]++)
@@ -156,7 +184,7 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
   })
   const filled = buckets.filter((b) => b.median !== null)
   if (filled.length < slotCount * MIN_SLOT_COVERAGE) {
-    return emptyStats('too many gaps in the price history', window.length, byDay.size, latestMin)
+    return emptyStats('too many gaps in the price history', window.length, byDay.size, latestMin, recent)
   }
 
   const cheapest = filled.reduce((a, b) => (b.median! < a.median! ? b : a))
@@ -205,7 +233,8 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
     volatility: dailyRanges.length ? median(dailyRanges) : null,
     avgOffers: offers.length ? offers.reduce((a, b) => a + b, 0) / offers.length : null,
     latestMin,
-    holdHours: (sell.startHour - buy.startHour + 24) % 24 || 24
+    holdHours: (sell.startHour - buy.startHour + 24) % 24 || 24,
+    recent
   }
 }
 
@@ -233,6 +262,11 @@ export function todaySwing(item: LootItem): number | null {
   return (high - low) / low
 }
 
+/** Today's swing: the recordings' last 24 hours once there are enough, else tarkov.dev's 24h range. */
+export function currentSwing(row: TrendRow): number | null {
+  return row.stats?.recent?.swing ?? todaySwing(row.item)
+}
+
 export interface TrendFilters {
   /** Liquidity: minimum average number of offers up. */
   minOffers: number
@@ -242,8 +276,9 @@ export interface TrendFilters {
   /** Share of days the trade would have made money, 0–1. */
   minConsistency: number
   /**
-   * Minimum swing: today's 24h low→high while collecting, then the gap between the cheapest and
-   * dearest hour. 0 turns it off.
+   * Minimum swing, as a share of the day's low: today's low→high while collecting (see
+   * `currentSwing`), then the typical day's cheapest→dearest hour from the recordings (the same
+   * scale, so the list doesn't empty when patterns are ready). 0 turns it off.
    */
   minSwing: number
   /** Only items the player can buy and sell on the flea at their level. */
@@ -278,14 +313,49 @@ function sortValue(row: TrendRow, key: TrendSortKey): number {
     case 'offers':
       return liquidity(row) ?? -Infinity
     case 'swing':
-      return todaySwing(row.item) ?? -Infinity
+      return currentSwing(row) ?? -Infinity
   }
 }
 
+/** The filters in the order they're applied, each with the rows it lets through. */
+export type TrendFilterKey =
+  'tradableOnly' | 'minOffers' | 'minPrice' | 'minSwing' | 'pattern' | 'minProfit' | 'minConsistency'
+
+function trendSteps(
+  filters: TrendFilters,
+  patternsOnly: boolean
+): { key: TrendFilterKey; pass: (row: TrendRow) => boolean }[] {
+  const steps: { key: TrendFilterKey; pass: (row: TrendRow) => boolean }[] = [
+    { key: 'tradableOnly', pass: (row) => !filters.tradableOnly || row.access.status === 'sellable' },
+    { key: 'minOffers', pass: (row) => (liquidity(row) ?? 0) >= filters.minOffers },
+    { key: 'minPrice', pass: (row) => (row.stats?.latestMin ?? row.item.fleaPrice ?? 0) >= filters.minPrice }
+  ]
+  if (!patternsOnly) {
+    steps.push({
+      key: 'minSwing',
+      pass: (row) => filters.minSwing <= 0 || (currentSwing(row) ?? -1) >= filters.minSwing
+    })
+    return steps
+  }
+  steps.push(
+    { key: 'pattern', pass: hasPattern },
+    {
+      key: 'minSwing',
+      pass: (row) => filters.minSwing <= 0 || (row.stats!.volatility ?? -1) >= filters.minSwing
+    },
+    { key: 'minProfit', pass: (row) => (row.stats!.profit ?? -Infinity) >= filters.minProfit },
+    { key: 'minConsistency', pass: (row) => consistencyShare(row.stats) >= filters.minConsistency }
+  )
+  return steps
+}
+
+/** Items that can be traded on the flea at all. Weapon presets duplicate their base guns. */
+const onFlea = (row: TrendRow): boolean => !row.item.bannedOnFlea && !row.item.types.includes('preset')
+
 /**
  * Liquid, tradable items that pass the filters, best first. With `patternsOnly`, only items
- * with a measurable time-of-day pattern count, and the swing filter applies to the buy→sell gap
- * along with the profit and consistency filters; without it (while recordings are still too
+ * with a measurable time-of-day pattern count, and the swing filter applies to the typical day's
+ * swing along with the profit and consistency filters; without it (while recordings are still too
  * short) the swing filter applies to today's 24h swing.
  */
 export function rankTrends(
@@ -294,18 +364,26 @@ export function rankTrends(
   sort: TrendSortKey,
   patternsOnly: boolean
 ): TrendRow[] {
+  const steps = trendSteps(filters, patternsOnly)
   return rows
-    .filter((row) => {
-      // Weapon presets duplicate their base guns.
-      if (row.item.bannedOnFlea || row.item.types.includes('preset')) return false
-      if (filters.tradableOnly && row.access.status !== 'sellable') return false
-      if ((liquidity(row) ?? 0) < filters.minOffers) return false
-      if ((row.stats?.latestMin ?? row.item.fleaPrice ?? 0) < filters.minPrice) return false
-      if (!patternsOnly) return filters.minSwing <= 0 || (todaySwing(row.item) ?? -1) >= filters.minSwing
-      if (!hasPattern(row)) return false
-      if ((row.stats!.spreadPct ?? -Infinity) < filters.minSwing) return false
-      if ((row.stats!.profit ?? -Infinity) < filters.minProfit) return false
-      return consistencyShare(row.stats) >= filters.minConsistency
-    })
+    .filter((row) => onFlea(row) && steps.every((step) => step.pass(row)))
     .sort((a, b) => sortValue(b, sort) - sortValue(a, sort) || a.item.name.localeCompare(b.item.name))
+}
+
+/**
+ * How many items are left after each filter, in order, to explain a short list: the first entry
+ * (`key: null`) counts every item on the flea.
+ */
+export function trendFunnel(
+  rows: readonly TrendRow[],
+  filters: TrendFilters,
+  patternsOnly: boolean
+): { key: TrendFilterKey | null; count: number }[] {
+  let left = rows.filter(onFlea)
+  const funnel: { key: TrendFilterKey | null; count: number }[] = [{ key: null, count: left.length }]
+  for (const step of trendSteps(filters, patternsOnly)) {
+    left = left.filter(step.pass)
+    funnel.push({ key: step.key, count: left.length })
+  }
+  return funnel
 }

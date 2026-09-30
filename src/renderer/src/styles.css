@@ -982,6 +982,38 @@ button.link {
   font-size: 12px;
 }
 
+.trend-funnel {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin: 12px 16px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.trend-funnel p {
+  margin: 0;
+}
+
+.trend-funnel ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+.trend-funnel .num {
+  display: inline-block;
+  min-width: 48px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  margin-right: 8px;
+}
+
 .trend-detail {
   flex: none;
   max-height: 58%;
@@ -1333,6 +1365,7 @@ button.link.active {
 .quests-from-logs .hint {
   margin: 0;
   padding: 2px 16px 8px;
+  font-size: 12px;
 }
 
 .quest-name span,
