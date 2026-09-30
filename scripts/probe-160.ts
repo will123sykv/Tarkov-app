@@ -7,6 +7,7 @@
  */
 import { createHash } from 'node:crypto'
 import { errorMessage } from '../src/main/pricing/http'
+import { fetchJsonData, values } from '../src/main/pricing/tarkovDevJson'
 
 const DUMP = /--dump=(\w+)/.exec(process.argv.join(' '))?.[1] ?? null
 const UA = {
@@ -37,75 +38,6 @@ async function get(url: string): Promise<{ status: number; type: string; body: B
   }
 }
 
-function webpSize(b: Buffer): string {
-  if (b.length < 30 || b.toString('ascii', 0, 4) !== 'RIFF') return `? ${b.subarray(0, 8).toString('hex')}`
-  const kind = b.toString('ascii', 12, 16)
-  if (kind === 'VP8X') return `${1 + b.readUIntLE(24, 3)}x${1 + b.readUIntLE(27, 3)}`
-  if (kind === 'VP8 ') return `${b.readUInt16LE(26) & 0x3fff}x${b.readUInt16LE(28) & 0x3fff}`
-  if (kind === 'VP8L') {
-    const bits = b.readUInt32LE(21)
-    return `${(bits & 0x3fff) + 1}x${((bits >> 14) & 0x3fff) + 1}`
-  }
-  return '?'
-}
-
-function around(text: string, pattern: RegExp, max: number, before: number, after: number): string[] {
-  const out: string[] = []
-  for (const m of text.matchAll(pattern)) {
-    const i = m.index ?? 0
-    out.push(text.slice(Math.max(0, i - before), i + after).replace(/\s+/g, ' '))
-    if (out.length >= max) break
-  }
-  return out
-}
-
-async function probeCode(): Promise<void> {
-  const S = 'code'
-  const js = (await get('https://db4tarkov.com/main.dart.js')).body.toString('utf8')
-  log(S, `main.dart.js ${js.length} chars`)
-  const patterns: [string, RegExp, number, number, number][] = [
-    ['tile urls', /cdn\.db4tarkov\.com\/webp\/map/g, 6, 1500, 1500],
-    ['lazy jl', /"jl",/g, 3, 200, 3000],
-    ['lazy hI', /"hI",/g, 3, 200, 2500],
-    ['fn qF', /[,{\s]qF\(a,b\)\{/g, 3, 50, 2500],
-    ['fn a3q', /[,{\s]a3q\(a\)\{/g, 3, 50, 800],
-    ['fn Ss', /[,{\s]Ss\(a\)\{/g, 3, 50, 1200],
-    ['fn dC9', /[,{\s]dC9\(a,b,c,d,e,f,g\)\{/g, 3, 50, 1500],
-    ['fn dyS', /[,{\s]dyS\(\)\{/g, 3, 50, 800],
-    ['cCH', /A\.cCH\.prototype=/g, 2, 50, 800],
-    ['cTD', /A\.cTD\.prototype=/g, 2, 50, 800],
-    ['slug dims', /"ground_zero",A\.b\(\[\d/g, 6, 600, 900],
-    ['customs dims', /"customs",A\.b\(\[\d/g, 6, 300, 600],
-    ['CrsSimple', /CrsSimple|Transformation\(/g, 6, 400, 600],
-    ['offsets', /"offset|mapOffset|"scale",|imageSize/g, 10, 300, 500]
-  ]
-  for (const [name, re, max, before, after] of patterns)
-    for (const s of around(js, re, max, before, after)) log(S, name, s)
-}
-
-async function probeTiles(): Promise<void> {
-  for (const slug of SLUGS) {
-    const S = `tiles ${slug}`
-    await section(S, async () => {
-      let top = -1
-      for (let z = 0; z <= 8; z++) {
-        const res = await get(tileUrl(slug, z, 0, 0))
-        log(S, `z${z} 0,0: HTTP ${res.status} ${res.type} ${res.body.length} bytes ${webpSize(res.body)}`)
-        if (res.status === 200) top = z
-      }
-      if (top < 0) return
-      for (const z of [top - 1, top]) {
-        let cols = 0
-        while (cols < 64 && (await get(tileUrl(slug, z, cols, 0))).status === 200) cols++
-        let rows = 0
-        while (rows < 64 && (await get(tileUrl(slug, z, 0, rows))).status === 200) rows++
-        const last = await get(tileUrl(slug, z, cols - 1, rows - 1))
-        log(S, `z${z}: ${cols} x ${rows} tiles; last tile ${webpSize(last.body)} ${last.body.length} bytes`)
-      }
-    })
-  }
-}
-
 async function dumpTiles(slug: string): Promise<void> {
   let top = -1
   for (let z = 0; z <= 8; z++) if ((await get(tileUrl(slug, z, 0, 0))).status === 200) top = z
@@ -127,10 +59,61 @@ async function dumpTiles(slug: string): Promise<void> {
   console.log(`@@DONE ${slug} z1-${top} ${total} bytes`)
 }
 
+async function probeBossPoints(): Promise<void> {
+  const [maps, mapsEn] = await Promise.all([
+    fetchJsonData<Record<string, unknown>>(fetch, 'pvp', 'maps'),
+    fetchJsonData<Record<string, string>>(fetch, 'pvp', 'maps_en')
+  ])
+  log(
+    'mobs',
+    ((maps.mobs ?? []) as Record<string, unknown>[])
+      .slice(0, 60)
+      .map((m) => `${String(m.id)}=${mapsEn[String(m.name)] ?? '?'}`)
+  )
+  for (const m of values(maps.maps as Record<string, unknown>[])) {
+    const name = String(m.normalizedName)
+    const spawns = ((m.spawns ?? []) as Record<string, unknown>[]).filter((s) =>
+      ((s.categories ?? []) as string[]).includes('boss')
+    )
+    const kept: { zone: string; x: number; z: number; y: number }[] = []
+    for (const s of spawns) {
+      const p = s.position as { x: number; y: number; z: number }
+      const zone = String(s.zoneName)
+      if (/snipe/i.test(zone)) continue
+      if (!kept.some((k) => k.zone === zone && Math.hypot(k.x - p.x, k.z - p.z) < 5))
+        kept.push({ zone, ...p })
+    }
+    log('boss points', `${name}: ${spawns.length} boss spawns, ${kept.length} after merging within 5 m`)
+    if (['customs', 'woods', 'shoreline', 'ground-zero', 'ground-zero-21', 'factory'].includes(name))
+      for (const k of kept)
+        log('boss point', `${name} ${k.zone} @ ${Math.round(k.x)},${Math.round(k.y)},${Math.round(k.z)}`)
+  }
+}
+
+async function probeTileAccess(): Promise<void> {
+  const url = tileUrl('customs', 1, 0, 0)
+  for (const [label, headers] of [
+    ['no user agent', {}],
+    [
+      'electron-like',
+      {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) TarkovLootOptimiser/1.6.0 Chrome/140.0 Electron/44.4.5 Safari/537.36'
+      }
+    ]
+  ] as const) {
+    const res = await fetch(url, { headers })
+    log(
+      'tile access',
+      `${label}: HTTP ${res.status} ${res.headers.get('content-type')} cache ${res.headers.get('cache-control')} cors ${res.headers.get('access-control-allow-origin')}`
+    )
+  }
+}
+
 async function main(): Promise<void> {
   if (DUMP) return dumpTiles(DUMP)
-  await section('code', probeCode)
-  await probeTiles()
+  await section('boss points', probeBossPoints)
+  await section('tile access', probeTileAccess)
 }
 
 void main()
