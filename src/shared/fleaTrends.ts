@@ -317,7 +317,7 @@ function sortValue(row: TrendRow, key: TrendSortKey): number {
   }
 }
 
-/** The filters in the order they're applied, each with the rows it lets through. */
+/** A filter of the flea trends list; `trendSteps` applies them in order. */
 export type TrendFilterKey =
   'tradableOnly' | 'minOffers' | 'minPrice' | 'minSwing' | 'pattern' | 'minProfit' | 'minConsistency'
 

@@ -8,7 +8,7 @@ import {
 import type { GameMap, Quest, QuestObjective } from '../../../shared/questTypes'
 import type { PriceState } from '../../../shared/types'
 import { formatAgo } from '../lib/format'
-import { objectiveMap, STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
+import { configFor, objectiveMap, STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useNow } from '../lib/useNow'
 import { useStore } from '../store'
@@ -83,7 +83,10 @@ function Objective({
         {onMap && (
           <button
             className="link"
-            onClick={() => void showOnMap(quest.id, objective.id, onMap.normalizedName)}
+            onClick={() =>
+              // Alternate versions (e.g. Night Factory) open on their main map.
+              void showOnMap(quest.id, objective.id, configFor(onMap)?.key ?? onMap.normalizedName)
+            }
           >
             Show on map
           </button>
