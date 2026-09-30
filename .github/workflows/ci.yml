@@ -64,3 +64,23 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
+      # Temporary 1.6.0 probe (informational).
+      - run: npx tsx scripts/probe-160.ts
+        if: always()
+        continue-on-error: true
+
+  # Temporary 1.6.0 probe: db4tarkov's map images as base64 (informational).
+  probe-images:
+    name: Probe map images
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npx tsx scripts/probe-160.ts --dump
