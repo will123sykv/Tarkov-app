@@ -1,0 +1,153 @@
+{
+  "source": "Re3MR (reemr.se), as published by tarkov.dev (github.com/the-hideout/tarkov-dev, public/maps)",
+  "license": "CC BY-NC-SA 4.0",
+  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions; all were checked against the icons Re3MR draws. Each panel is one floor or deck of the poster, chosen by the height (y) of a position.",
+  "maps": [
+    {
+      "key": "factory",
+      "file": "factory-2d.jpg",
+      "width": 6720,
+      "height": 3328,
+      "version": "1.7c",
+      "panels": [
+        {
+          "name": "Tunnels",
+          "minY": null,
+          "maxY": -1,
+          "transform": [0, -12.2983, -12.2897, 0, 5750.51, 1349.01]
+        },
+        {
+          "name": "Ground floor",
+          "minY": -1,
+          "maxY": 3.5,
+          "transform": [0, -12.2983, -12.2897, 0, 4113.51, 1344.01]
+        },
+        {
+          "name": "Middle floor",
+          "minY": 3.5,
+          "maxY": 6,
+          "transform": [0, -12.2983, -12.2897, 0, 2499.51, 1344.01]
+        },
+        {
+          "name": "Top floor",
+          "minY": 6,
+          "maxY": null,
+          "transform": [0, -12.2983, -12.2897, 0, 885.51, 1344.01]
+        }
+      ]
+    },
+    {
+      "key": "terminal",
+      "file": "terminal-2d.jpg",
+      "width": 5760,
+      "height": 3240,
+      "version": "1.1B",
+      "panels": [
+        {
+          "name": "Terminal",
+          "minY": null,
+          "maxY": null,
+          "transform": [1.24437, -4.61656, -4.62219, -1.24285, 2650.1, 1739.64]
+        }
+      ]
+    },
+    {
+      "key": "the-labyrinth",
+      "file": "labyrinth-2d.jpg",
+      "width": 4800,
+      "height": 4320,
+      "version": "0.5E",
+      "panels": [
+        {
+          "name": "Labyrinth",
+          "minY": null,
+          "maxY": null,
+          "transform": [0, 32.35, 32.35, 0, 2253.8, 2041.5]
+        }
+      ]
+    },
+    {
+      "key": "icebreaker",
+      "file": "icebreaker-2d.jpg",
+      "width": 7680,
+      "height": 4320,
+      "version": "0.8",
+      "panels": [
+        {
+          "name": "Lower automation (-3)",
+          "minY": null,
+          "maxY": 3.6,
+          "transform": [-14.7, 0, 0, 13.82, 7369, 1400.6]
+        },
+        {
+          "name": "Engine room (-2)",
+          "minY": 3.6,
+          "maxY": 8.8,
+          "transform": [-14.7, 0, 0, 13.82, 6826, 1400.6]
+        },
+        {
+          "name": "Fuel pumps (-1)",
+          "minY": 8.8,
+          "maxY": 15.4,
+          "transform": [-14.7, 0, 0, 13.82, 6283, 1400.6]
+        },
+        {
+          "name": "Storage & security (0)",
+          "minY": 15.4,
+          "maxY": 18.1,
+          "transform": [-14.7, 0, 0, 13.82, 5740, 1400.6]
+        },
+        {
+          "name": "Infirmary (1)",
+          "minY": 18.1,
+          "maxY": 20.8,
+          "transform": [-14.7, 0, 0, 13.82, 5197, 1400.6]
+        },
+        {
+          "name": "Helipad (2)",
+          "minY": 20.8,
+          "maxY": 23.5,
+          "transform": [-14.7, 0, 0, 13.82, 4654, 1400.6]
+        },
+        {
+          "name": "Gym & canteen (3)",
+          "minY": 23.5,
+          "maxY": 26.2,
+          "transform": [-14.7, 0, 0, 13.82, 4111, 1400.6]
+        },
+        {
+          "name": "Accommodation (4)",
+          "minY": 26.2,
+          "maxY": 28.9,
+          "transform": [-14.7, 0, 0, 13.82, 3568, 1400.6]
+        },
+        {
+          "name": "Accommodation (5)",
+          "minY": 28.9,
+          "maxY": 31.6,
+          "transform": [-14.7, 0, 0, 13.82, 3025, 1400.6]
+        },
+        {
+          "name": "Accommodation (6)",
+          "minY": 31.6,
+          "maxY": 34.3,
+          "transform": [-14.7, 0, 0, 13.82, 2482, 1400.6]
+        },
+        {
+          "name": "Officers' deck (7)",
+          "minY": 34.3,
+          "maxY": 37,
+          "transform": [-14.7, 0, 0, 13.82, 1939, 1400.6]
+        },
+        { "name": "Stairs (8)", "minY": 37, "maxY": 39.7, "transform": [-14.7, 0, 0, 13.82, 1396, 1400.6] },
+        { "name": "Bridge (9)", "minY": 39.7, "maxY": 42.4, "transform": [-14.7, 0, 0, 13.82, 853, 1400.6] },
+        {
+          "name": "Bridge roof (10)",
+          "minY": 42.4,
+          "maxY": null,
+          "transform": [-14.7, 0, 0, 13.82, 310, 1400.6]
+        }
+      ]
+    }
+  ]
+}

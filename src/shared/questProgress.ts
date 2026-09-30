@@ -1,4 +1,4 @@
-import type { Quest, QuestObjective, RequirementStatus } from './questTypes'
+import type { Quest, QuestObjective, QuestTrader, RequirementStatus } from './questTypes'
 
 /** What the player did with a quest, from the logs or set by hand. */
 export interface ProgressEntry {
@@ -17,6 +17,91 @@ export interface QuestContext {
   playerLevel: number
   /** 'USEC', 'BEAR', or null to show quests for both. */
   faction: string | null
+  /** Trader names and loyalty levels, by id. */
+  traders?: ReadonlyMap<string, QuestTrader>
+}
+
+/** The player level a trader's loyalty level needs (0 when unknown). */
+export function loyaltyPlayerLevel(
+  traders: ReadonlyMap<string, QuestTrader> | undefined,
+  traderId: string,
+  level: number
+): number {
+  return traders?.get(traderId)?.levels.find((l) => l.level === level)?.playerLevel ?? 0
+}
+
+export interface LevelRequirement {
+  /**
+   * Whether `quest.minPlayerLevel` is the quest's own level requirement, the one the game shows.
+   * tarkov.dev raises it to what the loyalty levels and earlier quests it needs require, and since
+   * update 1.1 most quests are gated by loyalty level rather than by level.
+   */
+  own: boolean
+  /** Where the level comes from when it isn't the quest's own. */
+  gate: { kind: 'loyalty'; traderId: string; level: number } | { kind: 'quest'; questId: string } | null
+}
+
+/**
+ * Tell a quest's own level requirement from one tarkov.dev inherits: its level is the highest of the
+ * quest's own, the player level each loyalty level it needs requires, and each earlier quest's level
+ * (with that quest's "reach loyalty level" objectives). When nothing inherited reaches it, it's the
+ * quest's own.
+ */
+export function levelRequirement(
+  quest: Quest,
+  questsById: ReadonlyMap<string, Quest>,
+  traders: ReadonlyMap<string, QuestTrader> | undefined
+): LevelRequirement {
+  let inherited = 0
+  let gate: LevelRequirement['gate'] = null
+  const consider = (level: number, from: NonNullable<LevelRequirement['gate']>): void => {
+    if (level > inherited) {
+      inherited = level
+      gate = from
+    }
+  }
+  for (const req of quest.traderRequirements) {
+    if (req.type !== 'level') continue
+    const from = { kind: 'loyalty' as const, traderId: req.traderId, level: req.value }
+    consider(loyaltyPlayerLevel(traders, req.traderId, req.value), from)
+    // A loyalty level is the gate even when it needs no particular player level.
+    gate ??= from
+  }
+  for (const req of quest.requires) {
+    const before = questsById.get(req.questId)
+    if (!before) continue
+    const from = { kind: 'quest' as const, questId: before.id }
+    consider(before.minPlayerLevel, from)
+    for (const o of before.objectives)
+      if (o.traderLevel)
+        consider(loyaltyPlayerLevel(traders, o.traderLevel.traderId, o.traderLevel.level), from)
+  }
+  return { own: quest.minPlayerLevel > inherited, gate }
+}
+
+const COMPARE: Record<string, string> = { '>=': '≥', '<=': '≤', '>': '>', '<': '<' }
+
+/**
+ * What a quest needs before it's offered, as the game shows it: its own level (when it has one
+ * above 1), loyalty levels and reputation. Earlier quests are listed separately.
+ */
+export function requirementLabels(
+  quest: Quest,
+  questsById: ReadonlyMap<string, Quest>,
+  traders: ReadonlyMap<string, QuestTrader> | undefined
+): string[] {
+  const labels: string[] = []
+  if (levelRequirement(quest, questsById, traders).own && quest.minPlayerLevel > 1)
+    labels.push(`Level ${quest.minPlayerLevel}`)
+  for (const req of quest.traderRequirements) {
+    const name = traders?.get(req.traderId)?.name ?? 'Trader'
+    labels.push(
+      req.type === 'level'
+        ? `${name} LL${req.value}`
+        : `${name} rep ${COMPARE[req.compareMethod] ?? req.compareMethod} ${req.value}`
+    )
+  }
+  return labels
 }
 
 const satisfies = (entry: ProgressEntry | undefined, wanted: RequirementStatus[]): boolean =>
@@ -32,7 +117,15 @@ export function lockReasons(
   questsById: ReadonlyMap<string, Quest>
 ): string[] {
   const reasons: string[] = []
-  if (ctx.playerLevel < quest.minPlayerLevel) reasons.push(`Needs level ${quest.minPlayerLevel}`)
+  if (ctx.playerLevel < quest.minPlayerLevel) {
+    const { own, gate } = levelRequirement(quest, questsById, ctx.traders)
+    const trader = gate?.kind === 'loyalty' ? (ctx.traders?.get(gate.traderId)?.name ?? 'the trader') : null
+    reasons.push(
+      !own && gate?.kind === 'loyalty'
+        ? `Needs ${trader} LL${gate.level} (from level ${quest.minPlayerLevel})`
+        : `Needs level ${quest.minPlayerLevel}`
+    )
+  }
   for (const req of quest.requires) {
     if (satisfies(progress[req.questId], req.status)) continue
     const name = questsById.get(req.questId)?.name ?? 'another quest'

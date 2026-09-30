@@ -1322,6 +1322,19 @@ button.link.active {
   justify-self: start;
 }
 
+.quest-row.static {
+  cursor: default;
+}
+
+.quest-row.static:hover {
+  background: none;
+}
+
+.quests-from-logs .hint {
+  margin: 0;
+  padding: 2px 16px 8px;
+}
+
 .quest-name span,
 .quest-name small {
   display: block;
@@ -1504,6 +1517,10 @@ button.link.active {
 
 .map-content {
   position: relative;
+}
+
+.map-style {
+  margin-top: 8px;
 }
 
 .map-canvas,

@@ -1,5 +1,5 @@
 import { memo, useCallback, useMemo, useState } from 'react'
-import { questMaps, type QuestStatus } from '../../../shared/questProgress'
+import { questMaps, requirementLabels, type QuestStatus } from '../../../shared/questProgress'
 import type { GameMap, Quest } from '../../../shared/questTypes'
 import type { PriceState, PublicSettings, QuestSettings, QuestStatusFilter } from '../../../shared/types'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
@@ -19,12 +19,13 @@ const STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'complet
 const QuestListRow = memo(function QuestListRow({
   row,
   selected,
-  mapNames,
+  details,
   onSelect
 }: {
   row: QuestRow
   selected: boolean
-  mapNames: string
+  /** Requirements and maps. */
+  details: string
   onSelect: (id: string) => void
 }) {
   const { quest, status } = row
@@ -34,10 +35,7 @@ const QuestListRow = memo(function QuestListRow({
         <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
         <span className="quest-name">
           <span>{quest.name}</span>
-          <small>
-            Level {quest.minPlayerLevel}
-            {mapNames && ` · ${mapNames}`}
-          </small>
+          {details && <small>{details}</small>}
         </span>
         <span className="quest-flags">
           {quest.kappaRequired && <abbr title="Needed for Kappa">K</abbr>}
@@ -164,18 +162,32 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
     return c
   }, [all])
 
+  const term = search.trim().toLowerCase()
   const shown = useMemo(() => {
-    const term = search.trim().toLowerCase()
+    // A search looks through every status, so a quest is found wherever it is.
     return all.filter(
       ({ quest, status }) =>
-        q.statuses.includes(status) &&
+        (term !== '' || q.statuses.includes(status)) &&
         (!q.traderId || quest.traderId === q.traderId) &&
         (!q.mapId || questMaps(quest).has(q.mapId)) &&
         (!q.kappaOnly || quest.kappaRequired) &&
         (!q.lightkeeperOnly || quest.lightkeeperRequired) &&
         (!term || quest.name.toLowerCase().includes(term))
     )
-  }, [all, q, search])
+  }, [all, q, term])
+
+  // Quests the logs mention that tarkov.dev doesn't list (story chapters, new or event quests).
+  const fromLogs = useMemo(() => {
+    const named: { id: string; name: string; status: QuestStatus }[] = []
+    let unnamed = 0
+    for (const [id, entry] of Object.entries(progress ?? {})) {
+      if (questsById.has(id)) continue
+      const name = dataset?.otherQuestNames[id]
+      if (!name) unnamed++
+      else if (!term || name.toLowerCase().includes(term)) named.push({ id, name, status: entry.status })
+    }
+    return { named: named.sort((a, b) => a.name.localeCompare(b.name)), unnamed }
+  }, [progress, questsById, dataset, term])
 
   const groups = useMemo(() => {
     const order = new Map((dataset?.traders ?? []).map((t, i) => [t.id, i]))
@@ -197,14 +209,19 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
       }))
   }, [shown, dataset])
 
-  const mapNamesFor = useCallback(
+  const detailsFor = useCallback(
     (quest: Quest): string =>
-      [...questMaps(quest)]
-        .map((id) => mapsById.get(id)?.name)
+      [
+        ...requirementLabels(quest, questsById, ctx.traders),
+        [...questMaps(quest)]
+          .map((id) => mapsById.get(id)?.name)
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(', ')
+      ]
         .filter(Boolean)
-        .slice(0, 2)
-        .join(', '),
-    [mapsById]
+        .join(' · '),
+    [questsById, mapsById, ctx.traders]
   )
   const onSelect = useCallback(
     (id: string) => selectQuest(useStore.getState().selectedQuest === id ? null : id),
@@ -255,10 +272,12 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                 className="search"
                 type="search"
                 placeholder="Search quests"
+                title="Searches every status"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             )}
+            {tab === 'quests' && term && <span className="muted">Searching every status</span>}
             {questState?.fromCache && questState.error && (
               <span className="muted">Offline: showing saved quest data.</span>
             )}
@@ -280,14 +299,39 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                         key={row.quest.id}
                         row={row}
                         selected={row.quest.id === selected}
-                        mapNames={mapNamesFor(row.quest)}
+                        details={detailsFor(row.quest)}
                         onSelect={onSelect}
                       />
                     ))}
                   </ul>
                 </section>
               ))}
-              {dataset && shown.length === 0 && (
+              {fromLogs.named.length + fromLogs.unnamed > 0 && (
+                <section className="quests-from-logs">
+                  <h3>
+                    From your game logs <span className="muted">{fromLogs.named.length}</span>
+                  </h3>
+                  <p className="hint">
+                    tarkov.dev doesn&rsquo;t list these (story chapters, and new or event quests), so there
+                    are no objectives or requirements to show.
+                    {fromLogs.unnamed > 0 &&
+                      ` Plus ${fromLogs.unnamed} operational or daily task${fromLogs.unnamed === 1 ? '' : 's'}.`}
+                  </p>
+                  <ul>
+                    {fromLogs.named.map((entry) => (
+                      <li key={entry.id} className="quest-row static">
+                        <span className={`badge ${STATUS_BADGE[entry.status]}`}>
+                          {STATUS_LABEL[entry.status]}
+                        </span>
+                        <span className="quest-name">
+                          <span>{entry.name}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {dataset && shown.length === 0 && fromLogs.named.length === 0 && (
                 <div className="empty">
                   <p>No quests match. Tick more statuses on the left, or clear the filters.</p>
                 </div>

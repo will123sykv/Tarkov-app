@@ -57,7 +57,8 @@ export const DEFAULT_SETTINGS: Settings = {
     questScope: 'active',
     showExtracts: true,
     showSpawns: false,
-    showTransits: true
+    showTransits: true,
+    style: 're3mr'
   }
 }
 
@@ -88,7 +89,8 @@ function sanitizeMaps(raw: unknown): MapSettings {
     questScope: r.questScope === 'available' || r.questScope === 'none' ? r.questScope : 'active',
     showExtracts: typeof r.showExtracts === 'boolean' ? r.showExtracts : d.showExtracts,
     showSpawns: typeof r.showSpawns === 'boolean' ? r.showSpawns : d.showSpawns,
-    showTransits: typeof r.showTransits === 'boolean' ? r.showTransits : d.showTransits
+    showTransits: typeof r.showTransits === 'boolean' ? r.showTransits : d.showTransits,
+    style: r.style === 'tarkov-dev' ? 'tarkov-dev' : 're3mr'
   }
 }
 

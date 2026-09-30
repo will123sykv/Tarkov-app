@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from 'react'
 import type { GameMap } from '../../../shared/questTypes'
 import type { MapSettings, PublicSettings } from '../../../shared/types'
+import { interactiveProjection, re3mrProjection } from '../lib/mapProjection'
 import { configFor, MAP_CONFIGS } from '../lib/questUi'
+import { re3mrFor } from '../lib/re3mrMap'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import MapCanvas, { MARKER_COLORS, type ObjectiveMarker } from './MapCanvas'
@@ -41,6 +43,12 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
     return list.sort((a, b) => a.name.localeCompare(b.name))
   }, [dataset])
   const config = MAP_CONFIGS.find((c) => c.key === m.mapKey) ?? null
+  const re3mr = config ? re3mrFor(config.key) : null
+  const showRe3mr = re3mr !== null && m.style === 're3mr'
+  const projection = useMemo(
+    () => (showRe3mr ? re3mrProjection(re3mr) : config ? interactiveProjection(config) : null),
+    [config, re3mr, showRe3mr]
+  )
   const maps = useMemo<GameMap[]>(
     () => (dataset?.maps ?? []).filter((gm) => config && configFor(gm) === config),
     [dataset, config]
@@ -79,6 +87,26 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
             ))}
             {!choices.length && <option value={m.mapKey}>Loading maps…</option>}
           </select>
+          {re3mr && (
+            <div className="mini-toggle wide map-style" role="radiogroup" aria-label="Map style">
+              {(
+                [
+                  ['re3mr', 'Re3MR'],
+                  ['tarkov-dev', 'tarkov.dev']
+                ] as const
+              ).map(([id, text]) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={m.style === id}
+                  className={m.style === id ? 'active' : ''}
+                  onClick={() => set({ style: id })}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
         <section>
           <h2>Quest objectives</h2>
@@ -152,14 +180,24 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
             </ul>
           )}
         </section>
-        {config && (
+        {showRe3mr ? (
           <p className="hint credit">
             Map by{' '}
-            <a href={config.authorLink} target="_blank" rel="noreferrer">
-              {config.author}
+            <a href="https://reemr.se" target="_blank" rel="noreferrer">
+              Re3MR
             </a>{' '}
-            via tarkov.dev, CC BY-NC-SA 4.0.
+            (v{re3mr.version}), CC BY-NC-SA 4.0. Markers are placed on the floor they&rsquo;re on.
           </p>
+        ) : (
+          config && (
+            <p className="hint credit">
+              Map by{' '}
+              <a href={config.authorLink} target="_blank" rel="noreferrer">
+                {config.author}
+              </a>{' '}
+              via tarkov.dev, CC BY-NC-SA 4.0.
+            </p>
+          )
         )}
       </aside>
       <main className="content map-content">
@@ -178,9 +216,9 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
             </button>
           </div>
         )}
-        {config && maps.length ? (
+        {projection && maps.length ? (
           <MapCanvas
-            config={config}
+            projection={projection}
             maps={maps}
             objectives={objectives}
             showExtracts={m.showExtracts}

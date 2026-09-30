@@ -13,8 +13,12 @@ export const Q = {
   shootout: '5bc4776586f774512d07cf05',
   firstAid: '5967733e86f774602332fc84',
   kappaOnly: '5c51aac186f77432ea65c552',
-  usecOnly: '6179b5eabca27a099552e052'
+  usecOnly: '6179b5eabca27a099552e052',
+  aidStations: '6a5672392ee61bd094c49e27'
 }
+
+/** A story chapter: tarkov.dev leaves it out of `tasks` but keeps its name. */
+export const STORY_ID = '6a00000000000000000000a1'
 
 const quest = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -75,6 +79,14 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             questItem: '590c62a386f77412b0130255'
           },
           {
+            id: 'o-checking-ll',
+            description: 'o-checking-ll',
+            type: 'traderLevel',
+            optional: false,
+            trader: THERAPIST,
+            level: 2
+          },
+          {
             id: 'o-checking-visit',
             description: 'o-checking-visit',
             type: 'visit',
@@ -121,6 +133,16 @@ export const RAW_QUEST_DATA: QuestDataInput = {
       quest(Q.firstAid, { trader: THERAPIST, taskRequirements: [{ task: Q.debut, status: ['failed'] }] }),
       quest(Q.kappaOnly, { kappaRequired: true, lightkeeperRequired: true, minPlayerLevel: 40 }),
       quest(Q.usecOnly, { factionName: 'USEC' }),
+      // Since update 1.1: gated by Therapist LL2 (level 5), which tarkov.dev folds into its level.
+      quest(Q.aidStations, {
+        trader: THERAPIST,
+        minPlayerLevel: 5,
+        traderRequirements: [
+          { id: 'r1', requirementType: 'level', compareMethod: '>=', value: 2, trader: THERAPIST },
+          { id: 'r2', requirementType: 'reputation', compareMethod: '<=', value: -1, trader: { id: PRAPOR } },
+          { id: 'r3', requirementType: 'loyalty?', value: 2, trader: PRAPOR }
+        ]
+      }),
       { name: 'no id' }
     ],
     questItems: { '590c62a386f77412b0130255': { name: '590c62a386f77412b0130255 Name' } }
@@ -132,6 +154,9 @@ export const RAW_QUEST_DATA: QuestDataInput = {
     [`${Q.firstAid} name`]: 'First Aid',
     [`${Q.kappaOnly} name`]: 'Collector',
     [`${Q.usecOnly} name`]: 'USEC Only',
+    [`${Q.aidStations} name`]: 'Aid Stations',
+    [`${STORY_ID} name`]: 'Tour',
+    [`${STORY_ID} description`]: 'Not a name',
     'o-debut-shoot': 'Eliminate 5 Scavs on Customs',
     'o-debut-give': 'Hand over 2 MP-133 shotguns',
     'o-checking-find': 'Obtain the Bronze pocket watch',
@@ -172,8 +197,22 @@ export const RAW_QUEST_DATA: QuestDataInput = {
     transitWoods: 'Transit to Woods'
   },
   traders: {
-    [PRAPOR]: { id: PRAPOR, name: `${PRAPOR} Nickname` },
-    [THERAPIST]: { id: THERAPIST, name: `${THERAPIST} Nickname` }
+    [PRAPOR]: {
+      id: PRAPOR,
+      name: `${PRAPOR} Nickname`,
+      levels: [
+        { id: `${PRAPOR}-1`, level: 1, requiredPlayerLevel: 0 },
+        { id: `${PRAPOR}-2`, level: 2, requiredPlayerLevel: 6 }
+      ]
+    },
+    [THERAPIST]: {
+      id: THERAPIST,
+      name: `${THERAPIST} Nickname`,
+      levels: [
+        { id: `${THERAPIST}-1`, level: 1, requiredPlayerLevel: 0 },
+        { id: `${THERAPIST}-2`, level: 2, requiredPlayerLevel: 5 }
+      ]
+    }
   },
   tradersLang: { [`${PRAPOR} Nickname`]: 'Prapor', [`${THERAPIST} Nickname`]: 'Therapist' }
 }

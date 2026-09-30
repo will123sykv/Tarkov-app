@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { FetchFn } from '../src/main/pricing/http'
 import { createMapAssetHandler, toMapAssetUrl } from '../src/main/maps/mapAssets'
+import { RE3MR_COMMIT } from '../src/shared/re3mr'
 import { tempDir } from './helpers'
 
 const request = (url: string) => new Request(url)
@@ -57,5 +58,34 @@ describe('createMapAssetHandler', () => {
     expect(toMapAssetUrl('https://assets.tarkov.dev/maps/svg/Woods.svg')).toBe(
       'tarkov-map://assets/maps/svg/Woods.svg'
     )
+  })
+})
+
+describe('Re3MR images', () => {
+  it('fetches them from tarkov.dev’s repository at the pinned commit and caches them by commit', async () => {
+    const cacheDir = await tempDir()
+    const fetchFn = vi.fn<FetchFn>(async () => new Response(new Uint8Array([9, 9])))
+    const handle = createMapAssetHandler({ cacheDir, fetchFn })
+    const res = await handle(request('tarkov-map://re3mr/factory-2d.jpg'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/jpeg')
+    expect(fetchFn).toHaveBeenCalledWith(
+      `https://raw.githubusercontent.com/the-hideout/tarkov-dev/${RE3MR_COMMIT}/public/maps/factory-2d.jpg`
+    )
+    expect([...(await readFile(join(cacheDir, 're3mr', RE3MR_COMMIT, 'factory-2d.jpg')))]).toEqual([9, 9])
+  })
+
+  it('refuses any other file', async () => {
+    const fetchFn = vi.fn<FetchFn>()
+    const handle = createMapAssetHandler({ cacheDir: await tempDir(), fetchFn })
+    for (const url of [
+      'tarkov-map://re3mr/customs-2d.jpg',
+      'tarkov-map://re3mr/..%2F..%2Fsecret.jpg',
+      'tarkov-map://re3mr/factory-2d.jpg.exe',
+      'tarkov-map://re3mr/maps/factory-2d.jpg'
+    ]) {
+      expect((await handle(request(url))).status, url).toBe(404)
+    }
+    expect(fetchFn).not.toHaveBeenCalled()
   })
 })

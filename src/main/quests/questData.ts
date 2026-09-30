@@ -6,8 +6,10 @@ import type {
   QuestDataset,
   QuestDataState,
   QuestObjective,
+  QuestTrader,
   QuestZone,
   RequirementStatus,
+  TraderRequirement,
   Vec3
 } from '../../shared/questTypes'
 import type { DataMode } from '../../shared/types'
@@ -72,6 +74,29 @@ function requirementStatus(value: unknown): RequirementStatus[] {
   return result.size ? [...result] : ['complete']
 }
 
+function traderRequirements(value: unknown): TraderRequirement[] {
+  const result: TraderRequirement[] = []
+  for (const raw of arr(value)) {
+    const req = rec(raw)
+    const traderId = str(req.trader) ?? str(rec(req.trader).id)
+    const type =
+      req.requirementType === 'level' || req.requirementType === 'reputation' ? req.requirementType : null
+    const value = num(req.value) ?? num(req.level)
+    if (traderId && type && value !== null)
+      result.push({ traderId, type, compareMethod: str(req.compareMethod) ?? '>=', value })
+  }
+  return result
+}
+
+function traderLevel(objective: Raw): QuestObjective['traderLevel'] {
+  if (objective.type !== 'traderLevel') return null
+  const traderId = str(objective.trader) ?? str(rec(objective.trader).id)
+  const level = num(objective.level)
+  return traderId && level !== null ? { traderId, level } : null
+}
+
+const QUEST_NAME_KEY = /^([0-9a-f]{24}) name$/
+
 export function normalizeQuestData(
   input: QuestDataInput,
   dataMode: DataMode,
@@ -116,7 +141,8 @@ export function normalizeQuestData(
             map: str(rec(l).map) ?? str(rec(rec(l).map).id) ?? '',
             positions: vecs(rec(l).positions)
           }))
-          .filter((l) => l.map && l.positions.length)
+          .filter((l) => l.map && l.positions.length),
+        traderLevel: traderLevel(obj)
       }
     })
     quests.push({
@@ -133,6 +159,7 @@ export function normalizeQuestData(
           return questId ? { questId, status: requirementStatus(req.status) } : null
         })
         .filter((r): r is Quest['requires'][number] => r !== null),
+      traderRequirements: traderRequirements(raw.traderRequirements),
       objectives,
       map: str(raw.map) ?? str(rec(raw.map).id),
       kappaRequired: raw.kappaRequired === true,
@@ -180,16 +207,27 @@ export function normalizeQuestData(
   }
 
   const traderSource = rec(input.traders).traders ?? input.traders
-  const traders = Object.entries(Array.isArray(traderSource) ? {} : rec(traderSource))
-    .map(([key, raw]) => ({ id: str(rec(raw).id) ?? key, name: tt(str(rec(raw).name)) ?? key }))
-    .concat(
-      Array.isArray(traderSource)
-        ? traderSource.map((raw) => ({ id: str(rec(raw).id) ?? '', name: tt(str(rec(raw).name)) ?? '' }))
-        : []
-    )
-    .filter((tr) => tr.id)
+  const trader = (raw: unknown, key: string): QuestTrader => ({
+    id: str(rec(raw).id) ?? key,
+    name: tt(str(rec(raw).name)) ?? key,
+    levels: arr(rec(raw).levels)
+      .map((l) => ({ level: num(rec(l).level), playerLevel: num(rec(l).requiredPlayerLevel) ?? 0 }))
+      .filter((l): l is QuestTrader['levels'][number] => l.level !== null)
+  })
+  const traders = (
+    Array.isArray(traderSource)
+      ? traderSource.map((raw) => trader(raw, ''))
+      : Object.entries(rec(traderSource)).map(([key, raw]) => trader(raw, key))
+  ).filter((tr) => tr.id)
 
-  return { dataMode, fetchedAt, quests, maps, traders }
+  const known = new Set(quests.map((q) => q.id))
+  const otherQuestNames: Record<string, string> = {}
+  for (const [key, name] of Object.entries(input.tasksLang)) {
+    const id = QUEST_NAME_KEY.exec(key)?.[1]
+    if (id && name && !known.has(id)) otherQuestNames[id] = name
+  }
+
+  return { dataMode, fetchedAt, quests, maps, traders, otherQuestNames }
 }
 
 export async function fetchQuestData(
@@ -214,6 +252,25 @@ export async function fetchQuestData(
   return dataset
 }
 
+/**
+ * Caches written before 1.5.0 lack trader requirements and the other quests' names: fill in
+ * defaults so they still work offline, and date them so they're refetched straight away.
+ */
+function upgradeCache(cached: QuestDataset): QuestDataset {
+  if (cached.otherQuestNames) return cached
+  return {
+    ...cached,
+    fetchedAt: 0,
+    quests: cached.quests.map((q) => ({
+      ...q,
+      traderRequirements: q.traderRequirements ?? [],
+      objectives: q.objectives.map((o) => ({ ...o, traderLevel: o.traderLevel ?? null }))
+    })),
+    traders: cached.traders.map((t) => ({ ...t, levels: t.levels ?? [] })),
+    otherQuestNames: {}
+  }
+}
+
 /** Quest and map data per game mode: cached on disk, refreshed twice a day, the cache when offline. */
 export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: string; now?: () => number }) {
   const now = deps.now ?? Date.now
@@ -224,9 +281,10 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
   async function load(dataMode: DataMode, force: boolean): Promise<QuestDataState> {
     let state = states.get(dataMode)
     if (!state) {
-      const cached = (await readJsonFile(cacheFile(dataMode))) as QuestDataset | undefined
+      const raw = (await readJsonFile(cacheFile(dataMode))) as QuestDataset | undefined
+      const cached = raw?.quests ? upgradeCache(raw) : undefined
       state = {
-        dataset: cached?.quests ? cached : null,
+        dataset: cached ?? null,
         fromCache: Boolean(cached?.quests),
         error: null,
         loading: false

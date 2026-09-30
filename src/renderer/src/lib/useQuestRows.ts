@@ -37,7 +37,11 @@ export function useQuestRows(settings: PublicSettings): QuestRows {
   const dataset = questState?.dataset ?? null
   const level = settings.playerLevels[settings.gameMode]
   const faction = settings.quests.faction
-  const ctx = useMemo<QuestContext>(() => ({ playerLevel: level, faction }), [level, faction])
+  const traders = useMemo(() => new Map((dataset?.traders ?? []).map((t) => [t.id, t])), [dataset])
+  const ctx = useMemo<QuestContext>(
+    () => ({ playerLevel: level, faction, traders }),
+    [level, faction, traders]
+  )
   const questsById = useMemo(() => new Map((dataset?.quests ?? []).map((q) => [q.id, q])), [dataset])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
   const rows = useMemo<QuestRow[]>(

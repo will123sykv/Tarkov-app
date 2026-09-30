@@ -31,9 +31,20 @@ export interface QuestObjective {
   zones: QuestZone[]
   /** Where a quest item can spawn. */
   locations: { map: string; positions: Vec3[] }[]
+  /** For "reach loyalty level N with a trader" objectives. */
+  traderLevel: { traderId: string; level: number } | null
 }
 
 export type RequirementStatus = 'complete' | 'active' | 'failed'
+
+/** A trader loyalty level or reputation the quest needs before it's offered. */
+export interface TraderRequirement {
+  traderId: string
+  type: 'level' | 'reputation'
+  /** '>=', '<=', '<' or '>'. */
+  compareMethod: string
+  value: number
+}
 
 export interface Quest {
   id: string
@@ -41,9 +52,14 @@ export interface Quest {
   normalizedName: string
   traderId: string
   wikiLink: string | null
+  /**
+   * tarkov.dev's level: the earliest the quest can be available, counting the loyalty levels and
+   * earlier quests it needs (see `levelRequirement` for the level the game itself shows).
+   */
   minPlayerLevel: number
   /** Other quests and the status each must be in before this one unlocks. */
   requires: { questId: string; status: RequirementStatus[] }[]
+  traderRequirements: TraderRequirement[]
   objectives: QuestObjective[]
   /** The quest's main map, if it has one. */
   map: string | null
@@ -74,12 +90,24 @@ export interface GameMap {
   transits: { name: string; position: Vec3 }[]
 }
 
+export interface QuestTrader {
+  id: string
+  name: string
+  /** The player level each loyalty level needs. */
+  levels: { level: number; playerLevel: number }[]
+}
+
 export interface QuestDataset {
   dataMode: DataMode
   fetchedAt: number
   quests: Quest[]
   maps: GameMap[]
-  traders: { id: string; name: string }[]
+  traders: QuestTrader[]
+  /**
+   * Names of quests tarkov.dev leaves out of its quest list (story chapters, new or event quests),
+   * by id, so ones the logs mention can still be named.
+   */
+  otherQuestNames: Record<string, string>
 }
 
 export interface QuestDataState {

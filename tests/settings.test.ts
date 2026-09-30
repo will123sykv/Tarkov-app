@@ -128,21 +128,23 @@ describe('sanitizeSettings', () => {
         questScope: 'available',
         showExtracts: true,
         showSpawns: true,
-        showTransits: true
+        showTransits: true,
+        style: 're3mr'
       }
     })
+    expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps.style).toBe('tarkov-dev')
     expect(
       sanitizeSettings({
         view: 'nope',
         gameLogsDir: 5,
         quests: { faction: 'Scav' },
-        maps: { mapKey: '../x', questScope: 'x' }
+        maps: { mapKey: '../x', questScope: 'x', style: 'satellite' }
       })
     ).toMatchObject({
       view: 'loot',
       gameLogsDir: null,
       quests: DEFAULT_SETTINGS.quests,
-      maps: { mapKey: 'customs', questScope: 'active' }
+      maps: { mapKey: 'customs', questScope: 'active', style: 're3mr' }
     })
   })
 

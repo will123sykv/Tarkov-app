@@ -112,10 +112,12 @@ the game's install folder, or its `build` folder.
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
   trader, map, faction, and Kappa or Lightkeeper. **Items needed** lists what your active quests
   still want handed over, flagging found-in-raid items.
-- **Maps:** tarkov.dev's interactive maps with the objectives of your active (or available)
-  quests, extracts (PMC, scav, shared), transits and PMC spawns. **Show on map** on any objective
-  jumps to it. Map images are downloaded the first time you open a map and kept, so they work
-  offline afterwards.
+- **Maps:** the objectives of your active (or available) quests, extracts (PMC, scav, shared),
+  transits and PMC spawns. Factory, Icebreaker, Labyrinth and Terminal use
+  [Re3MR](https://reemr.se)'s labelled 2D maps, with each marker drawn on the floor or deck it's
+  on (a switch goes back to tarkov.dev's map); the other maps use tarkov.dev's interactive maps.
+  **Show on map** on any objective jumps to it. Map images are downloaded the first time you open
+  a map and kept, so they work offline afterwards.
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
 
@@ -249,7 +251,8 @@ Price, item, quest and map data: [tarkov.dev](https://tarkov.dev) and
 [tarkov-market](https://tarkov-market.com). Map projections: tarkov.dev's
 [site](https://github.com/the-hideout/tarkov-dev) (MIT). Map images:
 [tarkov.dev's SVG maps](https://github.com/the-hideout/tarkov-dev-svg-maps) by Shebuka and others
-(CC BY-NC-SA 4.0). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). The log formats
+(CC BY-NC-SA 4.0), and [Re3MR](https://reemr.se)'s 2D maps of Factory, Icebreaker, Labyrinth and
+Terminal (CC BY-NC-SA 4.0, fetched from tarkov.dev's repository). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). The log formats
 follow what [TarkovMonitor](https://github.com/the-hideout/TarkovMonitor) documents.
 Container loot tables: the [SPT](https://github.com/sp-tarkov/server-csharp) project's server
 database (NCSA licence). Container pictures: the

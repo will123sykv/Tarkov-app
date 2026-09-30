@@ -1,5 +1,6 @@
 import {
   lockReasons,
+  requirementLabels,
   type ProgressEntry,
   type QuestContext,
   type QuestProgress
@@ -112,6 +113,7 @@ export default function QuestDetail({
   const reasons = status === 'locked' ? lockReasons(quest, progress, ctx, questsById) : []
   const unlocks = [...questsById.values()].filter((q) => q.requires.some((r) => r.questId === quest.id))
   const trader = traders.find((t) => t.id === quest.traderId)?.name ?? 'Unknown trader'
+  const requirements = requirementLabels(quest, questsById, ctx.traders)
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
       <button className="link" onClick={() => selectQuest(q.id)}>
@@ -127,7 +129,7 @@ export default function QuestDetail({
         <div>
           <strong>{quest.name}</strong>
           <span className="muted">
-            {trader} · level {quest.minPlayerLevel}
+            {[trader, ...requirements].join(' · ')}
             {quest.faction !== 'Any' && ` · ${quest.faction} only`}
             {quest.kappaRequired && ' · Kappa'}
             {quest.lightkeeperRequired && ' · Lightkeeper'}

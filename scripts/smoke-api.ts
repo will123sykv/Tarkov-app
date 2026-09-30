@@ -7,6 +7,7 @@
  * reported.
  */
 import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
+import { levelRequirement } from '../src/shared/questProgress'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { DataMode, PriceDataset } from '../src/shared/types'
 import { fleaAccess, rankItems } from '../src/shared/valuation'
@@ -164,6 +165,17 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
       `${data.quests.filter((q) => q.kappaRequired).length} for Kappa · ${untranslated} untranslated · ` +
       `${brokenRequirements} requirements on unknown quests · ${data.maps.length} maps · ${data.traders.length} traders`
   )
+  const traders = new Map(data.traders.map((t) => [t.id, t]))
+  const byId = new Map(data.quests.map((q) => [q.id, q]))
+  const own = data.quests.filter((q) => levelRequirement(q, byId, traders).own && q.minPlayerLevel > 1).length
+  const loyalty = data.quests.filter((q) => q.traderRequirements.some((r) => r.type === 'level')).length
+  const unlockLevels = data.traders.filter((t) => t.levels.some((l) => l.playerLevel > 1)).length
+  console.log(
+    `[quests ${dataMode}] ${own} quests with their own level requirement · ${loyalty} gated by loyalty level · ` +
+      `${unlockLevels} traders with loyalty-level player levels · ` +
+      `${Object.keys(data.otherQuestNames).length} names of quests not in the list (story and others)`
+  )
+  check(loyalty > 20 && unlockLevels > 3, 'trader loyalty requirements are missing from the quest data')
   check(data.quests.length > 300, 'expected more than 300 quests')
   check(placed > 100, 'expected quest objectives with map positions')
   check(untranslated < data.quests.length / 10, 'quest names are not being translated')

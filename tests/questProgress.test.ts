@@ -6,19 +6,22 @@ import { createPlayerStore } from '../src/main/quests/playerStore'
 import {
   applyQuestEvent,
   forFaction,
+  levelRequirement,
   lockReasons,
   markUpTo,
   neededItems,
   questMaps,
   questStatus,
+  requirementLabels,
   setQuestStatus,
   withoutLogEntries,
   type QuestProgress
 } from '../src/shared/questProgress'
 import { tempDir } from './helpers'
-import { CUSTOMS, Q, RAW_QUEST_DATA, WOODS } from './questFixtures'
+import { CUSTOMS, Q, RAW_QUEST_DATA, THERAPIST, WOODS } from './questFixtures'
 
-const { quests } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 0)
+const { quests, traders: traderList } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 0)
+const traders = new Map(traderList.map((t) => [t.id, t]))
 const byId = new Map(quests.map((q) => [q.id, q]))
 const get = (id: string) => byId.get(id)!
 const ctx = (playerLevel = 15, faction: string | null = null) => ({ playerLevel, faction })
@@ -56,6 +59,44 @@ describe('quest status', () => {
     expect(forFaction(get(Q.usecOnly), 'USEC')).toBe(true)
     expect(forFaction(get(Q.usecOnly), null)).toBe(true)
     expect(forFaction(get(Q.debut), 'BEAR')).toBe(true)
+  })
+})
+
+describe('level requirements', () => {
+  it('tells a quest’s own level from one tarkov.dev inherits from loyalty levels or earlier quests', () => {
+    // Checking needs level 2 itself; Debut before it only needs level 1.
+    expect(levelRequirement(get(Q.checking), byId, traders)).toEqual({
+      own: true,
+      gate: { kind: 'quest', questId: Q.debut }
+    })
+    // Aid Stations' level 5 is what Therapist LL2 needs.
+    expect(levelRequirement(get(Q.aidStations), byId, traders)).toEqual({
+      own: false,
+      gate: { kind: 'loyalty', traderId: THERAPIST, level: 2 }
+    })
+    // Shootout Picnic's 10 is above Checking's 2 and the Therapist LL2 (level 5) Checking asks for.
+    expect(levelRequirement(get(Q.shootout), byId, traders).own).toBe(true)
+    expect(levelRequirement({ ...get(Q.shootout), minPlayerLevel: 5 }, byId, traders)).toEqual({
+      own: false,
+      gate: { kind: 'quest', questId: Q.checking }
+    })
+  })
+
+  it('labels what the game asks for: its own level, loyalty levels and reputation', () => {
+    expect(requirementLabels(get(Q.checking), byId, traders)).toEqual(['Level 2'])
+    expect(requirementLabels(get(Q.aidStations), byId, traders)).toEqual(['Therapist LL2', 'Prapor rep ≤ -1'])
+    expect(requirementLabels(get(Q.debut), byId, traders)).toEqual([])
+  })
+
+  it('names the loyalty level as the reason a quest is locked', () => {
+    const at = (playerLevel: number) =>
+      lockReasons(get(Q.aidStations), {}, { ...ctx(playerLevel), traders }, byId)
+    expect(at(3)).toEqual(['Needs Therapist LL2 (from level 5)'])
+    expect(at(5)).toEqual([])
+    expect(lockReasons(get(Q.checking), {}, { ...ctx(1), traders }, byId)).toEqual([
+      'Needs level 2',
+      'Needs Debut completed'
+    ])
   })
 })
 

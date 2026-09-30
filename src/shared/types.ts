@@ -153,6 +153,8 @@ export interface MapSettings {
   showExtracts: boolean
   showSpawns: boolean
   showTransits: boolean
+  /** Re3MR's 2D map where there is one, or tarkov.dev's interactive map. */
+  style: 're3mr' | 'tarkov-dev'
 }
 
 export interface TrendSettings {

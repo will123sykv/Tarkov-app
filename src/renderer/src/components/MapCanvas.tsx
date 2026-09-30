@@ -1,9 +1,8 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
-import type { GameMap, MapConfig, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
-import { mapAsset } from '../lib/questUi'
-import { createCrs, prepareSvg, toBounds, toLatLng } from '../lib/tarkovMap'
+import type { GameMap, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
+import type { MapProjection } from '../lib/mapProjection'
 
 export interface ObjectiveMarker {
   quest: Quest
@@ -14,7 +13,7 @@ export interface ObjectiveMarker {
 }
 
 interface Props {
-  config: MapConfig
+  projection: MapProjection
   /** The map and its alternate versions (e.g. Night Factory) share one image. */
   maps: GameMap[]
   objectives: ObjectiveMarker[]
@@ -50,7 +49,7 @@ function label(title: string, detail?: string): HTMLElement {
 
 /** A Leaflet map of one Tarkov map with quest objectives, extracts, spawns and transits on it. */
 export default function MapCanvas({
-  config,
+  projection,
   maps,
   objectives,
   showExtracts,
@@ -72,53 +71,29 @@ export default function MapCanvas({
     if (!el) return
     setBaseError(null)
     const map = L.map(el, {
-      crs: createCrs(config),
-      minZoom: config.minZoom,
-      maxZoom: config.maxZoom + 2,
+      crs: projection.crs,
+      minZoom: projection.minZoom,
+      maxZoom: projection.maxZoom,
       zoomSnap: 0.5,
       attributionControl: false,
-      maxBounds: toBounds(config.bounds).pad(0.3)
+      maxBounds: projection.bounds.pad(0.3)
     })
-    map.fitBounds(toBounds(config.bounds))
+    map.fitBounds(projection.bounds)
     // The base image sits under the markers, whenever it finishes loading.
     map.createPane('mapBase').style.zIndex = '250'
-    let cancelled = false
-    if (config.tilePath) {
-      L.tileLayer(mapAsset(config.tilePath), {
-        tileSize: config.tileSize,
-        bounds: toBounds(config.bounds),
-        maxNativeZoom: config.maxZoom,
-        maxZoom: config.maxZoom + 2,
-        noWrap: true
-      })
-        .on('tileerror', () => setBaseError('Some map tiles couldn’t be loaded (offline?).'))
-        .addTo(map)
-    } else if (config.svgPath) {
-      fetch(mapAsset(config.svgPath))
-        .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`HTTP ${res.status}`))))
-        .then((text) => {
-          if (cancelled) return
-          const svg = prepareSvg(text, config.otherLayers)
-          if (!svg) throw new Error('not an SVG')
-          L.svgOverlay(svg, toBounds(config.svgBounds ?? config.bounds), {
-            className: 'map-svg',
-            pane: 'mapBase'
-          }).addTo(map)
-        })
-        .catch((err: Error) => !cancelled && setBaseError(`The map image couldn’t be loaded: ${err.message}`))
-    }
+    const removeBase = projection.addBase(map, setBaseError)
     overlayRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     const resize = new ResizeObserver(() => map.invalidateSize())
     resize.observe(el)
     return () => {
-      cancelled = true
+      removeBase()
       resize.disconnect()
       map.remove()
       mapRef.current = null
       overlayRef.current = null
     }
-  }, [config])
+  }, [projection])
 
   // Markers; redrawn when the data or the layer toggles change.
   useEffect(() => {
@@ -130,8 +105,9 @@ export default function MapCanvas({
       layer.addTo(overlay)
       markers.set(key, [...(markers.get(key) ?? []), layer])
     }
+    const at = projection.toLatLng
     const dot = (p: Vec3, color: string, radius = 6): L.CircleMarker =>
-      L.circleMarker(toLatLng(p), { radius, color: '#101214', weight: 2, fillColor: color, fillOpacity: 1 })
+      L.circleMarker(at(p), { radius, color: '#101214', weight: 2, fillColor: color, fillOpacity: 1 })
 
     for (const map of maps) {
       if (showSpawns) {
@@ -145,12 +121,15 @@ export default function MapCanvas({
         for (const e of map.extracts) {
           const color = MARKER_COLORS[e.faction as 'pmc' | 'scav' | 'shared'] ?? MARKER_COLORS.shared
           if (e.outline.length > 2)
-            L.polygon(e.outline.map(toLatLng), {
-              color,
-              weight: 1,
-              fillOpacity: 0.15,
-              interactive: false
-            }).addTo(overlay)
+            L.polygon(
+              e.outline.map((p) => at(p, e.position.y)),
+              {
+                color,
+                weight: 1,
+                fillOpacity: 0.15,
+                interactive: false
+              }
+            ).addTo(overlay)
           dot(e.position, color, 7)
             .bindTooltip(
               label(e.name, `${e.faction === 'shared' ? 'PMC and scav' : e.faction.toUpperCase()} extract`)
@@ -171,7 +150,10 @@ export default function MapCanvas({
         if (z.outline.length > 2)
           add(
             key,
-            L.polygon(z.outline.map(toLatLng), { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2 })
+            L.polygon(
+              z.outline.map((p) => at(p, z.position.y)),
+              { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2 }
+            )
               .bindTooltip(tip())
               .on('click', () => onSelectQuest(quest.id))
           )
@@ -192,7 +174,7 @@ export default function MapCanvas({
       }
     }
     markersRef.current = markers
-  }, [config, maps, objectives, showExtracts, showSpawns, showTransits, onSelectQuest])
+  }, [projection, maps, objectives, showExtracts, showSpawns, showTransits, onSelectQuest])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {
@@ -213,11 +195,9 @@ export default function MapCanvas({
     )
     if (!points.length) return
     handledFocus.current = focus
-    // Close enough to see the spot, far enough to see what's around it.
-    const maxZoom = Math.max(config.minZoom + 1, config.maxZoom - 2)
-    map.flyToBounds(L.latLngBounds(points).pad(0.5), { maxZoom, duration: 0.6 })
+    map.flyToBounds(L.latLngBounds(points).pad(0.5), { maxZoom: projection.focusZoom, duration: 0.6 })
     layers.forEach((l) => l instanceof L.CircleMarker && l.openTooltip())
-  }, [focus, objectives, config])
+  }, [focus, objectives, projection])
 
   return (
     <div className="map-canvas">

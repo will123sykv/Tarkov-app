@@ -2,14 +2,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createQuestDataService, normalizeQuestData } from '../src/main/quests/questData'
 import { jsonResponse, mockFetch, tempDir } from './helpers'
-import { CUSTOMS, PRAPOR, Q, RAW_QUEST_DATA, THERAPIST, WOODS } from './questFixtures'
+import { writeFile } from 'node:fs/promises'
+import { CUSTOMS, PRAPOR, Q, RAW_QUEST_DATA, STORY_ID, THERAPIST, WOODS } from './questFixtures'
 
 describe('normalizeQuestData', () => {
   const data = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 42)
   const quest = (id: string) => data.quests.find((q) => q.id === id)!
 
   it('translates quests and keeps their requirements, map and flags', () => {
-    expect(data.quests).toHaveLength(6)
+    expect(data.quests).toHaveLength(7)
     expect(quest(Q.shootout)).toMatchObject({
       name: 'Shootout Picnic',
       traderId: THERAPIST,
@@ -25,6 +26,23 @@ describe('normalizeQuestData', () => {
     expect(quest(Q.usecOnly).faction).toBe('USEC')
   })
 
+  it('keeps loyalty level and reputation requirements, and "reach loyalty level" objectives', () => {
+    expect(quest(Q.aidStations).traderRequirements).toEqual([
+      { traderId: THERAPIST, type: 'level', compareMethod: '>=', value: 2 },
+      { traderId: PRAPOR, type: 'reputation', compareMethod: '<=', value: -1 }
+    ])
+    expect(quest(Q.debut).traderRequirements).toEqual([])
+    expect(quest(Q.checking).objectives.map((o) => o.traderLevel)).toEqual([
+      null,
+      { traderId: THERAPIST, level: 2 },
+      null
+    ])
+  })
+
+  it('names the quests tarkov.dev leaves out, so ones in the logs can be shown', () => {
+    expect(data.otherQuestNames).toEqual({ [STORY_ID]: 'Tour' })
+  })
+
   it('keeps objectives with their items, quest items, zones and spawn locations', () => {
     expect(quest(Q.debut).objectives[1]).toMatchObject({
       type: 'giveItem',
@@ -33,7 +51,7 @@ describe('normalizeQuestData', () => {
       items: ['5448be9a4bdc2dfd2f8b456a'],
       foundInRaid: true
     })
-    const [find, visit] = quest(Q.checking).objectives
+    const [find, , visit] = quest(Q.checking).objectives
     expect(find).toMatchObject({
       questItem: { id: '590c62a386f77412b0130255', name: 'Bronze pocket watch' },
       locations: [{ map: CUSTOMS, positions: [{ x: 10, y: 1, z: -20 }] }]
@@ -72,8 +90,22 @@ describe('normalizeQuestData', () => {
       transits: [{ name: 'Transit to Woods', position: { x: 5, y: 0, z: 6 } }]
     })
     expect(data.traders).toEqual([
-      { id: PRAPOR, name: 'Prapor' },
-      { id: THERAPIST, name: 'Therapist' }
+      {
+        id: PRAPOR,
+        name: 'Prapor',
+        levels: [
+          { level: 1, playerLevel: 0 },
+          { level: 2, playerLevel: 6 }
+        ]
+      },
+      {
+        id: THERAPIST,
+        name: 'Therapist',
+        levels: [
+          { level: 1, playerLevel: 0 },
+          { level: 2, playerLevel: 5 }
+        ]
+      }
     ])
   })
 })
@@ -103,7 +135,7 @@ describe('createQuestDataService', () => {
       error: null,
       dataset: { dataMode: 'pve', fetchedAt: 1_000 }
     })
-    expect(first.dataset!.quests).toHaveLength(6)
+    expect(first.dataset!.quests).toHaveLength(7)
 
     // A new session offline, a day later: the cached data, with the error.
     clock += 24 * 3_600_000
@@ -112,6 +144,31 @@ describe('createQuestDataService', () => {
     expect(second).toMatchObject({ fromCache: true, dataset: { fetchedAt: 1_000 } })
     expect(second.error).toMatch(/503/)
     expect(offline.peek('pve')).toBe(second)
+  })
+
+  it('upgrades a cache from before 1.5.0 and refetches it straight away', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 8, 30)
+    const old = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000) as unknown as Record<string, unknown>
+    delete old.otherQuestNames
+    old.quests = (old.quests as Record<string, unknown>[]).map(({ traderRequirements: _, ...q }) => ({
+      ...q,
+      objectives: (q.objectives as Record<string, unknown>[]).map(({ traderLevel: __, ...o }) => o)
+    }))
+    old.traders = [{ id: PRAPOR, name: 'Prapor' }]
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => 2_000 }).get(
+      'pvp'
+    )
+    expect(offline.fromCache).toBe(true)
+    expect(offline.dataset).toMatchObject({ fetchedAt: 0, otherQuestNames: {}, traders: [{ levels: [] }] })
+    expect(offline.dataset!.quests.every((q) => Array.isArray(q.traderRequirements))).toBe(true)
+    expect(offline.dataset!.quests[0].objectives[0].traderLevel).toBeNull()
+
+    const online = await createQuestDataService({ fetchFn: serve(), cacheDir, now: () => now }).get('pvp')
+    expect(online).toMatchObject({ fromCache: false, dataset: { fetchedAt: now } })
+    expect(online.dataset!.otherQuestNames).toEqual({ [STORY_ID]: 'Tour' })
   })
 
   it('reuses fresh data and shares one request between callers', async () => {
