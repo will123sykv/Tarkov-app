@@ -69,11 +69,14 @@ jobs:
         if: always()
         continue-on-error: true
 
-  # Temporary 1.6.0 probe: db4tarkov's map images as base64 (informational).
+  # Temporary 1.6.0 probe: db4tarkov's map tiles as base64 (informational).
   probe-images:
-    name: Probe map images
+    name: Probe map tiles (${{ matrix.slug }})
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      matrix:
+        slug: [customs, ground_zero, woods, shoreline]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -83,4 +86,4 @@ jobs:
       - run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npx tsx scripts/probe-160.ts --dump
+      - run: npx tsx scripts/probe-160.ts --dump=${{ matrix.slug }}
