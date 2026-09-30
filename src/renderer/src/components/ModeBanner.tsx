@@ -8,7 +8,7 @@ interface Props {
   priceState: PriceState | null
 }
 
-export default function ModeBanner({ gameMode, priceState }: Props): React.JSX.Element | null {
+export default function ModeBanner({ gameMode, priceState }: Props): React.JSX.Element {
   const now = useNow(30_000)
   const banners: { tone: 'warn' | 'error' | 'info'; text: string }[] = []
 
@@ -32,7 +32,7 @@ export default function ModeBanner({ gameMode, priceState }: Props): React.JSX.E
     })
   }
 
-  if (banners.length === 0) return null
+  // Always rendered (empty when there's nothing to say) so the app's grid rows stay in order.
   return (
     <div className="banners">
       {banners.map((b) => (
