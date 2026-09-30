@@ -62,14 +62,14 @@ export function bossLines(spawn: Pick<BossSpawn, 'bosses'>): string[] {
 }
 
 /**
- * Boss spawn points of the maps sharing an image, merged: points within 5 m of one another are one
+ * Boss spawn points of the maps sharing an image, merged: points within 40 m of one another are one
  * point, with the bosses of both.
  */
 export function mergeBossSpawns(lists: readonly (readonly BossSpawn[])[]): BossSpawn[] {
   const result: BossSpawn[] = []
   for (const spawn of lists.flat()) {
     const near = result.find(
-      (s) => Math.hypot(s.position.x - spawn.position.x, s.position.z - spawn.position.z) < 5
+      (s) => Math.hypot(s.position.x - spawn.position.x, s.position.z - spawn.position.z) < 40
     )
     if (!near) result.push({ ...spawn, bosses: [...spawn.bosses] })
     else for (const b of spawn.bosses) if (!near.bosses.some((o) => o.name === b.name)) near.bosses.push(b)

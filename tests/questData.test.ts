@@ -96,11 +96,11 @@ describe('normalizeQuestData', () => {
       ],
       spawns: [{ position: { x: 1, y: 0, z: 2 }, sides: ['pmc'] }],
       transits: [{ name: 'Transit to Woods', position: { x: 5, y: 0, z: 6 } }],
-      // One point per spot (the second Dorms point is a metre away); bosses by zone, named from
-      // the translations, else from their slug.
+      // One point per clump (the middle of the two Dorms points); bosses by zone, named from the
+      // translations, else from their slug.
       bossSpawns: [
         {
-          position: { x: 175, y: 2, z: 145 },
+          position: { x: 175.5, y: 2, z: 145 },
           zone: 'ZoneDormitory',
           bosses: [
             { name: 'Reshala', chance: 0.6, here: 0.33 },
@@ -109,7 +109,7 @@ describe('normalizeQuestData', () => {
         },
         { position: { x: 24, y: 3, z: -90 }, zone: 'ZoneCustoms', bosses: [] }
       ],
-      snipers: [{ x: 195, y: 3, z: -171 }]
+      snipers: [{ x: 195, y: 2, z: -171 }]
     })
     expect(data.traders).toEqual([
       {

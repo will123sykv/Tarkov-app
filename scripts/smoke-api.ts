@@ -4,7 +4,7 @@
  *
  * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
  * still carry what the flea trends, quests and maps views need; the GraphQL fallback is only
- * reported.
+ * reported. db4tarkov's map tiles must still be where the app looks for them.
  */
 import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
 import { levelRequirement } from '../src/shared/questProgress'
@@ -17,6 +17,7 @@ import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
 import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
 import { fetchQuestData } from '../src/main/quests/questData'
 import mapConfigData from '../src/renderer/src/data/mapConfigs.json'
+import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../src/shared/db4tarkov'
 import type { MapConfig } from '../src/shared/questTypes'
 import { normalizeDailyHistory } from '../src/main/trends/trendService'
 
@@ -191,6 +192,19 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
   check(unmatched.length <= 2, 'several bundled map projections no longer match a map (npm run data:maps)')
 }
 
+/** Each db4tarkov map's corner tile at its top zoom (where a tile pixel is an image pixel). */
+async function smokeDb4tarkovTiles(): Promise<void> {
+  for (const [slug, { maxZoom }] of Object.entries(DB4TARKOV_MAPS)) {
+    const top = await fetch(db4tarkovTileUrl(slug, maxZoom, 0, 0))
+    const beyond = await fetch(db4tarkovTileUrl(slug, maxZoom + 1, 0, 0))
+    console.log(
+      `[db4tarkov] ${slug}: top zoom ${maxZoom} HTTP ${top.status}, zoom ${maxZoom + 1} HTTP ${beyond.status}`
+    )
+    check(top.ok && top.headers.get('content-type') === 'image/webp', `db4tarkov's ${slug} tiles moved`)
+    check(!beyond.ok, `db4tarkov's ${slug} map has a new zoom level: its image changed size (recalibrate)`)
+  }
+}
+
 async function main(): Promise<void> {
   for (const mode of ['pvp', 'pve'] as const) {
     const dataset = await smokeJson(mode)
@@ -198,6 +212,7 @@ async function main(): Promise<void> {
     await reportGraphql(mode)
     await smokeQuests(mode)
   }
+  await smokeDb4tarkovTiles()
   console.log('tarkov.dev smoke test passed')
 }
 

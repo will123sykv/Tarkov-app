@@ -109,9 +109,12 @@ export default function MapCanvas({
       maxBounds: projection.bounds.pad(0.3)
     })
     map.fitBounds(projection.bounds)
+    el.style.background = projection.background ?? ''
     // The base image sits under the markers, whenever it finishes loading; place names above it.
     map.createPane('mapBase').style.zIndex = '250'
     map.createPane('mapLabels').style.zIndex = '450'
+    // Quest objectives over the pins (Leaflet's markers are at 600, tooltips at 650).
+    map.createPane('mapObjectives').style.zIndex = '620'
     const removeBase = projection.addBase(map, setBaseError)
     overlayRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
@@ -137,8 +140,9 @@ export default function MapCanvas({
       markers.set(key, [...(markers.get(key) ?? []), layer])
     }
     const at = projection.toLatLng
-    const dot = (p: Vec3, color: string, radius = 6): L.CircleMarker =>
-      L.circleMarker(at(p), { radius, color: '#101214', weight: 2, fillColor: color, fillOpacity: 1 })
+    const shown = (p: Vec3): boolean => projection.shows(at(p))
+    const dot = (p: Vec3, color: string, radius = 6, pane = 'overlayPane'): L.CircleMarker =>
+      L.circleMarker(at(p), { radius, color: '#101214', weight: 2, fillColor: color, fillOpacity: 1, pane })
     const tipAbove: L.TooltipOptions = { direction: 'top', offset: [0, -46] }
 
     if (layers.labels) {
@@ -157,7 +161,7 @@ export default function MapCanvas({
     }
     if (layers.snipers) {
       const seen: Vec3[] = []
-      for (const p of maps.flatMap((m) => m.snipers ?? [])) {
+      for (const p of maps.flatMap((m) => m.snipers ?? []).filter(shown)) {
         if (seen.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 5)) continue
         seen.push(p)
         htmlMarker(at(p), badgeElement('sniper'))
@@ -167,6 +171,7 @@ export default function MapCanvas({
     }
     if (layers.bosses) {
       for (const b of mergeBossSpawns(maps.map((m) => m.bossSpawns ?? []))) {
+        if (!shown(b.position)) continue
         const lines = bossLines(b)
         htmlMarker(at(b.position), badgeElement('boss'))
           .bindTooltip(label('Boss spawn', lines.length ? lines : 'Bosses and their guards can spawn here'), {
@@ -178,7 +183,7 @@ export default function MapCanvas({
     }
     if (layers.transits) {
       const seen = new Set<string>()
-      for (const t of maps.flatMap((m) => m.transits)) {
+      for (const t of maps.flatMap((m) => m.transits).filter((t) => shown(t.position))) {
         const key = `${t.name}@${Math.round(t.position.x)},${Math.round(t.position.z)}`
         if (seen.has(key)) continue
         seen.add(key)
@@ -191,7 +196,7 @@ export default function MapCanvas({
       for (const e of extractsFor(
         maps.flatMap((m) => m.extracts),
         faction
-      )) {
+      ).filter((e) => shown(e.position))) {
         htmlMarker(at(e.position), pinElement(extractKind(e), e.name), { riseOnHover: true })
           .bindTooltip(label(e.name, extractDetail(e, itemName)), tipAbove)
           .addTo(overlay)
@@ -206,14 +211,14 @@ export default function MapCanvas({
             key,
             L.polygon(
               z.outline.map((p) => at(p, z.position)),
-              { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2 }
+              { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2, pane: 'mapObjectives' }
             )
               .bindTooltip(tip())
               .on('click', () => onSelectQuest(quest.id))
           )
         add(
           key,
-          dot(z.position, MARKER_COLORS.quest, 7)
+          dot(z.position, MARKER_COLORS.quest, 7, 'mapObjectives')
             .bindTooltip(tip())
             .on('click', () => onSelectQuest(quest.id))
         )
@@ -221,7 +226,7 @@ export default function MapCanvas({
       for (const p of spots) {
         add(
           key,
-          dot(p, MARKER_COLORS.quest, 5)
+          dot(p, MARKER_COLORS.quest, 5, 'mapObjectives')
             .bindTooltip(tip())
             .on('click', () => onSelectQuest(quest.id))
         )

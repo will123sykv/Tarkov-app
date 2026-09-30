@@ -18,6 +18,10 @@ export interface MapProjection {
   toLatLng: (p: Vec3, anchor?: Anchor) => L.LatLngTuple
   /** Adds the base image in the `mapBase` pane; returns a cleanup. */
   addBase: (map: L.Map, onError: (message: string) => void) => () => void
+  /** Whether a marker there is on (or just off the edge of) the image, not somewhere else entirely. */
+  shows: (at: L.LatLngTuple) => boolean
+  /** Behind the image, matching its margins. */
+  background: string | null
 }
 
 /** tarkov.dev's interactive maps: tiles or an SVG, with its projection. */
@@ -31,6 +35,8 @@ export function interactiveProjection(config: MapConfig): MapProjection {
     maxZoom: config.maxZoom + 2,
     focusZoom: Math.max(config.minZoom + 1, config.maxZoom - 2),
     toLatLng: (p) => toLatLng(p),
+    shows: () => true,
+    background: null,
     addBase(map, onError) {
       let cancelled = false
       if (config.tilePath) {
@@ -72,6 +78,8 @@ export function interactiveProjection(config: MapConfig): MapProjection {
 export function posterProjection(poster: PosterMap): MapProjection {
   const bounds = L.latLngBounds([-poster.height, 0], [0, poster.width])
   const failed = `The ${poster.author} map couldn’t be loaded (offline?). Switch to tarkov.dev, or try again later.`
+  // tarkov.dev lists the odd position from another map; a little past the edge is still this map.
+  const margin = 0.05 * Math.max(poster.width, poster.height)
   return {
     id: `${poster.provider}:${poster.key}`,
     crs: L.CRS.Simple,
@@ -83,6 +91,10 @@ export function posterProjection(poster: PosterMap): MapProjection {
       const [u, v] = toImagePoint(poster, p, anchor)
       return [-v, u]
     },
+    shows: ([lat, lng]) =>
+      lng > -margin && lng < poster.width + margin && lat < margin && lat > -poster.height - margin,
+    // db4tarkov's tiles are padded with this grey.
+    background: poster.tiles ? '#222' : null,
     addBase(map, onError) {
       if (poster.tiles) {
         const { slug, maxZoom } = poster.tiles

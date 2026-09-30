@@ -105,9 +105,40 @@ function prettify(slug: string): string {
 
 type Translate = (key: string | null | undefined) => string | null
 
+/** About as many boss spawn areas as a map shows. */
+const MAX_BOSS_CLUMPS = 15
+
+const round2 = (n: number): number => Math.round(n * 100) / 100
+const mean = (points: Vec3[]): Vec3 => ({
+  x: round2(points.reduce((sum, p) => sum + p.x, 0) / points.length),
+  y: round2(points.reduce((sum, p) => sum + p.y, 0) / points.length),
+  z: round2(points.reduce((sum, p) => sum + p.z, 0) / points.length)
+})
+
 /**
- * Boss spawn points (spawns marked for bosses), each with the bosses that can use its zone, and one
- * point per sniper zone.
+ * Boss spawn points come by the dozen, a few metres apart: group each zone's into clumps, widening
+ * the clumps until the map has at most MAX_BOSS_CLUMPS (which suits big maps and small alike).
+ */
+function clumps(points: { zone: string; position: Vec3 }[]): { zone: string; points: Vec3[] }[] {
+  let result: { zone: string; points: Vec3[] }[] = []
+  for (let radius = 60; radius <= 300; radius += 20) {
+    result = []
+    for (const { zone, position } of points) {
+      const clump = result.find((c) => {
+        const mid = mean(c.points)
+        return c.zone === zone && Math.hypot(mid.x - position.x, mid.z - position.z) < radius
+      })
+      if (clump) clump.points.push(position)
+      else result.push({ zone, points: [position] })
+    }
+    if (result.length <= MAX_BOSS_CLUMPS) break
+  }
+  return result
+}
+
+/**
+ * Where bosses spawn (one point per clump of spawns marked for bosses), each with the bosses that can
+ * use its zone, and one point per sniper zone.
  */
 function bossesAndSnipers(
   raw: Raw,
@@ -127,7 +158,7 @@ function bossesAndSnipers(
       byZone.set(zone, list)
     }
   }
-  const bossSpawns: BossSpawn[] = []
+  const bossPoints: { zone: string; position: Vec3 }[] = []
   const sniperZones = new Map<string, Vec3[]>()
   for (const s of arr(raw.spawns)) {
     const spawn = rec(s)
@@ -135,20 +166,14 @@ function bossesAndSnipers(
     const zone = str(spawn.zoneName) ?? ''
     if (!position) continue
     if (/snipe/i.test(zone)) sniperZones.set(zone, [...(sniperZones.get(zone) ?? []), position])
-    else if (arr(spawn.categories).includes('boss')) {
-      // Several points of a zone often sit within a few metres of each other.
-      const near = bossSpawns.some(
-        (b) => b.zone === zone && Math.hypot(b.position.x - position.x, b.position.z - position.z) < 5
-      )
-      if (!near) bossSpawns.push({ position, zone, bosses: byZone.get(zone) ?? [] })
-    }
+    else if (arr(spawn.categories).includes('boss')) bossPoints.push({ zone, position })
   }
-  const snipers = [...sniperZones.values()].map((points) => ({
-    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-    y: Math.max(...points.map((p) => p.y)),
-    z: points.reduce((sum, p) => sum + p.z, 0) / points.length
+  const bossSpawns: BossSpawn[] = clumps(bossPoints).map((c) => ({
+    position: mean(c.points),
+    zone: c.zone,
+    bosses: byZone.get(c.zone) ?? []
   }))
-  return { bossSpawns, snipers }
+  return { bossSpawns, snipers: [...sniperZones.values()].map(mean) }
 }
 
 function mobNames(value: unknown, t: Translate): Map<string, string> {

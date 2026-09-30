@@ -1758,15 +1758,15 @@ button.link.active {
   left: 0;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .map-badge svg {
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
 }
 
 /* A skull on a pin whose tip is the spot. */
@@ -1821,8 +1821,8 @@ button.link.active {
 }
 
 /* The legend's copies sit in the flow. */
-.legend-pin,
-.legend-badge {
+.legend-pin.map-pin,
+.legend-badge.map-badge {
   position: static;
   transform: none;
   flex: none;
@@ -1843,7 +1843,7 @@ button.link.active {
   height: 12px;
 }
 
-.legend-badge {
+.legend-badge.map-badge {
   width: 18px;
   height: 18px;
   box-shadow: none;
