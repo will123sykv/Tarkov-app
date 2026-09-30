@@ -109,21 +109,22 @@ async function probeTiles(): Promise<void> {
 async function dumpTiles(slug: string): Promise<void> {
   let top = -1
   for (let z = 0; z <= 8; z++) if ((await get(tileUrl(slug, z, 0, 0))).status === 200) top = z
-  const z = top - 1
   let total = 0
-  for (let y = 0; y < 64; y++) {
-    let any = false
-    for (let x = 0; x < 64; x++) {
-      const res = await get(tileUrl(slug, z, x, y))
-      if (res.status !== 200) break
-      any = true
-      total += res.body.length
-      const sha = createHash('sha256').update(res.body).digest('hex').slice(0, 16)
-      console.log(`@@TILE ${slug} ${z} ${x} ${y} ${sha} ${res.body.toString('base64')}`)
+  for (let z = 1; z <= top; z++) {
+    for (let y = 0; y < 64; y++) {
+      let any = false
+      for (let x = 0; x < 64; x++) {
+        const res = await get(tileUrl(slug, z, x, y))
+        if (res.status !== 200) break
+        any = true
+        total += res.body.length
+        const sha = createHash('sha256').update(res.body).digest('hex').slice(0, 16)
+        console.log(`@@TILE ${slug} ${z} ${x} ${y} ${sha} ${res.body.toString('base64')}`)
+      }
+      if (!any) break
     }
-    if (!any) break
   }
-  console.log(`@@DONE ${slug} z${z} ${total} bytes`)
+  console.log(`@@DONE ${slug} z1-${top} ${total} bytes`)
 }
 
 async function main(): Promise<void> {
