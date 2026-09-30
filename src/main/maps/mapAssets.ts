@@ -1,15 +1,18 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, normalize, sep } from 'node:path'
+import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../../shared/db4tarkov'
 import { RE3MR_COMMIT, RE3MR_FILES, re3mrImageUrl } from '../../shared/re3mr'
 import type { FetchFn } from '../pricing/http'
 
 /**
  * The app's scheme for map images: `tarkov-map://assets/maps/…` mirrors `https://assets.tarkov.dev/maps/…`,
- * and `tarkov-map://re3mr/<file>` serves one of Re3MR's 2D maps.
+ * `tarkov-map://re3mr/<file>` serves one of Re3MR's 2D maps, and `tarkov-map://db4tarkov/<map>/<z>/<x>/<y>.webp`
+ * a tile of one of db4tarkov's.
  */
 export const MAP_SCHEME = 'tarkov-map'
 const ORIGIN = 'https://assets.tarkov.dev'
 const ALLOWED = /^\/maps\/[\w./-]+\.(png|jpg|jpeg|webp|svg)$/i
+const DB4TARKOV_TILE = /^\/(\w+)\/(\d)\/(\d{1,2})\/(\d{1,2})\.webp$/
 const TYPES: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -26,13 +29,23 @@ function resolve(url: URL): { source: string; cachePath: string } | null {
   const file = path.slice(1)
   if (url.host === 're3mr' && (RE3MR_FILES as readonly string[]).includes(file))
     return { source: re3mrImageUrl(file), cachePath: `/re3mr/${RE3MR_COMMIT}/${file}` }
+  const tile = url.host === 'db4tarkov' ? DB4TARKOV_TILE.exec(path) : null
+  if (tile) {
+    const [slug, z, x, y] = [tile[1], Number(tile[2]), Number(tile[3]), Number(tile[4])]
+    const map = Object.hasOwn(DB4TARKOV_MAPS, slug) ? DB4TARKOV_MAPS[slug] : null
+    if (map && z >= 1 && z <= map.maxZoom && x < 2 ** z && y < 2 ** z)
+      return {
+        source: db4tarkovTileUrl(slug, z, x, y),
+        cachePath: `/db4tarkov/${slug}-${map.version}/${z}-${x}-${y}.webp`
+      }
+  }
   return null
 }
 
 /**
- * Serves map images from a disk cache, downloading each (from assets.tarkov.dev, or Re3MR's from
- * GitHub) the first time it's needed, so maps opened once also work offline. Only map images are
- * allowed.
+ * Serves map images from a disk cache, downloading each (from assets.tarkov.dev, Re3MR's from GitHub,
+ * db4tarkov's from its CDN) the first time it's needed, so maps opened once also work offline. Only
+ * map images are allowed.
  */
 export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn }) {
   const inFlight = new Map<string, Promise<Buffer | null>>()

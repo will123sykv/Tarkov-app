@@ -1,8 +1,17 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
-import type { GameMap, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
+import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import type { MapProjection } from '../lib/mapProjection'
+import {
+  bossLines,
+  extractDetail,
+  extractKind,
+  extractsFor,
+  labelAnchor,
+  mergeBossSpawns
+} from '../lib/mapMarkers'
+import { badgeElement, pinElement, placeElement } from '../lib/mapPins'
 
 export interface ObjectiveMarker {
   quest: Quest
@@ -12,49 +21,70 @@ export interface ObjectiveMarker {
   spots: Vec3[]
 }
 
+export interface MapLayers {
+  extracts: boolean
+  transits: boolean
+  spawns: boolean
+  labels: boolean
+  bosses: boolean
+  snipers: boolean
+}
+
 interface Props {
   projection: MapProjection
   /** The map and its alternate versions (e.g. Night Factory) share one image. */
   maps: GameMap[]
+  /** Place names. */
+  labels: MapLabel[]
   objectives: ObjectiveMarker[]
-  showExtracts: boolean
-  showSpawns: boolean
-  showTransits: boolean
+  layers: MapLayers
+  /** Whose extracts to show. */
+  faction: 'pmc' | 'scav'
+  itemName: (id: string) => string | undefined
   focus: { questId: string; objectiveId: string | null } | null
   onSelectQuest: (questId: string) => void
 }
 
 export const MARKER_COLORS = {
   quest: '#e2c985',
-  pmc: '#7fb069',
-  scav: '#d9a441',
-  shared: '#6a9fd4',
-  transit: '#b48ce0',
   spawn: '#c9ccce'
 }
 
 /** Tooltip content as a DOM node, so names from the data are never parsed as HTML. */
-function label(title: string, detail?: string): HTMLElement {
+function label(title: string, detail?: string | string[]): HTMLElement {
   const el = document.createElement('div')
   const strong = document.createElement('strong')
   strong.textContent = title
   el.append(strong)
-  if (detail) {
-    const span = document.createElement('div')
-    span.textContent = detail
-    el.append(span)
+  for (const line of typeof detail === 'string' ? [detail] : (detail ?? [])) {
+    const div = document.createElement('div')
+    div.textContent = line
+    el.append(div)
   }
   return el
 }
 
-/** A Leaflet map of one Tarkov map with quest objectives, extracts, spawns and transits on it. */
+/** An HTML marker whose element's bottom centre sits on the spot. */
+function htmlMarker(at: L.LatLngTuple, el: HTMLElement, options: L.MarkerOptions = {}): L.Marker {
+  return L.marker(at, {
+    icon: L.divIcon({ html: el, className: 'map-marker', iconSize: [0, 0], iconAnchor: [0, 0] }),
+    keyboard: false,
+    ...options
+  })
+}
+
+/**
+ * A Leaflet map of one Tarkov map with quest objectives, and extracts, transits, bosses, snipers,
+ * spawns and place names in db4tarkov's style.
+ */
 export default function MapCanvas({
   projection,
   maps,
+  labels,
   objectives,
-  showExtracts,
-  showSpawns,
-  showTransits,
+  layers,
+  faction,
+  itemName,
   focus,
   onSelectQuest
 }: Props): React.JSX.Element {
@@ -79,8 +109,9 @@ export default function MapCanvas({
       maxBounds: projection.bounds.pad(0.3)
     })
     map.fitBounds(projection.bounds)
-    // The base image sits under the markers, whenever it finishes loading.
+    // The base image sits under the markers, whenever it finishes loading; place names above it.
     map.createPane('mapBase').style.zIndex = '250'
+    map.createPane('mapLabels').style.zIndex = '450'
     const removeBase = projection.addBase(map, setBaseError)
     overlayRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
@@ -108,39 +139,62 @@ export default function MapCanvas({
     const at = projection.toLatLng
     const dot = (p: Vec3, color: string, radius = 6): L.CircleMarker =>
       L.circleMarker(at(p), { radius, color: '#101214', weight: 2, fillColor: color, fillOpacity: 1 })
+    const tipAbove: L.TooltipOptions = { direction: 'top', offset: [0, -46] }
 
-    for (const map of maps) {
-      if (showSpawns) {
-        for (const s of map.spawns) {
-          dot(s.position, MARKER_COLORS.spawn, 3)
-            .bindTooltip(label('Spawn', s.sides.join(', ')))
-            .addTo(overlay)
-        }
+    if (layers.labels) {
+      for (const l of labels) {
+        const anchor = labelAnchor(l)
+        const p = { x: l.position[0], y: anchor.y ?? 0, z: l.position[1] }
+        htmlMarker(at(p, anchor), placeElement(l), { interactive: false, pane: 'mapLabels' }).addTo(overlay)
       }
-      if (showExtracts) {
-        for (const e of map.extracts) {
-          const color = MARKER_COLORS[e.faction as 'pmc' | 'scav' | 'shared'] ?? MARKER_COLORS.shared
-          if (e.outline.length > 2)
-            L.polygon(
-              e.outline.map((p) => at(p, e.position.y)),
-              {
-                color,
-                weight: 1,
-                fillOpacity: 0.15,
-                interactive: false
-              }
-            ).addTo(overlay)
-          dot(e.position, color, 7)
-            .bindTooltip(
-              label(e.name, `${e.faction === 'shared' ? 'PMC and scav' : e.faction.toUpperCase()} extract`)
-            )
-            .addTo(overlay)
-        }
+    }
+    if (layers.spawns) {
+      for (const s of maps.flatMap((m) => m.spawns)) {
+        dot(s.position, MARKER_COLORS.spawn, 3)
+          .bindTooltip(label('Spawn', s.sides.join(', ')))
+          .addTo(overlay)
       }
-      if (showTransits) {
-        for (const t of map.transits) {
-          dot(t.position, MARKER_COLORS.transit, 7).bindTooltip(label(t.name, 'Transit')).addTo(overlay)
-        }
+    }
+    if (layers.snipers) {
+      const seen: Vec3[] = []
+      for (const p of maps.flatMap((m) => m.snipers ?? [])) {
+        if (seen.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 5)) continue
+        seen.push(p)
+        htmlMarker(at(p), badgeElement('sniper'))
+          .bindTooltip(label('Sniper scav'), { direction: 'top', offset: [0, -30] })
+          .addTo(overlay)
+      }
+    }
+    if (layers.bosses) {
+      for (const b of mergeBossSpawns(maps.map((m) => m.bossSpawns ?? []))) {
+        const lines = bossLines(b)
+        htmlMarker(at(b.position), badgeElement('boss'))
+          .bindTooltip(label('Boss spawn', lines.length ? lines : 'Bosses and their guards can spawn here'), {
+            direction: 'top',
+            offset: [0, -34]
+          })
+          .addTo(overlay)
+      }
+    }
+    if (layers.transits) {
+      const seen = new Set<string>()
+      for (const t of maps.flatMap((m) => m.transits)) {
+        const key = `${t.name}@${Math.round(t.position.x)},${Math.round(t.position.z)}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        htmlMarker(at(t.position), pinElement('transit', t.name), { riseOnHover: true })
+          .bindTooltip(label(t.name, 'Transit to another map'), tipAbove)
+          .addTo(overlay)
+      }
+    }
+    if (layers.extracts) {
+      for (const e of extractsFor(
+        maps.flatMap((m) => m.extracts),
+        faction
+      )) {
+        htmlMarker(at(e.position), pinElement(extractKind(e), e.name), { riseOnHover: true })
+          .bindTooltip(label(e.name, extractDetail(e, itemName)), tipAbove)
+          .addTo(overlay)
       }
     }
     for (const { quest, objective, zones, spots } of objectives) {
@@ -151,7 +205,7 @@ export default function MapCanvas({
           add(
             key,
             L.polygon(
-              z.outline.map((p) => at(p, z.position.y)),
+              z.outline.map((p) => at(p, z.position)),
               { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2 }
             )
               .bindTooltip(tip())
@@ -174,7 +228,7 @@ export default function MapCanvas({
       }
     }
     markersRef.current = markers
-  }, [projection, maps, objectives, showExtracts, showSpawns, showTransits, onSelectQuest])
+  }, [projection, maps, labels, objectives, layers, faction, itemName, onSelectQuest])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {

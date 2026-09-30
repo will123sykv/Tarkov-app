@@ -1,18 +1,26 @@
 import { useCallback, useMemo } from 'react'
-import type { GameMap } from '../../../shared/questTypes'
-import type { MapSettings, PublicSettings } from '../../../shared/types'
-import { interactiveProjection, re3mrProjection } from '../lib/mapProjection'
+import type { GameMap, MapLabel } from '../../../shared/questTypes'
+import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
+import { interactiveProjection, posterProjection } from '../lib/mapProjection'
+import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
+import { posterFor } from '../lib/posterMap'
 import { configFor, MAP_CONFIGS } from '../lib/questUi'
-import { re3mrFor } from '../lib/re3mrMap'
+import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import MapCanvas, { MARKER_COLORS, type ObjectiveMarker } from './MapCanvas'
+import MapCanvas, { MARKER_COLORS, type MapLayers, type ObjectiveMarker } from './MapCanvas'
 
 const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'active', label: 'Active' },
   { id: 'available', label: 'Active + available' },
   { id: 'none', label: 'None' }
 ]
+
+const Icon = ({ path }: { path: string }): React.JSX.Element => (
+  <svg viewBox="0 0 24 24" aria-hidden>
+    <path d={path} />
+  </svg>
+)
 
 function Legend({ color, children }: { color: string; children: React.ReactNode }): React.JSX.Element {
   return (
@@ -23,7 +31,53 @@ function Legend({ color, children }: { color: string; children: React.ReactNode 
   )
 }
 
-export default function MapsView({ settings }: { settings: PublicSettings }): React.JSX.Element {
+/** A legend row with a pin's icon tiles in its colours. */
+function PinLegend({ kind, children }: { kind: PinKind; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <li>
+      <span className={`legend-pin map-pin ${kind}`} aria-hidden>
+        <span className="map-pin-icons">
+          {pinIcons(kind).map((path) => (
+            <span key={path} className="map-pin-icon">
+              <Icon path={path} />
+            </span>
+          ))}
+        </span>
+      </span>
+      {children}
+    </li>
+  )
+}
+
+function BadgeLegend({ kind, children }: { kind: 'boss' | 'sniper'; children: React.ReactNode }) {
+  return (
+    <li>
+      <span className={`legend-badge map-badge ${kind}`} aria-hidden>
+        <Icon path={kind === 'boss' ? BOSS_ICON : SNIPER_ICON} />
+      </span>
+      {children}
+    </li>
+  )
+}
+
+const NO_LABELS: MapLabel[] = []
+
+const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
+  { key: 'showLabels', label: 'Place names' },
+  { key: 'showExtracts', label: 'Extracts' },
+  { key: 'showTransits', label: 'Transits' },
+  { key: 'showBosses', label: 'Boss spawns' },
+  { key: 'showSnipers', label: 'Sniper scavs' },
+  { key: 'showSpawns', label: 'PMC spawns' }
+]
+
+export default function MapsView({
+  settings,
+  priceState
+}: {
+  settings: PublicSettings
+  priceState: PriceState | null
+}): React.JSX.Element {
   const { questState, rows } = useQuestRows(settings)
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -43,12 +97,25 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
     return list.sort((a, b) => a.name.localeCompare(b.name))
   }, [dataset])
   const config = MAP_CONFIGS.find((c) => c.key === m.mapKey) ?? null
-  const re3mr = config ? re3mrFor(config.key) : null
-  const showRe3mr = re3mr !== null && m.style === 're3mr'
+  const poster = config ? posterFor(config.key) : null
+  const showPoster = poster !== null && m.style === '2d'
   const projection = useMemo(
-    () => (showRe3mr ? re3mrProjection(re3mr) : config ? interactiveProjection(config) : null),
-    [config, re3mr, showRe3mr]
+    () => (showPoster ? posterProjection(poster) : config ? interactiveProjection(config) : null),
+    [config, poster, showPoster]
   )
+  const layers = useMemo<MapLayers>(
+    () => ({
+      extracts: m.showExtracts,
+      transits: m.showTransits,
+      spawns: m.showSpawns,
+      labels: m.showLabels,
+      bosses: m.showBosses,
+      snipers: m.showSnipers
+    }),
+    [m.showExtracts, m.showTransits, m.showSpawns, m.showLabels, m.showBosses, m.showSnipers]
+  )
+  const items = useItemLookup(priceState)
+  const itemName = useCallback((id: string) => items.get(id)?.name, [items])
   const maps = useMemo<GameMap[]>(
     () => (dataset?.maps ?? []).filter((gm) => config && configFor(gm) === config),
     [dataset, config]
@@ -87,11 +154,11 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
             ))}
             {!choices.length && <option value={m.mapKey}>Loading maps…</option>}
           </select>
-          {re3mr && (
+          {poster && (
             <div className="mini-toggle wide map-style" role="radiogroup" aria-label="Map style">
               {(
                 [
-                  ['re3mr', 'Re3MR'],
+                  ['2d', '2D map'],
                   ['tarkov-dev', 'tarkov.dev']
                 ] as const
               ).map(([id, text]) => (
@@ -123,37 +190,46 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
               </button>
             ))}
           </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={m.showExtracts}
-              onChange={(e) => set({ showExtracts: e.target.checked })}
-            />
-            Extracts
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={m.showTransits}
-              onChange={(e) => set({ showTransits: e.target.checked })}
-            />
-            Transits
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={m.showSpawns}
-              onChange={(e) => set({ showSpawns: e.target.checked })}
-            />
-            PMC spawns
-          </label>
           <ul className="legend">
             <Legend color={MARKER_COLORS.quest}>Quest objective</Legend>
-            <Legend color={MARKER_COLORS.pmc}>PMC extract</Legend>
-            <Legend color={MARKER_COLORS.scav}>Scav extract</Legend>
-            <Legend color={MARKER_COLORS.shared}>Shared extract</Legend>
-            <Legend color={MARKER_COLORS.transit}>Transit</Legend>
-            <Legend color={MARKER_COLORS.spawn}>Spawn</Legend>
+          </ul>
+        </section>
+        <section>
+          <h2>On the map</h2>
+          <div className="mini-toggle wide" role="radiogroup" aria-label="Extracts for">
+            {(
+              [
+                ['pmc', 'PMC extracts'],
+                ['scav', 'Scav extracts']
+              ] as const
+            ).map(([id, text]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={m.faction === id}
+                className={m.faction === id ? 'active' : ''}
+                onClick={() => set({ faction: id })}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          {LAYERS.map(({ key, label }) => (
+            <label key={key} className="check">
+              <input type="checkbox" checked={m[key]} onChange={(e) => set({ [key]: e.target.checked })} />
+              {label}
+            </label>
+          ))}
+          <ul className="legend">
+            <PinLegend kind="extract">Extract</PinLegend>
+            <PinLegend kind="flare">Needs a flare</PinLegend>
+            <PinLegend kind="vehicle">Vehicle (costs roubles)</PinLegend>
+            <PinLegend kind="coop">Co-op (PMC and scav)</PinLegend>
+            <PinLegend kind="secret">Secret (needs an item)</PinLegend>
+            <PinLegend kind="transit">Transit</PinLegend>
+            <BadgeLegend kind="boss">Boss spawn</BadgeLegend>
+            <BadgeLegend kind="sniper">Sniper scav</BadgeLegend>
+            <Legend color={MARKER_COLORS.spawn}>PMC spawn</Legend>
           </ul>
         </section>
         <section>
@@ -180,13 +256,23 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
             </ul>
           )}
         </section>
-        {showRe3mr ? (
+        {showPoster ? (
           <p className="hint credit">
             Map by{' '}
-            <a href="https://reemr.se" target="_blank" rel="noreferrer">
-              Re3MR
+            <a href={poster.authorLink} target="_blank" rel="noreferrer">
+              {poster.author}
             </a>{' '}
-            (v{re3mr.version}), CC BY-NC-SA 4.0. Markers are placed on the floor they&rsquo;re on.
+            ({poster.version})
+            {poster.provider === 'db4tarkov' ? (
+              <>
+                , as shown on{' '}
+                <a href="https://db4tarkov.com/map" target="_blank" rel="noreferrer">
+                  db4tarkov.com
+                </a>
+              </>
+            ) : null}
+            , CC BY-NC-SA 4.0. Place names, extracts and spawns from tarkov.dev; markers are placed on the
+            floor they&rsquo;re on.
           </p>
         ) : (
           config && (
@@ -220,10 +306,11 @@ export default function MapsView({ settings }: { settings: PublicSettings }): Re
           <MapCanvas
             projection={projection}
             maps={maps}
+            labels={config?.labels ?? NO_LABELS}
             objectives={objectives}
-            showExtracts={m.showExtracts}
-            showSpawns={m.showSpawns}
-            showTransits={m.showTransits}
+            layers={layers}
+            faction={m.faction}
+            itemName={itemName}
             focus={focus}
             onSelectQuest={onSelectQuest}
           />

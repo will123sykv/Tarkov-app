@@ -14,7 +14,6 @@ const UA = {
   'User-Agent':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
 }
-const SLUGS = ['customs', 'ground_zero', 'woods', 'shoreline', 'factory']
 const tileUrl = (slug: string, z: number, x: number, y: number): string =>
   `https://cdn.db4tarkov.com/webp/map/${slug}/${slug}-${z}-${x}-${y}.webp`
 
@@ -66,7 +65,7 @@ async function probeBossPoints(): Promise<void> {
   ])
   log(
     'mobs',
-    ((maps.mobs ?? []) as Record<string, unknown>[])
+    values(maps.mobs as Record<string, Record<string, unknown>>)
       .slice(0, 60)
       .map((m) => `${String(m.id)}=${mapsEn[String(m.name)] ?? '?'}`)
   )

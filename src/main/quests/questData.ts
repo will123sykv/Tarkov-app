@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import type {
+  BossSpawn,
   GameMap,
   MapExtract,
   Quest,
@@ -97,6 +98,71 @@ function traderLevel(objective: Raw): QuestObjective['traderLevel'] {
 
 const QUEST_NAME_KEY = /^([0-9a-f]{24}) name$/
 
+function prettify(slug: string): string {
+  const words = slug.replace(/[-_]+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+type Translate = (key: string | null | undefined) => string | null
+
+/**
+ * Boss spawn points (spawns marked for bosses), each with the bosses that can use its zone, and one
+ * point per sniper zone.
+ */
+function bossesAndSnipers(
+  raw: Raw,
+  mobNames: ReadonlyMap<string, string>
+): Pick<GameMap, 'bossSpawns' | 'snipers'> {
+  const byZone = new Map<string, BossSpawn['bosses']>()
+  for (const b of arr(raw.bosses)) {
+    const boss = rec(b)
+    const mob = str(boss.mob) ?? str(rec(boss.mob).id)
+    if (!mob) continue
+    const name = mobNames.get(mob) ?? prettify(mob.replace(/^boss/, ''))
+    for (const l of arr(boss.spawnLocations)) {
+      const zone = str(rec(l).spawnKey)
+      if (!zone) continue
+      const list = byZone.get(zone) ?? []
+      list.push({ name, chance: num(boss.spawnChance) ?? 0, here: num(rec(l).chance) ?? 0 })
+      byZone.set(zone, list)
+    }
+  }
+  const bossSpawns: BossSpawn[] = []
+  const sniperZones = new Map<string, Vec3[]>()
+  for (const s of arr(raw.spawns)) {
+    const spawn = rec(s)
+    const position = vec(spawn.position)
+    const zone = str(spawn.zoneName) ?? ''
+    if (!position) continue
+    if (/snipe/i.test(zone)) sniperZones.set(zone, [...(sniperZones.get(zone) ?? []), position])
+    else if (arr(spawn.categories).includes('boss')) {
+      // Several points of a zone often sit within a few metres of each other.
+      const near = bossSpawns.some(
+        (b) => b.zone === zone && Math.hypot(b.position.x - position.x, b.position.z - position.z) < 5
+      )
+      if (!near) bossSpawns.push({ position, zone, bosses: byZone.get(zone) ?? [] })
+    }
+  }
+  const snipers = [...sniperZones.values()].map((points) => ({
+    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+    y: Math.max(...points.map((p) => p.y)),
+    z: points.reduce((sum, p) => sum + p.z, 0) / points.length
+  }))
+  return { bossSpawns, snipers }
+}
+
+function mobNames(value: unknown, t: Translate): Map<string, string> {
+  const names = new Map<string, string>()
+  for (const m of values(value as Collection<Raw>)) {
+    const id = str(m.id)
+    if (!id) continue
+    const key = str(m.name)
+    const translated = key ? t(key) : null
+    names.set(id, translated && translated !== key ? translated : prettify(str(m.normalizedName) ?? id))
+  }
+  return names
+}
+
 export function normalizeQuestData(
   input: QuestDataInput,
   dataMode: DataMode,
@@ -169,6 +235,7 @@ export function normalizeQuestData(
     })
   }
 
+  const mobs = mobNames(input.maps.mobs, tm)
   const maps: GameMap[] = []
   for (const raw of values(input.maps.maps as Collection<Raw>)) {
     const id = str(raw.id)
@@ -177,12 +244,15 @@ export function normalizeQuestData(
     for (const e of arr(raw.extracts)) {
       const ex = rec(e)
       const position = vec(ex.position)
+      const transfer = rec(ex.transferItem)
+      const itemId = str(transfer.item) ?? str(rec(transfer.item).id)
       if (position)
         extracts.push({
           name: tm(str(ex.name)) ?? 'Extract',
           faction: str(ex.faction) ?? 'shared',
           position,
-          outline: vecs(ex.outline)
+          outline: vecs(ex.outline),
+          transferItem: itemId ? { itemId, count: num(transfer.count) ?? 1 } : null
         })
     }
     maps.push({
@@ -202,7 +272,8 @@ export function normalizeQuestData(
           name: tm(str(tr.description)) ?? tm(str(tr.name)) ?? 'Transit',
           position: vec(tr.position)
         }))
-        .filter((tr): tr is GameMap['transits'][number] => tr.position !== null)
+        .filter((tr): tr is GameMap['transits'][number] => tr.position !== null),
+      ...bossesAndSnipers(raw, mobs)
     })
   }
 
@@ -253,22 +324,36 @@ export async function fetchQuestData(
 }
 
 /**
- * Caches written before 1.5.0 lack trader requirements and the other quests' names: fill in
- * defaults so they still work offline, and date them so they're refetched straight away.
+ * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
+ * names; 1.6.0: bosses, snipers and extract costs): fill in defaults so they still work offline, and
+ * date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
-  if (cached.otherQuestNames) return cached
-  return {
-    ...cached,
-    fetchedAt: 0,
-    quests: cached.quests.map((q) => ({
-      ...q,
-      traderRequirements: q.traderRequirements ?? [],
-      objectives: q.objectives.map((o) => ({ ...o, traderLevel: o.traderLevel ?? null }))
-    })),
-    traders: cached.traders.map((t) => ({ ...t, levels: t.levels ?? [] })),
-    otherQuestNames: {}
-  }
+  let result = cached
+  if (!result.otherQuestNames)
+    result = {
+      ...result,
+      fetchedAt: 0,
+      quests: result.quests.map((q) => ({
+        ...q,
+        traderRequirements: q.traderRequirements ?? [],
+        objectives: q.objectives.map((o) => ({ ...o, traderLevel: o.traderLevel ?? null }))
+      })),
+      traders: result.traders.map((t) => ({ ...t, levels: t.levels ?? [] })),
+      otherQuestNames: {}
+    }
+  if (result.maps.some((m) => !m.bossSpawns))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      maps: result.maps.map((m) => ({
+        ...m,
+        extracts: m.extracts.map((e) => ({ ...e, transferItem: e.transferItem ?? null })),
+        bossSpawns: m.bossSpawns ?? [],
+        snipers: m.snipers ?? []
+      }))
+    }
+  return result
 }
 
 /** Quest and map data per game mode: cached on disk, refreshed twice a day, the cache when offline. */

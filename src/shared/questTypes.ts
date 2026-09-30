@@ -76,6 +76,16 @@ export interface MapExtract {
   faction: string
   position: Vec3
   outline: Vec3[]
+  /** What using it costs: roubles for a vehicle, or an item (secret extracts). */
+  transferItem: { itemId: string; count: number } | null
+}
+
+/** A spawn point bosses can use, with the bosses that can appear in its zone. */
+export interface BossSpawn {
+  position: Vec3
+  zone: string
+  /** `chance`: of the boss spawning in a raid; `here`: of it using this zone when it does. */
+  bosses: { name: string; chance: number; here: number }[]
 }
 
 export interface GameMap {
@@ -88,6 +98,9 @@ export interface GameMap {
   /** Player spawn points. */
   spawns: { position: Vec3; sides: string[] }[]
   transits: { name: string; position: Vec3 }[]
+  bossSpawns: BossSpawn[]
+  /** Where sniper scavs sit, one point per sniper zone. */
+  snipers: Vec3[]
 }
 
 export interface QuestTrader {
@@ -117,6 +130,20 @@ export interface QuestDataState {
   loading: boolean
 }
 
+/** A place name on a map, as tarkov.dev places it. */
+export interface MapLabel {
+  text: string
+  /** Game [x, z]. */
+  position: [number, number]
+  /** Text size in percent of normal. */
+  size: number
+  /** Degrees clockwise. */
+  rotation: number
+  /** The heights (game y) the label belongs to, when it's on one floor; null when open-ended. */
+  bottom: number | null
+  top: number | null
+}
+
 /** One of tarkov.dev's interactive map projections (src/data/maps.json, MIT). */
 export interface MapConfig {
   key: string
@@ -134,6 +161,7 @@ export interface MapConfig {
   svgLayer: string | null
   /** SVG groups of other floors, hidden so only the ground level shows. */
   otherLayers: string[]
+  labels: MapLabel[]
   author: string
   authorLink: string
 }

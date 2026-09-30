@@ -62,7 +62,11 @@ export const DEFAULT_SETTINGS: Settings = {
     showExtracts: true,
     showSpawns: false,
     showTransits: true,
-    style: 're3mr'
+    showLabels: true,
+    showBosses: true,
+    showSnipers: true,
+    faction: 'pmc',
+    style: '2d'
   }
 }
 
@@ -94,7 +98,12 @@ function sanitizeMaps(raw: unknown): MapSettings {
     showExtracts: typeof r.showExtracts === 'boolean' ? r.showExtracts : d.showExtracts,
     showSpawns: typeof r.showSpawns === 'boolean' ? r.showSpawns : d.showSpawns,
     showTransits: typeof r.showTransits === 'boolean' ? r.showTransits : d.showTransits,
-    style: r.style === 'tarkov-dev' ? 'tarkov-dev' : 're3mr'
+    showLabels: typeof r.showLabels === 'boolean' ? r.showLabels : d.showLabels,
+    showBosses: typeof r.showBosses === 'boolean' ? r.showBosses : d.showBosses,
+    showSnipers: typeof r.showSnipers === 'boolean' ? r.showSnipers : d.showSnipers,
+    faction: r.faction === 'scav' ? 'scav' : 'pmc',
+    // 1.5 called the 2D maps 're3mr', when Re3MR drew all of them.
+    style: r.style === 'tarkov-dev' ? 'tarkov-dev' : '2d'
   }
 }
 

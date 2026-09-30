@@ -89,3 +89,35 @@ describe('Re3MR images', () => {
     expect(fetchFn).not.toHaveBeenCalled()
   })
 })
+
+describe('db4tarkov tiles', () => {
+  it('fetches them from db4tarkov’s CDN and caches them under the calibrated version', async () => {
+    const cacheDir = await tempDir()
+    const fetchFn = vi.fn<FetchFn>(async () => new Response(new Uint8Array([7])))
+    const handle = createMapAssetHandler({ cacheDir, fetchFn })
+    const res = await handle(request('tarkov-map://db4tarkov/ground_zero/5/13/2.webp'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/webp')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://cdn.db4tarkov.com/webp/map/ground_zero/ground_zero-5-13-2.webp'
+    )
+    expect([...(await readFile(join(cacheDir, 'db4tarkov', 'ground_zero-2024', '5-13-2.webp')))]).toEqual([7])
+  })
+
+  it('refuses unknown maps, zooms past the top and tiles off the grid', async () => {
+    const fetchFn = vi.fn<FetchFn>()
+    const handle = createMapAssetHandler({ cacheDir: await tempDir(), fetchFn })
+    for (const url of [
+      'tarkov-map://db4tarkov/lighthouse/1/0/0.webp',
+      'tarkov-map://db4tarkov/customs/5/0/0.webp',
+      'tarkov-map://db4tarkov/customs/0/0/0.webp',
+      'tarkov-map://db4tarkov/customs/2/4/0.webp',
+      'tarkov-map://db4tarkov/customs/1/0/0.png',
+      'tarkov-map://db4tarkov/toString/1/0/0.webp',
+      'tarkov-map://db4tarkov/customs/1/0/..%2F0.webp'
+    ]) {
+      expect((await handle(request(url))).status, url).toBe(404)
+    }
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+})

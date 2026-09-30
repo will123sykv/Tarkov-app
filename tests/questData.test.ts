@@ -71,7 +71,7 @@ describe('normalizeQuestData', () => {
     ])
   })
 
-  it('keeps only what the maps view draws: extracts, player spawns and transits', () => {
+  it('keeps only what the maps view draws: extracts, player spawns, transits, bosses and snipers', () => {
     const customs = data.maps.find((m) => m.id === CUSTOMS)!
     expect(customs).toEqual({
       id: CUSTOMS,
@@ -83,11 +83,33 @@ describe('normalizeQuestData', () => {
           name: 'ZB-1011',
           faction: 'pmc',
           position: { x: -17.5, y: 2, z: -61.3 },
-          outline: [{ x: -13.9, y: 0.2, z: -66.6 }]
+          outline: [{ x: -13.9, y: 0.2, z: -66.6 }],
+          transferItem: null
+        },
+        {
+          name: 'Dorms V-Ex',
+          faction: 'pmc',
+          position: { x: 181, y: -0.7, z: 213 },
+          outline: [],
+          transferItem: { itemId: '5449016a4bdc2d6f028b456f', count: 20000 }
         }
       ],
       spawns: [{ position: { x: 1, y: 0, z: 2 }, sides: ['pmc'] }],
-      transits: [{ name: 'Transit to Woods', position: { x: 5, y: 0, z: 6 } }]
+      transits: [{ name: 'Transit to Woods', position: { x: 5, y: 0, z: 6 } }],
+      // One point per spot (the second Dorms point is a metre away); bosses by zone, named from
+      // the translations, else from their slug.
+      bossSpawns: [
+        {
+          position: { x: 175, y: 2, z: 145 },
+          zone: 'ZoneDormitory',
+          bosses: [
+            { name: 'Reshala', chance: 0.6, here: 0.33 },
+            { name: 'Cultist priest', chance: 0.2, here: 1 }
+          ]
+        },
+        { position: { x: 24, y: 3, z: -90 }, zone: 'ZoneCustoms', bosses: [] }
+      ],
+      snipers: [{ x: 195, y: 3, z: -171 }]
     })
     expect(data.traders).toEqual([
       {
@@ -169,6 +191,25 @@ describe('createQuestDataService', () => {
     const online = await createQuestDataService({ fetchFn: serve(), cacheDir, now: () => now }).get('pvp')
     expect(online).toMatchObject({ fromCache: false, dataset: { fetchedAt: now } })
     expect(online.dataset!.otherQuestNames).toEqual({ [STORY_ID]: 'Tour' })
+  })
+
+  it('upgrades a 1.5 cache without bosses, snipers or extract costs, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 1)
+    const old = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    const maps = old.maps.map(({ bossSpawns: _, snipers: __, ...m }) => ({
+      ...m,
+      extracts: m.extracts.map(({ transferItem: ___, ...e }) => e)
+    }))
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify({ ...old, maps }))
+
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0 } })
+    const customs = offline.dataset!.maps.find((m) => m.id === CUSTOMS)!
+    expect(customs).toMatchObject({ bossSpawns: [], snipers: [] })
+    expect(customs.extracts.every((e) => e.transferItem === null)).toBe(true)
   })
 
   it('reuses fresh data and shares one request between callers', async () => {

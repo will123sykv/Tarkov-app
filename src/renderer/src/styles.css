@@ -1671,6 +1671,193 @@ button.link.active {
   box-shadow: 0 0 0 1px var(--border);
 }
 
+/* Map markers in db4tarkov's style: a name box over icon tiles, pointing at the spot. */
+
+.map-marker {
+  background: none;
+  border: 0;
+}
+
+.map-pin {
+  --pin: #5aa2ff;
+  --pin-ink: #0b0d0f;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.map-pin.transit {
+  --pin: #ff9f1c;
+}
+
+.map-pin.secret {
+  --pin: #2f9e44;
+}
+
+.map-pin.coop {
+  --pin: #ffe066;
+}
+
+.map-pin-label {
+  padding: 1px 5px;
+  background: var(--pin);
+  color: var(--pin-ink);
+  border: 1px solid var(--pin-ink);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.map-pin-icons {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.map-pin-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  background: var(--pin);
+  border: 1px solid var(--pin-ink);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+.map-pin-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--pin-ink);
+}
+
+/* The secret extract's note, and co-op's two sides. */
+.map-pin.secret .map-pin-icon + .map-pin-icon {
+  background: #e9ecef;
+}
+
+.map-pin.coop .map-pin-icon {
+  background: linear-gradient(135deg, #5aa2ff 50%, #ffe066 50%);
+}
+
+.map-pin-stem {
+  width: 2px;
+  height: 5px;
+  background: var(--pin-ink);
+}
+
+.map-badge {
+  position: absolute;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.map-badge svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* A skull on a pin whose tip is the spot. */
+.map-badge.boss {
+  bottom: 7px;
+  transform: translateX(-50%);
+  background: #26303b;
+  border: 2px solid #d9dde2;
+}
+
+.map-badge.boss svg {
+  fill: #d9dde2;
+}
+
+.map-badge.boss::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top: 7px solid #d9dde2;
+  border-bottom: 0;
+}
+
+/* A target centred on the spot. */
+.map-badge.sniper {
+  top: 0;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 2px solid #c92a2a;
+}
+
+.map-badge.sniper svg {
+  fill: #c92a2a;
+}
+
+.map-place {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%) rotate(var(--rotation, 0deg));
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-shadow:
+    0 0 2px #000,
+    0 0 3px #000,
+    1px 1px 2px #000;
+  pointer-events: none;
+}
+
+/* The legend's copies sit in the flow. */
+.legend-pin,
+.legend-badge {
+  position: static;
+  transform: none;
+  flex: none;
+}
+
+.legend-pin .map-pin-icons {
+  margin: 0;
+}
+
+.legend-pin .map-pin-icon {
+  width: 16px;
+  height: 16px;
+  box-shadow: none;
+}
+
+.legend-pin .map-pin-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.legend-badge {
+  width: 18px;
+  height: 18px;
+  box-shadow: none;
+}
+
+.legend-badge.boss::after {
+  display: none;
+}
+
+.legend-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
 .map-objectives {
   display: grid;
   gap: 2px;

@@ -178,20 +178,53 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             position: { x: -17.5, y: 2, z: -61.3 },
             outline: [{ x: -13.9, y: 0.2, z: -66.6 }]
           },
-          { name: 'No position', faction: 'scav' }
+          { name: 'No position', faction: 'scav' },
+          {
+            name: 'Dorms V-Ex',
+            faction: 'pmc',
+            position: { x: 181, y: -0.7, z: 213 },
+            transferItem: { item: '5449016a4bdc2d6f028b456f', count: 20000 }
+          }
         ],
         spawns: [
           { position: { x: 1, y: 0, z: 2 }, sides: ['pmc'], categories: ['player'] },
-          { position: { x: 3, y: 0, z: 4 }, sides: ['all'], categories: ['bot'] }
+          { position: { x: 3, y: 0, z: 4 }, sides: ['all'], categories: ['bot'] },
+          { position: { x: 175, y: 2, z: 145 }, zoneName: 'ZoneDormitory', categories: ['bot', 'boss'] },
+          // A second point of the same zone a metre away, and one elsewhere with no known boss.
+          { position: { x: 176, y: 2, z: 145 }, zoneName: 'ZoneDormitory', categories: ['bot', 'boss'] },
+          { position: { x: 24, y: 3, z: -90 }, zoneName: 'ZoneCustoms', categories: ['boss'] },
+          { position: { x: 194, y: 1, z: -170 }, zoneName: 'ZoneSnipeBrige', categories: ['bot', 'boss'] },
+          { position: { x: 196, y: 3, z: -172 }, zoneName: 'ZoneSnipeBrige', categories: ['bot'] }
         ],
         transits: [{ description: 'transitWoods', position: { x: 5, y: 0, z: 6 } }],
+        bosses: [
+          {
+            mob: 'bossBully',
+            spawnChance: 0.6,
+            spawnLocations: [
+              { spawnKey: 'ZoneDormitory', name: 'Dorms', chance: 0.33 },
+              { spawnKey: 'ZoneGasStation', name: 'New Gas Station', chance: 0.33 }
+            ]
+          },
+          { mob: 'bossPartisan', spawnChance: 0.15, spawnLocations: [] },
+          {
+            mob: 'sectantPriest',
+            spawnChance: 0.2,
+            spawnLocations: [{ spawnKey: 'ZoneDormitory', chance: 1 }]
+          }
+        ],
         lootContainers: [{ huge: true }]
       },
       { id: WOODS, name: `${WOODS} Name`, normalizedName: 'woods', nameId: 'Woods', extracts: [], spawns: [] }
+    ],
+    mobs: [
+      { id: 'bossBully', name: 'bossBully', normalizedName: 'reshala' },
+      { id: 'sectantPriest', name: 'sectantPriest', normalizedName: 'cultist-priest' }
     ]
   },
   mapsLang: {
     [`${CUSTOMS} Name`]: 'Customs',
+    bossBully: 'Reshala',
     [`${WOODS} Name`]: 'Woods',
     'ZB-1011': 'ZB-1011',
     transitWoods: 'Transit to Woods'

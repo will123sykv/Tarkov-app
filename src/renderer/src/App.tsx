@@ -107,7 +107,7 @@ export default function App(): React.JSX.Element {
       ) : view === 'quests' ? (
         <QuestsView settings={settings} priceState={priceState} />
       ) : view === 'maps' ? (
-        <MapsView settings={settings} />
+        <MapsView settings={settings} priceState={priceState} />
       ) : view === 'raids' ? (
         <RaidsView settings={settings} priceState={priceState} />
       ) : (

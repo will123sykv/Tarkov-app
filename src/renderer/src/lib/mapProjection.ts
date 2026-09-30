@@ -1,7 +1,7 @@
 import L from 'leaflet'
 import type { MapConfig, Vec3 } from '../../../shared/questTypes'
 import { mapAsset } from './questUi'
-import { toImagePoint, type Re3mrMap } from './re3mrMap'
+import { toImagePoint, type Anchor, type PosterMap } from './posterMap'
 import { createCrs, prepareSvg, toBounds, toLatLng } from './tarkovMap'
 
 /** How a map's base image and game positions are laid out in Leaflet. */
@@ -14,8 +14,8 @@ export interface MapProjection {
   maxZoom: number
   /** Zoom used to show a focused objective: close enough to see it, far enough to see around it. */
   focusZoom: number
-  /** `floorY` picks the floor a point is drawn on (e.g. an outline on its zone's floor). */
-  toLatLng: (p: Vec3, floorY?: number) => L.LatLngTuple
+  /** `anchor` picks the floor or inset a point is drawn on (e.g. an outline on its zone's floor). */
+  toLatLng: (p: Vec3, anchor?: Anchor) => L.LatLngTuple
   /** Adds the base image in the `mapBase` pane; returns a cleanup. */
   addBase: (map: L.Map, onError: (message: string) => void) => () => void
 }
@@ -64,37 +64,59 @@ export function interactiveProjection(config: MapConfig): MapProjection {
   }
 }
 
-/** `factory-2d.jpg` → the app's cached copy of Re3MR's image. */
-export const re3mrAsset = (file: string): string => `tarkov-map://re3mr/${file}`
-
 /**
- * A Re3MR poster as a flat image (1 unit = 1 image pixel at zoom 0), with positions placed on the
- * panel of their floor.
+ * A community 2D map as a flat image (1 unit = 1 image pixel at zoom 0), with positions placed on the
+ * panel (floor or inset) they belong to. Re3MR's come as one image, db4tarkov's as tiles whose top
+ * zoom is the image at full size.
  */
-export function re3mrProjection(re3mr: Re3mrMap): MapProjection {
-  const bounds = L.latLngBounds([-re3mr.height, 0], [0, re3mr.width])
+export function posterProjection(poster: PosterMap): MapProjection {
+  const bounds = L.latLngBounds([-poster.height, 0], [0, poster.width])
+  const failed = `The ${poster.author} map couldn’t be loaded (offline?). Switch to tarkov.dev, or try again later.`
   return {
-    id: `re3mr:${re3mr.key}`,
+    id: `${poster.provider}:${poster.key}`,
     crs: L.CRS.Simple,
     bounds,
     minZoom: -5,
     maxZoom: 1.5,
     focusZoom: -0.5,
-    toLatLng(p, floorY) {
-      const [u, v] = toImagePoint(re3mr, p, floorY)
+    toLatLng(p, anchor) {
+      const [u, v] = toImagePoint(poster, p, anchor)
       return [-v, u]
     },
     addBase(map, onError) {
-      const image = L.imageOverlay(re3mrAsset(re3mr.file), bounds, {
-        pane: 'mapBase',
-        className: 'map-image'
-      })
-      image
-        .on('error', () => {
-          image.remove()
-          onError('The Re3MR map couldn’t be loaded (offline?). Switch to tarkov.dev, or try again later.')
+      if (poster.tiles) {
+        const { slug, maxZoom } = poster.tiles
+        let reported = false
+        L.tileLayer(`tarkov-map://db4tarkov/${slug}/{z}/{x}/{y}.webp`, {
+          tileSize: 512,
+          zoomOffset: maxZoom,
+          minNativeZoom: 1 - maxZoom,
+          maxNativeZoom: 0,
+          minZoom: -5,
+          maxZoom: 1.5,
+          // A pixel inside the image, so an edge on a tile boundary never asks for the tile beyond.
+          bounds: L.latLngBounds([1 - poster.height, 1], [-1, poster.width - 1]),
+          noWrap: true,
+          pane: 'mapBase',
+          className: 'map-image'
         })
-        .addTo(map)
+          .on('tileerror', () => {
+            if (!reported) onError(failed)
+            reported = true
+          })
+          .addTo(map)
+      } else if (poster.file) {
+        const image = L.imageOverlay(`tarkov-map://re3mr/${poster.file}`, bounds, {
+          pane: 'mapBase',
+          className: 'map-image'
+        })
+        image
+          .on('error', () => {
+            image.remove()
+            onError(failed)
+          })
+          .addTo(map)
+      }
       return () => undefined
     }
   }

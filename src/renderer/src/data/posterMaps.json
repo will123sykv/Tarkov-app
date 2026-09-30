@@ -1,14 +1,188 @@
 {
-  "source": "Re3MR (reemr.se), as published by tarkov.dev (github.com/the-hideout/tarkov-dev, public/maps)",
+  "sources": {
+    "re3mr": "Re3MR (reemr.se), as published by tarkov.dev (github.com/the-hideout/tarkov-dev, public/maps)",
+    "db4tarkov": "db4tarkov.com's clean versions of the community maps, as 512 px WebP tiles from cdn.db4tarkov.com"
+  },
   "license": "CC BY-NC-SA 4.0",
-  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions; all were checked against the icons Re3MR draws. Each panel is one floor or deck of the poster, chosen by the height (y) of a position.",
+  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions, and the db4tarkov maps by registering tarkov.dev's SVG maps (and their floor layers, for the insets) onto the images; all were checked against what the images draw. A panel is one floor, deck or inset of the image: the first panel whose area (game [xMin, zMin, xMax, zMax], when it has one) holds a position and whose height range [minY, maxY) holds its height; otherwise the whole-map panels, by height.",
   "maps": [
     {
+      "key": "customs",
+      "provider": "db4tarkov",
+      "author": "monkimonkimonk and Glory4Lyfe",
+      "authorLink": "https://www.reddit.com/user/monkimonkimonk/",
+      "version": "V2 [0.12.7]",
+      "tiles": {
+        "slug": "customs",
+        "maxZoom": 4
+      },
+      "width": 4096,
+      "height": 2142,
+      "panels": [
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-3.91939, 0.00546, 0.00437, 3.91372, 2681.74, 1092.89]
+        }
+      ]
+    },
+    {
+      "key": "ground-zero",
+      "provider": "db4tarkov",
+      "author": "xTycho",
+      "authorLink": "https://www.reddit.com/user/Tychodelouw/",
+      "version": "2024",
+      "tiles": {
+        "slug": "ground_zero",
+        "maxZoom": 5
+      },
+      "width": 6920,
+      "height": 6920,
+      "panels": [
+        {
+          "name": "Underground (garage)",
+          "area": [43, -100, 117, 190],
+          "minY": null,
+          "maxY": 21,
+          "transform": [-10.78654, -0.0115, 0.01074, 10.57708, 6946.48, 1814.75]
+        },
+        {
+          "name": "Underground (underpass)",
+          "area": [117, 49, 143, 80],
+          "minY": null,
+          "maxY": 21,
+          "transform": [-10.78654, -0.0115, 0.01074, 10.57708, 6946.48, 1814.75]
+        },
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-10.85083, -0.00527, 0.00687, 10.82857, 3512.58, 1798]
+        }
+      ]
+    },
+    {
+      "key": "woods",
+      "provider": "db4tarkov",
+      "author": "Jindouz",
+      "authorLink": "https://www.reddit.com/user/Jindouz/",
+      "version": "V6.5.1",
+      "tiles": {
+        "slug": "woods",
+        "maxZoom": 5
+      },
+      "width": 6994,
+      "height": 6843,
+      "panels": [
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-4.77387, -0.0011, -0.00094, 4.77594, 3254.83, 4529.18]
+        }
+      ]
+    },
+    {
+      "key": "shoreline",
+      "provider": "db4tarkov",
+      "author": "Jindouz, from monkimonkimonk’s map",
+      "authorLink": "https://www.reddit.com/user/Jindouz/",
+      "version": "V3.3",
+      "tiles": {
+        "slug": "shoreline",
+        "maxZoom": 5
+      },
+      "width": 6668,
+      "height": 4567,
+      "panels": [
+        {
+          "name": "Resort west wing, basement",
+          "area": [-238, -108, -139, -70],
+          "minY": null,
+          "maxY": -5,
+          "transform": [-13.82389, 0.11067, -0.08114, 14.16245, 3384.65, 3839.89]
+        },
+        {
+          "name": "Resort west wing, 1st floor",
+          "area": [-238, -108, -139, -70],
+          "minY": -5,
+          "maxY": -1,
+          "transform": [-13.80802, 0.06451, -0.03792, 14.02059, 3281.81, 3460.85]
+        },
+        {
+          "name": "Resort west wing, 2nd floor",
+          "area": [-238, -108, -139, -70],
+          "minY": -1,
+          "maxY": 2,
+          "transform": [-13.76696, -0.01056, 0.00428, 13.69955, 3180.97, 3068.15]
+        },
+        {
+          "name": "Resort west wing, 3rd floor",
+          "area": [-238, -108, -139, -70],
+          "minY": 2,
+          "maxY": null,
+          "transform": [-13.78508, 0.01451, -0.0183, 13.85234, 3077.31, 2669.71]
+        },
+        {
+          "name": "Resort east wing, 1st floor",
+          "area": [-366, -108, -266, -70],
+          "minY": null,
+          "maxY": -1,
+          "transform": [-13.81296, -0.0702, 0.0536, 14.04956, 1402.04, 5529.95]
+        },
+        {
+          "name": "Resort east wing, 2nd floor",
+          "area": [-366, -108, -266, -70],
+          "minY": -1,
+          "maxY": 2,
+          "transform": [-13.79439, -0.04513, 0.02855, 13.91934, 1512.58, 5138.1]
+        },
+        {
+          "name": "Resort east wing, 3rd floor",
+          "area": [-366, -108, -266, -70],
+          "minY": 2,
+          "maxY": null,
+          "transform": [-13.78536, -0.02594, 0.01728, 13.8257, 1619.08, 4718.02]
+        },
+        {
+          "name": "Resort admin, basement",
+          "area": [-278, -165, -227, -122],
+          "minY": null,
+          "maxY": -5,
+          "transform": [-12.09363, 0.0255, -0.01748, 12.07381, 1379.47, 2720.98]
+        },
+        {
+          "name": "Resort admin, 1st floor",
+          "area": [-278, -165, -227, -122],
+          "minY": -5,
+          "maxY": -1,
+          "transform": [-12.09126, 0.02619, 0.00292, 12.13634, 1380.05, 2152.59]
+        },
+        {
+          "name": "Resort admin, 2nd floor",
+          "area": [-278, -165, -227, -122],
+          "minY": -1,
+          "maxY": null,
+          "transform": [-12.03685, -0.00035, -0.01675, 11.95854, 743.54, 2122.93]
+        },
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-3.37182, 0.00536, -0.00471, 3.31128, 1809.77, 2514.67]
+        }
+      ]
+    },
+    {
       "key": "factory",
+      "provider": "re3mr",
+      "author": "Re3MR",
+      "authorLink": "https://reemr.se",
+      "version": "v1.7c",
       "file": "factory-2d.jpg",
       "width": 6720,
       "height": 3328,
-      "version": "1.7c",
       "panels": [
         {
           "name": "Tunnels",
@@ -38,10 +212,13 @@
     },
     {
       "key": "terminal",
+      "provider": "re3mr",
+      "author": "Re3MR",
+      "authorLink": "https://reemr.se",
+      "version": "v1.1B",
       "file": "terminal-2d.jpg",
       "width": 5760,
       "height": 3240,
-      "version": "1.1B",
       "panels": [
         {
           "name": "Terminal",
@@ -53,10 +230,13 @@
     },
     {
       "key": "the-labyrinth",
+      "provider": "re3mr",
+      "author": "Re3MR",
+      "authorLink": "https://reemr.se",
+      "version": "v0.5E",
       "file": "labyrinth-2d.jpg",
       "width": 4800,
       "height": 4320,
-      "version": "0.5E",
       "panels": [
         {
           "name": "Labyrinth",
@@ -68,10 +248,13 @@
     },
     {
       "key": "icebreaker",
+      "provider": "re3mr",
+      "author": "Re3MR",
+      "authorLink": "https://reemr.se",
+      "version": "v0.8",
       "file": "icebreaker-2d.jpg",
       "width": 7680,
       "height": 4320,
-      "version": "0.8",
       "panels": [
         {
           "name": "Lower automation (-3)",
@@ -139,8 +322,18 @@
           "maxY": 37,
           "transform": [-14.7, 0, 0, 13.82, 1939, 1400.6]
         },
-        { "name": "Stairs (8)", "minY": 37, "maxY": 39.7, "transform": [-14.7, 0, 0, 13.82, 1396, 1400.6] },
-        { "name": "Bridge (9)", "minY": 39.7, "maxY": 42.4, "transform": [-14.7, 0, 0, 13.82, 853, 1400.6] },
+        {
+          "name": "Stairs (8)",
+          "minY": 37,
+          "maxY": 39.7,
+          "transform": [-14.7, 0, 0, 13.82, 1396, 1400.6]
+        },
+        {
+          "name": "Bridge (9)",
+          "minY": 39.7,
+          "maxY": 42.4,
+          "transform": [-14.7, 0, 0, 13.82, 853, 1400.6]
+        },
         {
           "name": "Bridge roof (10)",
           "minY": 42.4,

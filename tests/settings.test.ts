@@ -135,7 +135,14 @@ describe('sanitizeSettings', () => {
           kappaOnly: true,
           faction: 'BEAR'
         },
-        maps: { mapKey: 'streets-of-tarkov', questScope: 'available', showSpawns: true }
+        maps: {
+          mapKey: 'streets-of-tarkov',
+          questScope: 'available',
+          showSpawns: true,
+          showLabels: false,
+          showSnipers: false,
+          faction: 'scav'
+        }
       })
     ).toMatchObject({
       view: 'maps',
@@ -154,22 +161,28 @@ describe('sanitizeSettings', () => {
         showExtracts: true,
         showSpawns: true,
         showTransits: true,
-        style: 're3mr'
+        showLabels: false,
+        showBosses: true,
+        showSnipers: false,
+        faction: 'scav',
+        style: '2d'
       }
     })
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps.style).toBe('tarkov-dev')
+    // 1.5's name for the 2D maps.
+    expect(sanitizeSettings({ maps: { style: 're3mr' } }).maps.style).toBe('2d')
     expect(
       sanitizeSettings({
         view: 'nope',
         gameLogsDir: 5,
         quests: { faction: 'Scav' },
-        maps: { mapKey: '../x', questScope: 'x', style: 'satellite' }
+        maps: { mapKey: '../x', questScope: 'x', style: 'satellite', faction: 'bear', showLabels: 1 }
       })
     ).toMatchObject({
       view: 'loot',
       gameLogsDir: null,
       quests: DEFAULT_SETTINGS.quests,
-      maps: { mapKey: 'customs', questScope: 'active', style: 're3mr' }
+      maps: { mapKey: 'customs', questScope: 'active', style: '2d', faction: 'pmc', showLabels: true }
     })
   })
 

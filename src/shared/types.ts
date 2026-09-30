@@ -155,8 +155,13 @@ export interface MapSettings {
   showExtracts: boolean
   showSpawns: boolean
   showTransits: boolean
-  /** Re3MR's 2D map where there is one, or tarkov.dev's interactive map. */
-  style: 're3mr' | 'tarkov-dev'
+  showLabels: boolean
+  showBosses: boolean
+  showSnipers: boolean
+  /** Whose extracts to show; co-op extracts show for both. */
+  faction: 'pmc' | 'scav'
+  /** A community 2D map where there is one, or tarkov.dev's interactive map. */
+  style: '2d' | 'tarkov-dev'
 }
 
 export interface TrendSettings {
