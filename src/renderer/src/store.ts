@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
+import type { HideoutProgress } from '../../shared/hideout'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
 import type { ProgressEntry, QuestProgress } from '../../shared/questProgress'
 import type { QuestDataState } from '../../shared/questTypes'
@@ -34,6 +35,7 @@ interface AppStore {
   selectedTrendItem: string | null
   questData: Partial<Record<DataMode, QuestDataState>>
   questProgress: Partial<Record<GameMode, QuestProgress>>
+  hideoutProgress: Partial<Record<GameMode, HideoutProgress>>
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
   selectedQuest: string | null
@@ -57,6 +59,9 @@ interface AppStore {
   loadPlayerData(): Promise<void>
   setQuestStatus(questId: string, status: ProgressEntry['status'] | null): Promise<void>
   markQuestsUpTo(questId: string): Promise<void>
+  setStationLevel(stationId: string, level: number): Promise<void>
+  setHideoutHave(itemId: string, count: number): Promise<void>
+  buildStationLevel(stationId: string, level: number): Promise<void>
   rescanLogs(): Promise<void>
   chooseLogsFolder(): Promise<void>
   selectQuest(questId: string | null): void
@@ -104,6 +109,7 @@ export const useStore = create<AppStore>((set, get) => ({
   selectedTrendItem: null,
   questData: {},
   questProgress: {},
+  hideoutProgress: {},
   logHistory: {},
   logStatus: null,
   selectedQuest: null,
@@ -266,13 +272,15 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history] = await Promise.all([
+    const [progress, history, hideout] = await Promise.all([
       window.api.getQuestProgress(gameMode),
-      window.api.getLogHistory(gameMode)
+      window.api.getLogHistory(gameMode),
+      window.api.getHideoutProgress(gameMode)
     ])
     set((s) => ({
       questProgress: { ...s.questProgress, [gameMode]: progress },
-      logHistory: { ...s.logHistory, [gameMode]: history }
+      logHistory: { ...s.logHistory, [gameMode]: history },
+      hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout }
     }))
   },
 
@@ -288,6 +296,27 @@ export const useStore = create<AppStore>((set, get) => ({
     if (!gameMode) return
     const progress = await window.api.markQuestsUpTo(gameMode, questId)
     set((s) => ({ questProgress: { ...s.questProgress, [gameMode]: progress } }))
+  },
+
+  async setStationLevel(stationId, level) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const hideout = await window.api.setStationLevel(gameMode, stationId, level)
+    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+  },
+
+  async setHideoutHave(itemId, count) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const hideout = await window.api.setHideoutHave(gameMode, itemId, count)
+    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+  },
+
+  async buildStationLevel(stationId, level) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const hideout = await window.api.buildStationLevel(gameMode, stationId, level)
+    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
   },
 
   async rescanLogs() {

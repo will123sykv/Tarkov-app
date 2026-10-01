@@ -2,10 +2,13 @@ import { useDeferredValue, useEffect, useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
 import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
+import type { PublicSettings } from '../../shared/types'
 import { rankItems, type ContainerFilter } from '../../shared/valuation'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
+import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
+import { useKeepList } from './lib/useKeepList'
 import MapsView from './components/MapsView'
 import QuestsView from './components/QuestsView'
 import RaidsView from './components/RaidsView'
@@ -16,6 +19,15 @@ import TopBar from './components/TopBar'
 import TrendsView from './components/TrendsView'
 import { useTrendRanking } from './lib/useTrendRanking'
 import { containerLootKey, useStore } from './store'
+
+/** The loot table, with the items the hideout and quests still need marked. */
+function LootTable({
+  settings,
+  ...props
+}: Omit<React.ComponentProps<typeof ItemTable>, 'keep'> & { settings: PublicSettings }): React.JSX.Element {
+  const keep = useKeepList(settings, props.priceState)
+  return <ItemTable {...props} keep={keep} />
+}
 
 export default function App(): React.JSX.Element {
   const init = useStore((s) => s.init)
@@ -106,6 +118,8 @@ export default function App(): React.JSX.Element {
         <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
       ) : view === 'quests' ? (
         <QuestsView settings={settings} priceState={priceState} />
+      ) : view === 'hideout' ? (
+        <HideoutView settings={settings} priceState={priceState} />
       ) : view === 'maps' ? (
         <MapsView settings={settings} priceState={priceState} />
       ) : view === 'raids' ? (
@@ -125,7 +139,8 @@ export default function App(): React.JSX.Element {
               unavailableContainer={unavailableContainer}
               pricesLoaded={dataset !== null}
             />
-            <ItemTable
+            <LootTable
+              settings={settings}
               rows={ranked}
               priceState={priceState}
               sort={settings.sort}

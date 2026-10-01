@@ -22,6 +22,13 @@ const api: TarkovApi = {
   setQuestStatus: (gameMode, questId, status) =>
     ipcRenderer.invoke(IPC.questsSetStatus, gameMode, questId, status),
   markQuestsUpTo: (gameMode, questId) => ipcRenderer.invoke(IPC.questsMarkUpTo, gameMode, questId),
+  getHideoutProgress: (gameMode) => ipcRenderer.invoke(IPC.hideoutProgress, gameMode),
+  setStationLevel: (gameMode, stationId, level) =>
+    ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),
+  setHideoutHave: (gameMode, itemId, count) =>
+    ipcRenderer.invoke(IPC.hideoutSetHave, gameMode, itemId, count),
+  buildStationLevel: (gameMode, stationId, level) =>
+    ipcRenderer.invoke(IPC.hideoutBuild, gameMode, stationId, level),
   getLogHistory: (gameMode) => ipcRenderer.invoke(IPC.logsHistory, gameMode),
   getLogStatus: () => ipcRenderer.invoke(IPC.logsStatus),
   rescanLogs: () => ipcRenderer.invoke(IPC.logsRescan),

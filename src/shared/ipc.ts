@@ -1,3 +1,4 @@
+import type { HideoutProgress } from './hideout'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ProgressEntry, QuestProgress } from './questProgress'
 import type { QuestDataState, QuestGuideState } from './questTypes'
@@ -30,6 +31,10 @@ export const IPC = {
   questsMarkUpTo: 'quests:mark-up-to',
   questsProgressChanged: 'quests:progress-changed',
   questsGuide: 'quests:guide',
+  hideoutProgress: 'hideout:progress',
+  hideoutSetLevel: 'hideout:set-level',
+  hideoutSetHave: 'hideout:set-have',
+  hideoutBuild: 'hideout:build',
   logsHistory: 'logs:history',
   logsHistoryChanged: 'logs:history-changed',
   logsStatus: 'logs:status',
@@ -70,6 +75,12 @@ export interface TarkovApi {
   ): Promise<QuestProgress>
   /** Mark a quest and everything that had to come before it as done. */
   markQuestsUpTo(gameMode: GameMode, questId: string): Promise<QuestProgress>
+  /** The player's hideout (station levels and items put aside), set by hand. */
+  getHideoutProgress(gameMode: GameMode): Promise<HideoutProgress>
+  setStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
+  setHideoutHave(gameMode: GameMode, itemId: string, count: number): Promise<HideoutProgress>
+  /** Build a station's level: set it and use up the items put aside for it. */
+  buildStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
   /** Raids and flea sales read from the game's logs. */
   getLogHistory(gameMode: GameMode): Promise<LogHistory>
   getLogStatus(): Promise<LogWatcherStatus>

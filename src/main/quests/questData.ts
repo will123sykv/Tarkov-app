@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import type {
   BossSpawn,
   GameMap,
+  HideoutLevel,
+  HideoutStation,
   MapExtract,
   Quest,
   QuestDataset,
@@ -199,6 +201,57 @@ export function stationNames(hideout: Raw, lang: Dict): Map<string, string> {
     if (id && name) names.set(id, name.includes('-') && !name.includes(' ') ? prettify(name) : name)
   }
   return names
+}
+
+/** Hideout stations and what each level takes to build, from tarkov.dev's `hideout` file. */
+export function hideoutStations(hideout: Raw, lang: Dict): HideoutStation[] {
+  const t = translator(lang)
+  const names = stationNames(hideout, lang)
+  const result: HideoutStation[] = []
+  for (const raw of values(hideout as Collection<Raw>)) {
+    const s = rec(raw)
+    const id = str(s.id)
+    if (!id) continue
+    const levels: HideoutLevel[] = arr(s.levels)
+      .map((l) => rec(l))
+      .map((l) => ({
+        level: num(l.level) ?? 0,
+        constructionTime: num(l.constructionTime) ?? 0,
+        items: arr(l.itemRequirements)
+          .map((r) => rec(r))
+          .map((r) => ({
+            itemId: idOf(r.item) ?? '',
+            count: num(r.count) ?? num(r.quantity) ?? 1,
+            foundInRaid: rec(r.attributes).foundInRaid === true
+          }))
+          .filter((r) => r.itemId),
+        stations: arr(l.stationLevelRequirements)
+          .map((r) => ({ stationId: idOf(rec(r).station) ?? '', level: num(rec(r).level) ?? 1 }))
+          // A level lists the station's own previous level too: that's implied.
+          .filter((r) => r.stationId && r.stationId !== id),
+        traders: traderRequirements(l.traderRequirements)
+          .filter((r) => r.type === 'level')
+          .map((r) => ({ traderId: r.traderId, level: r.value })),
+        skills: arr(l.skillRequirements)
+          .map((r) => rec(r))
+          .map((r) => {
+            const skill = str(r.skill) ?? str(rec(r.skill).id) ?? str(r.name) ?? str(rec(r.skill).name)
+            const name = skill ? (translated(t, skill) ?? skillName(skill)) : null
+            return { name: name ?? '', level: num(r.level) ?? 1 }
+          })
+          .filter((r) => r.name)
+      }))
+      .filter((l) => l.level > 0)
+      .sort((a, b) => a.level - b.level)
+    result.push({
+      id,
+      name: names.get(id) ?? id,
+      normalizedName: str(s.normalizedName) ?? id,
+      imageLink: str(s.imageLink),
+      levels
+    })
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function prettify(slug: string): string {
@@ -440,7 +493,15 @@ export function normalizeQuestData(
     if (id && name && !known.has(id)) otherQuestNames[id] = name
   }
 
-  return { dataMode, fetchedAt, quests, maps, traders, otherQuestNames }
+  return {
+    dataMode,
+    fetchedAt,
+    quests,
+    maps,
+    traders,
+    stations: hideoutStations(input.hideout ?? {}, input.hideoutLang ?? {}),
+    otherQuestNames
+  }
 }
 
 export async function fetchQuestData(
@@ -472,8 +533,8 @@ export async function fetchQuestData(
 
 /**
  * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
- * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures): fill in
- * defaults so they still work offline, and date them so they're refetched straight away.
+ * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures; 1.8.0: the
+ * hideout): fill in defaults so they still work offline, and date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
   let result = cached
@@ -514,6 +575,7 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
       })),
       traders: result.traders.map((t) => ({ ...t, imageLink: t.imageLink ?? null }))
     }
+  if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
   return result
 }
 

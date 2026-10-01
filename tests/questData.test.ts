@@ -3,7 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { createQuestDataService, normalizeQuestData } from '../src/main/quests/questData'
 import { jsonResponse, mockFetch, tempDir } from './helpers'
 import { writeFile } from 'node:fs/promises'
-import { CUSTOMS, KEY, PRAPOR, Q, RAW_QUEST_DATA, ROUBLES, STORY_ID, THERAPIST, WOODS } from './questFixtures'
+import {
+  BOLTS,
+  CUSTOMS,
+  KEY,
+  LAVATORY,
+  LEDX,
+  PRAPOR,
+  Q,
+  RAW_QUEST_DATA,
+  ROUBLES,
+  STASH,
+  STORY_ID,
+  THERAPIST,
+  WOODS,
+  WORKBENCH
+} from './questFixtures'
 
 describe('normalizeQuestData', () => {
   const data = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 42)
@@ -120,6 +135,34 @@ describe('normalizeQuestData', () => {
     expect(quest(Q.checking).imageLink).toBe(`https://assets.tarkov.dev/${Q.checking}.webp`)
     expect(quest(Q.debut).imageLink).toBeNull()
     expect(data.traders.map((t) => t.imageLink)).toEqual([`https://assets.tarkov.dev/${PRAPOR}.webp`, null])
+  })
+
+  it('keeps the hideout stations and what each level takes to build', () => {
+    expect(data.stations.map((s) => [s.name, s.levels.map((l) => l.level)])).toEqual([
+      ['Nutrition unit', []],
+      ['Stash', [1, 2]],
+      ['Workbench', [1, 2]]
+    ])
+    const workbench = data.stations.find((s) => s.id === WORKBENCH)!
+    expect(workbench).toMatchObject({
+      normalizedName: 'workbench',
+      imageLink: 'https://assets.tarkov.dev/station-workbench.png'
+    })
+    expect(workbench.levels[1]).toEqual({
+      level: 2,
+      constructionTime: 7200,
+      items: [
+        { itemId: BOLTS, count: 3, foundInRaid: false },
+        { itemId: LEDX, count: 1, foundInRaid: true }
+      ],
+      // The station's own previous level is implied.
+      stations: [{ stationId: LAVATORY, level: 1 }],
+      traders: [{ traderId: PRAPOR, level: 2 }],
+      skills: [{ name: 'Hideout Management', level: 2 }]
+    })
+    expect(data.stations.find((s) => s.id === STASH)!.levels[1].items).toEqual([
+      { itemId: ROUBLES, count: 2000000, foundInRaid: false }
+    ])
   })
 
   it('keeps only what the maps view draws: extracts, player spawns, transits, bosses and snipers', () => {
@@ -290,6 +333,17 @@ describe('createQuestDataService', () => {
     expect(state.error).toBeNull()
     const checking = state.dataset!.quests.find((q) => q.id === Q.checking)!
     expect(checking.rewards.craftUnlocks.map((c) => c.station)).toEqual(['Hideout', 'Hideout'])
+  })
+
+  it('upgrades a 1.7 cache without the hideout, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 1)
+    const { stations: _, ...old } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, stations: [] } })
   })
 
   it('upgrades a 1.6 cache without keys, rewards or pictures, and refetches it', async () => {

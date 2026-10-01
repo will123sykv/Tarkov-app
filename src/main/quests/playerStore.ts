@@ -1,3 +1,4 @@
+import { EMPTY_HIDEOUT, type HideoutProgress } from '../../shared/hideout'
 import type { FleaRecord, LogHistory, RaidRecord } from '../../shared/logTypes'
 import {
   applyQuestEvent,
@@ -20,7 +21,12 @@ interface Saved {
   version: 1
   progress: Record<GameMode, QuestProgress>
   history: Record<GameMode, LogHistory>
+  /** Since 1.8.0. */
+  hideout: Record<GameMode, HideoutProgress>
 }
+
+/** Item counts are whole and at least 0; a count of 0 isn't kept. */
+const MAX_HAVE = 100_000
 
 const empty = (): Saved => ({
   version: 1,
@@ -29,7 +35,8 @@ const empty = (): Saved => ({
     pvp: { raids: [], flea: [] },
     pve: { raids: [], flea: [] },
     season: { raids: [], flea: [] }
-  }
+  },
+  hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT }
 })
 
 const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']> = {
@@ -39,8 +46,8 @@ const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']
 }
 
 /**
- * The player's quest progress and raid/flea history per game mode, kept in one JSON file. Log
- * events and manual changes both go through here.
+ * The player's quest progress, raid/flea history and hideout per game mode, kept in one JSON file.
+ * Log events and manual changes both go through here.
  */
 export function createPlayerStore(opts: { file: string; now?: () => number }) {
   const now = opts.now ?? Date.now
@@ -55,7 +62,8 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
         ? {
             version: 1,
             progress: { ...base.progress, ...raw.progress },
-            history: { ...base.history, ...raw.history }
+            history: { ...base.history, ...raw.history },
+            hideout: { ...base.hideout, ...raw.hideout }
           }
         : base
     return data
@@ -70,6 +78,55 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
 
     async history(mode: GameMode): Promise<LogHistory> {
       return (await load()).history[mode]
+    },
+
+    async hideout(mode: GameMode): Promise<HideoutProgress> {
+      return (await load()).hideout[mode]
+    },
+
+    /** Set a station's built level by hand (catching up), leaving the items put aside alone. */
+    async setStationLevel(mode: GameMode, stationId: string, level: number): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      d.hideout[mode] = {
+        ...current,
+        levels: { ...current.levels, [stationId]: Math.max(0, Math.round(level)) }
+      }
+      await save()
+      return d.hideout[mode]
+    },
+
+    /** How many of an item the player has put aside for the hideout. */
+    async setHave(mode: GameMode, itemId: string, count: number): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      const have = { ...current.have }
+      const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
+      if (n > 0) have[itemId] = n
+      else delete have[itemId]
+      d.hideout[mode] = { ...current, have }
+      await save()
+      return d.hideout[mode]
+    },
+
+    /** Build a station level: set the level and use up the items put aside for it. */
+    async build(
+      mode: GameMode,
+      stationId: string,
+      level: number,
+      items: readonly { itemId: string; count: number }[]
+    ): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      const have = { ...current.have }
+      for (const { itemId, count } of items) {
+        const left = (have[itemId] ?? 0) - count
+        if (left > 0) have[itemId] = left
+        else delete have[itemId]
+      }
+      d.hideout[mode] = { levels: { ...current.levels, [stationId]: level }, have }
+      await save()
+      return d.hideout[mode]
     },
 
     /** Apply log events; `reset` first drops everything that came from the logs. Returns the modes that changed. */

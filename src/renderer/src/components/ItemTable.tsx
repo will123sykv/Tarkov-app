@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef } from 'react'
+import type { KeepInfo } from '../../../shared/hideout'
 import type { PriceState, SortKey, SortState } from '../../../shared/types'
 import type { RankedItem } from '../../../shared/valuation'
 import { formatPercent, formatRub } from '../lib/format'
@@ -13,6 +14,8 @@ interface Props {
   showChance: boolean
   /** e.g. "Jacket on Customs", for the empty state. */
   scopeLabel: string | null
+  /** Items the hideout or active quests still need. */
+  keep: ReadonlyMap<string, KeepInfo>
 }
 
 interface Column {
@@ -92,16 +95,45 @@ function AccessBadge({ row }: { row: RankedItem }): React.JSX.Element {
   return <span className="badge warn">Locked · Lv {unlockLevel}</span>
 }
 
+/** Why not to sell an item: what still needs it, and whether it's hard to replace. */
+function KeepTags({ keep }: { keep: KeepInfo }): React.JSX.Element {
+  const what = [keep.hideout ? `hideout ${keep.hideout}` : null, keep.quests ? `quests ${keep.quests}` : null]
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <span className="keep-tags">
+      {keep.rare && (
+        <span className="badge bad rare-badge" title={`${keep.rare}. Don't sell it.`}>
+          Rare: don&rsquo;t sell
+        </span>
+      )}
+      <span
+        className="keep-tag"
+        title={`Still needed: ${[
+          keep.hideout ? `${keep.hideout} for the hideout` : null,
+          keep.quests ? `${keep.quests} for active quests` : null
+        ]
+          .filter(Boolean)
+          .join(', ')}`}
+      >
+        Keep · {what}
+      </span>
+    </span>
+  )
+}
+
 function ItemRow({
   row,
   source,
   cached,
-  showChance
+  showChance,
+  keep
 }: {
   row: RankedItem
   source: string
   cached: boolean
   showChance: boolean
+  keep: KeepInfo | undefined
 }): React.JSX.Element {
   const { item } = row
   const size = item.width && item.height ? `${item.width}×${item.height}` : `${item.slots}`
@@ -131,7 +163,11 @@ function ItemRow({
         ) : (
           <span title={item.name}>{item.name}</span>
         )}
-        <small>{[item.shortName, item.category].filter(Boolean).join(' · ')}</small>
+        {keep ? (
+          <KeepTags keep={keep} />
+        ) : (
+          <small>{[item.shortName, item.category].filter(Boolean).join(' · ')}</small>
+        )}
       </div>
       <div className="num" title={`${item.slots} slot${item.slots === 1 ? '' : 's'}`}>
         {size}
@@ -176,7 +212,8 @@ export default function ItemTable({
   priceState,
   sort,
   showChance,
-  scopeLabel
+  scopeLabel,
+  keep
 }: Props): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const refreshPrices = useStore((s) => s.refreshPrices)
@@ -219,14 +256,20 @@ export default function ItemTable({
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((v) => {
               const row = rows[v.index]
+              const needed = keep.get(row.item.id)
+              const classes = [
+                rowClass,
+                row.access.status !== 'sellable' ? 'not-sellable' : '',
+                needed ? (needed.rare ? 'keep rare' : 'keep') : ''
+              ]
               return (
                 <div
                   key={row.item.id}
                   role="row"
-                  className={`${rowClass} ${row.access.status !== 'sellable' ? 'not-sellable' : ''}`}
+                  className={classes.filter(Boolean).join(' ')}
                   style={{ transform: `translateY(${v.start}px)`, height: ROW_HEIGHT }}
                 >
-                  <ItemRow row={row} source={source} cached={cached} showChance={showChance} />
+                  <ItemRow row={row} source={source} cached={cached} showChance={showChance} keep={needed} />
                 </div>
               )
             })}

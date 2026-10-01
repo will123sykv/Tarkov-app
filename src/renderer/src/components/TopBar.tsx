@@ -7,6 +7,7 @@ const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
   { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
   { id: 'trends', label: 'Flea trends', subtitle: 'Best times to buy and sell' },
   { id: 'quests', label: 'Quests', subtitle: 'Quest progress from your game logs' },
+  { id: 'hideout', label: 'Hideout', subtitle: 'What your hideout still needs' },
   { id: 'maps', label: 'Maps', subtitle: 'Quest objectives, extracts and spawns' },
   { id: 'raids', label: 'Raids', subtitle: 'Raids and flea sales from your logs' }
 ]

@@ -10,6 +10,7 @@ import type { TrendSortKey } from './fleaTrends'
 import type {
   AppView,
   GameMode,
+  HideoutSettings,
   MapSettings,
   QuestSettings,
   QuestStatusFilter,
@@ -67,10 +68,11 @@ export const DEFAULT_SETTINGS: Settings = {
     showSnipers: true,
     faction: 'pmc',
     style: '2d'
-  }
+  },
+  hideout: { scope: 'all', hideDone: false, tab: 'items' }
 }
 
-const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'maps', 'raids']
+const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'hideout', 'maps', 'raids']
 const QUEST_STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'completed', 'failed']
 
 function sanitizeQuests(raw: unknown): QuestSettings {
@@ -104,6 +106,15 @@ function sanitizeMaps(raw: unknown): MapSettings {
     faction: r.faction === 'scav' ? 'scav' : 'pmc',
     // 1.5 called the 2D maps 're3mr', when Re3MR drew all of them.
     style: r.style === 'tarkov-dev' ? 'tarkov-dev' : '2d'
+  }
+}
+
+function sanitizeHideout(raw: unknown): HideoutSettings {
+  const r = isRecord(raw) ? raw : {}
+  return {
+    scope: r.scope === 'next' ? 'next' : 'all',
+    hideDone: r.hideDone === true,
+    tab: r.tab === 'upgrades' ? 'upgrades' : 'items'
   }
 }
 
@@ -212,7 +223,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     gameLogsDir:
       typeof r.gameLogsDir === 'string' && r.gameLogsDir.length <= 1024 ? r.gameLogsDir || null : null,
     quests: sanitizeQuests(r.quests),
-    maps: sanitizeMaps(r.maps)
+    maps: sanitizeMaps(r.maps),
+    hideout: sanitizeHideout(r.hideout)
   }
 }
 
@@ -225,6 +237,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     pool: { ...current.pool, ...patch.pool },
     trends: { ...current.trends, ...patch.trends },
     quests: { ...current.quests, ...patch.quests },
-    maps: { ...current.maps, ...patch.maps }
+    maps: { ...current.maps, ...patch.maps },
+    hideout: { ...current.hideout, ...patch.hideout }
   })
 }

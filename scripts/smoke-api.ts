@@ -210,6 +210,19 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
   check(keyed > 20, 'the keys quest objectives need are missing')
   check(portraits >= data.traders.length - 2, 'trader portraits are missing')
   check(!stations.has('Hideout'), 'hideout station names are missing from craft rewards')
+
+  const levels = data.stations.flatMap((s) => s.levels)
+  const untranslatedStations = data.stations.filter((s) => /_name$|^[0-9a-f]{24}$/.test(s.name))
+  console.log(
+    `[hideout ${dataMode}] ${data.stations.length} stations, ${levels.length} levels, ` +
+      `${levels.reduce((n, l) => n + l.items.length, 0)} item requirements ` +
+      `(${levels.reduce((n, l) => n + l.items.filter((i) => i.foundInRaid).length, 0)} found in raid), ` +
+      `${levels.reduce((n, l) => n + l.stations.length + l.traders.length + l.skills.length, 0)} other requirements · ` +
+      `${data.stations.map((s) => `${s.name} ${s.levels.length}`).join(', ')}`
+  )
+  check(data.stations.length >= 20, 'hideout stations are missing')
+  check(levels.filter((l) => l.items.length).length > 30, 'hideout item requirements are missing')
+  check(untranslatedStations.length === 0, 'hideout station names are not being translated')
 }
 
 /** A well-known quest's guide on the wiki: its text and pictures, and that the pictures load. */

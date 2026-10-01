@@ -13,6 +13,13 @@ export const TARKOV_DEV_JSON_BASE = 'https://json.tarkov.dev'
 export const TARKOV_DEV_ENDPOINT = 'https://api.tarkov.dev/graphql'
 export const TARKOV_MARKET_BASE = 'https://api.tarkov-market.app/api/v1'
 
+/** Money items (their ids) and how they're written. */
+export const CURRENCIES: Readonly<Record<string, string>> = {
+  '5449016a4bdc2d6f028b456f': '₽',
+  '5696686a4bdc2da3298b456a': '$',
+  '569668774bdc2da2298b4568': '€'
+}
+
 export const PRICE_REQUEST_TIMEOUT_MS = 30_000
 /** Full JSON dumps are large, so allow longer than a GraphQL query. */
 export const LARGE_REQUEST_TIMEOUT_MS = 60_000

@@ -33,6 +33,18 @@ function requireQuestId(value: unknown): string {
   return value
 }
 
+/** Station and item ids are tarkov.dev's (24 hex characters). */
+function requireId(value: unknown, what: string): string {
+  if (typeof value !== 'string' || !/^[0-9a-f]{24}$/i.test(value)) throw new Error(`Invalid ${what} id`)
+  return value
+}
+
+function requireCount(value: unknown, max: number): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > max)
+    throw new Error('Invalid number')
+  return value
+}
+
 const PROGRESS_STATUSES: ProgressEntry['status'][] = ['active', 'completed', 'failed']
 
 export function registerIpc(deps: {
@@ -95,6 +107,26 @@ export function registerIpc(deps: {
     const mode = requireGameMode(gameMode)
     const { dataset } = await questData.get(dataModeFor(mode))
     return player.markUpTo(mode, requireQuestId(questId), dataset?.quests ?? [])
+  })
+  ipcMain.handle(IPC.hideoutProgress, (_e, gameMode: unknown) => player.hideout(requireGameMode(gameMode)))
+  ipcMain.handle(IPC.hideoutSetLevel, (_e, gameMode: unknown, stationId: unknown, level: unknown) =>
+    player.setStationLevel(
+      requireGameMode(gameMode),
+      requireId(stationId, 'station'),
+      requireCount(level, 20)
+    )
+  )
+  ipcMain.handle(IPC.hideoutSetHave, (_e, gameMode: unknown, itemId: unknown, count: unknown) =>
+    player.setHave(requireGameMode(gameMode), requireId(itemId, 'item'), requireCount(count, 100_000))
+  )
+  ipcMain.handle(IPC.hideoutBuild, async (_e, gameMode: unknown, stationId: unknown, level: unknown) => {
+    const mode = requireGameMode(gameMode)
+    const id = requireId(stationId, 'station')
+    const target = requireCount(level, 20)
+    const { dataset } = await questData.get(dataModeFor(mode))
+    const items =
+      dataset?.stations.find((s) => s.id === id)?.levels.find((l) => l.level === target)?.items ?? []
+    return player.build(mode, id, target, items)
   })
   ipcMain.handle(IPC.logsHistory, (_e, gameMode: unknown) => player.history(requireGameMode(gameMode)))
   ipcMain.handle(IPC.logsStatus, () => logs.status())

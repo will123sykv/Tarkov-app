@@ -1,3 +1,4 @@
+import { CURRENCIES } from '../../../shared/constants'
 import type { Quest, QuestObjective } from '../../../shared/questTypes'
 
 // What a quest needs you to bring, for its details panel.
@@ -53,12 +54,6 @@ export function itemsNeeded(objectives: QuestObjective[]): ItemNeed[] {
     else result.push(need)
   }
   return result
-}
-
-export const CURRENCIES: Readonly<Record<string, string>> = {
-  '5449016a4bdc2d6f028b456f': '₽',
-  '5696686a4bdc2da3298b456a': '$',
-  '569668774bdc2da2298b4568': '€'
 }
 
 const whole = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })

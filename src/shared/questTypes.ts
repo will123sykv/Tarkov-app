@@ -143,12 +143,35 @@ export interface QuestTrader {
   imageLink: string | null
 }
 
+/** What one level of a hideout station takes to build. */
+export interface HideoutLevel {
+  level: number
+  /** Seconds. */
+  constructionTime: number
+  items: { itemId: string; count: number; foundInRaid: boolean }[]
+  /** Other stations it needs, at a level. */
+  stations: { stationId: string; level: number }[]
+  /** Trader loyalty levels it needs. */
+  traders: { traderId: string; level: number }[]
+  skills: { name: string; level: number }[]
+}
+
+export interface HideoutStation {
+  id: string
+  name: string
+  normalizedName: string
+  imageLink: string | null
+  levels: HideoutLevel[]
+}
+
 export interface QuestDataset {
   dataMode: DataMode
   fetchedAt: number
   quests: Quest[]
   maps: GameMap[]
   traders: QuestTrader[]
+  /** Hideout stations (empty when tarkov.dev's hideout data couldn't be fetched). */
+  stations: HideoutStation[]
   /**
    * Names of quests tarkov.dev leaves out of its quest list (story chapters, new or event quests),
    * by id, so ones the logs mention can still be named.

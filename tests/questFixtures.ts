@@ -13,6 +13,10 @@ export const KEY = {
   dorm303copy: '5913611c86f77479e0084092'
 }
 export const ROUBLES = '5449016a4bdc2d6f028b456f'
+export const STASH = '5d484fc0654e76006657e0ab'
+export const LAVATORY = '5d484fba654e7600691aadf7'
+export const BOLTS = '57347c93245977448d35f6e3'
+export const LEDX = '5c0530ee86f774697952d952'
 
 export const Q = {
   debut: '5936d90786f7742b1420ba5b',
@@ -301,12 +305,65 @@ export const RAW_QUEST_DATA: QuestDataInput = {
   },
   tradersLang: { [`${PRAPOR} Nickname`]: 'Prapor', [`${THERAPIST} Nickname`]: 'Therapist' },
   hideout: {
-    [WORKBENCH]: { id: WORKBENCH, name: 'hideout_area_10_name', normalizedName: 'workbench', areaType: 10 },
-    '5d484fba654e7600691aadf7': {
-      id: '5d484fba654e7600691aadf7',
-      name: 'missing',
-      normalizedName: 'nutrition-unit'
+    [WORKBENCH]: {
+      id: WORKBENCH,
+      name: 'hideout_area_10_name',
+      normalizedName: 'workbench',
+      areaType: 10,
+      imageLink: 'https://assets.tarkov.dev/station-workbench.png',
+      levels: [
+        {
+          id: `${WORKBENCH}-2`,
+          level: 2,
+          constructionTime: 7200,
+          traderRequirements: [
+            { id: 't', requirementType: 'level', compareMethod: '>=', value: 2, trader: PRAPOR },
+            { id: 'r', requirementType: 'reputation', compareMethod: '>=', value: 0.5, trader: PRAPOR }
+          ],
+          stationLevelRequirements: [
+            { id: 's1', station: WORKBENCH, level: 1 },
+            { id: 's2', station: LAVATORY, level: 1 }
+          ],
+          itemRequirements: [
+            { id: 'i1', item: BOLTS, count: 3, attributes: { foundInRaid: false } },
+            { id: 'i2', item: LEDX, count: 1, attributes: { foundInRaid: true } },
+            { id: 'i3', count: 1 }
+          ],
+          skillRequirements: [{ id: 'k', level: 2, skill: 'HideoutManagement' }],
+          bonuses: []
+        },
+        {
+          id: `${WORKBENCH}-1`,
+          level: 1,
+          constructionTime: 0,
+          traderRequirements: [],
+          stationLevelRequirements: [],
+          itemRequirements: [{ id: 'i0', item: ROUBLES, count: 20000, attributes: { foundInRaid: false } }],
+          skillRequirements: []
+        }
+      ]
+    },
+    [LAVATORY]: { id: LAVATORY, name: 'missing', normalizedName: 'nutrition-unit' },
+    [STASH]: {
+      id: STASH,
+      name: 'hideout_area_3_name',
+      normalizedName: 'stash',
+      levels: [
+        {
+          id: `${STASH}-1`,
+          level: 1,
+          constructionTime: 0,
+          itemRequirements: [],
+          stationLevelRequirements: []
+        },
+        {
+          id: `${STASH}-2`,
+          level: 2,
+          constructionTime: 3600,
+          itemRequirements: [{ id: 'm', item: ROUBLES, count: 2000000, attributes: { foundInRaid: false } }]
+        }
+      ]
     }
   },
-  hideoutLang: { hideout_area_10_name: 'Workbench' }
+  hideoutLang: { hideout_area_10_name: 'Workbench', hideout_area_3_name: 'Stash' }
 }

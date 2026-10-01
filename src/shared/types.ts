@@ -130,9 +130,18 @@ export interface Settings {
   gameLogsDir: string | null
   quests: QuestSettings
   maps: MapSettings
+  hideout: HideoutSettings
 }
 
-export type AppView = 'loot' | 'trends' | 'quests' | 'maps' | 'raids'
+export type AppView = 'loot' | 'trends' | 'quests' | 'hideout' | 'maps' | 'raids'
+
+export interface HideoutSettings {
+  /** Count what each station's next level needs, or every level still to build. */
+  scope: 'next' | 'all'
+  /** Hide items the player already has enough of. */
+  hideDone: boolean
+  tab: 'items' | 'upgrades'
+}
 
 export type QuestStatusFilter = 'available' | 'active' | 'locked' | 'completed' | 'failed'
 
