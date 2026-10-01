@@ -135,10 +135,11 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
   items to save (can't buy or rare)** in the Loot tab's filters, to see just the items you still
   need that you can't buy at your level and trader loyalty, or that are rare.
 
-#### Scav case: what to keep and what to sell
+#### Screenshots: what to keep and sell, and counting what you have
 
-**Scav case** (next to Items needed and Upgrades) reads a screenshot of your scav case haul, or of
-any container or the stash, and tells you what to do with each item.
+**Screenshots** (next to Items needed and Upgrades) reads screenshots of your items. Pick what they
+show at the top: **New loot** (a scav case haul or a container) or **Everything I have** (your
+stash and cases).
 
 1. In game, take a screenshot (Print Screen) with the items on screen.
 2. Click **Use latest screenshot** (the newest picture in `Documents\Escape from Tarkov\Screenshots`),
@@ -147,17 +148,34 @@ any container or the stash, and tells you what to do with each item.
    Items whose name it can't be sure of are compared with their pictures from tarkov.dev, so look-alikes
    with the same short name are told apart. The reading happens on your PC with Tesseract OCR: the
    screenshot isn't uploaded anywhere.
-4. Each item is marked **Keep** (with what for: the hideout, at the **Count items for** setting,
-   or your active quests, and a **Rare** or **Can't buy yet** badge when it would be hard to replace),
-   **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the flea fee,
-   if that setting is on). Several stacks of one item are kept until the need is met, and the rest
-   sold. The totals say what selling the rest earns.
 
-Click an item's name to change it (the scanner's best guesses come first, or search), edit a count,
-remove a row or add an item it missed. Items it's unsure of are outlined in amber and marked **Check
-this one**. If a screenshot shows more than one window (say the stash and a container), it lists the
-smaller one and lets you tick the others; **Scan part of it** lets you drag a box around the window
-you want. Calibrated on 1080p screenshots; other resolutions and UI scales are scaled to match.
+**New loot:** each item is marked **Keep** (with what for: the hideout, at the **Count items for**
+setting, or your active quests, and a **Rare** or **Can't buy yet** badge when it would be hard to
+replace), **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the
+flea fee, if that setting is on). Several stacks of one item are kept until the need is met, and the
+rest sold. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
+you're keeping for the hideout to its **Have** counts (**Undo** takes them off again); items kept for
+quests aren't counted there. A haul that takes two screenshots can be read together with **Add
+another**.
+
+**Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
+every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,
+paste and drop all add to the same scan; **Start over** clears it. The panel lists how each count in
+Items needed would change, and **Update my counts** sets each item the hideout still needs (for any
+level left) to the number your screenshots show. Items on the list that aren't in any screenshot go
+back to 0 (it asks first), so include every place you keep them; items the hideout doesn't need are
+left out, and so is money. **Undo** puts the old counts back. When a screenshot repeats rows from the
+one before (a stash page that didn't scroll far enough), those rows aren't counted twice (**Count
+them anyway** if they really are different items). Items cut off by a screenshot's edge are left out:
+they're read on the screenshot that shows them whole. **Count from screenshots** in the Items needed
+list opens this. Whether an item was found in raid isn't read.
+
+In either mode, click an item's name to change it (the scanner's best guesses come first, or
+search), edit a count, remove a row or add an item it missed. Items it's unsure of are outlined in
+amber and marked **Check this one**. If a screenshot shows more than one window (say the stash and a
+container), new loot lists the smaller one and lets you tick the others (everything you have counts
+them all); **Scan part of it** lets you drag a box around the window you want. Calibrated on 1080p
+screenshots; other resolutions and UI scales are scaled to match.
 
 ### Quests, maps and raids
 

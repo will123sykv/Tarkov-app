@@ -35,6 +35,7 @@ export const IPC = {
   hideoutProgress: 'hideout:progress',
   hideoutSetLevel: 'hideout:set-level',
   hideoutSetHave: 'hideout:set-have',
+  hideoutSetHaveMany: 'hideout:set-have-many',
   hideoutBuild: 'hideout:build',
   hideoutSetTrader: 'hideout:set-trader',
   scanReadText: 'scan:read-text',
@@ -84,6 +85,8 @@ export interface TarkovApi {
   getHideoutProgress(gameMode: GameMode): Promise<HideoutProgress>
   setStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
   setHideoutHave(gameMode: GameMode, itemId: string, count: number): Promise<HideoutProgress>
+  /** Several put-aside counts at once (item id → count; 0 clears it). */
+  setHideoutHaveMany(gameMode: GameMode, counts: Record<string, number>): Promise<HideoutProgress>
   /** The player's loyalty level with a trader (1–4), for what traders will sell them. */
   setTraderLevel(gameMode: GameMode, traderId: string, level: number): Promise<HideoutProgress>
   /** Build a station's level: set it and use up the items put aside for it. */

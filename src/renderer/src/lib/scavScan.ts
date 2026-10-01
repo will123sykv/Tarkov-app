@@ -321,6 +321,15 @@ export function findItems(
     for (let j = row; j < row + h; j++) edges.push(vertical(col, j), vertical(col + w, j))
     for (let k = col; k < col + w; k++) edges.push(horizontal(row, k), horizontal(row + h, k))
     if (edges.filter((e) => e >= BORDER_SHARE).length / edges.length < 0.5) continue
+    // At the edge of what's scanned, a missing top, bottom or left border means the picture cuts the item
+    // off (a stash page scrolled part-way): it isn't read as a smaller item. (Right borders next to an
+    // empty cell don't show, so they can't tell.)
+    const bordered = (values: number[]): boolean => values.every((e) => e >= BORDER_SHARE)
+    const across = Array.from({ length: w }, (_, i) => col + i)
+    const down = Array.from({ length: h }, (_, i) => row + i)
+    if (row === 0 && !bordered(across.map((k) => horizontal(row, k)))) continue
+    if (row + h === rows && !bordered(across.map((k) => horizontal(row + h, k)))) continue
+    if (col === 0 && !bordered(down.map((j) => vertical(col, j)))) continue
     tiles.push({ col, row, w, h, left: xs[col], top: ys[row], right: xs[col + w], bottom: ys[row + h] })
   }
   return tiles.sort((a, b) => a.row - b.row || a.col - b.col)
@@ -781,3 +790,44 @@ export function pickItem(matches: readonly NameMatch[], distances: readonly (num
     confidence = 'medium'
   return { item: first.m.item, confidence }
 }
+
+// ——— Several screenshots ———
+
+/** An item where it sits in its grid, for comparing screenshots. */
+export interface PlacedItem {
+  col: number
+  row: number
+  w: number
+  h: number
+  itemId: string | null
+}
+
+/**
+ * How many grid rows at the top of `next` repeat the bottom of `previous` (a stash screenshot taken
+ * after scrolling down a little), or 0. Only items wholly inside the shared rows are compared, since
+ * one cut off by either screenshot's edge isn't read; at least two rows, with items, must match.
+ */
+export function findOverlap(previous: readonly PlacedItem[], next: readonly PlacedItem[]): number {
+  if (!previous.length || !next.length) return 0
+  const lastPrev = Math.max(...previous.map((t) => t.row + t.h - 1))
+  const firstPrev = Math.min(...previous.map((t) => t.row))
+  const firstNext = Math.min(...next.map((t) => t.row))
+  const lastNext = Math.max(...next.map((t) => t.row + t.h - 1))
+  const band = (tiles: readonly PlacedItem[], from: number, rows: number): string =>
+    tiles
+      .filter((t) => t.row >= from && t.row + t.h - 1 < from + rows)
+      .map((t) => `${t.row - from},${t.col},${t.w}x${t.h},${t.itemId}`)
+      .sort()
+      .join(';')
+  // The same screenshot twice repeats every row.
+  const most = Math.min(lastPrev - firstPrev + 1, lastNext - firstNext + 1)
+  for (let rows = most; rows >= 2; rows--) {
+    const a = band(previous, lastPrev - rows + 1, rows)
+    if (a && a === band(next, firstNext, rows)) return rows
+  }
+  return 0
+}
+
+/** Whether an item in `next` lies wholly in its top `rows` repeated rows. */
+export const inOverlap = (tile: { row: number; h: number }, firstRow: number, rows: number): boolean =>
+  rows > 0 && tile.row >= firstRow && tile.row + tile.h - 1 < firstRow + rows

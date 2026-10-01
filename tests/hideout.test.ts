@@ -404,6 +404,22 @@ describe('hideout progress', () => {
     expect(await reopened.hideout('season')).toEqual(EMPTY_HIDEOUT)
   })
 
+  it('sets several counts at once, clearing zeros and capping', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const store = createPlayerStore({ file })
+    await store.setHave('pvp', 'bolts', 8)
+    await store.setHave('pvp', 'toilet', 1)
+    expect(await store.setHaveMany('pvp', { bolts: 3, screws: 5.4, toilet: 0, wires: 1e9 })).toMatchObject({
+      have: { bolts: 3, screws: 5, wires: 100_000 }
+    })
+    expect((await createPlayerStore({ file }).hideout('pvp')).have).toEqual({
+      bolts: 3,
+      screws: 5,
+      wires: 100_000
+    })
+    expect((await store.hideout('pve')).have).toEqual({})
+  })
+
   it('reads a player file from before the hideout tracker', async () => {
     const file = join(await tempDir(), 'player.json')
     await writeFile(

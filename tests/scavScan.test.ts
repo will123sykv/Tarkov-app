@@ -3,6 +3,8 @@ import {
   countLabel,
   findItems,
   findLattice,
+  findOverlap,
+  inOverlap,
   matchName,
   nameLabel,
   nameScore,
@@ -15,11 +17,12 @@ import {
   scanGrid,
   shortlist,
   tileDistance,
+  type PlacedItem,
   type RgbaImage,
   type ScanTile
 } from '../src/renderer/src/lib/scavScan'
-import type { KeepInfo } from '../src/shared/hideout'
-import { adviseScan, scanTotals } from '../src/shared/scavAdvice'
+import type { HideoutNeed, KeepInfo } from '../src/shared/hideout'
+import { adviseScan, lootAdditions, scanTotals, stashCounts } from '../src/shared/scavAdvice'
 import type { LootItem } from '../src/shared/types'
 
 const BORDER = [73, 81, 84]
@@ -148,6 +151,24 @@ describe('finding the grid and its items', () => {
     // The first three columns only: the 1×2 item in the fourth is left out.
     const scan = scanGrid(img, { x: 0, y: 0, width: 210, height: 420 })
     expect(scan?.tiles.map((t) => `${t.w}x${t.h}`) ?? []).toEqual(['1x1', '2x1', '2x2', '1x1', '1x1'])
+  })
+
+  it('leaves out an item the picture cuts off, rather than reading it as a smaller one', () => {
+    const full = drawGrid({
+      width: 560,
+      height: 420,
+      cell: 63,
+      x0: 8,
+      y0: 28,
+      cols: 8,
+      rows: 6,
+      items: ITEMS
+    })
+    // Cut through the second row: the 1×2 and the 2×2 items lose their bottom half.
+    const height = 28 + 63 + 40
+    const cut: RgbaImage = { width: 560, height, data: full.data.slice(0, 560 * height * 4) }
+    const lattice = findLattice(full)!
+    expect(findItems(cut, lattice).map((t) => `${t.w}x${t.h}`)).toEqual(['1x1', '2x1'])
   })
 
   it('finds nothing in a picture with no grid', () => {
@@ -403,8 +424,126 @@ describe('what to keep and what to sell', () => {
     expect(scanTotals(advice)).toEqual({ sell: 66_000, flea: 54_000, traders: 12_000, keep: 5 })
   })
 
+  it('keeps stacks already added to the hideout’s counts, and adds only what’s new', () => {
+    const entries = [
+      { itemId: 'bolts', count: 2 },
+      { itemId: 'bolts', count: 5 },
+      { itemId: 'ledx', count: 1 }
+    ]
+    const before = adviseScan(entries, items, keep, ctx)
+    const { changes, stored } = lootAdditions(entries, before, { bolts: 1 })
+    // Quests' bolts aren't the hideout's to count.
+    expect(changes).toEqual([
+      { itemId: 'bolts', from: 1, to: 4 },
+      { itemId: 'ledx', from: 0, to: 1 }
+    ])
+    expect(stored).toEqual([2, 1, 1])
+    // Once added, the hideout needs none: the stored ones stay kept, and the quests still get theirs.
+    const after = adviseScan(
+      entries.map((e, i) => ({ ...e, stored: stored[i] })),
+      items,
+      new Map<string, KeepInfo>([['bolts', { hideout: 0, quests: 1, scarce: null }]]),
+      ctx
+    )
+    expect(after.map((a) => [a.keep, a.stored, a.keepFor.quests, a.sell])).toEqual([
+      [2, 2, 0, 0],
+      [2, 1, 1, 3],
+      [1, 1, 0, 0]
+    ])
+    expect(lootAdditions(entries, after, { bolts: 4, ledx: 1 }).changes).toEqual([])
+  })
+
+  it('sets the hideout’s counts to everything the screenshots show', () => {
+    const need = (itemId: string): HideoutNeed => ({
+      itemId,
+      foundInRaid: false,
+      needed: 5,
+      firNeeded: 0,
+      have: 0,
+      missing: 5,
+      uses: []
+    })
+    const ROUBLES = '5449016a4bdc2d6f028b456f'
+    const result = stashCounts(
+      [
+        { itemId: 'bolts', count: 3 },
+        { itemId: 'bolts', count: 4 },
+        { itemId: 'junk', count: 2 },
+        { itemId: ROUBLES, count: 50_000 },
+        { itemId: 'screws', count: 2 },
+        { itemId: null, count: 1 }
+      ],
+      [need('bolts'), need('screws'), need('ledx'), need('wires'), need(ROUBLES)],
+      { bolts: 1, screws: 2, ledx: 1, [ROUBLES]: 10 }
+    )
+    expect(result).toEqual({
+      changes: [
+        { itemId: 'bolts', from: 1, to: 7 },
+        { itemId: 'ledx', from: 1, to: 0 }
+      ],
+      unchanged: 2,
+      ignored: 1
+    })
+  })
+
   it('sells to traders before the flea opens', () => {
     const [bolts] = adviseScan([{ itemId: 'bolts', count: 5 }], items, new Map(), { ...ctx, playerLevel: 5 })
     expect(bolts).toMatchObject({ keep: 0, sell: 5, via: 'trader', each: 9_000 })
+  })
+})
+
+describe('several screenshots', () => {
+  const place = (rows: string[][]): PlacedItem[] =>
+    rows.flatMap((row, r) => row.map((itemId, c) => ({ col: c, row: r, w: 1, h: 1, itemId })))
+  const top = [
+    ['a', 'b', 'c'],
+    ['d', 'e', 'f'],
+    ['g', 'h', 'i'],
+    ['j', 'k', 'l']
+  ]
+
+  it('finds rows a scrolled screenshot repeats', () => {
+    const next = place([
+      ['g', 'h', 'i'],
+      ['j', 'k', 'l'],
+      ['m', 'n', 'o']
+    ])
+    expect(findOverlap(place(top), next)).toBe(2)
+    expect(next.filter((t) => inOverlap(t, 0, 2)).length).toBe(6)
+    // The same screenshot twice.
+    expect(findOverlap(place(top), place(top))).toBe(4)
+  })
+
+  it('ignores a single matching row, different rows, and items cut off by the edge', () => {
+    expect(
+      findOverlap(
+        place(top),
+        place([
+          ['j', 'k', 'l'],
+          ['m', 'n', 'o']
+        ])
+      )
+    ).toBe(0)
+    expect(
+      findOverlap(
+        place(top),
+        place([
+          ['x', 'y', 'z'],
+          ['m', 'n', 'o']
+        ])
+      )
+    ).toBe(0)
+    // A tall item cut off at the top of the next screenshot isn't read there: still a match.
+    const prev = [...place(top), { col: 3, row: 1, w: 1, h: 3, itemId: 'tall' }]
+    expect(
+      findOverlap(
+        prev,
+        place([
+          ['g', 'h', 'i'],
+          ['j', 'k', 'l'],
+          ['m', 'n', 'o']
+        ])
+      )
+    ).toBe(2)
   })
 })

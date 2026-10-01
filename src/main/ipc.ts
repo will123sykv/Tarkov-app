@@ -62,6 +62,9 @@ function requireOcrJobs(value: unknown): OcrJob[] {
   })
 }
 
+/** Most counts one call may set (more items than the hideout could ever need). */
+const MAX_COUNT_CHANGES = 2000
+
 const PROGRESS_STATUSES: ProgressEntry['status'][] = ['active', 'completed', 'failed']
 
 export function registerIpc(deps: {
@@ -137,6 +140,15 @@ export function registerIpc(deps: {
   ipcMain.handle(IPC.hideoutSetHave, (_e, gameMode: unknown, itemId: unknown, count: unknown) =>
     player.setHave(requireGameMode(gameMode), requireId(itemId, 'item'), requireCount(count, 100_000))
   )
+  ipcMain.handle(IPC.hideoutSetHaveMany, (_e, gameMode: unknown, counts: unknown) => {
+    if (!counts || typeof counts !== 'object' || Array.isArray(counts)) throw new Error('Invalid counts')
+    const entries = Object.entries(counts)
+    if (entries.length > MAX_COUNT_CHANGES) throw new Error('Too many counts')
+    const valid = Object.fromEntries(
+      entries.map(([id, n]) => [requireId(id, 'item'), requireCount(n, 100_000)])
+    )
+    return player.setHaveMany(requireGameMode(gameMode), valid)
+  })
   ipcMain.handle(IPC.hideoutSetTrader, (_e, gameMode: unknown, traderId: unknown, level: unknown) => {
     const n = requireCount(level, 4)
     if (n < 1) throw new Error('Invalid loyalty level')

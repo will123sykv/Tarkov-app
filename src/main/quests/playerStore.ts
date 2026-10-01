@@ -112,6 +112,21 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return d.hideout[mode]
     },
 
+    /** Several of those counts at once (0 clears one), e.g. from screenshots. */
+    async setHaveMany(mode: GameMode, counts: Record<string, number>): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      const have = { ...current.have }
+      for (const [itemId, count] of Object.entries(counts)) {
+        const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
+        if (n > 0) have[itemId] = n
+        else delete have[itemId]
+      }
+      d.hideout[mode] = { ...current, have }
+      await save()
+      return d.hideout[mode]
+    },
+
     /** The player's loyalty level with a trader (1–4), for what the trader will sell them. */
     async setTraderLevel(mode: GameMode, traderId: string, level: number): Promise<HideoutProgress> {
       const d = await load()

@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
-import { adviseScan, scanTotals, type ScanAdvice } from '../../../shared/scavAdvice'
+import { CURRENCIES } from '../../../shared/constants'
+import type { HideoutNeed, HideoutProgress } from '../../../shared/hideout'
+import {
+  adviseScan,
+  lootAdditions,
+  scanTotals,
+  stashCounts,
+  type CountChange,
+  type ScanAdvice
+} from '../../../shared/scavAdvice'
 import type { OcrJob } from '../../../shared/scanTypes'
 import type { LootItem, PriceState, PublicSettings } from '../../../shared/types'
 import type { ValuationContext } from '../../../shared/valuation'
 import { formatRub } from '../lib/format'
 import {
   countLabel,
+  findOverlap,
+  inOverlap,
   matchName,
   nameIsSure,
   nameLabel,
@@ -20,22 +31,27 @@ import {
   type Confidence,
   type GridScan,
   type NameMatch,
+  type PlacedItem,
   type Region,
   type RgbaImage,
   type ScanTile
 } from '../lib/scavScan'
 import { useKeepList } from '../lib/useKeepList'
+import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
 
-// The Hideout tab's scav case scanner: add a screenshot of a scav case haul (or any container), and it
-// finds each item, reads its name and count, and says what to keep for the hideout and active quests and
-// what to sell, and where. Everything it read can be corrected.
+// The Hideout tab's screenshot scanner. New loot (a scav case haul, a container): it finds each item, reads
+// its name and count, says what to keep for the hideout and active quests and what to sell, and can add
+// what's kept to the hideout's counts. Everything I have (stash pages, cases): it counts what the
+// screenshots show and sets the hideout's counts to it. Everything it read can be corrected.
 
 type Items = ReadonlyMap<string, LootItem>
+export type ScanMode = 'loot' | 'stash'
 
 interface ScanRow {
   key: number
-  /** Which grid in the screenshot, and where; null for items added by hand. */
+  /** Which screenshot and grid, and where; null for items added by hand. */
+  shot: number | null
   grid: number | null
   tile: ScanTile | null
   itemId: string | null
@@ -45,44 +61,65 @@ interface ScanRow {
   guesses: string[]
   /** What OCR read off the label. */
   read: string
+  /** Units of the stack added to the hideout's counts. */
+  stored: number
 }
 
 interface Shot {
+  id: number
+  /** Where it came from, to notice the same screenshot added twice. */
+  source: string
   url: string
   name: string
   width: number
   height: number
-}
-
-interface ScanState {
-  shot: Shot | null
-  pixels: RgbaImage | null
-  busy: boolean
-  error: string | null
+  pixels: RgbaImage
   grids: GridScan[]
   /** Grids whose items are listed. */
   shown: number[]
-  rows: ScanRow[]
   region: Region | null
   seconds: number | null
+  error: string | null
+  /** Count rows that repeat the previous screenshot anyway. */
+  keepRepeats: boolean
 }
 
-const EMPTY: ScanState = {
-  shot: null,
-  pixels: null,
+interface ScanState {
+  mode: ScanMode
+  shots: Shot[]
+  /** The screenshot being shown. */
+  active: number | null
+  busy: boolean
+  error: string | null
+  rows: ScanRow[]
+  /** The last change made to the hideout's counts, to undo it. */
+  applied: { mode: ScanMode; changes: CountChange[]; stored: Map<number, number> } | null
+}
+
+const EMPTY: Omit<ScanState, 'mode'> = {
+  shots: [],
+  active: null,
   busy: false,
   error: null,
-  grids: [],
-  shown: [],
   rows: [],
-  region: null,
-  seconds: null
+  applied: null
 }
 
 // Kept while the app runs, so switching tabs doesn't lose a scan.
-const useScan = create<ScanState>(() => EMPTY)
+const useScan = create<ScanState>(() => ({ mode: 'loot', ...EMPTY }))
 const patch = (p: Partial<ScanState>): void => useScan.setState(p)
 let nextKey = 1
+let nextShot = 1
+
+/** Open the scanner for counting everything the player has (from the Items needed list). */
+export function startStashCount(): void {
+  setMode('stash')
+}
+
+function setMode(mode: ScanMode): void {
+  const { shots } = useScan.getState()
+  patch({ mode, shots: shots.map((s) => ({ ...s, shown: defaultShown(s.grids, mode) })) })
+}
 
 async function decode(blob: Blob): Promise<RgbaImage> {
   const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })
@@ -116,6 +153,7 @@ async function loadPictures(ids: string[]): Promise<Map<string, RgbaImage | null
 
 /** Find the items, read their labels and match them, settling look-alikes by their pictures. */
 async function readShot(
+  shot: number,
   pixels: RgbaImage,
   region: Region | null,
   items: LootItem[]
@@ -164,36 +202,48 @@ async function readShot(
     const ids = [pick.item?.id, ...guesses.map((m) => m.item.id)].filter((id): id is string => !!id)
     return {
       key: nextKey++,
+      shot,
       grid: r.grid,
       tile: r.tile,
       itemId: pick.item?.id ?? null,
       count: r.count,
       confidence: pick.confidence,
       guesses: [...new Set(ids)].slice(0, 4),
-      read: r.name
+      read: r.name,
+      stored: 0
     }
   })
   return { grids, rows }
 }
 
-/** The grid to list first: with more than one, the smaller (the container rather than the stash). */
-const defaultShown = (grids: GridScan[]): number[] =>
-  grids.length <= 1
+/**
+ * The grids to list: for new loot with more than one, the smaller (the container rather than the stash);
+ * for everything the player has, all of them.
+ */
+const defaultShown = (grids: GridScan[], mode: ScanMode): number[] =>
+  grids.length <= 1 || mode === 'stash'
     ? grids.map((_, i) => i)
     : [grids.reduce((best, g, i) => (g.tiles.length < grids[best].tiles.length ? i : best), 0)]
 
-async function scan(items: LootItem[], region: Region | null = useScan.getState().region): Promise<void> {
-  const { pixels } = useScan.getState()
-  if (!pixels) return
-  patch({ busy: true, error: null, region })
+const updateShot = (id: number, change: Partial<Shot>): void =>
+  patch({ shots: useScan.getState().shots.map((s) => (s.id === id ? { ...s, ...change } : s)) })
+
+/** (Re)read one screenshot, replacing its rows. */
+async function scanShot(id: number, items: LootItem[], region: Region | null): Promise<void> {
+  const shot = useScan.getState().shots.find((s) => s.id === id)
+  if (!shot) return
+  patch({ busy: true, error: null })
+  updateShot(id, { region })
   const started = performance.now()
   try {
-    const { grids, rows } = await readShot(pixels, region, items)
-    patch({
-      busy: false,
+    const { grids, rows } = await readShot(id, shot.pixels, region, items)
+    const { shots, rows: current, mode } = useScan.getState()
+    // Rows stay in screenshot order, with items added by hand last.
+    const ordered = shots.flatMap((s) => (s.id === id ? rows : current.filter((r) => r.shot === s.id)))
+    patch({ busy: false, rows: [...ordered, ...current.filter((r) => r.shot === null)] })
+    updateShot(id, {
       grids,
-      rows,
-      shown: defaultShown(grids),
+      shown: defaultShown(grids, mode),
       seconds: (performance.now() - started) / 1000,
       error: grids.length
         ? null
@@ -206,21 +256,64 @@ async function scan(items: LootItem[], region: Region | null = useScan.getState(
   }
 }
 
-async function open(blob: Blob, name: string, items: LootItem[]): Promise<void> {
-  const previous = useScan.getState().shot
-  patch({ ...EMPTY, busy: true })
-  if (previous) URL.revokeObjectURL(previous.url)
-  try {
-    const pixels = await decode(blob)
-    patch({
-      pixels,
-      shot: { url: URL.createObjectURL(blob), name, width: pixels.width, height: pixels.height }
-    })
-    await scan(items, null)
-  } catch {
-    patch({ ...EMPTY, error: 'That file isn’t a picture the app can read. Use a PNG or JPEG screenshot.' })
+/** Add a screenshot to the scan, or start a new scan with it. */
+async function addShot(
+  blob: Blob,
+  name: string,
+  source: string,
+  items: LootItem[],
+  fresh: boolean
+): Promise<void> {
+  const state = useScan.getState()
+  if (!fresh && state.shots.some((s) => s.source === source)) {
+    patch({ error: 'That screenshot is already in this scan. Take another one in game first.' })
+    return
   }
+  if (fresh) {
+    for (const s of state.shots) URL.revokeObjectURL(s.url)
+    patch({ ...EMPTY })
+  }
+  patch({ busy: true, error: null })
+  let pixels: RgbaImage
+  try {
+    pixels = await decode(blob)
+  } catch {
+    patch({ busy: false, error: 'That file isn’t a picture the app can read. Use a PNG or JPEG screenshot.' })
+    return
+  }
+  const id = nextShot++
+  const shot: Shot = {
+    id,
+    source,
+    url: URL.createObjectURL(blob),
+    name,
+    width: pixels.width,
+    height: pixels.height,
+    pixels,
+    grids: [],
+    shown: [],
+    region: null,
+    seconds: null,
+    error: null,
+    keepRepeats: false
+  }
+  patch({ shots: [...useScan.getState().shots, shot], active: id })
+  await scanShot(id, items, null)
 }
+
+function removeShot(id: number): void {
+  const { shots, rows, active } = useScan.getState()
+  const shot = shots.find((s) => s.id === id)
+  if (shot) URL.revokeObjectURL(shot.url)
+  const left = shots.filter((s) => s.id !== id)
+  patch({
+    shots: left,
+    rows: rows.filter((r) => r.shot !== id),
+    active: active === id ? (left[left.length - 1]?.id ?? null) : active
+  })
+}
+
+const fileSource = (file: File): string => `file:${file.name}:${file.size}:${file.lastModified}`
 
 function imageFrom(list: DataTransferItemList | FileList | null | undefined): File | null {
   if (!list) return null
@@ -229,6 +322,38 @@ function imageFrom(list: DataTransferItemList | FileList | null | undefined): Fi
       ? Array.from(list)
       : Array.from(list).map((entry) => (entry.kind === 'file' ? entry.getAsFile() : null))
   return files.find((file) => file?.type.startsWith('image/')) ?? null
+}
+
+/** Where each item sits in its grid, for spotting rows a screenshot repeats. */
+const placed = (rows: ScanRow[], shot: number, grid: number): PlacedItem[] =>
+  rows
+    .filter((r) => r.shot === shot && r.grid === grid && r.tile)
+    .map((r) => ({ col: r.tile!.col, row: r.tile!.row, w: r.tile!.w, h: r.tile!.h, itemId: r.itemId }))
+
+/** Per screenshot after the first: the grid rows at its top that repeat the one before. */
+function repeatedRows(
+  shots: Shot[],
+  rows: ScanRow[]
+): Map<number, { grid: number; first: number; rows: number }> {
+  const result = new Map<number, { grid: number; first: number; rows: number }>()
+  for (let i = 1; i < shots.length; i++) {
+    const prev = shots[i - 1]
+    const next = shots[i]
+    for (const g of next.shown) {
+      const lattice = next.grids[g]?.lattice
+      const match = prev.shown.find(
+        (p) => Math.abs((prev.grids[p]?.lattice.cell ?? 0) - (lattice?.cell ?? -9)) < 1
+      )
+      if (match === undefined || !lattice) continue
+      const tiles = placed(rows, next.id, g)
+      const repeated = findOverlap(placed(rows, prev.id, match), tiles)
+      if (repeated) {
+        result.set(next.id, { grid: g, first: Math.min(...tiles.map((t) => t.row)), rows: repeated })
+        break
+      }
+    }
+  }
+  return result
 }
 
 /** Search box plus the scanner's best guesses, to set a row's item. */
@@ -303,6 +428,12 @@ function Advice({ advice, item }: { advice: ScanAdvice; item: LootItem | undefin
         <span>
           <span className="badge ok">{advice.sell ? `Keep ${advice.keep}` : 'Keep'}</span>{' '}
           <span className="muted nowrap">for {keepFor.join(', ')}</span>
+          {advice.stored > 0 && (
+            <span className="muted nowrap" title="Added to the Have counts in Items needed">
+              {' '}
+              · added
+            </span>
+          )}
           {advice.scarce && <ScarceBadge scarce={advice.scarce} />}
         </span>
       )}
@@ -325,22 +456,52 @@ function Advice({ advice, item }: { advice: ScanAdvice; item: LootItem | undefin
   )
 }
 
+/** For counting everything the player has: whether the hideout's list wants the item. */
+function Listed({
+  need,
+  item
+}: {
+  need: HideoutNeed | undefined
+  item: LootItem | undefined
+}): React.JSX.Element {
+  if (!item) return <span className="badge warn">Pick the item</span>
+  if (CURRENCIES[item.id]) return <span className="muted">Money isn&rsquo;t counted</span>
+  return need ? (
+    <span className="scan-advice">
+      <span className="badge ok">On the list</span>
+      <span className="muted nowrap">needs {need.needed}</span>
+    </span>
+  ) : (
+    <span className="muted nowrap" title="Not needed by the hideout: its count isn't kept">
+      Not on the list
+    </span>
+  )
+}
+
 export default function ScavScan({
   settings,
   priceState,
-  items
+  items,
+  progress,
+  allNeeds
 }: {
   settings: PublicSettings
   priceState: PriceState | null
   items: Items
+  progress: HideoutProgress
+  /** What every unbuilt level still needs (the list counts are set against). */
+  allNeeds: HideoutNeed[]
 }): React.JSX.Element {
   const state = useScan()
   const keep = useKeepList(settings, priceState)
+  const setHaveMany = useStore((s) => s.setHideoutHaveMany)
   const [picking, setPicking] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
   const [selecting, setSelecting] = useState(false)
   const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [dropping, setDropping] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [saving, setSaving] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const svg = useRef<SVGSVGElement>(null)
   const rowRefs = useRef(new Map<number, HTMLTableRowElement>())
@@ -348,27 +509,54 @@ export default function ScavScan({
   const listRef = useRef(list)
   listRef.current = list
 
+  const { mode, shots } = state
   const ctx: ValuationContext = {
     playerLevel: settings.playerLevels[settings.gameMode],
     fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
     subtractFleaFee: settings.subtractFleaFee
   }
-  const rows = state.rows.filter((r) => r.grid === null || state.shown.includes(r.grid))
-  const advice = adviseScan(rows, items, keep, ctx)
+  const shotsById = new Map(shots.map((s) => [s.id, s]))
+  const shotNumber = new Map(shots.map((s, i) => [s.id, i + 1]))
+  const repeats = repeatedRows(shots, state.rows)
+  const isRepeat = (r: ScanRow): boolean => {
+    const rep = r.shot !== null ? repeats.get(r.shot) : undefined
+    return (
+      !!rep &&
+      !!r.tile &&
+      !shotsById.get(r.shot!)?.keepRepeats &&
+      r.grid === rep.grid &&
+      inOverlap(r.tile, rep.first, rep.rows)
+    )
+  }
+  const counted = state.rows.filter(
+    (r) => (r.shot === null || !!shotsById.get(r.shot)?.shown.includes(r.grid ?? -1)) && !isRepeat(r)
+  )
+  const advice = adviseScan(counted, items, keep, ctx)
   const totals = scanTotals(advice)
-  const toCheck = rows.filter((r) => r.confidence === 'low' || !r.itemId).length
-  const number = new Map(rows.map((r, i) => [r.key, i + 1]))
+  const toCheck = counted.filter((r) => r.confidence === 'low' || !r.itemId).length
+  const number = new Map(counted.map((r, i) => [r.key, i + 1]))
   const noSizes = list.length > 0 && !list.some((i) => i.width && i.height)
+  const needById = new Map(allNeeds.map((n) => [n.itemId, n]))
+  const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
+  const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
+  const added = advice.reduce((n, a) => n + a.stored, 0)
+  const forQuests = advice.reduce((n, a) => n + a.keepFor.quests, 0)
+  const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress.have) : null
+  const zeroed = stash?.changes.filter((c) => c.to === 0) ?? []
+  const active = state.active !== null ? (shotsById.get(state.active) ?? null) : null
+  const activeRepeat = active ? repeats.get(active.id) : undefined
+  const name = (id: string): string => items.get(id)?.name ?? 'Unknown item'
 
   // Paste and drop anywhere on the tab; stop a dropped file from replacing the page.
   useEffect(() => {
+    const fresh = (): boolean => useScan.getState().mode === 'loot' || !useScan.getState().shots.length
     const onPaste = (e: ClipboardEvent): void => {
       const target = e.target as HTMLElement | null
       if (target?.closest('input, textarea')) return
       const file = imageFrom(e.clipboardData?.items)
       if (file) {
         e.preventDefault()
-        void open(file, 'Pasted picture', listRef.current)
+        void addShot(file, 'Pasted picture', `paste:${Date.now()}`, listRef.current, fresh())
       }
     }
     const onDragOver = (e: DragEvent): void => {
@@ -382,7 +570,7 @@ export default function ScavScan({
       e.preventDefault()
       setDropping(false)
       const file = imageFrom(e.dataTransfer?.files)
-      if (file) void open(file, file.name, listRef.current)
+      if (file) void addShot(file, file.name, fileSource(file), listRef.current, fresh())
     }
     window.addEventListener('paste', onPaste)
     window.addEventListener('dragover', onDragOver)
@@ -396,7 +584,9 @@ export default function ScavScan({
     }
   }, [])
 
-  const useLatest = async (): Promise<void> => {
+  /** New loot starts a new scan; counting everything adds to the one under way. */
+  const fresh = mode === 'loot' || !shots.length
+  const useLatest = async (startNew: boolean): Promise<void> => {
     patch({ busy: true, error: null })
     const file = await window.api.getLatestScreenshot().catch(() => null)
     if (!file) {
@@ -412,7 +602,13 @@ export default function ScavScan({
       : /\.bmp$/i.test(file.name)
         ? 'image/bmp'
         : 'image/png'
-    await open(new Blob([new Uint8Array(file.data)], { type }), file.name, list)
+    await addShot(
+      new Blob([new Uint8Array(file.data)], { type }),
+      file.name,
+      `latest:${file.name}:${file.modified}`,
+      list,
+      startNew
+    )
   }
 
   const updateRow = (key: number, change: Partial<ScanRow>): void =>
@@ -424,23 +620,77 @@ export default function ScavScan({
     patch({
       rows: [
         ...useScan.getState().rows,
-        { key, grid: null, tile: null, itemId: null, count: 1, confidence: 'high', guesses: [], read: '' }
+        {
+          key,
+          shot: null,
+          grid: null,
+          tile: null,
+          itemId: null,
+          count: 1,
+          confidence: 'high',
+          guesses: [],
+          read: '',
+          stored: 0
+        }
       ]
     })
     setPicking(key)
   }
 
+  const save = async (counts: CountChange[], use: 'from' | 'to'): Promise<boolean> => {
+    setSaving(true)
+    try {
+      await setHaveMany(Object.fromEntries(counts.map((c) => [c.itemId, c[use]])))
+      return true
+    } catch (err) {
+      patch({ error: `Couldn’t update Items needed: ${err instanceof Error ? err.message : String(err)}` })
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+  const addLoot = async (): Promise<void> => {
+    if (!loot?.changes.length) return
+    const before = new Map(counted.map((r) => [r.key, r.stored]))
+    if (!(await save(loot.changes, 'to'))) return
+    const after = new Map(counted.map((r, i) => [r.key, loot.stored[i]]))
+    patch({
+      rows: useScan.getState().rows.map((r) => (after.has(r.key) ? { ...r, stored: after.get(r.key)! } : r)),
+      applied: { mode: 'loot', changes: loot.changes, stored: before }
+    })
+  }
+  const updateCounts = async (): Promise<void> => {
+    if (!stash?.changes.length) return
+    if (zeroed.length && !confirming) {
+      setConfirming(true)
+      return
+    }
+    setConfirming(false)
+    if (await save(stash.changes, 'to'))
+      patch({ applied: { mode: 'stash', changes: stash.changes, stored: new Map() } })
+  }
+  const undo = async (): Promise<void> => {
+    const { applied } = useScan.getState()
+    if (!applied || !(await save(applied.changes, 'from'))) return
+    patch({
+      applied: null,
+      rows: useScan
+        .getState()
+        .rows.map((r) => (applied.stored.has(r.key) ? { ...r, stored: applied.stored.get(r.key)! } : r))
+    })
+  }
+
   // Region selection, in picture pixels.
   const toImage = (e: React.PointerEvent): { x: number; y: number } | null => {
     const rect = svg.current?.getBoundingClientRect()
-    if (!rect || !state.shot) return null
+    if (!rect || !active) return null
     return {
-      x: ((e.clientX - rect.left) / rect.width) * state.shot.width,
-      y: ((e.clientY - rect.top) / rect.height) * state.shot.height
+      x: ((e.clientX - rect.left) / rect.width) * active.width,
+      y: ((e.clientY - rect.top) / rect.height) * active.height
     }
   }
   const finishDrag = (): void => {
-    if (!drag) return
+    if (!drag || !active) return
     const region = {
       x: Math.min(drag.x0, drag.x1),
       y: Math.min(drag.y0, drag.y1),
@@ -449,7 +699,7 @@ export default function ScavScan({
     }
     setDrag(null)
     setSelecting(false)
-    if (region.width > 40 && region.height > 40) void scan(list, region)
+    if (region.width > 40 && region.height > 40) void scanShot(active.id, list, region)
   }
 
   const focusRow = (key: number): void => {
@@ -457,22 +707,54 @@ export default function ScavScan({
     rowRefs.current.get(key)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }
 
+  const found = shots.reduce((n, s) => n + s.grids.reduce((m, g) => m + g.tiles.length, 0), 0)
+  const repeated = state.rows.filter(isRepeat).length
   const status = state.busy
     ? 'Reading the screenshot…'
-    : state.shot && !state.error
-      ? `${state.grids.reduce((n, g) => n + g.tiles.length, 0)} items found${
-          state.seconds != null ? ` in ${state.seconds.toFixed(1)} s` : ''
-        }${state.region ? ' in the area you picked' : ''}`
+    : shots.length
+      ? `${found} items found${shots.length > 1 ? ` in ${shots.length} screenshots` : ''}${
+          active?.seconds != null && shots.length === 1 ? ` in ${active.seconds.toFixed(1)} s` : ''
+        }${repeated ? `, ${repeated} repeated ones left out` : ''}${active?.region ? ' (part of the picture)' : ''}`
       : ''
 
   return (
     <div className={`scan ${dropping ? 'dropping' : ''}`}>
       <div className="scan-toolbar">
-        <button className="button primary" onClick={() => void useLatest()} disabled={state.busy}>
-          Use latest screenshot
+        <div className="segmented small" role="radiogroup" aria-label="What the screenshots show">
+          {(
+            [
+              ['loot', 'New loot', 'A scav case haul or a container: what to keep, what to sell'],
+              ['stash', 'Everything I have', 'Your stash and cases: set the Have counts in Items needed']
+            ] as const
+          ).map(([id, text, title]) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={mode === id}
+              className={mode === id ? 'active' : ''}
+              title={title}
+              onClick={() => setMode(id)}
+              disabled={state.busy}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        <button className="button primary" onClick={() => void useLatest(fresh)} disabled={state.busy}>
+          {fresh ? 'Use latest screenshot' : 'Add latest screenshot'}
         </button>
+        {mode === 'loot' && shots.length > 0 && (
+          <button
+            className="button"
+            onClick={() => void useLatest(false)}
+            disabled={state.busy}
+            title="Add your newest screenshot to this scan, for a haul that takes more than one"
+          >
+            Add another
+          </button>
+        )}
         <button className="button" onClick={() => fileInput.current?.click()} disabled={state.busy}>
-          Open picture…
+          {fresh ? 'Open picture…' : 'Add picture…'}
         </button>
         <input
           ref={fileInput}
@@ -481,11 +763,11 @@ export default function ScavScan({
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0]
-            if (file) void open(file, file.name, list)
+            if (file) void addShot(file, file.name, fileSource(file), list, fresh)
             e.target.value = ''
           }}
         />
-        {state.shot && (
+        {active && (
           <>
             <button
               className={`button ${selecting ? 'primary' : ''}`}
@@ -495,50 +777,124 @@ export default function ScavScan({
             >
               {selecting ? 'Drag a box on the picture…' : 'Scan part of it'}
             </button>
-            {state.region && (
-              <button className="button" onClick={() => void scan(list, null)} disabled={state.busy}>
+            {active.region && (
+              <button
+                className="button"
+                onClick={() => void scanShot(active.id, list, null)}
+                disabled={state.busy}
+              >
                 Scan all of it
               </button>
             )}
           </>
         )}
+        {shots.length > 0 && (
+          <button
+            className="button"
+            onClick={() => {
+              for (const s of shots) URL.revokeObjectURL(s.url)
+              patch({ ...EMPTY })
+            }}
+            disabled={state.busy}
+          >
+            Start over
+          </button>
+        )}
         <span className="muted scan-status">{status}</span>
       </div>
       {state.error && <p className="scan-error">{state.error}</p>}
+      {active?.error && <p className="scan-error">{active.error}</p>}
       {noSizes && (
         <p className="scan-error">
           The scanner needs item sizes, which only tarkov.dev prices have. Switch the price source in
           Settings.
         </p>
       )}
-      {!state.shot ? (
+      {!active ? (
         <div className="empty scan-empty">
-          <p>
-            <strong>What to keep from your scav case</strong>
-          </p>
-          <p>
-            Take a screenshot in game of your scav case haul (or any container), then use{' '}
-            <em>Use latest screenshot</em>, open the picture, paste it (Ctrl+V) or drop it here.
-          </p>
-          <p className="muted">
-            The app finds each item, reads its name and count (on your PC, nothing is uploaded), and says what
-            to keep for your hideout and active quests and what to sell, and where.
-          </p>
+          {mode === 'loot' ? (
+            <>
+              <p>
+                <strong>What to keep from your scav case</strong>
+              </p>
+              <p>
+                Take a screenshot in game of your scav case haul (or any container), then use{' '}
+                <em>Use latest screenshot</em>, open the picture, paste it (Ctrl+V) or drop it here.
+              </p>
+              <p className="muted">
+                The app finds each item, reads its name and count (on your PC, nothing is uploaded), says what
+                to keep for your hideout and active quests and what to sell, and can add what you keep to
+                Items needed.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                <strong>Count everything you have</strong>
+              </p>
+              <p>
+                Screenshot each page of your stash (scroll down between them) and every case or container you
+                keep hideout items in, open, and add them all here. Then update Items needed: each item on the
+                list gets the number your screenshots show.
+              </p>
+              <p className="muted">
+                Items on the list that aren&rsquo;t in any screenshot go back to 0, so include every place you
+                keep them. Rows a screenshot repeats from the one before aren&rsquo;t counted twice.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="scan-body">
           <div className="scan-shot">
-            {state.grids.length > 1 && (
+            {(shots.length > 1 || mode === 'stash') && (
+              <div className="scan-shots">
+                {shots.map((s, i) => (
+                  <div key={s.id} className={`scan-thumb ${s.id === active.id ? 'active' : ''}`}>
+                    <button onClick={() => patch({ active: s.id })} title={s.name}>
+                      <img src={s.url} alt="" />
+                      <span>{i + 1}</span>
+                    </button>
+                    <button
+                      className="scan-thumb-remove"
+                      title="Leave this screenshot out"
+                      onClick={() => removeShot(s.id)}
+                      disabled={state.busy}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {activeRepeat && (
+              <p className="scan-repeat">
+                {active.keepRepeats
+                  ? `Counting the top ${activeRepeat.rows} rows, which repeat screenshot ${
+                      (shotNumber.get(active.id) ?? 2) - 1
+                    }.`
+                  : `The top ${activeRepeat.rows} rows repeat screenshot ${
+                      (shotNumber.get(active.id) ?? 2) - 1
+                    }, so they aren’t counted twice.`}{' '}
+                <button
+                  className="link-like"
+                  onClick={() => updateShot(active.id, { keepRepeats: !active.keepRepeats })}
+                >
+                  {active.keepRepeats ? 'Don’t count them' : 'Count them anyway'}
+                </button>
+              </p>
+            )}
+            {active.grids.length > 1 && (
               <div className="scan-grids">
-                <span className="muted">Found {state.grids.length} item grids:</span>
-                {state.grids.map((g, i) => (
+                <span className="muted">Found {active.grids.length} item grids:</span>
+                {active.grids.map((g, i) => (
                   <label key={i} className="check">
                     <input
                       type="checkbox"
-                      checked={state.shown.includes(i)}
+                      checked={active.shown.includes(i)}
                       onChange={(e) =>
-                        patch({
-                          shown: e.target.checked ? [...state.shown, i] : state.shown.filter((s) => s !== i)
+                        updateShot(active.id, {
+                          shown: e.target.checked ? [...active.shown, i] : active.shown.filter((s) => s !== i)
                         })
                       }
                     />
@@ -548,10 +904,10 @@ export default function ScavScan({
               </div>
             )}
             <div className="scan-frame">
-              <img src={state.shot.url} alt={state.shot.name} draggable={false} />
+              <img src={active.url} alt={active.name} draggable={false} />
               <svg
                 ref={svg}
-                viewBox={`0 0 ${state.shot.width} ${state.shot.height}`}
+                viewBox={`0 0 ${active.width} ${active.height}`}
                 className={selecting ? 'selecting' : ''}
                 onPointerDown={(e) => {
                   if (!selecting) return
@@ -568,34 +924,38 @@ export default function ScavScan({
                 }}
                 onPointerUp={finishDrag}
               >
-                {state.region && (
+                {active.region && (
                   <rect
                     className="scan-region"
-                    x={state.region.x}
-                    y={state.region.y}
-                    width={state.region.width}
-                    height={state.region.height}
+                    x={active.region.x}
+                    y={active.region.y}
+                    width={active.region.width}
+                    height={active.region.height}
                   />
                 )}
-                {state.rows.map((r, i) => {
-                  if (!r.tile || r.grid === null) return null
-                  const shown = state.shown.includes(r.grid)
-                  const a = shown ? advice[rows.indexOf(r)] : null
-                  const kind = !shown
+                {state.rows.map((r) => {
+                  if (r.shot !== active.id || !r.tile || r.grid === null) return null
+                  const n = number.get(r.key)
+                  const a = n ? advice[n - 1] : null
+                  const kind = !n
                     ? 'off'
                     : r.confidence === 'low' || !r.itemId
                       ? 'check'
-                      : a && a.keep > 0
-                        ? 'keep'
-                        : 'sell'
+                      : mode === 'stash'
+                        ? r.itemId && needById.has(r.itemId)
+                          ? 'keep'
+                          : 'sell'
+                        : a && a.keep > 0
+                          ? 'keep'
+                          : 'sell'
                   const t = r.tile
                   return (
                     <g
                       key={r.key}
                       className={`scan-box ${kind} ${hover === r.key ? 'hover' : ''}`}
-                      onMouseEnter={() => shown && setHover(r.key)}
+                      onMouseEnter={() => n && setHover(r.key)}
                       onMouseLeave={() => setHover(null)}
-                      onClick={() => shown && focusRow(r.key)}
+                      onClick={() => n && focusRow(r.key)}
                     >
                       <rect
                         x={t.left + 1}
@@ -603,9 +963,9 @@ export default function ScavScan({
                         width={t.right - t.left - 2}
                         height={t.bottom - t.top - 2}
                       />
-                      {shown && (
+                      {n && (
                         <text x={t.left + 4} y={t.top + 4} dominantBaseline="hanging">
-                          {number.get(r.key) ?? i + 1}
+                          {n}
                         </text>
                       )}
                     </g>
@@ -624,7 +984,7 @@ export default function ScavScan({
             </div>
           </div>
           <div className="scan-results">
-            {rows.length > 0 && (
+            {counted.length > 0 && mode === 'loot' && (
               <div className="scan-totals">
                 <div>
                   <span className="muted">Sell the rest for</span> <strong>≈ {formatRub(totals.sell)}</strong>
@@ -642,11 +1002,105 @@ export default function ScavScan({
                     {toCheck ? ` · ${toCheck} to check` : ''}
                   </span>
                 </div>
+                <div className="scan-apply">
+                  {toAdd > 0 ? (
+                    <button className="button primary small" onClick={() => void addLoot()} disabled={saving}>
+                      Add {toAdd} kept item{toAdd === 1 ? '' : 's'} to Items needed
+                    </button>
+                  ) : added > 0 ? (
+                    <span className="badge ok">Added to Items needed ✓</span>
+                  ) : null}
+                  {state.applied?.mode === 'loot' && (
+                    <button className="button small" onClick={() => void undo()} disabled={saving}>
+                      Undo
+                    </button>
+                  )}
+                  {forQuests > 0 && (
+                    <span className="muted scan-note">
+                      {forQuests} kept for quests: Items needed only counts the hideout&rsquo;s.
+                    </span>
+                  )}
+                </div>
                 <div className="muted scan-note">
                   Keeps what your active quests need and what the hideout needs for{' '}
                   {settings.hideout.scope === 'next' ? 'the next level of each station' : 'every level left'}{' '}
                   (see <em>Count items for</em>), sells the rest where it pays most at level {ctx.playerLevel}
                   .
+                </div>
+              </div>
+            )}
+            {stash && (
+              <div className="scan-totals">
+                <div>
+                  <strong>
+                    Items needed from{' '}
+                    {shots.length === 1 ? 'this screenshot' : `these ${shots.length} screenshots`}
+                  </strong>
+                </div>
+                {stash.changes.length ? (
+                  <ul className="scan-changes">
+                    {stash.changes
+                      .filter((c) => c.to > 0)
+                      .sort((a, b) => name(a.itemId).localeCompare(name(b.itemId)))
+                      .map((c) => (
+                        <li key={c.itemId}>
+                          {name(c.itemId)}{' '}
+                          <span className="muted">
+                            {c.from} → <strong>{c.to}</strong>
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <div className="muted">
+                    {state.applied?.mode === 'stash' ? 'Counts updated ✓' : 'Your counts already match.'}
+                  </div>
+                )}
+                {zeroed.length > 0 && (
+                  <div className="scan-zeroed">
+                    <span className="muted">Not in your screenshots, back to 0:</span>{' '}
+                    {zeroed
+                      .map((c) => `${name(c.itemId)} (${c.from})`)
+                      .sort()
+                      .join(', ')}
+                  </div>
+                )}
+                <div className="muted scan-note">
+                  {stash.unchanged} already right · {stash.ignored} item{stash.ignored === 1 ? '' : 's'} seen
+                  that the hideout doesn&rsquo;t need{toCheck ? ` · ${toCheck} to check` : ''}
+                </div>
+                <div className="scan-apply">
+                  {stash.changes.length > 0 &&
+                    (confirming ? (
+                      <>
+                        <span className="scan-warn">
+                          {zeroed.length} item{zeroed.length === 1 ? '' : 's'} will go back to 0.
+                        </span>
+                        <button
+                          className="button primary small"
+                          onClick={() => void updateCounts()}
+                          disabled={saving}
+                        >
+                          Update anyway
+                        </button>
+                        <button className="button small" onClick={() => setConfirming(false)}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="button primary small"
+                        onClick={() => void updateCounts()}
+                        disabled={saving || state.busy}
+                      >
+                        Update my counts
+                      </button>
+                    ))}
+                  {state.applied?.mode === 'stash' && (
+                    <button className="button small" onClick={() => void undo()} disabled={saving}>
+                      Undo
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -656,16 +1110,17 @@ export default function ScavScan({
                   <th className="num">#</th>
                   <th>Item</th>
                   <th className="num">Count</th>
-                  <th>Do</th>
+                  <th>{mode === 'stash' ? 'Items needed' : 'Do'}</th>
                   <th className="num">Worth</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => {
+                {counted.map((r, i) => {
                   const item = r.itemId ? items.get(r.itemId) : undefined
                   const a = advice[i]
                   const check = r.confidence === 'low' || !item
+                  const listed = mode === 'stash' && !!r.itemId && needById.has(r.itemId)
                   return (
                     <tr
                       key={r.key}
@@ -673,11 +1128,25 @@ export default function ScavScan({
                         if (el) rowRefs.current.set(r.key, el)
                         else rowRefs.current.delete(r.key)
                       }}
-                      className={`${check ? 'check' : a.keep ? 'keep' : ''} ${hover === r.key ? 'hover' : ''}`}
+                      className={`${check ? 'check' : (mode === 'stash' ? listed : a.keep) ? 'keep' : ''} ${
+                        hover === r.key ? 'hover' : ''
+                      }`}
                       onMouseEnter={() => setHover(r.key)}
                       onMouseLeave={() => setHover(null)}
                     >
-                      <td className="num muted">{i + 1}</td>
+                      <td className="num muted">
+                        {r.shot !== null && r.shot !== active.id ? (
+                          <button
+                            className="link-like"
+                            title={`On screenshot ${shotNumber.get(r.shot)}: show it`}
+                            onClick={() => patch({ active: r.shot })}
+                          >
+                            {i + 1}
+                          </button>
+                        ) : (
+                          i + 1
+                        )}
+                      </td>
                       <td className="item-cell">
                         {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                         <span>
@@ -721,19 +1190,32 @@ export default function ScavScan({
                         />
                       </td>
                       <td>
-                        <Advice advice={a} item={item} />
+                        {mode === 'stash' ? (
+                          <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
+                        ) : (
+                          <Advice advice={a} item={item} />
+                        )}
                       </td>
                       <td className="num">
-                        {a.total > 0 ? (
+                        {mode === 'loot' && a.total > 0 ? (
                           formatRub(a.total)
-                        ) : a.keep > 0 && a.each > 0 ? (
-                          <span className="muted" title="What the ones you keep would sell for">
-                            {formatRub(a.each * a.keep)}
+                        ) : a.each > 0 ? (
+                          <span
+                            className="muted"
+                            title={
+                              mode === 'loot'
+                                ? 'What the ones you keep would sell for'
+                                : 'What they would sell for'
+                            }
+                          >
+                            {formatRub(a.each * (mode === 'loot' ? a.keep : r.count))}
                           </span>
                         ) : (
                           '—'
                         )}
-                        {a.sell > 1 && a.each > 0 && <small>{formatRub(a.each)} each</small>}
+                        {mode === 'loot' && a.sell > 1 && a.each > 0 && (
+                          <small>{formatRub(a.each)} each</small>
+                        )}
                       </td>
                       <td>
                         <button className="button icon small" title="Remove" onClick={() => removeRow(r.key)}>

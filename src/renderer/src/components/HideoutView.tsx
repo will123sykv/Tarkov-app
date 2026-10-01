@@ -27,7 +27,7 @@ import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
-import ScavScan from './ScavScan'
+import ScavScan, { startStashCount } from './ScavScan'
 
 type Items = ReadonlyMap<string, LootItem>
 
@@ -431,6 +431,8 @@ export default function HideoutView({
   const stations = useMemo(() => dataset?.stations ?? [], [dataset])
   const stationsById = useMemo(() => new Map(stations.map((s) => [s.id, s])), [stations])
   const needs = useMemo(() => hideoutNeeds(stations, progress, h.scope), [stations, progress, h.scope])
+  // Counts set from screenshots cover every level left, whatever the list shows.
+  const allNeeds = useMemo(() => hideoutNeeds(stations, progress, 'all'), [stations, progress])
   const term = search.trim().toLowerCase()
   const shownNeeds = useMemo(
     () => (term ? needs.filter((n) => items.get(n.itemId)?.name.toLowerCase().includes(term)) : needs),
@@ -633,9 +635,9 @@ export default function HideoutView({
                 aria-selected={h.tab === 'scav'}
                 className={h.tab === 'scav' ? 'active' : ''}
                 onClick={() => set({ tab: 'scav' })}
-                title="Read a screenshot of your scav case haul and see what to keep and what to sell"
+                title="Read screenshots: what to keep and sell from new loot, or count everything you have"
               >
-                Scav case
+                Screenshots
               </button>
             </div>
             {h.tab === 'items' && (
@@ -666,12 +668,28 @@ export default function HideoutView({
                   />
                   Can&rsquo;t buy or rare only
                 </label>
+                <button
+                  className="button small"
+                  title="Set the Have counts from screenshots of your stash and cases"
+                  onClick={() => {
+                    startStashCount()
+                    set({ tab: 'scav' })
+                  }}
+                >
+                  Count from screenshots
+                </button>
               </>
             )}
           </div>
         </div>
         {h.tab === 'scav' ? (
-          <ScavScan settings={settings} priceState={priceState} items={items} />
+          <ScavScan
+            settings={settings}
+            priceState={priceState}
+            items={items}
+            progress={progress}
+            allNeeds={allNeeds}
+          />
         ) : h.tab === 'items' ? (
           <ItemsNeeded
             needs={shownNeeds}

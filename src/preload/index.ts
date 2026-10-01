@@ -27,6 +27,7 @@ const api: TarkovApi = {
     ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),
   setHideoutHave: (gameMode, itemId, count) =>
     ipcRenderer.invoke(IPC.hideoutSetHave, gameMode, itemId, count),
+  setHideoutHaveMany: (gameMode, counts) => ipcRenderer.invoke(IPC.hideoutSetHaveMany, gameMode, counts),
   setTraderLevel: (gameMode, traderId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetTrader, gameMode, traderId, level),
   buildStationLevel: (gameMode, stationId, level) =>
