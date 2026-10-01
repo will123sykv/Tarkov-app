@@ -15,7 +15,7 @@ async function main(): Promise<void> {
   const stations = values(hideout as Record<string, Raw>)
   console.log(`[hideout] ${stations.length} stations, keys ${JSON.stringify(Object.keys(stations[0] ?? {}))}`)
   const lavatory = stations.find((s) => s.normalizedName === 'lavatory') ?? stations[0]
-  console.log(`[hideout] lavatory ${JSON.stringify(lavatory).slice(0, 6000)}`)
+  console.log(`[hideout] lavatory ${JSON.stringify(lavatory).slice(0, 300)}`)
   const keys = {
     level: new Set<string>(),
     item: new Set<string>(),
@@ -29,10 +29,8 @@ async function main(): Promise<void> {
       Object.keys(l).forEach((k) => keys.level.add(k))
       for (const r of (l.itemRequirements ?? []) as Raw[]) {
         Object.keys(r).forEach((k) => keys.item.add(k))
-        for (const a of (r.attributes ?? []) as Raw[]) {
-          const key = JSON.stringify(a)
-          attributes.set(key, (attributes.get(key) ?? 0) + 1)
-        }
+        const key = JSON.stringify(r.attributes)
+        attributes.set(key, (attributes.get(key) ?? 0) + 1)
       }
       for (const r of (l.stationLevelRequirements ?? []) as Raw[])
         Object.keys(r).forEach((k) => keys.station.add(k))
