@@ -65,9 +65,13 @@ async function probeTasks(): Promise<void> {
   for (const [k, v] of Object.entries(hideout)) {
     log('hideout', k, JSON.stringify(v).slice(0, 300), hideoutEn[String(rec(v).name)])
   }
-  const skillKeys = Object.keys(en)
-    .filter((k) => /skill/i.test(k))
-    .slice(0, 10)
+  const skillKeys = [
+    '664f23e44702fd5db50ee732 name',
+    '664f23e44702fd5db50ee732 Name',
+    '67585d2cd7a2703986067e99 Name',
+    'Surgery',
+    ...Object.keys(en).filter((k) => k.startsWith('664f23e44702fd5db50ee732'))
+  ]
   log(
     'rewards',
     'en skill keys',
