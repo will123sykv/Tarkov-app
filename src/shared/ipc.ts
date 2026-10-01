@@ -2,6 +2,7 @@ import type { HideoutProgress } from './hideout'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ProgressEntry, QuestProgress } from './questProgress'
 import type { QuestDataState, QuestGuideState } from './questTypes'
+import type { OcrJob, OcrResult, ScreenshotFile } from './scanTypes'
 import type {
   ContainerCatalog,
   ContainerLoot,
@@ -36,6 +37,9 @@ export const IPC = {
   hideoutSetHave: 'hideout:set-have',
   hideoutBuild: 'hideout:build',
   hideoutSetTrader: 'hideout:set-trader',
+  scanReadText: 'scan:read-text',
+  scanGridImage: 'scan:grid-image',
+  scanLatestScreenshot: 'scan:latest-screenshot',
   logsHistory: 'logs:history',
   logsHistoryChanged: 'logs:history-changed',
   logsStatus: 'logs:status',
@@ -84,6 +88,12 @@ export interface TarkovApi {
   setTraderLevel(gameMode: GameMode, traderId: string, level: number): Promise<HideoutProgress>
   /** Build a station's level: set it and use up the items put aside for it. */
   buildStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
+  /** Read labels cut out of a screenshot (OCR, offline). */
+  readLabels(jobs: OcrJob[]): Promise<OcrResult[]>
+  /** An item's tarkov.dev grid image (cached), for telling look-alikes apart. */
+  getGridImage(itemId: string): Promise<Uint8Array | null>
+  /** The newest picture in the game's Screenshots folder, or null when there's none. */
+  getLatestScreenshot(): Promise<ScreenshotFile | null>
   /** Raids and flea sales read from the game's logs. */
   getLogHistory(gameMode: GameMode): Promise<LogHistory>
   getLogStatus(): Promise<LogWatcherStatus>

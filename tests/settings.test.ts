@@ -199,6 +199,7 @@ describe('sanitizeSettings', () => {
       view: 'hideout',
       hideout: chosen
     })
+    expect(sanitizeSettings({ hideout: { ...chosen, tab: 'scav' } }).hideout.tab).toBe('scav')
     expect(
       sanitizeSettings({ hideout: { scope: 'some', hideDone: 'yes', firOnly: 1, keepOnly: 'on', tab: 'x' } })
         .hideout

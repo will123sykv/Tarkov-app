@@ -8,6 +8,27 @@ files:
   - out/**/*
   - package.json
   - '!**/*.map'
+  # The screenshot scanner's OCR: the engines as Node loads them (not the browser builds, which embed
+  # the same engines again), and one English model. Tesseract.js 7 in Node picks a full engine even
+  # for LSTM-only work, so every engine variant stays.
+  - '!node_modules/tesseract.js-core/*.wasm.js'
+  - '!node_modules/tesseract.js/{dist,docs}/**'
+  - '!node_modules/@tesseract.js-data/eng/4.0.0/**'
+# OCR runs in worker threads, which load their code (and the engine and model) from real files.
+asarUnpack:
+  - node_modules/tesseract.js/**
+  - node_modules/tesseract.js-core/**
+  - node_modules/@tesseract.js-data/eng/**
+  - node_modules/bmp-js/**
+  - node_modules/idb-keyval/**
+  - node_modules/is-url/**
+  - node_modules/node-fetch/**
+  - node_modules/whatwg-url/**
+  - node_modules/tr46/**
+  - node_modules/webidl-conversions/**
+  - node_modules/regenerator-runtime/**
+  - node_modules/wasm-feature-detect/**
+  - node_modules/zlibjs/**
 win:
   target:
     - target: nsis

@@ -2599,3 +2599,305 @@ button.link.small {
   margin: 0 0 6px;
   font-size: 12px;
 }
+
+/* Scav case scanner */
+
+.scan {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 16px 0;
+  gap: 8px;
+}
+
+.scan.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}
+
+.scan-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-status {
+  font-size: 12px;
+}
+
+.scan-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: rgba(217, 164, 65, 0.12);
+  color: var(--warn);
+  font-size: 13px;
+}
+
+.scan-empty {
+  max-width: 560px;
+  margin: 0 auto;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  height: auto;
+  margin-top: 24px;
+}
+
+.scan-empty p {
+  color: var(--text);
+}
+
+.scan-empty p.muted {
+  color: var(--muted);
+}
+
+.scan-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1.1fr);
+  gap: 16px;
+}
+
+.scan-shot {
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 16px;
+}
+
+.scan-grids {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.scan-frame {
+  position: relative;
+  line-height: 0;
+}
+
+.scan-frame img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.scan-frame svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scan-frame svg.selecting {
+  cursor: crosshair;
+}
+
+.scan-box {
+  cursor: pointer;
+}
+
+.scan-box rect {
+  fill: transparent;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.scan-box.keep rect {
+  stroke: var(--ok);
+}
+
+.scan-box.sell rect {
+  stroke: var(--info);
+  stroke-opacity: 0.75;
+}
+
+.scan-box.check rect {
+  stroke: var(--warn);
+  stroke-dasharray: 6 3;
+}
+
+.scan-box.off {
+  pointer-events: none;
+}
+
+.scan-box.off rect {
+  stroke: var(--muted);
+  stroke-opacity: 0.4;
+  stroke-width: 1;
+}
+
+.scan-box.hover rect {
+  fill: rgba(200, 178, 122, 0.22);
+  stroke: var(--accent-strong);
+}
+
+.scan-box text {
+  font: 700 16px var(--font);
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 4px;
+}
+
+.scan-region,
+.scan-drag {
+  fill: rgba(200, 178, 122, 0.08);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 8 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.scan-results {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.scan-totals {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.scan-totals strong {
+  color: var(--accent-strong);
+}
+
+.scan-table td {
+  vertical-align: middle;
+}
+
+.scan-table tr.keep td:first-child {
+  box-shadow: inset 3px 0 var(--ok);
+}
+
+.scan-table tr.check td:first-child {
+  box-shadow: inset 3px 0 var(--warn);
+}
+
+.scan-table tr.hover td {
+  background: rgba(200, 178, 122, 0.08);
+}
+
+.scan-table .item-cell > span {
+  position: relative;
+}
+
+.link-like {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-like:hover {
+  text-decoration: underline;
+}
+
+.scan-count {
+  width: 58px;
+  padding: 2px 4px;
+  text-align: right;
+  font-family: var(--mono);
+}
+
+.scan-advice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12px;
+}
+
+.scan-add {
+  margin-top: 8px;
+}
+
+.scan-note {
+  font-size: 12px;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.item-picker {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 340px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.item-picker input {
+  width: 100%;
+}
+
+.item-picker ul {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+}
+
+.item-picker li button {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 0 8px;
+  width: 100%;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item-picker li button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.item-picker li button img {
+  grid-row: span 2;
+}
+
+.item-picker li button .muted {
+  font-size: 11px;
+}
+
+.picker-note {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+@media (max-width: 1250px) {
+  .scan-body {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .scan-shot,
+  .scan-results {
+    overflow: visible;
+  }
+}

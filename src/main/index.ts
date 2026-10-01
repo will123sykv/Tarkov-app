@@ -13,6 +13,7 @@ import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
 import { createPlayerStore } from './quests/playerStore'
+import { createScanService } from './scan/scanService'
 import { createQuestDataService } from './quests/questData'
 import { createQuestGuideService } from './quests/questGuide'
 import { createSettingsStore } from './settings'
@@ -126,7 +127,14 @@ async function bootstrap(): Promise<void> {
     getDataset: (dataMode) => prices.peek(dataMode)?.dataset ?? null
   })
 
-  protocol.handle(MAP_SCHEME, createMapAssetHandler({ cacheDir: join(userData, 'map-cache'), fetchFn }))
+  const mapAssets = createMapAssetHandler({ cacheDir: join(userData, 'map-cache'), fetchFn })
+  protocol.handle(MAP_SCHEME, mapAssets)
+  const scan = createScanService({
+    assets: mapAssets,
+    screenshotsDir: () => join(app.getPath('documents'), 'Escape from Tarkov', 'Screenshots'),
+    log
+  })
+  app.on('will-quit', () => void scan.dispose())
   const questData = createQuestDataService({ fetchFn, cacheDir })
   const questGuides = createQuestGuideService({ fetchFn, cacheDir })
   const player = createPlayerStore({ file: join(userData, 'player.json') })
@@ -155,6 +163,7 @@ async function bootstrap(): Promise<void> {
     questGuides,
     player,
     logs,
+    scan,
     onSettingsChanged: (previous, current) => {
       if (previous.gameLogsDir !== current.gameLogsDir) void logs.poll()
       if (

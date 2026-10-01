@@ -2,11 +2,13 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import type { ProgressEntry } from '../shared/questProgress'
+import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
 import type { DataMode, GameMode, Settings, SettingsPatch } from '../shared/types'
 import type { ContainerService } from './containers'
 import type { LogWatcher } from './logs/watcher'
 import type { PriceController } from './pricing/priceController'
 import type { PlayerStore } from './quests/playerStore'
+import type { ScanService } from './scan/scanService'
 import type { QuestDataService } from './quests/questData'
 import type { QuestGuideService } from './quests/questGuide'
 import type { SettingsStore } from './settings'
@@ -45,6 +47,21 @@ function requireCount(value: unknown, max: number): number {
   return value
 }
 
+/** Labels from the renderer: a bounded list of small images. */
+function requireOcrJobs(value: unknown): OcrJob[] {
+  if (!Array.isArray(value) || value.length > MAX_OCR_JOBS) throw new Error('Invalid labels')
+  return value.map((job) => {
+    const { kind, image } = (job ?? {}) as Partial<OcrJob>
+    if (
+      (kind !== 'name' && kind !== 'count') ||
+      !(image instanceof Uint8Array) ||
+      image.length > MAX_OCR_IMAGE_BYTES
+    )
+      throw new Error('Invalid label')
+    return { kind, image }
+  })
+}
+
 const PROGRESS_STATUSES: ProgressEntry['status'][] = ['active', 'completed', 'failed']
 
 export function registerIpc(deps: {
@@ -56,9 +73,10 @@ export function registerIpc(deps: {
   questGuides: QuestGuideService
   player: PlayerStore
   logs: LogWatcher
+  scan: ScanService
   onSettingsChanged?: (previous: Settings, current: Settings) => void
 }): void {
-  const { settings, prices, containers, trends, questData, questGuides, player, logs } = deps
+  const { settings, prices, containers, trends, questData, questGuides, player, logs, scan } = deps
 
   ipcMain.handle(IPC.settingsGet, () => settings.getPublic())
   ipcMain.handle(IPC.settingsUpdate, async (_e, patch: SettingsPatch) => {
@@ -133,6 +151,9 @@ export function registerIpc(deps: {
       dataset?.stations.find((s) => s.id === id)?.levels.find((l) => l.level === target)?.items ?? []
     return player.build(mode, id, target, items)
   })
+  ipcMain.handle(IPC.scanReadText, (_e, jobs: unknown) => scan.readText(requireOcrJobs(jobs)))
+  ipcMain.handle(IPC.scanGridImage, (_e, itemId: unknown) => scan.gridImage(requireId(itemId, 'item')))
+  ipcMain.handle(IPC.scanLatestScreenshot, () => scan.latestScreenshot())
   ipcMain.handle(IPC.logsHistory, (_e, gameMode: unknown) => player.history(requireGameMode(gameMode)))
   ipcMain.handle(IPC.logsStatus, () => logs.status())
   ipcMain.handle(IPC.logsRescan, async () => {

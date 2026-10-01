@@ -117,7 +117,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
     hideDone: r.hideDone === true,
     firOnly: r.firOnly === true,
     keepOnly: r.keepOnly === true,
-    tab: r.tab === 'upgrades' ? 'upgrades' : 'items'
+    tab: r.tab === 'upgrades' || r.tab === 'scav' ? r.tab : 'items'
   }
 }
 

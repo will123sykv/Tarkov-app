@@ -26,6 +26,8 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import ScarceBadge from './ScarceBadge'
+import ScavScan from './ScavScan'
 
 type Items = ReadonlyMap<string, LootItem>
 
@@ -40,19 +42,6 @@ function StationIcon({ station }: { station: HideoutStation }): React.JSX.Elemen
   ) : (
     <span className="station-icon" aria-hidden>
       {STATION_ICON_FALLBACK(station.name)}
-    </span>
-  )
-}
-
-/** Red "Rare" for items hard to get at all; amber "Can't buy yet" for what the player's level or loyalty blocks. */
-function ScarceBadge({ scarce }: { scarce: Scarcity }): React.JSX.Element {
-  return scarce.kind === 'rare' ? (
-    <span className="badge bad rare-badge" title={scarce.reason}>
-      Rare
-    </span>
-  ) : (
-    <span className="badge warn rare-badge" title={scarce.reason}>
-      Can&rsquo;t buy yet
     </span>
   )
 }
@@ -639,6 +628,15 @@ export default function HideoutView({
               >
                 Upgrades
               </button>
+              <button
+                role="tab"
+                aria-selected={h.tab === 'scav'}
+                className={h.tab === 'scav' ? 'active' : ''}
+                onClick={() => set({ tab: 'scav' })}
+                title="Read a screenshot of your scav case haul and see what to keep and what to sell"
+              >
+                Scav case
+              </button>
             </div>
             {h.tab === 'items' && (
               <>
@@ -672,7 +670,9 @@ export default function HideoutView({
             )}
           </div>
         </div>
-        {h.tab === 'items' ? (
+        {h.tab === 'scav' ? (
+          <ScavScan settings={settings} priceState={priceState} items={items} />
+        ) : h.tab === 'items' ? (
           <ItemsNeeded
             needs={shownNeeds}
             items={items}

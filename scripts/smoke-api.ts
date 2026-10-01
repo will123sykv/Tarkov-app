@@ -4,8 +4,9 @@
  *
  * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
  * still carry what the flea trends, quests and maps views need; the GraphQL fallback is only
- * reported. db4tarkov's map tiles must still be where the app looks for them, and the wiki must still
- * give quest guides with pictures.
+ * reported. db4tarkov's map tiles must still be where the app looks for them, the wiki must still
+ * give quest guides with pictures, and items must still have short names, sizes and grid images (the
+ * scav case scanner reads screenshots with them).
  */
 import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
 import { levelRequirement } from '../src/shared/questProgress'
@@ -56,6 +57,11 @@ async function smokeJson(dataMode: DataMode): Promise<PriceDataset> {
   check(untranslated < items.length / 10, 'item names are not being translated')
   check(count((i) => i.category) > items.length / 2, 'item categories are missing')
   check(count((i) => i.buyFrom?.length) > 500, 'what traders sell is missing')
+  // The scav case scanner matches labels against short names of items the same size.
+  check(
+    count((i) => i.shortName && i.width && i.height) > items.length * 0.9,
+    'item short names or sizes are missing'
+  )
   check(
     items.some((i) => i.bestTrader && !/^[0-9a-f]{24}/.test(i.bestTrader.name)),
     'trader names are not being translated'
@@ -254,6 +260,17 @@ async function smokeDb4tarkovTiles(): Promise<void> {
   }
 }
 
+/** The scav case scanner compares screenshot tiles with tarkov.dev's grid images. */
+async function smokeGridImages(): Promise<void> {
+  // Bolts (1×1), Water filter (1×2) and Electric motor (2×2).
+  for (const id of ['57347c5b245977448d35f6e1', '5d1b385e86f774252167b98a', '5d1b2fa286f77425227d1674']) {
+    const res = await fetch(`https://assets.tarkov.dev/${id}-grid-image.webp`)
+    check(res.ok, `grid image for ${id}: HTTP ${res.status}`)
+    check((await res.arrayBuffer()).byteLength > 500, `grid image for ${id} is empty`)
+  }
+  console.log('[grid images] ok')
+}
+
 async function main(): Promise<void> {
   for (const mode of ['pvp', 'pve'] as const) {
     const dataset = await smokeJson(mode)
@@ -262,6 +279,7 @@ async function main(): Promise<void> {
     await smokeQuests(mode)
   }
   await smokeDb4tarkovTiles()
+  await smokeGridImages()
   await smokeQuestGuide()
   console.log('tarkov.dev smoke test passed')
 }

@@ -159,7 +159,8 @@ export interface HideoutSettings {
   firOnly: boolean
   /** Only items the player can't buy now, or that are rare. */
   keepOnly: boolean
-  tab: 'items' | 'upgrades'
+  /** Items needed, the next upgrades, or the screenshot scanner. */
+  tab: 'items' | 'upgrades' | 'scav'
 }
 
 export type QuestStatusFilter = 'available' | 'active' | 'locked' | 'completed' | 'failed'

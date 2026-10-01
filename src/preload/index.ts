@@ -31,6 +31,9 @@ const api: TarkovApi = {
     ipcRenderer.invoke(IPC.hideoutSetTrader, gameMode, traderId, level),
   buildStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutBuild, gameMode, stationId, level),
+  readLabels: (jobs) => ipcRenderer.invoke(IPC.scanReadText, jobs),
+  getGridImage: (itemId) => ipcRenderer.invoke(IPC.scanGridImage, itemId),
+  getLatestScreenshot: () => ipcRenderer.invoke(IPC.scanLatestScreenshot),
   getLogHistory: (gameMode) => ipcRenderer.invoke(IPC.logsHistory, gameMode),
   getLogStatus: () => ipcRenderer.invoke(IPC.logsStatus),
   rescanLogs: () => ipcRenderer.invoke(IPC.logsRescan),

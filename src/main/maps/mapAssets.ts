@@ -7,11 +7,13 @@ import type { FetchFn } from '../pricing/http'
 /**
  * The app's scheme for map images: `tarkov-map://assets/maps/…` mirrors `https://assets.tarkov.dev/maps/…`,
  * `tarkov-map://re3mr/<file>` serves one of Re3MR's 2D maps, and `tarkov-map://db4tarkov/<map>/<z>/<x>/<y>.webp`
- * a tile of one of db4tarkov's.
+ * a tile of one of db4tarkov's. `tarkov-map://assets/<item id>-grid-image.webp` is an item's grid image.
  */
 export const MAP_SCHEME = 'tarkov-map'
 const ORIGIN = 'https://assets.tarkov.dev'
 const ALLOWED = /^\/maps\/[\w./-]+\.(png|jpg|jpeg|webp|svg)$/i
+/** Item grid images (`<id>-grid-image.webp`), which the screenshot scanner compares tiles with. */
+const GRID_IMAGE = /^\/[0-9a-f]{24}-grid-image\.webp$/
 const DB4TARKOV_TILE = /^\/(\w+)\/(\d)\/(\d{1,2})\/(\d{1,2})\.webp$/
 const TYPES: Record<string, string> = {
   png: 'image/png',
@@ -25,7 +27,8 @@ const TYPES: Record<string, string> = {
 function resolve(url: URL): { source: string; cachePath: string } | null {
   const path = decodeURIComponent(url.pathname)
   if (path.includes('..')) return null
-  if (url.host === 'assets' && ALLOWED.test(path)) return { source: `${ORIGIN}${path}`, cachePath: path }
+  if (url.host === 'assets' && (ALLOWED.test(path) || GRID_IMAGE.test(path)))
+    return { source: `${ORIGIN}${path}`, cachePath: path }
   const file = path.slice(1)
   if (url.host === 're3mr' && (RE3MR_FILES as readonly string[]).includes(file))
     return { source: re3mrImageUrl(file), cachePath: `/re3mr/${RE3MR_COMMIT}/${file}` }
@@ -45,7 +48,7 @@ function resolve(url: URL): { source: string; cachePath: string } | null {
 /**
  * Serves map images from a disk cache, downloading each (from assets.tarkov.dev, Re3MR's from GitHub,
  * db4tarkov's from its CDN) the first time it's needed, so maps opened once also work offline. Only
- * map images are allowed.
+ * map images (and item grid images) are allowed.
  */
 export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn }) {
   const inFlight = new Map<string, Promise<Buffer | null>>()
