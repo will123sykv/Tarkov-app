@@ -165,7 +165,7 @@ describe('createQuestGuideService', () => {
     const service = createQuestGuideService({ fetchFn: wiki(), cacheDir: await tempDir() })
     expect(await service.get('https://escapefromtarkov.fandom.com/wiki/Missing')).toEqual({
       guide: null,
-      error: "The page you specified doesn't exist."
+      error: "Couldn't load the guide from the wiki: The wiki has no page for this quest yet."
     })
     expect((await service.get(null)).error).toMatch(/no wiki page/)
   })

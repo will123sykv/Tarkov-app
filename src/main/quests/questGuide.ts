@@ -210,7 +210,8 @@ async function wikiApi(fetchFn: FetchFn, params: Record<string, string>): Promis
     TIMEOUT_MS
   )) as Raw
   const error = body.error as Raw | undefined
-  if (error) throw new Error(String(error.info ?? error.code ?? 'wiki error'))
+  if (error?.code === 'missingtitle') throw new Error('The wiki has no page for this quest yet.')
+  if (error) throw new Error(`The wiki said: ${String(error.info ?? error.code)}`)
   return body
 }
 
@@ -298,7 +299,7 @@ export function createQuestGuideService(deps: { fetchFn: FetchFn; cacheDir: stri
       memory.set(title, guide)
       return { guide, error: null }
     } catch (err) {
-      return { guide: cached ?? null, error: errorMessage(err) }
+      return { guide: cached ?? null, error: `Couldn't load the guide from the wiki: ${errorMessage(err)}` }
     }
   }
 

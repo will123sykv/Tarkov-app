@@ -359,7 +359,7 @@ function Guide({ wikiLink }: { wikiLink: string | null }): React.JSX.Element | n
     <section className="quest-section guide">
       <h4>Guide</h4>
       {!state && <p className="hint">Loading the guide from the wiki…</p>}
-      {state && !guide && <p className="hint">Couldn&rsquo;t load the guide: {state.error}</p>}
+      {state && !guide && <p className="hint">{state.error}</p>}
       {guide && (
         <>
           {guide.blocks.length === 0 && guide.images.length === 0 && (
