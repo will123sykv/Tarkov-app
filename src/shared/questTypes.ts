@@ -33,6 +33,30 @@ export interface QuestObjective {
   locations: { map: string; positions: Vec3[] }[]
   /** For "reach loyalty level N with a trader" objectives. */
   traderLevel: { traderId: string; level: number } | null
+  /** Keys it needs: one list per lock, any key in a list opens it. */
+  requiredKeys: string[][]
+}
+
+/** An item and how many of it. */
+export interface ItemCount {
+  itemId: string
+  count: number
+}
+
+/** What a quest gives when it's done (or when it's accepted). */
+export interface QuestRewards {
+  /** Money included. */
+  items: ItemCount[]
+  traderStanding: { traderId: string; standing: number }[]
+  /** Items a trader starts selling, at a loyalty level. */
+  offerUnlocks: { traderId: string; level: number; itemId: string }[]
+  /** Hideout crafts it unlocks: the station's name and level, and what the craft makes. */
+  craftUnlocks: { station: string; level: number; itemId: string; count: number }[]
+  skills: { name: string; level: number }[]
+  /** Trader ids. */
+  traderUnlocks: string[]
+  /** Anything else, by name (achievements, clothing…). */
+  other: string[]
 }
 
 export type RequirementStatus = 'complete' | 'active' | 'failed'
@@ -68,6 +92,13 @@ export interface Quest {
   /** 'Any', 'USEC' or 'BEAR'. */
   faction: string
   experience: number
+  /** Keys the quest needs, per map (tarkov.dev's summary of its objectives' keys). */
+  neededKeys: { map: string; keyIds: string[] }[]
+  rewards: QuestRewards
+  /** What the trader hands over when the quest is accepted. */
+  startRewards: QuestRewards
+  /** The quest's picture in the game. */
+  imageLink: string | null
 }
 
 export interface MapExtract {
@@ -108,6 +139,8 @@ export interface QuestTrader {
   name: string
   /** The player level each loyalty level needs. */
   levels: { level: number; playerLevel: number }[]
+  /** The trader's portrait. */
+  imageLink: string | null
 }
 
 export interface QuestDataset {
@@ -121,6 +154,41 @@ export interface QuestDataset {
    * by id, so ones the logs mention can still be named.
    */
   otherQuestNames: Record<string, string>
+}
+
+/** A picture in a quest's guide on the Escape from Tarkov wiki. */
+export interface GuideImage {
+  /** The wiki's file name. */
+  file: string
+  caption: string
+  /** At most 800 px wide. */
+  thumb: string
+  full: string
+  width: number
+  height: number
+  /** The file's page on the wiki (its author and licence). */
+  page: string
+}
+
+/** A paragraph, sub-heading or list item of a guide, as plain text. */
+export interface GuideBlock {
+  kind: 'p' | 'h' | 'li'
+  text: string
+}
+
+/** The "Guide" section of a quest's page on the Escape from Tarkov wiki (CC BY-SA 3.0). */
+export interface QuestGuide {
+  /** The wiki page's title. */
+  title: string
+  url: string
+  blocks: GuideBlock[]
+  images: GuideImage[]
+  fetchedAt: number
+}
+
+export interface QuestGuideState {
+  guide: QuestGuide | null
+  error: string | null
 }
 
 export interface QuestDataState {

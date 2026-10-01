@@ -1,6 +1,6 @@
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ProgressEntry, QuestProgress } from './questProgress'
-import type { QuestDataState } from './questTypes'
+import type { QuestDataState, QuestGuideState } from './questTypes'
 import type {
   ContainerCatalog,
   ContainerLoot,
@@ -29,6 +29,7 @@ export const IPC = {
   questsSetStatus: 'quests:set-status',
   questsMarkUpTo: 'quests:mark-up-to',
   questsProgressChanged: 'quests:progress-changed',
+  questsGuide: 'quests:guide',
   logsHistory: 'logs:history',
   logsHistoryChanged: 'logs:history-changed',
   logsStatus: 'logs:status',
@@ -58,6 +59,8 @@ export interface TarkovApi {
   getTrendSeries(dataMode: DataMode, itemId: string): Promise<TrendSeries>
   /** Quests and maps for a game mode's data (cached; `force` refetches). */
   getQuestData(dataMode: DataMode, force?: boolean): Promise<QuestDataState>
+  /** The guide (text and pictures) on a quest's wiki page, given the quest's `wikiLink`. */
+  getQuestGuide(wikiLink: string | null): Promise<QuestGuideState>
   getQuestProgress(gameMode: GameMode): Promise<QuestProgress>
   /** Set a quest's status by hand, or clear it with null. */
   setQuestStatus(

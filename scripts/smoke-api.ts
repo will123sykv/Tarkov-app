@@ -4,7 +4,8 @@
  *
  * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
  * still carry what the flea trends, quests and maps views need; the GraphQL fallback is only
- * reported. db4tarkov's map tiles must still be where the app looks for them.
+ * reported. db4tarkov's map tiles must still be where the app looks for them, and the wiki must still
+ * give quest guides with pictures.
  */
 import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
 import { levelRequirement } from '../src/shared/questProgress'
@@ -16,6 +17,7 @@ import { errorMessage } from '../src/main/pricing/http'
 import { fetchTarkovDev } from '../src/main/pricing/tarkovDev'
 import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
 import { fetchQuestData } from '../src/main/quests/questData'
+import { fetchQuestGuide, wikiTitle } from '../src/main/quests/questGuide'
 import mapConfigData from '../src/renderer/src/data/mapConfigs.json'
 import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../src/shared/db4tarkov'
 import type { MapConfig } from '../src/shared/questTypes'
@@ -190,6 +192,38 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
   if (unmatched.length)
     console.log(`[quests ${dataMode}] map projections with no matching map: ${unmatched.join(', ')}`)
   check(unmatched.length <= 2, 'several bundled map projections no longer match a map (npm run data:maps)')
+
+  const rewards = data.quests.map((q) => q.rewards)
+  const keyed = objectives.filter((o) => o.requiredKeys.length).length
+  const stations = new Set(rewards.flatMap((r) => r.craftUnlocks.map((c) => c.station)))
+  const portraits = data.traders.filter((t) => t.imageLink).length
+  console.log(
+    `[quests ${dataMode}] rewards: ${rewards.filter((r) => r.items.length).length} quests with items, ` +
+      `${rewards.filter((r) => r.traderStanding.length).length} with reputation, ` +
+      `${rewards.filter((r) => r.offerUnlocks.length).length} with trader unlocks, ` +
+      `${rewards.filter((r) => r.skills.length).length} with skills (${[...new Set(rewards.flatMap((r) => r.skills.map((k) => k.name)))].slice(0, 6).join(', ')}), ` +
+      `crafts at ${[...stations].join(', ')} · other: ${[...new Set(rewards.flatMap((r) => r.other))].slice(0, 6).join(', ')} · ` +
+      `${keyed} objectives needing keys · ${data.quests.filter((q) => q.neededKeys.length).length} quests with keys · ` +
+      `${portraits} trader portraits · ${data.quests.filter((q) => q.wikiLink).length} wiki links`
+  )
+  check(rewards.filter((r) => r.items.length).length > 200, 'quest reward items are missing')
+  check(keyed > 20, 'the keys quest objectives need are missing')
+  check(portraits >= data.traders.length - 2, 'trader portraits are missing')
+  check(!stations.has('Hideout'), 'hideout station names are missing from craft rewards')
+}
+
+/** A well-known quest's guide on the wiki: its text and pictures, and that the pictures load. */
+async function smokeQuestGuide(): Promise<void> {
+  const title = wikiTitle('https://escapefromtarkov.fandom.com/wiki/The_Extortionist')!
+  const [guide, ms] = await timed(() => fetchQuestGuide(fetch, title, Date.now()))
+  console.log(
+    `[wiki] ${guide.title} in ${ms} ms: ${guide.blocks.length} paragraphs, ${guide.images.length} pictures ` +
+      `(${guide.images.map((i) => `${i.file} "${i.caption}"`).join('; ')})`
+  )
+  check(guide.blocks.length > 0 && guide.images.length > 1, 'quest guides on the wiki changed format')
+  const picture = await fetch(guide.images[0].thumb)
+  console.log(`[wiki] picture: HTTP ${picture.status} ${picture.headers.get('content-type')}`)
+  check(picture.ok && /^image\//.test(picture.headers.get('content-type') ?? ''), 'wiki pictures do not load')
 }
 
 /** Each db4tarkov map's corner tile at its top zoom (where a tile pixel is an image pixel). */
@@ -213,6 +247,7 @@ async function main(): Promise<void> {
     await smokeQuests(mode)
   }
   await smokeDb4tarkovTiles()
+  await smokeQuestGuide()
   console.log('tarkov.dev smoke test passed')
 }
 

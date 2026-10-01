@@ -7,7 +7,7 @@ const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: tarkov-map: https://assets.tarkov.dev https://*.tarkov-market.app https://*.tarkov-market.com",
+  "img-src 'self' data: tarkov-map: https://assets.tarkov.dev https://*.tarkov-market.app https://*.tarkov-market.com https://static.wikia.nocookie.net",
   "connect-src 'self' tarkov-map:",
   "object-src 'none'",
   "base-uri 'none'"

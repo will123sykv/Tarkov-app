@@ -1310,6 +1310,10 @@ button.link.active {
   font-size: 13px;
 }
 
+.maps.with-detail {
+  grid-template-columns: 270px minmax(0, 1fr) 400px;
+}
+
 .quests-main {
   flex: 1;
   display: grid;
@@ -1539,6 +1543,233 @@ button.link.active {
   font-size: 12px;
 }
 
+.quest-detail > header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.quest-detail .portrait {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-2);
+}
+
+.quest-detail .portrait.small {
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+}
+
+button.link.small {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.quest-section {
+  display: grid;
+  gap: 8px;
+}
+
+.reward-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reward-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.reward-list strong {
+  color: var(--ok);
+  font-variant-numeric: tabular-nums;
+}
+
+.reward-list strong.bad {
+  color: var(--bad);
+}
+
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.item-chip img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  background: var(--panel-2);
+  border-radius: 3px;
+}
+
+.key-choice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.key-icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: var(--accent-strong);
+}
+
+.guide-text p,
+.guide-text h5 {
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.guide-text h5 {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--accent-strong);
+}
+
+.guide-text .guide-item {
+  padding-left: 14px;
+  text-indent: -10px;
+}
+
+.guide-text .guide-item::before {
+  content: '•';
+  display: inline-block;
+  width: 10px;
+  text-indent: 0;
+  color: var(--accent);
+}
+
+.guide-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-gallery li {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.guide-gallery button {
+  display: block;
+  padding: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: zoom-in;
+}
+
+.guide-gallery button:hover,
+.guide-gallery button:focus-visible {
+  border-color: var(--accent);
+}
+
+.guide-gallery img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quest-detail .credit {
+  margin: 0;
+  font-size: 11px;
+}
+
+.quest-detail .credit a {
+  color: var(--muted);
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 32px 64px;
+  background: rgba(5, 6, 7, 0.88);
+}
+
+.lightbox figure {
+  display: grid;
+  gap: 8px;
+  max-width: 100%;
+  margin: 0;
+}
+
+.lightbox img {
+  max-width: 100%;
+  max-height: calc(100vh - 120px);
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.lightbox figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.lightbox figcaption a {
+  color: var(--accent);
+}
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 64px;
+  background: rgba(23, 26, 29, 0.8);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.lightbox-nav:hover {
+  color: var(--accent-strong);
+}
+
+.lightbox-nav.prev {
+  left: 12px;
+}
+
+.lightbox-nav.next {
+  right: 12px;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
 .needed-items {
   flex: 1;
   overflow-y: auto;
@@ -1615,8 +1846,7 @@ button.link.active {
   color: var(--accent-strong);
 }
 
-.map-error,
-.map-selected {
+.map-error {
   position: absolute;
   z-index: 1000;
   padding: 6px 12px;
@@ -1631,18 +1861,6 @@ button.link.active {
   bottom: 16px;
   transform: translateX(-50%);
   color: var(--warn);
-}
-
-.map-selected {
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.map-selected strong {
-  color: var(--accent-strong);
 }
 
 .button.icon.small {
@@ -1753,6 +1971,52 @@ button.link.active {
   background: var(--pin-ink);
 }
 
+/* Quest pins: the quest and its trader over the trader's portrait and what to do there. */
+
+.map-pin.quest {
+  --pin: #e2c985;
+  cursor: pointer;
+}
+
+.map-pin.quest.other {
+  --pin: #aebdcc;
+}
+
+.map-pin.quest .map-pin-trader {
+  margin-left: 6px;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.map-pin.quest .map-pin-icon.portrait {
+  overflow: hidden;
+  background: #2a2f35;
+}
+
+.map-pin.quest .map-pin-icon.portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.map-pin.quest .map-pin-icon.key {
+  background: #e9ecef;
+}
+
+.map-pin.quest.selected .map-pin-label,
+.map-pin.quest.selected .map-pin-icon {
+  outline: 2px solid #fff;
+  outline-offset: 0;
+}
+
+.map-pin.quest.dimmed {
+  opacity: 0.45;
+}
+
+.map-pin.quest:hover {
+  opacity: 1;
+}
+
 .map-badge {
   position: absolute;
   left: 0;
@@ -1858,13 +2122,33 @@ button.link.active {
   height: 13px;
 }
 
+.legend-kinds {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.legend-kind svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: var(--accent-strong);
+}
+
+.legend-kind .legend-dot {
+  width: 9px;
+  height: 9px;
+  margin: 0 3px;
+}
+
 .map-objectives {
   display: grid;
   gap: 2px;
 }
 
 .map-objectives button {
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 5px 0;
   color: var(--text);
@@ -1873,8 +2157,22 @@ button.link.active {
   font-size: 12px;
 }
 
-.map-objectives button span {
+.map-objectives button > span {
+  display: grid;
+  min-width: 0;
+}
+
+.map-objectives button span span {
   color: var(--muted);
+}
+
+.map-objectives img {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 3px;
 }
 
 .map-objectives button:hover strong,

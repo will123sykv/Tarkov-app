@@ -6,6 +6,13 @@ export const PRAPOR = '54cb50c76803fa8b248b4571'
 export const THERAPIST = '54cb57776803fa99248b456e'
 export const CUSTOMS = '56f40101d2720b2a4d8b45d6'
 export const WOODS = '5704e3c2d2720bac5b8b4567'
+export const WORKBENCH = '5d484fda654e7600681d9315'
+export const KEY = {
+  unknown: '593962ca86f774068014d9af',
+  dorm303: '593aa4be86f77457f56379f8',
+  dorm303copy: '5913611c86f77479e0084092'
+}
+export const ROUBLES = '5449016a4bdc2d6f028b456f'
 
 export const Q = {
   debut: '5936d90786f7742b1420ba5b',
@@ -66,6 +73,46 @@ export const RAW_QUEST_DATA: QuestDataInput = {
       quest(Q.checking, {
         minPlayerLevel: 2,
         map: CUSTOMS,
+        taskImageLink: `https://assets.tarkov.dev/${Q.checking}.webp`,
+        neededKeys: [
+          { map: CUSTOMS, keys: [KEY.unknown, KEY.dorm303] },
+          { map: WOODS, keys: [] }
+        ],
+        startRewards: { items: [{ item: ROUBLES, count: 20000, attributes: {} }], traderStanding: [] },
+        finishRewards: {
+          traderStanding: [{ standing: 0.1, trader: PRAPOR }],
+          items: [
+            { item: ROUBLES, count: 80000, attributes: {} },
+            { item: '5448be9a4bdc2dfd2f8b456a', count: 2, attributes: {} },
+            { count: 1 }
+          ],
+          offerUnlock: [
+            {
+              id: 'u1',
+              level: 2,
+              item: '5c0e530286f7747fa1419862',
+              count: 1,
+              contains: [],
+              trader: THERAPIST
+            }
+          ],
+          skillLevelReward: [
+            { level: 2, skill: 'StressResistance' },
+            { level: 1, skill: 'TroubleShooting' }
+          ],
+          traderUnlock: ['6617beeaa9cfa777ca915b7c'],
+          craftUnlock: [
+            { level: 1, station: WORKBENCH, item: '5f0596629e22f464da6bbdd9', count: 60 },
+            { level: 3, station: 'unknown-station', item: '5e023d34e8a400319a28ed44', count: 30 }
+          ],
+          achievement: ['664f23e44702fd5db50ee732', '675709bef4e2a2ce0f058f56'],
+          customization: [
+            { id: 'c1', name: 'c1 Name', customizationType: 'ShootingRangeMark' },
+            { id: 'c2', name: 'c2 Name', customizationType: 'Floor' }
+          ],
+          traderDialogueUnlock: ['5c0647fdd443bc2504c2d371'],
+          locationUnlock: []
+        },
         taskRequirements: [{ task: Q.debut, status: ['complete'] }],
         objectives: [
           {
@@ -76,7 +123,8 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             optional: false,
             possibleLocations: [{ map: CUSTOMS, positions: [{ x: 10, y: 1, z: -20 }] }],
             maps: [CUSTOMS],
-            questItem: '590c62a386f77412b0130255'
+            questItem: '590c62a386f77412b0130255',
+            requiredKeys: [[KEY.unknown], [KEY.dorm303, KEY.dorm303copy], []]
           },
           {
             id: 'o-checking-ll',
@@ -162,7 +210,10 @@ export const RAW_QUEST_DATA: QuestDataInput = {
     'o-checking-find': 'Obtain the Bronze pocket watch',
     'o-checking-visit': 'Visit the trailer park',
     'o-shootout-give': 'Hand over 3 of either item',
-    '590c62a386f77412b0130255 Name': 'Bronze pocket watch'
+    '590c62a386f77412b0130255 Name': 'Bronze pocket watch',
+    '664f23e44702fd5db50ee732 name': 'Jack of All Trades',
+    StressResistance: 'Stress resistance',
+    'c1 Name': 'Golden target mark'
   },
   maps: {
     maps: [
@@ -233,6 +284,7 @@ export const RAW_QUEST_DATA: QuestDataInput = {
     [PRAPOR]: {
       id: PRAPOR,
       name: `${PRAPOR} Nickname`,
+      imageLink: `https://assets.tarkov.dev/${PRAPOR}.webp`,
       levels: [
         { id: `${PRAPOR}-1`, level: 1, requiredPlayerLevel: 0 },
         { id: `${PRAPOR}-2`, level: 2, requiredPlayerLevel: 6 }
@@ -247,5 +299,14 @@ export const RAW_QUEST_DATA: QuestDataInput = {
       ]
     }
   },
-  tradersLang: { [`${PRAPOR} Nickname`]: 'Prapor', [`${THERAPIST} Nickname`]: 'Therapist' }
+  tradersLang: { [`${PRAPOR} Nickname`]: 'Prapor', [`${THERAPIST} Nickname`]: 'Therapist' },
+  hideout: {
+    [WORKBENCH]: { id: WORKBENCH, name: 'hideout_area_10_name', normalizedName: 'workbench', areaType: 10 },
+    '5d484fba654e7600691aadf7': {
+      id: '5d484fba654e7600691aadf7',
+      name: 'missing',
+      normalizedName: 'nutrition-unit'
+    }
+  },
+  hideoutLang: { hideout_area_10_name: 'Workbench' }
 }

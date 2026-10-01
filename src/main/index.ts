@@ -14,6 +14,7 @@ import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
 import { createPlayerStore } from './quests/playerStore'
 import { createQuestDataService } from './quests/questData'
+import { createQuestGuideService } from './quests/questGuide'
 import { createSettingsStore } from './settings'
 import { createPriceRecorder } from './trends/recorder'
 import { createTrendService } from './trends/trendService'
@@ -127,6 +128,7 @@ async function bootstrap(): Promise<void> {
 
   protocol.handle(MAP_SCHEME, createMapAssetHandler({ cacheDir: join(userData, 'map-cache'), fetchFn }))
   const questData = createQuestDataService({ fetchFn, cacheDir })
+  const questGuides = createQuestGuideService({ fetchFn, cacheDir })
   const player = createPlayerStore({ file: join(userData, 'player.json') })
   const logs = createLogWatcher({
     stateFile: join(userData, 'logs', 'state.json'),
@@ -150,6 +152,7 @@ async function bootstrap(): Promise<void> {
     containers,
     trends,
     questData,
+    questGuides,
     player,
     logs,
     onSettingsChanged: (previous, current) => {

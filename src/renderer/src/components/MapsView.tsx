@@ -4,11 +4,13 @@ import type { MapSettings, PriceState, PublicSettings } from '../../../shared/ty
 import { interactiveProjection, posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
+import { KEY_ICON, OBJECTIVE_ICONS, type ObjectiveMarker } from '../lib/questPins'
 import { configFor, MAP_CONFIGS } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import MapCanvas, { MARKER_COLORS, type MapLayers, type ObjectiveMarker } from './MapCanvas'
+import MapCanvas, { MARKER_COLORS, type MapLayers } from './MapCanvas'
+import QuestDetail from './QuestDetail'
 
 const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'active', label: 'Active' },
@@ -60,6 +62,40 @@ function BadgeLegend({ kind, children }: { kind: 'boss' | 'sniper'; children: Re
   )
 }
 
+/** A legend row with a quest pin: a coloured name box over an icon tile. */
+function QuestPinLegend({
+  other,
+  icon,
+  children
+}: {
+  other?: boolean
+  icon: string
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <li>
+      <span className={`legend-pin map-pin quest ${other ? 'other' : ''}`} aria-hidden>
+        <span className="map-pin-icons">
+          <span className="map-pin-icon">
+            <Icon path={icon} />
+          </span>
+        </span>
+      </span>
+      {children}
+    </li>
+  )
+}
+
+/** A legend row with an objective's icon. */
+function KindLegend({ icon, children }: { icon: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <li className="legend-kind">
+      <Icon path={icon} />
+      {children}
+    </li>
+  )
+}
+
 const NO_LABELS: MapLabel[] = []
 
 const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
@@ -78,7 +114,8 @@ export default function MapsView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState, rows } = useQuestRows(settings)
+  const { questState, rows, ctx, questsById, mapsById } = useQuestRows(settings)
+  const progress = useStore((s) => s.questProgress[settings.gameMode])
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
   const selectedQuest = useStore((s) => s.selectedQuest)
@@ -125,6 +162,7 @@ export default function MapsView({
   const objectives = useMemo<ObjectiveMarker[]>(() => {
     if (m.questScope === 'none') return []
     const wanted = new Set(m.questScope === 'available' ? ['active', 'available'] : ['active'])
+    const traders = new Map((dataset?.traders ?? []).map((t) => [t.id, t]))
     const result: ObjectiveMarker[] = []
     for (const { quest, status } of rows) {
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
@@ -132,17 +170,28 @@ export default function MapsView({
       for (const objective of quest.objectives) {
         const zones = objective.zones.filter((z) => mapIds.has(z.map))
         const spots = objective.locations.filter((l) => mapIds.has(l.map)).flatMap((l) => l.positions)
-        if (zones.length || spots.length) result.push({ quest, objective, zones, spots })
+        if (zones.length || spots.length)
+          result.push({ quest, status, trader: traders.get(quest.traderId), objective, zones, spots })
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, focus, selectedQuest])
+  }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset])
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
-  const selected = rows.find((r) => r.quest.id === selectedQuest)?.quest ?? null
+  const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
+  // The sidebar lists each quest once, with how many of its objectives are here.
+  const questsHere = useMemo(() => {
+    const list: { marker: ObjectiveMarker; count: number }[] = []
+    for (const marker of objectives) {
+      const entry = list.find((e) => e.marker.quest.id === marker.quest.id)
+      if (entry) entry.count++
+      else list.push({ marker, count: 1 })
+    }
+    return list
+  }, [objectives])
 
   return (
-    <div className="maps">
+    <div className={`maps ${selected && dataset ? 'with-detail' : ''}`}>
       <aside className="sidebar">
         <section>
           <h2>Map</h2>
@@ -191,7 +240,25 @@ export default function MapsView({
             ))}
           </div>
           <ul className="legend">
-            <Legend color={MARKER_COLORS.quest}>Quest objective</Legend>
+            <QuestPinLegend icon={OBJECTIVE_ICONS.visit}>Active quest</QuestPinLegend>
+            {m.questScope === 'available' && (
+              <QuestPinLegend other icon={OBJECTIVE_ICONS.visit}>
+                Available (not started)
+              </QuestPinLegend>
+            )}
+          </ul>
+          <ul className="legend legend-kinds">
+            <KindLegend icon={OBJECTIVE_ICONS.visit}>Go to</KindLegend>
+            <KindLegend icon={OBJECTIVE_ICONS.pickup}>Pick up</KindLegend>
+            <KindLegend icon={OBJECTIVE_ICONS.stash}>Stash or plant</KindLegend>
+            <KindLegend icon={OBJECTIVE_ICONS.mark}>Mark</KindLegend>
+            <KindLegend icon={OBJECTIVE_ICONS.kill}>Eliminate</KindLegend>
+            <KindLegend icon={OBJECTIVE_ICONS.extract}>Extract</KindLegend>
+            <KindLegend icon={KEY_ICON}>Needs a key</KindLegend>
+            <li className="legend-kind">
+              <span className="legend-dot" style={{ background: MARKER_COLORS.quest }} aria-hidden />
+              One of several spots
+            </li>
           </ul>
         </section>
         <section>
@@ -234,7 +301,7 @@ export default function MapsView({
         </section>
         <section>
           <h2>On this map</h2>
-          {objectives.length === 0 ? (
+          {questsHere.length === 0 ? (
             <p className="hint">
               {m.questScope === 'none'
                 ? 'Quest objectives are hidden.'
@@ -242,14 +309,25 @@ export default function MapsView({
             </p>
           ) : (
             <ul className="map-objectives">
-              {objectives.map(({ quest, objective }) => (
-                <li key={`${quest.id}:${objective.id}`}>
+              {questsHere.map(({ marker: { quest, trader, status }, count }) => (
+                <li key={quest.id}>
                   <button
                     className={`link ${selectedQuest === quest.id ? 'active' : ''}`}
-                    onClick={() => void useStore.getState().showOnMap(quest.id, objective.id, m.mapKey)}
+                    onClick={() => void useStore.getState().showOnMap(quest.id, null, m.mapKey)}
                   >
-                    <strong>{quest.name}</strong>
-                    <span>{objective.description}</span>
+                    {trader?.imageLink && <img src={trader.imageLink} alt="" />}
+                    <span>
+                      <strong>{quest.name}</strong>
+                      <span>
+                        {[
+                          trader?.name,
+                          status === 'active' ? null : 'not started',
+                          `${count} objective${count === 1 ? '' : 's'} here`
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -287,21 +365,6 @@ export default function MapsView({
         )}
       </aside>
       <main className="content map-content">
-        {selected && (
-          <div className="map-selected">
-            <strong>{selected.name}</strong>
-            <button className="link" onClick={() => void updateSettings({ view: 'quests' })}>
-              Open in quests
-            </button>
-            <button
-              className="button icon small"
-              onClick={() => selectQuest(null)}
-              aria-label="Clear selection"
-            >
-              ✕
-            </button>
-          </div>
-        )}
         {projection && maps.length ? (
           <MapCanvas
             projection={projection}
@@ -312,6 +375,7 @@ export default function MapsView({
             faction={m.faction}
             itemName={itemName}
             focus={focus}
+            selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
           />
         ) : (
@@ -320,6 +384,18 @@ export default function MapsView({
           </div>
         )}
       </main>
+      {selected && dataset && (
+        <QuestDetail
+          row={selected}
+          progress={progress ?? {}}
+          ctx={ctx}
+          questsById={questsById}
+          mapsById={mapsById}
+          traders={dataset.traders}
+          priceState={priceState}
+          onOpenInQuests={() => void updateSettings({ view: 'quests' })}
+        />
+      )}
     </div>
   )
 }

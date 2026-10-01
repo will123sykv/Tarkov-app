@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createQuestDataService, normalizeQuestData } from '../src/main/quests/questData'
 import { jsonResponse, mockFetch, tempDir } from './helpers'
 import { writeFile } from 'node:fs/promises'
-import { CUSTOMS, PRAPOR, Q, RAW_QUEST_DATA, STORY_ID, THERAPIST, WOODS } from './questFixtures'
+import { CUSTOMS, KEY, PRAPOR, Q, RAW_QUEST_DATA, ROUBLES, STORY_ID, THERAPIST, WOODS } from './questFixtures'
 
 describe('normalizeQuestData', () => {
   const data = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 42)
@@ -71,6 +71,57 @@ describe('normalizeQuestData', () => {
     ])
   })
 
+  it("keeps the keys each objective needs, and tarkov.dev's summary of them per map", () => {
+    expect(quest(Q.checking).objectives.map((o) => o.requiredKeys)).toEqual([
+      [[KEY.unknown], [KEY.dorm303, KEY.dorm303copy]],
+      [],
+      []
+    ])
+    expect(quest(Q.checking).neededKeys).toEqual([{ map: CUSTOMS, keyIds: [KEY.unknown, KEY.dorm303] }])
+    expect(quest(Q.debut).neededKeys).toEqual([])
+  })
+
+  it('keeps the rewards, with skills, stations and unlocks named', () => {
+    expect(quest(Q.checking).rewards).toEqual({
+      items: [
+        { itemId: ROUBLES, count: 80000 },
+        { itemId: '5448be9a4bdc2dfd2f8b456a', count: 2 }
+      ],
+      traderStanding: [{ traderId: PRAPOR, standing: 0.1 }],
+      offerUnlocks: [{ traderId: THERAPIST, level: 2, itemId: '5c0e530286f7747fa1419862' }],
+      craftUnlocks: [
+        { station: 'Workbench', level: 1, itemId: '5f0596629e22f464da6bbdd9', count: 60 },
+        { station: 'Hideout', level: 3, itemId: '5e023d34e8a400319a28ed44', count: 30 }
+      ],
+      skills: [
+        { name: 'Stress resistance', level: 2 },
+        { name: 'Troubleshooting', level: 1 }
+      ],
+      traderUnlocks: ['6617beeaa9cfa777ca915b7c'],
+      other: ['Jack of All Trades', 'An achievement', 'Golden target mark', 'Customisation: floor']
+    })
+    expect(quest(Q.checking).startRewards).toMatchObject({
+      items: [{ itemId: ROUBLES, count: 20000 }],
+      traderStanding: [],
+      skills: []
+    })
+    expect(quest(Q.debut).rewards).toEqual({
+      items: [],
+      traderStanding: [],
+      offerUnlocks: [],
+      craftUnlocks: [],
+      skills: [],
+      traderUnlocks: [],
+      other: []
+    })
+  })
+
+  it("keeps the quest's and the traders' pictures", () => {
+    expect(quest(Q.checking).imageLink).toBe(`https://assets.tarkov.dev/${Q.checking}.webp`)
+    expect(quest(Q.debut).imageLink).toBeNull()
+    expect(data.traders.map((t) => t.imageLink)).toEqual([`https://assets.tarkov.dev/${PRAPOR}.webp`, null])
+  })
+
   it('keeps only what the maps view draws: extracts, player spawns, transits, bosses and snipers', () => {
     const customs = data.maps.find((m) => m.id === CUSTOMS)!
     expect(customs).toEqual({
@@ -118,7 +169,8 @@ describe('normalizeQuestData', () => {
         levels: [
           { level: 1, playerLevel: 0 },
           { level: 2, playerLevel: 6 }
-        ]
+        ],
+        imageLink: `https://assets.tarkov.dev/${PRAPOR}.webp`
       },
       {
         id: THERAPIST,
@@ -126,7 +178,8 @@ describe('normalizeQuestData', () => {
         levels: [
           { level: 1, playerLevel: 0 },
           { level: 2, playerLevel: 5 }
-        ]
+        ],
+        imageLink: null
       }
     ])
   })
@@ -139,7 +192,9 @@ describe('createQuestDataService', () => {
     maps: RAW_QUEST_DATA.maps,
     maps_en: RAW_QUEST_DATA.mapsLang,
     traders: RAW_QUEST_DATA.traders,
-    traders_en: RAW_QUEST_DATA.tradersLang
+    traders_en: RAW_QUEST_DATA.tradersLang,
+    hideout: RAW_QUEST_DATA.hideout,
+    hideout_en: RAW_QUEST_DATA.hideoutLang
   }
   const serve = (fail = false) =>
     mockFetch({
@@ -217,8 +272,47 @@ describe('createQuestDataService', () => {
     const service = createQuestDataService({ fetchFn, cacheDir: join(await tempDir(), 'c'), now: () => 5 })
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
-    expect(fetchFn).toHaveBeenCalledTimes(6)
+    expect(fetchFn).toHaveBeenCalledTimes(8)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(12)
+    expect(fetchFn).toHaveBeenCalledTimes(16)
+  })
+
+  it('does without hideout station names when that file fails', async () => {
+    const fetchFn = mockFetch({
+      tarkovDevJson: (url) => {
+        const file = url.split('/').pop()!
+        return file.startsWith('hideout') ? jsonResponse({}, 503) : jsonResponse({ data: files[file] })
+      }
+    })
+    const state = await createQuestDataService({ fetchFn, cacheDir: await tempDir(), now: () => 5 }).get(
+      'pvp'
+    )
+    expect(state.error).toBeNull()
+    const checking = state.dataset!.quests.find((q) => q.id === Q.checking)!
+    expect(checking.rewards.craftUnlocks.map((c) => c.station)).toEqual(['Hideout', 'Hideout'])
+  })
+
+  it('upgrades a 1.6 cache without keys, rewards or pictures, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 1)
+    const old = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    const quests = old.quests.map(
+      ({ neededKeys: _, rewards: __, startRewards: ___, imageLink: ____, ...q }) => ({
+        ...q,
+        objectives: q.objectives.map(({ requiredKeys: _____, ...o }) => o)
+      })
+    )
+    const traders = old.traders.map(({ imageLink: _, ...t }) => t)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify({ ...old, quests, traders }))
+
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0 } })
+    const checking = offline.dataset!.quests.find((q) => q.id === Q.checking)!
+    expect(checking).toMatchObject({ neededKeys: [], imageLink: null, rewards: { items: [], skills: [] } })
+    expect(checking.startRewards.items).toEqual([])
+    expect(checking.objectives.every((o) => Array.isArray(o.requiredKeys))).toBe(true)
+    expect(offline.dataset!.traders.every((t) => t.imageLink === null)).toBe(true)
   })
 })

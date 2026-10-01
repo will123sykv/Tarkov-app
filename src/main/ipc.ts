@@ -8,6 +8,7 @@ import type { LogWatcher } from './logs/watcher'
 import type { PriceController } from './pricing/priceController'
 import type { PlayerStore } from './quests/playerStore'
 import type { QuestDataService } from './quests/questData'
+import type { QuestGuideService } from './quests/questGuide'
 import type { SettingsStore } from './settings'
 import type { TrendService } from './trends/trendService'
 import { checkForUpdates, getUpdaterStatus, installUpdate } from './updater'
@@ -40,11 +41,12 @@ export function registerIpc(deps: {
   containers: ContainerService
   trends: TrendService
   questData: QuestDataService
+  questGuides: QuestGuideService
   player: PlayerStore
   logs: LogWatcher
   onSettingsChanged?: (previous: Settings, current: Settings) => void
 }): void {
-  const { settings, prices, containers, trends, questData, player, logs } = deps
+  const { settings, prices, containers, trends, questData, questGuides, player, logs } = deps
 
   ipcMain.handle(IPC.settingsGet, () => settings.getPublic())
   ipcMain.handle(IPC.settingsUpdate, async (_e, patch: SettingsPatch) => {
@@ -75,6 +77,9 @@ export function registerIpc(deps: {
 
   ipcMain.handle(IPC.questsData, (_e, dataMode: unknown, force: unknown) =>
     questData.get(requireDataMode(dataMode), force === true)
+  )
+  ipcMain.handle(IPC.questsGuide, (_e, wikiLink: unknown) =>
+    questGuides.get(typeof wikiLink === 'string' ? wikiLink : null)
   )
   ipcMain.handle(IPC.questsProgress, (_e, gameMode: unknown) => player.progress(requireGameMode(gameMode)))
   ipcMain.handle(IPC.questsSetStatus, (_e, gameMode: unknown, questId: unknown, status: unknown) => {

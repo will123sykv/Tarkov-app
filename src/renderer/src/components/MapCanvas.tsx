@@ -1,7 +1,7 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
-import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
+import type { GameMap, MapLabel, Vec3 } from '../../../shared/questTypes'
 import type { MapProjection } from '../lib/mapProjection'
 import {
   bossLines,
@@ -11,15 +11,8 @@ import {
   labelAnchor,
   mergeBossSpawns
 } from '../lib/mapMarkers'
-import { badgeElement, pinElement, placeElement } from '../lib/mapPins'
-
-export interface ObjectiveMarker {
-  quest: Quest
-  objective: QuestObjective
-  /** Zones and quest-item spots on this map. */
-  zones: { position: Vec3; outline: Vec3[] }[]
-  spots: Vec3[]
-}
+import { badgeElement, pinElement, placeElement, questPinElement } from '../lib/mapPins'
+import { questPins, type ObjectiveMarker, type QuestPin } from '../lib/questPins'
 
 export interface MapLayers {
   extracts: boolean
@@ -42,12 +35,32 @@ interface Props {
   faction: 'pmc' | 'scav'
   itemName: (id: string) => string | undefined
   focus: { questId: string; objectiveId: string | null } | null
+  /** Its pins stand out and the others fade. */
+  selectedQuest: string | null
   onSelectQuest: (questId: string) => void
 }
 
 export const MARKER_COLORS = {
   quest: '#e2c985',
+  questOther: '#aebdcc',
   spawn: '#c9ccce'
+}
+
+/** A pin's tooltip: the quest, its trader, and what to do there (and the keys it takes). */
+function pinTooltip(pin: QuestPin, itemName: (id: string) => string | undefined): HTMLElement {
+  const keys = [...new Set(pin.objectives.flatMap((o) => o.requiredKeys.map((g) => g.join(' | '))))].map(
+    (group) =>
+      `Key: ${group
+        .split(' | ')
+        .map((id) => itemName(id) ?? 'unknown key')
+        .join(' or ')}`
+  )
+  return label(pin.quest.name, [
+    ...(pin.trader ? [pin.trader.name] : []),
+    ...pin.objectives.map((o) => `• ${o.description || o.type}`),
+    ...keys,
+    'Click for details'
+  ])
 }
 
 /** Tooltip content as a DOM node, so names from the data are never parsed as HTML. */
@@ -86,6 +99,7 @@ export default function MapCanvas({
   faction,
   itemName,
   focus,
+  selectedQuest,
   onSelectQuest
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -203,38 +217,52 @@ export default function MapCanvas({
           .addTo(overlay)
       }
     }
-    for (const { quest, objective, zones, spots } of objectives) {
-      const key = `${quest.id}:${objective.id}`
-      const tip = (): HTMLElement => label(quest.name, objective.description)
-      for (const z of zones) {
-        if (z.outline.length > 2)
-          add(
-            key,
-            L.polygon(
-              z.outline.map((p) => at(p, z.position)),
-              { color: MARKER_COLORS.quest, weight: 2, fillOpacity: 0.2, pane: 'mapObjectives' }
-            )
-              .bindTooltip(tip())
-              .on('click', () => onSelectQuest(quest.id))
+    const color = (status: string): string =>
+      status === 'active' ? MARKER_COLORS.quest : MARKER_COLORS.questOther
+    const fade = (questId: string): boolean => selectedQuest !== null && questId !== selectedQuest
+    // Zone outlines, faint, under the pins.
+    for (const { quest, status, objective, zones } of objectives) {
+      for (const z of zones.filter((z) => z.outline.length > 2)) {
+        add(
+          `${quest.id}:${objective.id}`,
+          L.polygon(
+            z.outline.map((p) => at(p, z.position)),
+            {
+              color: color(status),
+              weight: quest.id === selectedQuest ? 2.5 : 1.5,
+              opacity: fade(quest.id) ? 0.35 : 0.9,
+              fillOpacity: fade(quest.id) ? 0.05 : 0.15,
+              pane: 'mapObjectives'
+            }
           )
-        add(
-          key,
-          dot(z.position, MARKER_COLORS.quest, 7, 'mapObjectives')
-            .bindTooltip(tip())
-            .on('click', () => onSelectQuest(quest.id))
-        )
-      }
-      for (const p of spots) {
-        add(
-          key,
-          dot(p, MARKER_COLORS.quest, 5, 'mapObjectives')
-            .bindTooltip(tip())
+            .bindTooltip(label(quest.name, objective.description))
             .on('click', () => onSelectQuest(quest.id))
         )
       }
     }
+    const { pins, dots } = questPins(objectives)
+    for (const d of dots) {
+      add(
+        `${d.quest.id}:${d.objective.id}`,
+        dot(d.position, color(d.status), 4, 'mapObjectives')
+          .setStyle({ opacity: fade(d.quest.id) ? 0.4 : 1, fillOpacity: fade(d.quest.id) ? 0.4 : 1 })
+          .bindTooltip(label(d.quest.name, [`Could be here: ${d.objective.description}`]))
+          .on('click', () => onSelectQuest(d.quest.id))
+      )
+    }
+    for (const pin of pins) {
+      const selected = pin.quest.id === selectedQuest
+      const marker = htmlMarker(
+        at(pin.position),
+        questPinElement(pin, selected ? 'selected' : fade(pin.quest.id) ? 'dimmed' : null),
+        { riseOnHover: true, pane: 'mapObjectives', zIndexOffset: selected ? 1000 : 0 }
+      )
+        .bindTooltip(pinTooltip(pin, itemName), { direction: 'top', offset: [0, -48 - pin.stack * 44] })
+        .on('click', () => onSelectQuest(pin.quest.id))
+      for (const o of pin.objectives) add(`${pin.quest.id}:${o.id}`, marker)
+    }
     markersRef.current = markers
-  }, [projection, maps, labels, objectives, layers, faction, itemName, onSelectQuest])
+  }, [projection, maps, labels, objectives, layers, faction, itemName, selectedQuest, onSelectQuest])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {
@@ -249,14 +277,14 @@ export default function MapCanvas({
     const points = layers.flatMap((l) =>
       l instanceof L.Polygon
         ? (l.getLatLngs().flat(2) as L.LatLng[])
-        : l instanceof L.CircleMarker
+        : l instanceof L.CircleMarker || l instanceof L.Marker
           ? [l.getLatLng()]
           : []
     )
     if (!points.length) return
     handledFocus.current = focus
     map.flyToBounds(L.latLngBounds(points).pad(0.5), { maxZoom: projection.focusZoom, duration: 0.6 })
-    layers.forEach((l) => l instanceof L.CircleMarker && l.openTooltip())
+    layers.find((l) => l instanceof L.Marker)?.openTooltip()
   }, [focus, objectives, projection])
 
   return (

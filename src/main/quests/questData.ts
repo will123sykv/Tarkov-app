@@ -7,6 +7,7 @@ import type {
   QuestDataset,
   QuestDataState,
   QuestObjective,
+  QuestRewards,
   QuestTrader,
   QuestZone,
   RequirementStatus,
@@ -31,6 +32,9 @@ export interface QuestDataInput {
   mapsLang: Dict
   traders: Collection<Raw> | Raw
   tradersLang: Dict
+  /** Optional: names the stations of crafts that quests unlock. */
+  hideout?: Raw
+  hideoutLang?: Dict
 }
 
 const arr = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
@@ -97,6 +101,105 @@ function traderLevel(objective: Raw): QuestObjective['traderLevel'] {
 }
 
 const QUEST_NAME_KEY = /^([0-9a-f]{24}) name$/
+
+const idOf = (value: unknown): string | null => str(value) ?? str(rec(value).id)
+const ids = (value: unknown): string[] =>
+  arr(value)
+    .map(idOf)
+    .filter((id): id is string => id !== null)
+
+/** Keys an objective needs: one list per lock, any key in a list opens it. */
+const requiredKeys = (value: unknown): string[][] =>
+  arr(value)
+    .map((group) => (Array.isArray(group) ? ids(group) : ids([group])))
+    .filter((group) => group.length)
+
+export const NO_REWARDS: QuestRewards = {
+  items: [],
+  traderStanding: [],
+  offerUnlocks: [],
+  craftUnlocks: [],
+  skills: [],
+  traderUnlocks: [],
+  other: []
+}
+
+function rewards(value: unknown, t: Translate, stations: ReadonlyMap<string, string>): QuestRewards {
+  const r = rec(value)
+  const list = <T>(key: string, parse: (raw: Raw) => T | null): T[] =>
+    arr(r[key])
+      .map((v) => parse(rec(v)))
+      .filter((v): v is T => v !== null)
+  return {
+    items: list('items', (i) => {
+      const itemId = idOf(i.item)
+      return itemId ? { itemId, count: num(i.count) ?? 1 } : null
+    }),
+    traderStanding: list('traderStanding', (s) => {
+      const traderId = idOf(s.trader)
+      const standing = num(s.standing)
+      return traderId && standing !== null ? { traderId, standing } : null
+    }),
+    offerUnlocks: list('offerUnlock', (o) => {
+      const traderId = idOf(o.trader)
+      const itemId = idOf(o.item)
+      return traderId && itemId ? { traderId, level: num(o.level) ?? 1, itemId } : null
+    }),
+    craftUnlocks: list('craftUnlock', (c) => {
+      const stationId = idOf(c.station)
+      const itemId = idOf(c.item) ?? idOf(arr(c.rewardItems)[0] && rec(arr(c.rewardItems)[0]).item)
+      if (!itemId) return null
+      return {
+        station: (stationId && stations.get(stationId)) ?? 'Hideout',
+        level: num(c.level) ?? 1,
+        itemId,
+        count: num(c.count) ?? 1
+      }
+    }),
+    skills: list('skillLevelReward', (k) => {
+      const skill = str(k.skill) ?? str(rec(k.skill).name) ?? str(k.name)
+      const level = num(k.level)
+      return skill && level !== null ? { name: translated(t, skill) ?? skillName(skill), level } : null
+    }),
+    traderUnlocks: ids(r.traderUnlock),
+    other: [
+      ...ids(r.achievement).map((id) => translated(t, `${id} name`) ?? 'An achievement'),
+      ...arr(r.customization).map((c) => {
+        const name = translated(t, str(rec(c).name))
+        const type = str(rec(c).customizationType)
+        return name ?? (type ? `Customisation: ${skillName(type).toLowerCase()}` : 'A customisation')
+      })
+    ]
+  }
+}
+
+/** A translation, or null when there's none (the key would come back as is). */
+function translated(t: Translate, key: string | null): string | null {
+  const text = key ? t(key) : null
+  return text && text !== key ? text : null
+}
+
+/** Skill ids as the game names them: `StressResistance` → `Stress Resistance`. */
+const skillName = (id: string): string =>
+  id === 'TroubleShooting' ? 'Troubleshooting' : id.replace(/([a-z])([A-Z])/g, '$1 $2')
+
+function neededKeys(value: unknown): Quest['neededKeys'] {
+  return arr(value)
+    .map((k) => ({ map: idOf(rec(k).map) ?? '', keyIds: ids(rec(k).keys) }))
+    .filter((k) => k.keyIds.length)
+}
+
+/** Hideout station names by id, from tarkov.dev's `hideout` file (stations by id). */
+export function stationNames(hideout: Raw, lang: Dict): Map<string, string> {
+  const t = translator(lang)
+  const names = new Map<string, string>()
+  for (const raw of values(hideout as Collection<Raw>)) {
+    const id = str(rec(raw).id)
+    const name = translated(t, str(rec(raw).name)) ?? str(rec(raw).normalizedName)
+    if (id && name) names.set(id, name.includes('-') && !name.includes(' ') ? prettify(name) : name)
+  }
+  return names
+}
 
 function prettify(slug: string): string {
   const words = slug.replace(/[-_]+/g, ' ').trim()
@@ -197,6 +300,7 @@ export function normalizeQuestData(
   const tm = translator(input.mapsLang)
   const tt = translator(input.tradersLang)
   const questItems = rec(input.tasks.questItems)
+  const stations = stationNames(input.hideout ?? {}, input.hideoutLang ?? {})
 
   const quests: Quest[] = []
   for (const raw of values(input.tasks.tasks as Collection<Raw>)) {
@@ -233,7 +337,8 @@ export function normalizeQuestData(
             positions: vecs(rec(l).positions)
           }))
           .filter((l) => l.map && l.positions.length),
-        traderLevel: traderLevel(obj)
+        traderLevel: traderLevel(obj),
+        requiredKeys: requiredKeys(obj.requiredKeys)
       }
     })
     quests.push({
@@ -256,7 +361,11 @@ export function normalizeQuestData(
       kappaRequired: raw.kappaRequired === true,
       lightkeeperRequired: raw.lightkeeperRequired === true,
       faction: str(raw.factionName) ?? 'Any',
-      experience: num(raw.experience) ?? 0
+      experience: num(raw.experience) ?? 0,
+      neededKeys: neededKeys(raw.neededKeys),
+      rewards: rewards(raw.finishRewards, t, stations),
+      startRewards: rewards(raw.startRewards, t, stations),
+      imageLink: str(raw.taskImageLink)
     })
   }
 
@@ -308,7 +417,8 @@ export function normalizeQuestData(
     name: tt(str(rec(raw).name)) ?? key,
     levels: arr(rec(raw).levels)
       .map((l) => ({ level: num(rec(l).level), playerLevel: num(rec(l).requiredPlayerLevel) ?? 0 }))
-      .filter((l): l is QuestTrader['levels'][number] => l.level !== null)
+      .filter((l): l is QuestTrader['levels'][number] => l.level !== null),
+    imageLink: str(rec(raw).imageLink)
   })
   const traders = (
     Array.isArray(traderSource)
@@ -316,7 +426,14 @@ export function normalizeQuestData(
       : Object.entries(rec(traderSource)).map(([key, raw]) => trader(raw, key))
   ).filter((tr) => tr.id)
 
-  const known = new Set(quests.map((q) => q.id))
+  // Achievements' names have the same form as quests'.
+  const known = new Set([
+    ...quests.map((q) => q.id),
+    ...values(input.tasks.tasks as Collection<Raw>).flatMap((raw) => [
+      ...ids(rec(raw.finishRewards).achievement),
+      ...ids(rec(raw.startRewards).achievement)
+    ])
+  ])
   const otherQuestNames: Record<string, string> = {}
   for (const [key, name] of Object.entries(input.tasksLang)) {
     const id = QUEST_NAME_KEY.exec(key)?.[1]
@@ -331,16 +448,21 @@ export async function fetchQuestData(
   dataMode: DataMode,
   now: number
 ): Promise<QuestDataset> {
-  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang] = await Promise.all([
+  // Hideout station names only label rewards: do without them rather than fail.
+  const optional = <T>(file: string): Promise<T | undefined> =>
+    fetchJsonData<T>(fetchFn, dataMode, file).catch(() => undefined)
+  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang] = await Promise.all([
     fetchJsonData<Raw>(fetchFn, dataMode, 'tasks'),
     fetchJsonData<Dict>(fetchFn, dataMode, 'tasks_en'),
     fetchJsonData<Raw>(fetchFn, dataMode, 'maps'),
     fetchJsonData<Dict>(fetchFn, dataMode, 'maps_en'),
     fetchJsonData<Raw>(fetchFn, dataMode, 'traders'),
-    fetchJsonData<Dict>(fetchFn, dataMode, 'traders_en')
+    fetchJsonData<Dict>(fetchFn, dataMode, 'traders_en'),
+    optional<Raw>('hideout'),
+    optional<Dict>('hideout_en')
   ])
   const dataset = normalizeQuestData(
-    { tasks, tasksLang, maps, mapsLang, traders, tradersLang },
+    { tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang },
     dataMode,
     now
   )
@@ -350,8 +472,8 @@ export async function fetchQuestData(
 
 /**
  * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
- * names; 1.6.0: bosses, snipers and extract costs): fill in defaults so they still work offline, and
- * date them so they're refetched straight away.
+ * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures): fill in
+ * defaults so they still work offline, and date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
   let result = cached
@@ -377,6 +499,20 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
         bossSpawns: m.bossSpawns ?? [],
         snipers: m.snipers ?? []
       }))
+    }
+  if (result.quests.some((q) => !q.rewards))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      quests: result.quests.map((q) => ({
+        ...q,
+        neededKeys: q.neededKeys ?? [],
+        rewards: q.rewards ?? NO_REWARDS,
+        startRewards: q.startRewards ?? NO_REWARDS,
+        imageLink: q.imageLink ?? null,
+        objectives: q.objectives.map((o) => ({ ...o, requiredKeys: o.requiredKeys ?? [] }))
+      })),
+      traders: result.traders.map((t) => ({ ...t, imageLink: t.imageLink ?? null }))
     }
   return result
 }
