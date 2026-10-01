@@ -9,6 +9,8 @@ prices, your PMC level and the game mode you play. It also has:
 - **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
   reading the game's log files, with each quest's keys, items, rewards and the wiki's guide and
   pictures of where to go;
+- **Hideout:** what your hideout's upgrades still need, with the items you've put aside ticked
+  off, and the items not to sell (rare ones flagged) marked in the loot list;
 - **Maps:** interactive maps with your quests (named, with their trader), extracts, transits and
   spawns;
 - **Raids:** your raid history and flea market sales, also from the logs.
@@ -99,6 +101,23 @@ prices; use **Quit** in the tray menu to exit. **Start with Windows** starts it 
 tray. Past patterns are no guarantee, and the flea listing fee is charged when you list, even if
 the item doesn't sell.
 
+### Hideout
+
+The **Hideout** tab tracks your hideout per game mode. The game's logs don't record hideout
+upgrades, so set each station's level in the sidebar (the Stash starts at level 1).
+
+- **Items needed** totals every item your stations' next levels (or every level still to build)
+  need, how many you've put aside (use **−**/**+**, type a number, or **All**) and how many are
+  still missing, with found-in-raid items flagged and the station levels each is for. Rare items
+  come first; the money the upgrades cost is in the summary line.
+- **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
+  other stations, trader loyalty levels and skills it needs, and how long it takes to build.
+  **Mark level N built** sets the level and takes its items off what you've put aside.
+- **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
+  **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
+  sell** badge: they can't be bought on the flea, cost ₽75,000 or more to buy back, or have fewer
+  than 5 offers up while being worth ₽20,000 or more (hover the badge for which).
+
 ### Quests, maps and raids
 
 The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing
@@ -171,7 +190,7 @@ offline cache.
 ### Where data is stored
 
 Settings, the encrypted API key, the price and quest caches, the flea price recordings (`trends\`,
-about 1 MB a day), your quest progress and raid history (`player.json`), where the app got to in the
+about 1 MB a day), your quest progress, raid history and hideout (`player.json`), where the app got to in the
 game's logs (`logs\`), quest guides from the wiki (`cache\quest-guides\`) and downloaded map
 images (`map-cache\`) live in
 `%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.

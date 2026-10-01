@@ -22,6 +22,9 @@ import { useStore } from '../store'
 
 type Items = ReadonlyMap<string, LootItem>
 
+/** The most of one item the app keeps count of. */
+const MAX_HAVE = 100_000
+
 const STATION_ICON_FALLBACK = (name: string): string => name.slice(0, 2)
 
 function StationIcon({ station }: { station: HideoutStation }): React.JSX.Element {
@@ -69,10 +72,15 @@ function HaveCounter({
         aria-label="How many you have"
         onChange={(e) => {
           const n = Number(e.target.value)
-          if (Number.isFinite(n)) onChange(Math.max(0, Math.round(n)))
+          if (Number.isFinite(n)) onChange(Math.min(MAX_HAVE, Math.max(0, Math.round(n))))
         }}
       />
-      <button className="button icon small" aria-label="One more" onClick={() => onChange(value + 1)}>
+      <button
+        className="button icon small"
+        aria-label="One more"
+        disabled={value >= MAX_HAVE}
+        onClick={() => onChange(value + 1)}
+      >
         +
       </button>
       {value < needed && (
