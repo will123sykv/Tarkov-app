@@ -63,13 +63,7 @@ async function probeTasks(): Promise<void> {
   ])
   log('hideout', 'top keys', Object.keys(hideout))
   for (const [k, v] of Object.entries(hideout)) {
-    const list = values(v as Raw[] | Record<string, Raw>)
-    log('hideout', k, list.length, JSON.stringify(list[0] ?? null).slice(0, 400))
-    log(
-      'hideout',
-      `${k} names`,
-      list.slice(0, 30).map((x) => [rec(x).id, hideoutEn[String(rec(x).name)] ?? rec(x).name])
-    )
+    log('hideout', k, JSON.stringify(v).slice(0, 300), hideoutEn[String(rec(v).name)])
   }
   const skillKeys = Object.keys(en)
     .filter((k) => /skill/i.test(k))
