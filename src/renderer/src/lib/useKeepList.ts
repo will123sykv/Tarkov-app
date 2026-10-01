@@ -8,14 +8,16 @@ import {
   type KeepInfo
 } from '../../../shared/hideout'
 import { neededItems } from '../../../shared/questProgress'
+import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import { useItemLookup } from './useItemLookup'
 import { useQuestRows } from './useQuestRows'
 
 /** What the player can buy: their level, the flea's unlock level, trader loyalty and finished quests. */
-export function useBuyContext(settings: PublicSettings, priceState: PriceState | null): BuyContext {
-  const { questState } = useQuestRows(settings)
+export function useBuyContext(current: PublicSettings | null, priceState: PriceState | null): BuyContext {
+  const settings = current ?? DEFAULT_SETTINGS
+  const { questState } = useQuestRows(current)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
   const traders = useStore((s) => s.hideoutProgress[settings.gameMode]?.traders) ?? EMPTY_HIDEOUT.traders
   const playerLevel = settings.playerLevels[settings.gameMode]
@@ -39,13 +41,14 @@ export function useBuyContext(settings: PublicSettings, priceState: PriceState |
 
 /** Items not to sell: what the hideout (in the Hideout tab's scope) and active quests still need. */
 export function useKeepList(
-  settings: PublicSettings,
+  current: PublicSettings | null,
   priceState: PriceState | null
 ): ReadonlyMap<string, KeepInfo> {
-  const { questState, rows } = useQuestRows(settings)
+  const settings = current ?? DEFAULT_SETTINGS
+  const { questState, rows } = useQuestRows(current)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const items = useItemLookup(priceState)
-  const ctx = useBuyContext(settings, priceState)
+  const ctx = useBuyContext(current, priceState)
   const scope = settings.hideout.scope
   const stations = questState?.dataset?.stations
   return useMemo(() => {

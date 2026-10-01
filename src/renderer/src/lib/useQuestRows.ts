@@ -3,6 +3,7 @@ import { dataModeFor } from '../../../shared/gameModes'
 import { forFaction, questStatus, type QuestContext, type QuestStatus } from '../../../shared/questProgress'
 import type { GameMap, Quest, QuestDataState } from '../../../shared/questTypes'
 import type { PublicSettings } from '../../../shared/types'
+import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { useStore } from '../store'
 
 export interface QuestRow {
@@ -19,8 +20,13 @@ export interface QuestRows {
   mapsById: ReadonlyMap<string, GameMap>
 }
 
-/** Loads quest data and progress for the current game mode, and works out each quest's status. */
-export function useQuestRows(settings: PublicSettings): QuestRows {
+/**
+ * Loads quest data and progress for the current game mode, and works out each quest's status.
+ * Before the settings load (null), it waits and returns nothing.
+ */
+export function useQuestRows(current: PublicSettings | null): QuestRows {
+  const ready = current !== null
+  const settings = current ?? DEFAULT_SETTINGS
   const dataMode = dataModeFor(settings.gameMode)
   const questState = useStore((s) => s.questData[dataMode])
   const progress = useStore((s) => s.questProgress[settings.gameMode])
@@ -28,11 +34,11 @@ export function useQuestRows(settings: PublicSettings): QuestRows {
   const loadPlayerData = useStore((s) => s.loadPlayerData)
 
   useEffect(() => {
-    void loadQuestData()
-  }, [loadQuestData, dataMode])
+    if (ready) void loadQuestData()
+  }, [loadQuestData, dataMode, ready])
   useEffect(() => {
-    void loadPlayerData()
-  }, [loadPlayerData, settings.gameMode])
+    if (ready) void loadPlayerData()
+  }, [loadPlayerData, settings.gameMode, ready])
 
   const dataset = questState?.dataset ?? null
   const level = settings.playerLevels[settings.gameMode]

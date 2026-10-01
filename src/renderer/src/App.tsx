@@ -2,7 +2,6 @@ import { useDeferredValue, useEffect, useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
 import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
-import type { PublicSettings } from '../../shared/types'
 import { rankItems, type ContainerFilter } from '../../shared/valuation'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
@@ -19,15 +18,6 @@ import TopBar from './components/TopBar'
 import TrendsView from './components/TrendsView'
 import { useTrendRanking } from './lib/useTrendRanking'
 import { containerLootKey, useStore } from './store'
-
-/** The loot table, with the items the hideout and quests still need marked. */
-function LootTable({
-  settings,
-  ...props
-}: Omit<React.ComponentProps<typeof ItemTable>, 'keep'> & { settings: PublicSettings }): React.JSX.Element {
-  const keep = useKeepList(settings, props.priceState)
-  return <ItemTable {...props} keep={keep} />
-}
 
 export default function App(): React.JSX.Element {
   const init = useStore((s) => s.init)
@@ -81,9 +71,12 @@ export default function App(): React.JSX.Element {
     [selected]
   )
 
+  // What the hideout and active quests still need, with what's hard to replace marked.
+  const keep = useKeepList(settings, priceState)
+  const keepOnly = settings?.keepOnly ?? false
   const ranked = useMemo(() => {
     if (!dataset || !settings || !lootView) return []
-    return rankItems(
+    const rows = rankItems(
       dataset.items,
       ctx,
       {
@@ -94,7 +87,9 @@ export default function App(): React.JSX.Element {
       },
       settings.sort
     )
-  }, [dataset, settings, ctx, containerFilter, search, lootView])
+    // Only what to save: needed, and can't be bought now or rare.
+    return keepOnly ? rows.filter((r) => keep.get(r.item.id)?.scarce) : rows
+  }, [dataset, settings, ctx, containerFilter, search, lootView, keepOnly, keep])
 
   if (initError) {
     return <div className="fatal">Failed to start: {initError}</div>
@@ -139,8 +134,8 @@ export default function App(): React.JSX.Element {
               unavailableContainer={unavailableContainer}
               pricesLoaded={dataset !== null}
             />
-            <LootTable
-              settings={settings}
+            <ItemTable
+              keep={keep}
               rows={ranked}
               priceState={priceState}
               sort={settings.sort}

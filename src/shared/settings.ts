@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: Settings = {
   gameMode: 'pvp',
   playerLevels: { pvp: 15, pve: 15, season: 1 },
   hideLocked: false,
+  keepOnly: false,
   refreshIntervalMin: DEFAULT_REFRESH_INTERVAL_MIN,
   subtractFleaFee: true,
   minValuePerSlot: 0,
@@ -69,7 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
     faction: 'pmc',
     style: '2d'
   },
-  hideout: { scope: 'all', hideDone: false, firOnly: false, tab: 'items' }
+  hideout: { scope: 'all', hideDone: false, firOnly: false, keepOnly: false, tab: 'items' }
 }
 
 const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'hideout', 'maps', 'raids']
@@ -115,6 +116,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
     scope: r.scope === 'next' ? 'next' : 'all',
     hideDone: r.hideDone === true,
     firOnly: r.firOnly === true,
+    keepOnly: r.keepOnly === true,
     tab: r.tab === 'upgrades' ? 'upgrades' : 'items'
   }
 }
@@ -200,6 +202,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     gameMode: isGameMode(r.gameMode) ? r.gameMode : d.gameMode,
     playerLevels,
     hideLocked: typeof r.hideLocked === 'boolean' ? r.hideLocked : d.hideLocked,
+    keepOnly: r.keepOnly === true,
     refreshIntervalMin: clampInt(
       r.refreshIntervalMin,
       MIN_REFRESH_INTERVAL_MIN,

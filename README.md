@@ -126,6 +126,9 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
   have fewer than 5 offers up while being worth ₽20,000 or more. Ones you can't buy yet at your
   level and trader loyalty get an amber **Can't buy yet** badge. Hover either for why; ones a
   trader sells you get neither.
+- **What to save right now:** tick **Can't buy or rare only** in the Hideout item list, or **Only
+  items to save (can't buy or rare)** in the Loot tab's filters, to see just the items you still
+  need that you can't buy at your level and trader loyalty, or that are rare.
 
 ### Quests, maps and raids
 

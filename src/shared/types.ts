@@ -126,6 +126,8 @@ export interface Settings {
   /** Each mode is a separate in-game character, so each keeps its own level. */
   playerLevels: Record<GameMode, number>
   hideLocked: boolean
+  /** Loot tab: only items the hideout or active quests need that can't be bought now or are rare. */
+  keepOnly: boolean
   refreshIntervalMin: number
   subtractFleaFee: boolean
   minValuePerSlot: number
@@ -155,6 +157,8 @@ export interface HideoutSettings {
   hideDone: boolean
   /** Only items that must be found in raid. */
   firOnly: boolean
+  /** Only items the player can't buy now, or that are rare. */
+  keepOnly: boolean
   tab: 'items' | 'upgrades'
 }
 

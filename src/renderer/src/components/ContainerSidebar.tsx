@@ -165,6 +165,17 @@ export default function ContainerSidebar({
           />
           Hide items I can't sell on the flea
         </label>
+        <label
+          className="check"
+          title="Items the hideout or your active quests still need that you can't buy now (at your level and trader loyalty) or that are rare"
+        >
+          <input
+            type="checkbox"
+            checked={settings.keepOnly}
+            onChange={(e) => void updateSettings({ keepOnly: e.target.checked })}
+          />
+          Only items to save (can&rsquo;t buy or rare)
+        </label>
         <label className="field">
           <span>Min ₽ per slot</span>
           <input

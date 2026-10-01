@@ -130,6 +130,7 @@ function ItemsNeeded({
   items,
   hideDone,
   firOnly,
+  keepOnly,
   ctx
 }: {
   needs: HideoutNeed[]
@@ -137,6 +138,8 @@ function ItemsNeeded({
   hideDone: boolean
   /** Only items that must be found in raid. */
   firOnly: boolean
+  /** Only what to save: still missing, and can't be bought now or rare. */
+  keepOnly: boolean
   ctx: BuyContext
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
@@ -153,6 +156,7 @@ function ItemsNeeded({
             buy: item ? buyOptions(item, ctx) : null
           }
         })
+        .filter((r) => !keepOnly || (r.need.missing > 0 && r.scarce !== null))
         .sort(
           (a, b) =>
             (b.need.missing > 0 ? SCARCE_ORDER(b.scarce) : 0) -
@@ -160,17 +164,19 @@ function ItemsNeeded({
             b.need.missing - a.need.missing ||
             (a.item?.name ?? '').localeCompare(b.item?.name ?? '')
         ),
-    [needs, items, hideDone, firOnly, ctx]
+    [needs, items, hideDone, firOnly, keepOnly, ctx]
   )
   if (!rows.length)
     return (
       <div className="empty">
         <p>
-          {firOnly && needs.some((n) => n.missing > 0)
-            ? 'None of these upgrades need items found in raid.'
-            : needs.length
-              ? 'You have everything these upgrades need.'
-              : 'Nothing left to build.'}
+          {keepOnly && needs.some((n) => n.missing > 0)
+            ? `Nothing ${firOnly ? 'found-in-raid ' : ''}still missing is hard to replace right now: you can buy it all.`
+            : firOnly && needs.some((n) => n.missing > 0)
+              ? 'None of these upgrades need items found in raid.'
+              : needs.length
+                ? 'You have everything these upgrades need.'
+                : 'Nothing left to build.'}
         </p>
       </div>
     )
@@ -580,12 +586,30 @@ export default function HideoutView({
                   />
                   Found in raid only
                 </label>
+                <label
+                  className="check fir-filter"
+                  title="Items still missing that you can't buy at your level and trader loyalty, or that are rare: save these, don't sell them"
+                >
+                  <input
+                    type="checkbox"
+                    checked={h.keepOnly}
+                    onChange={(e) => set({ keepOnly: e.target.checked })}
+                  />
+                  Can&rsquo;t buy or rare only
+                </label>
               </>
             )}
           </div>
         </div>
         {h.tab === 'items' ? (
-          <ItemsNeeded needs={shownNeeds} items={items} hideDone={h.hideDone} firOnly={h.firOnly} ctx={ctx} />
+          <ItemsNeeded
+            needs={shownNeeds}
+            items={items}
+            hideDone={h.hideDone}
+            firOnly={h.firOnly}
+            keepOnly={h.keepOnly}
+            ctx={ctx}
+          />
         ) : (
           <div className="upgrades">
             {upgrades.map(({ station, next }) => (

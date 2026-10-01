@@ -187,26 +187,39 @@ describe('sanitizeSettings', () => {
   })
 
   it('validates the hideout view and its options', () => {
-    expect(DEFAULT_SETTINGS.hideout).toEqual({ scope: 'all', hideDone: false, firOnly: false, tab: 'items' })
-    expect(
-      sanitizeSettings({
-        view: 'hideout',
-        hideout: { scope: 'next', hideDone: true, firOnly: true, tab: 'upgrades' }
-      })
-    ).toMatchObject({
+    expect(DEFAULT_SETTINGS.hideout).toEqual({
+      scope: 'all',
+      hideDone: false,
+      firOnly: false,
+      keepOnly: false,
+      tab: 'items'
+    })
+    const chosen = { scope: 'next', hideDone: true, firOnly: true, keepOnly: true, tab: 'upgrades' } as const
+    expect(sanitizeSettings({ view: 'hideout', hideout: chosen })).toMatchObject({
       view: 'hideout',
-      hideout: { scope: 'next', hideDone: true, firOnly: true, tab: 'upgrades' }
+      hideout: chosen
     })
     expect(
-      sanitizeSettings({ hideout: { scope: 'some', hideDone: 'yes', firOnly: 1, tab: 'x' } }).hideout
+      sanitizeSettings({ hideout: { scope: 'some', hideDone: 'yes', firOnly: 1, keepOnly: 'on', tab: 'x' } })
+        .hideout
     ).toEqual(DEFAULT_SETTINGS.hideout)
-    // Settings saved by 1.8.0 have no firOnly.
+    // Settings saved by 1.8.0 have neither filter.
     expect(
-      sanitizeSettings({ hideout: { scope: 'next', hideDone: true, tab: 'items' } }).hideout.firOnly
-    ).toBe(false)
+      sanitizeSettings({ hideout: { scope: 'next', hideDone: true, tab: 'items' } }).hideout
+    ).toMatchObject({
+      firOnly: false,
+      keepOnly: false
+    })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { hideout: { ...DEFAULT_SETTINGS.hideout, scope: 'next' } }).hideout
-    ).toEqual({ scope: 'next', hideDone: false, firOnly: false, tab: 'items' })
+    ).toEqual({ scope: 'next', hideDone: false, firOnly: false, keepOnly: false, tab: 'items' })
+  })
+
+  it('keeps the Loot tab’s "only items to save" filter', () => {
+    expect(DEFAULT_SETTINGS.keepOnly).toBe(false)
+    expect(sanitizeSettings({ keepOnly: true }).keepOnly).toBe(true)
+    expect(sanitizeSettings({ keepOnly: 'yes' }).keepOnly).toBe(false)
+    expect(mergeSettings(DEFAULT_SETTINGS, { keepOnly: true }).keepOnly).toBe(true)
   })
 
   it('validates the flea trends view and background options', () => {
