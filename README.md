@@ -7,8 +7,10 @@ prices, your PMC level and the game mode you play. It also has:
 - **Flea trends:** liquid flea items whose price follows a daily pattern, and the best time of day
   to buy and to sell them;
 - **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
-  reading the game's log files;
-- **Maps:** interactive maps with your quest objectives, extracts, transits and spawns;
+  reading the game's log files, with each quest's keys, items, rewards and the wiki's guide and
+  pictures of where to go;
+- **Maps:** interactive maps with your quests (named, with their trader), extracts, transits and
+  spawns;
 - **Raids:** your raid history and flea market sales, also from the logs.
 
 ## Download
@@ -111,9 +113,16 @@ the game's install folder, or its `build` folder.
   before it done**, which also completes everything that had to come before it. You can set any
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
   trader, map, faction, and Kappa or Lightkeeper. **Items needed** lists what your active quests
-  still want handed over, flagging found-in-raid items.
-- **Maps:** the objectives of your active (or available) quests, with pins in the style of
-  [db4tarkov](https://db4tarkov.com/map): your side's extracts (flare, vehicle, co-op and secret
+  still want handed over, flagging found-in-raid items. A quest's panel shows its trader, its
+  objectives with the keys each needs, the keys and items it takes, what it gives when you accept
+  it, its rewards (experience, reputation, items and money, trader and craft unlocks, skills) and
+  the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
+  pictures of where to go (click one to see it full size). Guides are kept for a week, so ones
+  you've opened work offline.
+- **Maps:** your active (or available) quests as pins with the quest's name and trader, the
+  trader's portrait and an icon for each thing to do there (go to, pick up, stash, mark, eliminate,
+  extract, and a key when one's needed); click one to open the quest's panel on the right, the same
+  as in Quests. Pins in the style of [db4tarkov](https://db4tarkov.com/map) show your side's extracts (flare, vehicle, co-op and secret
   ones marked, with what they need), transits, boss spawns, sniper scavs, place names and PMC
   spawns. Customs, Ground Zero, Woods, Shoreline, Reserve, Interchange, Lighthouse and Streets use
   the clean community 2D maps db4tarkov shows; Factory, Icebreaker, Labyrinth and Terminal use
@@ -163,7 +172,8 @@ offline cache.
 
 Settings, the encrypted API key, the price and quest caches, the flea price recordings (`trends\`,
 about 1 MB a day), your quest progress and raid history (`player.json`), where the app got to in the
-game's logs (`logs\`) and downloaded map images (`map-cache\`) live in
+game's logs (`logs\`), quest guides from the wiki (`cache\quest-guides\`) and downloaded map
+images (`map-cache\`) live in
 `%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.
 
 ## Development
@@ -263,6 +273,6 @@ Streets (Jindouz, Shoreline from monkimonkimonk's) and Interchange (Re3MR) as sh
 (Apache-2.0). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). The log formats
 follow what [TarkovMonitor](https://github.com/the-hideout/TarkovMonitor) documents.
 Container loot tables: the [SPT](https://github.com/sp-tarkov/server-csharp) project's server
-database (NCSA licence). Container pictures: the
+database (NCSA licence). Container pictures, and quest guides and their pictures: the
 [Official Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) (CC BY-SA 3.0).
 Not affiliated with or endorsed by Battlestate Games.

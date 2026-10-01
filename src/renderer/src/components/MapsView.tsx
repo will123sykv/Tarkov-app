@@ -5,7 +5,7 @@ import { interactiveProjection, posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
 import { KEY_ICON, OBJECTIVE_ICONS, type ObjectiveMarker } from '../lib/questPins'
-import { configFor, MAP_CONFIGS } from '../lib/questUi'
+import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
@@ -321,7 +321,7 @@ export default function MapsView({
                       <span>
                         {[
                           trader?.name,
-                          status === 'active' ? null : 'not started',
+                          status === 'active' ? null : STATUS_LABEL[status].toLowerCase(),
                           `${count} objective${count === 1 ? '' : 's'} here`
                         ]
                           .filter(Boolean)

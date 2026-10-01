@@ -1596,7 +1596,8 @@ button.link.small {
 
 .reward-list .tag,
 .reward-list strong,
-.reward-list .portrait {
+.reward-list .portrait,
+.reward-list .need-action {
   flex: none;
 }
 

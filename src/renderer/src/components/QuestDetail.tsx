@@ -178,7 +178,7 @@ function Needs({
         ))}
         {needs.map((n) => (
           <li key={`${n.action}:${n.itemIds.join()}:${n.foundInRaid}`}>
-            <span className="muted">{n.action} </span>
+            <span className="muted need-action">{n.action}</span>
             {n.itemIds.length === 1 ? (
               <ItemChip id={n.itemIds[0]} count={n.count} items={items} />
             ) : (

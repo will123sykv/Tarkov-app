@@ -18,6 +18,12 @@ const IMAGE_WIDTH = 800
 
 type Raw = Record<string, unknown>
 
+class MissingPage extends Error {
+  constructor() {
+    super('The wiki has no page for this quest yet.')
+  }
+}
+
 /** The wiki page a tarkov.dev `wikiLink` points to, or null for a link elsewhere. */
 export function wikiTitle(wikiLink: string | null): string | null {
   if (!wikiLink?.startsWith(WIKI_PAGE)) return null
@@ -210,7 +216,7 @@ async function wikiApi(fetchFn: FetchFn, params: Record<string, string>): Promis
     TIMEOUT_MS
   )) as Raw
   const error = body.error as Raw | undefined
-  if (error?.code === 'missingtitle') throw new Error('The wiki has no page for this quest yet.')
+  if (error?.code === 'missingtitle') throw new MissingPage()
   if (error) throw new Error(`The wiki said: ${String(error.info ?? error.code)}`)
   return body
 }
@@ -299,7 +305,11 @@ export function createQuestGuideService(deps: { fetchFn: FetchFn; cacheDir: stri
       memory.set(title, guide)
       return { guide, error: null }
     } catch (err) {
-      return { guide: cached ?? null, error: `Couldn't load the guide from the wiki: ${errorMessage(err)}` }
+      const reason =
+        err instanceof MissingPage
+          ? err.message
+          : `Couldn't load the guide from the wiki: ${errorMessage(err)}`
+      return { guide: cached ?? null, error: reason }
     }
   }
 

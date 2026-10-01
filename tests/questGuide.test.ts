@@ -158,14 +158,14 @@ describe('createQuestGuideService', () => {
     clock += 5 * 24 * 3_600_000
     const stale = await createQuestGuideService({ fetchFn: wiki(true), cacheDir, now: () => clock }).get(LINK)
     expect(stale.guide).toEqual(first.guide)
-    expect(stale.error).toMatch(/503/)
+    expect(stale.error).toMatch(/^Couldn't load the guide from the wiki: HTTP 503/)
   })
 
   it('says when there is no page', async () => {
     const service = createQuestGuideService({ fetchFn: wiki(), cacheDir: await tempDir() })
     expect(await service.get('https://escapefromtarkov.fandom.com/wiki/Missing')).toEqual({
       guide: null,
-      error: "Couldn't load the guide from the wiki: The wiki has no page for this quest yet."
+      error: 'The wiki has no page for this quest yet.'
     })
     expect((await service.get(null)).error).toMatch(/no wiki page/)
   })
