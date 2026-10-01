@@ -6,6 +6,7 @@ import { errorMessage } from '../src/main/pricing/http'
 import { fetchJsonData, values } from '../src/main/pricing/tarkovDevJson'
 
 type Raw = Record<string, unknown>
+const rec = (v: unknown): Raw => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Raw) : {})
 const WIKI = 'https://escapefromtarkov.fandom.com'
 const UA = { 'User-Agent': 'TarkovLootOptimiser-probe/1.0 (github.com/will123sykv/Tarkov-app)' }
 
@@ -39,6 +40,32 @@ async function probeTasks(): Promise<void> {
   }
   log('tasks', 'objective keys', Object.fromEntries(objectiveKeys))
   log('tasks', 'reward keys (non-empty)', Object.fromEntries(rewardKeys))
+  for (const key of [
+    'offerUnlock',
+    'skillLevelReward',
+    'traderUnlock',
+    'achievement',
+    'customization',
+    'traderDialogueUnlock',
+    'craftUnlock'
+  ]) {
+    const samples = tasks
+      .flatMap((t) => [rec(t.finishRewards)[key], rec(t.startRewards)[key]])
+      .flatMap((v) => (Array.isArray(v) ? v : []))
+      .slice(0, 3)
+    log('rewards', key, samples)
+  }
+  const startItems = tasks.filter((t) => ((rec(t.startRewards).items ?? []) as unknown[]).length).slice(0, 2)
+  for (const t of startItems) log('rewards', `start items ${tr(t.name)}`, rec(t.startRewards).items)
+  const skillKeys = Object.keys(en)
+    .filter((k) => /skill/i.test(k))
+    .slice(0, 10)
+  log(
+    'rewards',
+    'en skill keys',
+    skillKeys,
+    skillKeys.map((k) => en[k])
+  )
   log('tasks', 'objective types', [
     ...new Set(tasks.flatMap((t) => ((t.objectives ?? []) as Raw[]).map((o) => o.type)))
   ])
@@ -86,16 +113,17 @@ async function wikiJson(params: Record<string, string>): Promise<Raw> {
 
 async function probeWiki(): Promise<void> {
   for (const page of [
-    'Debut',
     'Checking',
     'Delivery_from_the_Past',
-    'Shortage',
-    'The_Extortionist',
-    'Golden_Swag'
+    'Bad_Rep_Evidence',
+    'Setup',
+    'Spa_Tour_-_Part_1',
+    'Gunsmith_-_Part_1'
   ]) {
     await section('wiki', async () => {
-      const parsed = (await wikiJson({ action: 'parse', page, prop: 'wikitext|images|sections' }))
-        .parse as Raw
+      const parsed = (
+        await wikiJson({ action: 'parse', page, prop: 'wikitext|images|sections', redirects: '1' })
+      ).parse as Raw
       const text = String(parsed.wikitext ?? '')
       log(
         'wiki',
