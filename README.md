@@ -115,11 +115,11 @@ the game's install folder, or its `build` folder.
 - **Maps:** the objectives of your active (or available) quests, with pins in the style of
   [db4tarkov](https://db4tarkov.com/map): your side's extracts (flare, vehicle, co-op and secret
   ones marked, with what they need), transits, boss spawns, sniper scavs, place names and PMC
-  spawns. Customs, Ground Zero, Woods and Shoreline use the clean community 2D maps db4tarkov
-  shows; Factory, Icebreaker, Labyrinth and Terminal use [Re3MR](https://reemr.se)'s. Each marker
-  is drawn on the floor, deck or inset it's on (the Ground Zero underground, the Shoreline resort's
-  floors), and a switch goes back to tarkov.dev's map; the other maps use tarkov.dev's interactive
-  maps. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
+  spawns. Customs, Ground Zero, Woods, Shoreline, Reserve, Interchange, Lighthouse and Streets use
+  the clean community 2D maps db4tarkov shows; Factory, Icebreaker, Labyrinth and Terminal use
+  [Re3MR](https://reemr.se)'s. Each marker is drawn on the floor, deck or inset it's on (the Ground
+  Zero underground, the Shoreline resort's floors, Reserve's bunkers, Interchange's mall), and a
+  switch goes back to tarkov.dev's map; The Lab uses tarkov.dev's interactive map. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards.
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
@@ -257,9 +257,9 @@ Price, item, quest and map data: [tarkov.dev](https://tarkov.dev) and
 [tarkov.dev's SVG maps](https://github.com/the-hideout/tarkov-dev-svg-maps) by Shebuka and others
 (CC BY-NC-SA 4.0), [Re3MR](https://reemr.se)'s 2D maps of Factory, Icebreaker, Labyrinth and
 Terminal (CC BY-NC-SA 4.0, fetched from tarkov.dev's repository), and the 2D maps of Customs
-(monkimonkimonk and Glory4Lyfe), Ground Zero (xTycho), Woods and Shoreline (Jindouz, Shoreline from
-monkimonkimonk's) as shown on [db4tarkov.com](https://db4tarkov.com/map) (CC BY-NC-SA 4.0, fetched
-from its CDN). Pin icons: [Material Design Icons](https://pictogrammers.com/library/mdi/)
+(monkimonkimonk and Glory4Lyfe), Ground Zero (xTycho), Woods, Shoreline, Reserve, Lighthouse and
+Streets (Jindouz, Shoreline from monkimonkimonk's) and Interchange (Re3MR) as shown on
+[db4tarkov.com](https://db4tarkov.com/map) (CC BY-NC-SA 4.0, fetched from its CDN). Pin icons: [Material Design Icons](https://pictogrammers.com/library/mdi/)
 (Apache-2.0). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). The log formats
 follow what [TarkovMonitor](https://github.com/the-hideout/TarkovMonitor) documents.
 Container loot tables: the [SPT](https://github.com/sp-tarkov/server-csharp) project's server

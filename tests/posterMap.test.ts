@@ -23,7 +23,11 @@ describe('2D maps', () => {
       'factory',
       'ground-zero',
       'icebreaker',
+      'interchange',
+      'lighthouse',
+      'reserve',
       'shoreline',
+      'streets-of-tarkov',
       'terminal',
       'the-labyrinth',
       'woods'
@@ -37,10 +41,10 @@ describe('2D maps', () => {
     // At the top zoom a 512 px tile is 512 image pixels: the image fits the tile grid.
     for (const m of db4)
       expect(Math.max(m.width, m.height), m.key).toBeLessThanOrEqual(512 * 2 ** (m.tiles!.maxZoom - 1))
-    expect(posterFor('lighthouse')).toBeNull()
+    expect(posterFor('the-lab')).toBeNull()
   })
 
-  it('gives every height exactly one whole-map panel, and each inset area one panel per height', () => {
+  it('gives every height exactly one whole-map panel, and each inset area at most one per height', () => {
     for (const m of POSTER_MAPS) {
       const groups = new Map<string, typeof m.panels>()
       for (const p of m.panels) {
@@ -49,9 +53,15 @@ describe('2D maps', () => {
       }
       expect(groups.has('null'), m.key).toBe(true)
       for (const [area, panels] of groups) {
-        expect(panels[0].minY, `${m.key} ${area}`).toBeNull()
-        if (area === 'null') expect(panels.at(-1)!.maxY, m.key).toBeNull()
-        for (let i = 1; i < panels.length; i++) expect(panels[i].minY, m.key).toBe(panels[i - 1].maxY)
+        if (area === 'null') {
+          expect(panels[0].minY, m.key).toBeNull()
+          expect(panels.at(-1)!.maxY, m.key).toBeNull()
+          for (let i = 1; i < panels.length; i++) expect(panels[i].minY, m.key).toBe(panels[i - 1].maxY)
+        } else {
+          // An inset's heights needn't start at the bottom (Reserve's upper bunker level), but never overlap.
+          for (let i = 1; i < panels.length; i++)
+            expect(panels[i].minY!, `${m.key} ${area}`).toBeGreaterThanOrEqual(panels[i - 1].maxY!)
+        }
       }
     }
   })
@@ -90,6 +100,27 @@ describe('2D maps', () => {
     expect(panelFor(gz, at(80, 25, 45)).name).toBe('Map')
   })
 
+  it('puts Reserve’s bunkers and Interchange’s mall on their own plans', () => {
+    const reserve = map('reserve')
+    // tarkov.dev's extract positions.
+    expect(panelFor(reserve, at(61.92, -5.26, -190.54)).name).toBe('Underground north (hermetic door)')
+    expect(panelFor(reserve, at(120.78, -10.27, -120.35)).name).toBe('Underground north (storage bunker)')
+    expect(panelFor(reserve, at(-121.48, -17, 172.25)).name).toBe('Underground south (D-2)')
+    expect(panelFor(reserve, at(36.53, -5.97, -221.56)).name).toBe('Map') // Exit to Woods, at the fence
+    // Reserve's place names (the ground and up) stay on the map, even over the dome's tunnels.
+    expect(panelFor(reserve, at(-8.5, -5.5, 175)).name).toBe('Map')
+    expect(panelFor(reserve, at(-8.5, -10, 175)).name).toBe('Underground south (dome tunnels)')
+
+    const interchange = map('interchange')
+    expect(panelFor(interchange, at(-47.73, 22.97, 44.06)).name).toBe('Mall parking') // Saferoom Exfil
+    expect(panelFor(interchange, at(-138.53, 22.51, -175.11)).name).toBe('Mall parking') // Smugglers' Tunnel
+    expect(panelFor(interchange, at(-38, 25.5, -129)).name).toBe('Mall first floor') // Book Store
+    expect(panelFor(interchange, at(-180, 36, 0)).name).toBe('Mall second floor')
+    expect(panelFor(interchange, at(-30, 34.5, -150)).name).toBe('Mall second floor') // a second-floor shop
+    expect(panelFor(interchange, at(-219.92, 13.79, -37.02)).name).toBe('Map') // Hole in the Fence
+    expect(panelFor(interchange, at(-175.5, -0.5, 145.1)).name).toBe('Map') // the ramps, outside
+  })
+
   // Game positions from tarkov.dev's map data, and where the image draws the same thing (image pixels).
   const references: [string, string, { x: number; y: number; z: number }, [number, number], number][] = [
     ['factory', 'Med Tent Gate door lock', { x: -19.08, y: 1.45, z: -48.57 }, [4710, 1577], 50],
@@ -103,7 +134,17 @@ describe('2D maps', () => {
     ['customs', 'Big Red (the warehouse’s middle)', { x: -215, y: 2, z: -119 }, [3505, 611], 40],
     ['ground-zero', 'Emercom Checkpoint', { x: 151.63, y: 24.66, z: -97.46 }, [1852, 740], 60],
     ['woods', 'Friendship Bridge', { x: 93.17, y: 16.57, z: -843.98 }, [2800, 488], 40],
-    ['shoreline', 'Lighthouse (end of the pier)', { x: -458.15, y: -54.29, z: 567.29 }, [3369, 4380], 40]
+    ['shoreline', 'Lighthouse (end of the pier)', { x: -458.15, y: -54.29, z: 567.29 }, [3369, 4380], 40],
+    ['reserve', 'Tarmac (the helicopter)', { x: -120, y: -2, z: 37 }, [2378, 1440], 40],
+    ['interchange', 'Oli Tower (the roundabout)', { x: 202.3, y: 22, z: 219.4 }, [1945, 4200], 60],
+    ['lighthouse', 'Northern Checkpoint (the booth)', { x: 114.67, y: 11.86, z: -989.46 }, [878, 442], 50],
+    [
+      'streets-of-tarkov',
+      'Expo Checkpoint (the road through the wall)',
+      { x: 213.12, y: -0.74, z: -104.96 },
+      [2865, 1420],
+      50
+    ]
   ]
   it.each(references)('places %s: %s where the image draws it', (key, _what, position, [u, v], tolerance) => {
     const [x, y] = toImagePoint(map(key), position)

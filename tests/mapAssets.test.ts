@@ -108,7 +108,7 @@ describe('db4tarkov tiles', () => {
     const fetchFn = vi.fn<FetchFn>()
     const handle = createMapAssetHandler({ cacheDir: await tempDir(), fetchFn })
     for (const url of [
-      'tarkov-map://db4tarkov/lighthouse/1/0/0.webp',
+      'tarkov-map://db4tarkov/labs/1/0/0.webp',
       'tarkov-map://db4tarkov/customs/5/0/0.webp',
       'tarkov-map://db4tarkov/customs/0/0/0.webp',
       'tarkov-map://db4tarkov/customs/2/4/0.webp',

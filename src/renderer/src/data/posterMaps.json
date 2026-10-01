@@ -4,7 +4,7 @@
     "db4tarkov": "db4tarkov.com's clean versions of the community maps, as 512 px WebP tiles from cdn.db4tarkov.com"
   },
   "license": "CC BY-NC-SA 4.0",
-  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions, and the db4tarkov maps by registering tarkov.dev's SVG maps (and their floor layers, for the insets) onto the images; all were checked against what the images draw. A panel is one floor, deck or inset of the image: the first panel whose area (game [xMin, zMin, xMax, zMax], when it has one) holds a position and whose height range [minY, maxY) holds its height; otherwise the whole-map panels, by height.",
+  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions, and the db4tarkov maps by registering tarkov.dev's SVG maps (and their floor layers, for the insets) onto the images, Interchange's photo-like render by matching its roads and its floor plans' outlines; all were checked against what the images draw. A panel is one floor, deck or inset of the image: the first panel whose area (game [xMin, zMin, xMax, zMax], when it has one) holds a position and whose height range [minY, maxY) holds its height; otherwise the whole-map panels, by height.",
   "maps": [
     {
       "key": "customs",
@@ -171,6 +171,167 @@
           "minY": null,
           "maxY": null,
           "transform": [-3.37182, 0.00536, -0.00471, 3.31128, 1809.77, 2514.67]
+        }
+      ]
+    },
+    {
+      "key": "reserve",
+      "provider": "db4tarkov",
+      "author": "Jindouz",
+      "authorLink": "https://www.reddit.com/user/Jindouz/",
+      "version": "V2.8",
+      "tiles": {
+        "slug": "reserve",
+        "maxZoom": 5
+      },
+      "width": 4701,
+      "height": 2785,
+      "panels": [
+        {
+          "name": "Underground north (storage bunker)",
+          "area": [18, -208, 128, -33],
+          "minY": null,
+          "maxY": -7.27,
+          "transform": [-4.93221, 1.33851, 1.27009, 4.77365, 3959.99, 1371.82]
+        },
+        {
+          "name": "Underground north (hermetic door)",
+          "area": [19, -196, 74, -149],
+          "minY": -7.27,
+          "maxY": -3.2,
+          "transform": [-4.93221, 1.33851, 1.27009, 4.77365, 3959.99, 1371.82]
+        },
+        {
+          "name": "Underground south (command bunkers)",
+          "area": [-176, -42, -46, 127],
+          "minY": null,
+          "maxY": -7.27,
+          "transform": [-4.9227, 1.31995, 1.35326, 4.93203, 3697.13, 537.42]
+        },
+        {
+          "name": "Underground south (D-2)",
+          "area": [-124, 124, -40, 189],
+          "minY": null,
+          "maxY": -12,
+          "transform": [-4.9227, 1.31995, 1.35326, 4.93203, 3697.13, 537.42]
+        },
+        {
+          "name": "Underground south (dome tunnels)",
+          "area": [-65, 173, 23, 189],
+          "minY": null,
+          "maxY": -7.27,
+          "transform": [-4.9227, 1.31995, 1.35326, 4.93203, 3697.13, 537.42]
+        },
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-4.95894, 1.34947, 1.34931, 4.95006, 1724.9, 1428.99]
+        }
+      ]
+    },
+    {
+      "key": "interchange",
+      "provider": "db4tarkov",
+      "author": "Re3MR",
+      "authorLink": "https://reemr.se",
+      "version": "v0.2C",
+      "tiles": {
+        "slug": "interchange",
+        "maxZoom": 6
+      },
+      "width": 9600,
+      "height": 5402,
+      "panels": [
+        {
+          "name": "Mall parking",
+          "area": [-158, -316, 95, 205],
+          "minY": null,
+          "maxY": 25,
+          "transform": [-5.12848, 0.00447, 0.00415, 5.12236, 5967.13, 3032.56]
+        },
+        {
+          "name": "Mall first floor",
+          "area": [-158, -316, 95, 205],
+          "minY": 25,
+          "maxY": 34,
+          "transform": [-5.08688, -0.00403, -0.00154, 5.1092, 7550.31, 3039.7]
+        },
+        {
+          "name": "Mall second floor",
+          "area": [-158, -316, 95, 205],
+          "minY": 34,
+          "maxY": null,
+          "transform": [-5.13086, 0.00049, -0.01547, 5.11597, 9161.31, 3024.15]
+        },
+        {
+          "name": "Mall parking",
+          "area": [-196, -198, -158, 87],
+          "minY": null,
+          "maxY": 25,
+          "transform": [-5.12848, 0.00447, 0.00415, 5.12236, 5967.13, 3032.56]
+        },
+        {
+          "name": "Mall first floor",
+          "area": [-196, -198, -158, 87],
+          "minY": 25,
+          "maxY": 34,
+          "transform": [-5.08688, -0.00403, -0.00154, 5.1092, 7550.31, 3039.7]
+        },
+        {
+          "name": "Mall second floor",
+          "area": [-196, -198, -158, 87],
+          "minY": 34,
+          "maxY": null,
+          "transform": [-5.13086, 0.00049, -0.01547, 5.11597, 9161.31, 3024.15]
+        },
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-5.30335, -0.00205, -0.01077, 5.35875, 3042.35, 3048.42]
+        }
+      ]
+    },
+    {
+      "key": "lighthouse",
+      "provider": "db4tarkov",
+      "author": "Jindouz",
+      "authorLink": "https://www.reddit.com/user/Jindouz/",
+      "version": "V2.2",
+      "tiles": {
+        "slug": "lighthouse",
+        "maxZoom": 4
+      },
+      "width": 2242,
+      "height": 3892,
+      "panels": [
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-2.05147, -0.00013, -0.00082, 2.05354, 1092.15, 2452.23]
+        }
+      ]
+    },
+    {
+      "key": "streets-of-tarkov",
+      "provider": "db4tarkov",
+      "author": "Jindouz",
+      "authorLink": "https://www.reddit.com/user/Jindouz/",
+      "version": "V6.4.6",
+      "tiles": {
+        "slug": "streets",
+        "maxZoom": 5
+      },
+      "width": 7620,
+      "height": 5877,
+      "panels": [
+        {
+          "name": "Map",
+          "minY": null,
+          "maxY": null,
+          "transform": [-6.15847, 0.00175, 0.00148, 6.17066, 4198.83, 2074.71]
         }
       ]
     },

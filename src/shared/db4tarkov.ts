@@ -8,7 +8,11 @@ export const DB4TARKOV_MAPS: Readonly<Record<string, { version: string; maxZoom:
   customs: { version: 'v2-0.12.7', maxZoom: 4 },
   ground_zero: { version: '2024', maxZoom: 5 },
   woods: { version: 'v6.5.1', maxZoom: 5 },
-  shoreline: { version: 'v3.3', maxZoom: 5 }
+  shoreline: { version: 'v3.3', maxZoom: 5 },
+  reserve: { version: 'v2.8', maxZoom: 5 },
+  interchange: { version: 'v0.2c', maxZoom: 6 },
+  lighthouse: { version: 'v2.2', maxZoom: 4 },
+  streets: { version: 'v6.4.6', maxZoom: 5 }
 }
 
 export const db4tarkovTileUrl = (slug: string, z: number, x: number, y: number): string =>

@@ -79,15 +79,16 @@ export function mergeBossSpawns(lists: readonly (readonly BossSpawn[])[]): BossS
 
 /**
  * Where a place name goes: on the floor it names when tarkov.dev gives it one (a narrow height range,
- * or one bound), else on no particular floor.
+ * a floor and everything above it, or everything below a height), else on no particular floor.
  */
 export function labelAnchor(label: MapLabel): Anchor {
   const [x, z] = label.position
   const { bottom, top } = label
-  let y: number | null = null
-  if (bottom !== null && (top === null || top - bottom <= 20)) y = bottom + 0.5
-  else if (top !== null && bottom === null) y = top - 0.5
-  return { x, y, z }
+  // tarkov.dev writes 999 for "no limit" as well as leaving it out.
+  const upward = top === null || top >= 500
+  if (bottom !== null && (upward || top - bottom <= 20)) return { x, y: bottom + 0.5, z }
+  if (bottom === null && top !== null) return { x, y: top - 0.5, z }
+  return { x, y: null, z }
 }
 
 const PIN_ICONS: Record<PinKind, string[]> = {

@@ -187,7 +187,8 @@ export default function MapCanvas({
         const key = `${t.name}@${Math.round(t.position.x)},${Math.round(t.position.z)}`
         if (seen.has(key)) continue
         seen.add(key)
-        htmlMarker(at(t.position), pinElement('transit', t.name), { riseOnHover: true })
+        // Over an extract at the same spot (Streets' Scav Checkpoint and its Labs transit), as db4tarkov shows it.
+        htmlMarker(at(t.position), pinElement('transit', t.name), { riseOnHover: true, zIndexOffset: 100 })
           .bindTooltip(label(t.name, 'Transit to another map'), tipAbove)
           .addTo(overlay)
       }

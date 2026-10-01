@@ -115,6 +115,8 @@ describe('place names', () => {
   })
   it('go on the floor tarkov.dev gives them, else on no particular floor', () => {
     expect(labelAnchor(label(6, null))).toEqual({ x: 5, y: 6.5, z: 6 })
+    // Interchange's second-floor shops: 34 and up, written as 34..999.
+    expect(labelAnchor(label(34, 999))).toEqual({ x: 5, y: 34.5, z: 6 })
     expect(labelAnchor(label(3, 5))).toEqual({ x: 5, y: 3.5, z: 6 })
     expect(labelAnchor(label(null, -2))).toEqual({ x: 5, y: -2.5, z: 6 })
     expect(labelAnchor(label(-100, 100))).toEqual({ x: 5, y: null, z: 6 })
