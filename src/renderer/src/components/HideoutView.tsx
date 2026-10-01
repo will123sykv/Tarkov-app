@@ -7,8 +7,11 @@ import {
   RARE_MAX_OFFERS,
   RARE_MIN_PRICE,
   RARE_SCARCE_MIN_PRICE,
-  rareReason,
+  buyOptions,
+  scarcity,
   stationLevel,
+  type BuyContext,
+  type Scarcity,
   type HideoutNeed,
   type HideoutProgress
 } from '../../../shared/hideout'
@@ -17,6 +20,7 @@ import type { HideoutSettings, LootItem, PriceState, PublicSettings } from '../.
 import { formatRub } from '../lib/format'
 import { formatMoney } from '../lib/questSummary'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 
@@ -37,13 +41,21 @@ function StationIcon({ station }: { station: HideoutStation }): React.JSX.Elemen
   )
 }
 
-function RareBadge({ reason }: { reason: string }): React.JSX.Element {
-  return (
-    <span className="badge bad rare-badge" title={reason}>
+/** Red "Rare" for items hard to get at all; amber "Can't buy yet" for what the player's level or loyalty blocks. */
+function ScarceBadge({ scarce }: { scarce: Scarcity }): React.JSX.Element {
+  return scarce.kind === 'rare' ? (
+    <span className="badge bad rare-badge" title={scarce.reason}>
       Rare
+    </span>
+  ) : (
+    <span className="badge warn rare-badge" title={scarce.reason}>
+      Can&rsquo;t buy yet
     </span>
   )
 }
+
+/** Rare first, then what can't be bought yet. */
+const SCARCE_ORDER = (s: Scarcity | null): number => (s?.kind === 'rare' ? 2 : s ? 1 : 0)
 
 /** − count + for how many of an item the player has put aside. */
 function HaveCounter({
@@ -92,18 +104,40 @@ function HaveCounter({
   )
 }
 
+/** The cheapest way to buy one now, or what's in the way. */
+function BuyCell({ buy }: { buy: ReturnType<typeof buyOptions> | null }): React.JSX.Element {
+  const best = buy?.options[0]
+  if (best)
+    return (
+      <span title={buy.options.map((o) => `${o.label}: ${formatRub(o.price)}`).join('\n')}>
+        {formatRub(best.price)}
+        <small>{best.label}</small>
+      </span>
+    )
+  if (buy?.locked.length)
+    return (
+      <span className="muted locked-buy" title={`Opens up with: ${buy.locked.join(', ')}`}>
+        Can&rsquo;t buy yet
+        <small>{buy.locked[0]}</small>
+      </span>
+    )
+  return <span className="muted">—</span>
+}
+
 /** Every item the stations still need, rare ones first. */
 function ItemsNeeded({
   needs,
   items,
   hideDone,
-  firOnly
+  firOnly,
+  ctx
 }: {
   needs: HideoutNeed[]
   items: Items
   hideDone: boolean
   /** Only items that must be found in raid. */
   firOnly: boolean
+  ctx: BuyContext
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
   const rows = useMemo(
@@ -112,15 +146,21 @@ function ItemsNeeded({
         .filter((n) => !CURRENCIES[n.itemId] && (!hideDone || n.missing > 0) && (!firOnly || n.firNeeded > 0))
         .map((n) => {
           const item = items.get(n.itemId)
-          return { need: n, item, rare: item ? rareReason(item) : null }
+          return {
+            need: n,
+            item,
+            scarce: item ? scarcity(item, ctx) : null,
+            buy: item ? buyOptions(item, ctx) : null
+          }
         })
         .sort(
           (a, b) =>
-            Number(b.rare !== null && b.need.missing > 0) - Number(a.rare !== null && a.need.missing > 0) ||
+            (b.need.missing > 0 ? SCARCE_ORDER(b.scarce) : 0) -
+              (a.need.missing > 0 ? SCARCE_ORDER(a.scarce) : 0) ||
             b.need.missing - a.need.missing ||
             (a.item?.name ?? '').localeCompare(b.item?.name ?? '')
         ),
-    [needs, items, hideDone, firOnly]
+    [needs, items, hideDone, firOnly, ctx]
   )
   if (!rows.length)
     return (
@@ -145,13 +185,15 @@ function ItemsNeeded({
               {firOnly ? 'Found in raid' : 'Needed'}
             </th>
             <th className="num">Missing</th>
-            <th className="num">Flea now</th>
+            <th className="num" title="The cheapest way to buy one now, at your level and trader loyalty">
+              Buy
+            </th>
             <th>For</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ need, item, rare }) => (
-            <tr key={need.itemId} className={need.missing === 0 ? 'done' : rare ? 'rare' : ''}>
+          {rows.map(({ need, item, scarce, buy }) => (
+            <tr key={need.itemId} className={need.missing === 0 ? 'done' : (scarce?.kind ?? '')}>
               <td className="item-cell">
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span>
@@ -168,7 +210,7 @@ function ItemsNeeded({
                       {need.firNeeded < need.needed ? `${need.firNeeded} found in raid` : 'found in raid'}
                     </span>
                   )}
-                  {rare && need.missing > 0 && <RareBadge reason={rare} />}
+                  {scarce && need.missing > 0 && <ScarceBadge scarce={scarce} />}
                 </span>
               </td>
               <td>
@@ -189,7 +231,9 @@ function ItemsNeeded({
                 )}
               </td>
               <td className={`num ${need.missing ? '' : 'muted'}`}>{need.missing || '✓'}</td>
-              <td className="num">{item?.fleaPrice ? formatRub(item.fleaPrice) : '—'}</td>
+              <td className="num">
+                <BuyCell buy={buy} />
+              </td>
               <td className="uses">
                 {need.uses
                   .filter((u) => !firOnly || u.foundInRaid)
@@ -222,7 +266,8 @@ function UpgradeCard({
   stationsById,
   traders,
   progress,
-  items
+  items,
+  ctx
 }: {
   station: HideoutStation
   level: HideoutLevel
@@ -230,6 +275,7 @@ function UpgradeCard({
   traders: QuestTrader[]
   progress: HideoutProgress
   items: Items
+  ctx: BuyContext
 }): React.JSX.Element {
   const build = useStore((s) => s.buildStationLevel)
   const itemsReady = level.items.every((i) => (progress.have[i.itemId] ?? 0) >= i.count)
@@ -255,14 +301,14 @@ function UpgradeCard({
             const have = progress.have[i.itemId] ?? 0
             const item = items.get(i.itemId)
             const money = formatMoney(i.itemId, i.count)
-            const rare = item && have < i.count ? rareReason(item) : null
+            const scarce = item && have < i.count ? scarcity(item, ctx) : null
             return (
               <li key={i.itemId} className={have >= i.count ? 'done' : ''}>
                 {item?.iconLink && !money && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span className="upgrade-item-name">
                   {money ?? item?.name ?? 'Unknown item'}
                   {i.foundInRaid && <span className="tag fir">FIR</span>}
-                  {rare && <RareBadge reason={rare} />}
+                  {scarce && <ScarceBadge scarce={scarce} />}
                 </span>
                 {!money && (
                   <span className="num">
@@ -321,6 +367,8 @@ export default function HideoutView({
   const setStationLevel = useStore((s) => s.setStationLevel)
   const updateSettings = useStore((s) => s.updateSettings)
   const items = useItemLookup(priceState)
+  const ctx = useBuyContext(settings, priceState)
+  const setTraderLevel = useStore((s) => s.setTraderLevel)
   const [search, setSearch] = useState('')
   const h = settings.hideout
   const set = (patch: Partial<HideoutSettings>): void => void updateSettings({ hideout: { ...h, ...patch } })
@@ -336,10 +384,21 @@ export default function HideoutView({
   )
   const money = needs.filter((n) => CURRENCIES[n.itemId] && n.missing > 0)
   const missing = needs.filter((n) => !CURRENCIES[n.itemId] && n.missing > 0)
-  const rareCount = missing.filter((n) => {
+  const scarceKinds = missing.map((n) => {
     const item = items.get(n.itemId)
-    return item && rareReason(item)
-  }).length
+    return item ? scarcity(item, ctx)?.kind : undefined
+  })
+  const rareCount = scarceKinds.filter((k) => k === 'rare').length
+  const lockedCount = scarceKinds.filter((k) => k === 'locked').length
+  // Traders that sell something the hideout still needs: their loyalty decides what's on offer.
+  const sellers = useMemo(() => {
+    const ids = new Set(
+      needs.flatMap((n) =>
+        CURRENCIES[n.itemId] ? [] : (items.get(n.itemId)?.buyFrom ?? []).map((o) => o.traderId)
+      )
+    )
+    return (dataset?.traders ?? []).filter((t) => ids.has(t.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [needs, items, dataset])
   const firCount = missing.filter((n) => n.firNeeded > 0).length
   const upgrades = stations
     .map((station) => {
@@ -386,6 +445,45 @@ export default function HideoutView({
           )}
         </section>
         <section>
+          <h2>Trader loyalty</h2>
+          <p className="hint">
+            At level {ctx.playerLevel}
+            {ctx.playerLevel < ctx.fleaMinLevel
+              ? `, the flea market opens at level ${ctx.fleaMinLevel}.`
+              : ', the flea market is open.'}{' '}
+            {sellers.length
+              ? 'Set your loyalty with the traders who sell what the hideout needs.'
+              : 'No trader sells what the hideout still needs.'}
+          </p>
+          {sellers.length > 0 && (
+            <ul className="station-levels">
+              {sellers.map((t) => (
+                <li key={t.id}>
+                  {t.imageLink ? (
+                    <img className="station-icon" src={t.imageLink} alt="" loading="lazy" />
+                  ) : (
+                    <span className="station-icon" aria-hidden>
+                      {t.name.slice(0, 2)}
+                    </span>
+                  )}
+                  <span className="station-name">{t.name}</span>
+                  <select
+                    value={ctx.traderLevels[t.id] ?? 1}
+                    aria-label={`${t.name} loyalty level`}
+                    onChange={(e) => void setTraderLevel(t.id, Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        LL{n}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section>
           <h2>Count items for</h2>
           <div className="mini-toggle wide" role="radiogroup" aria-label="Count items for">
             {(
@@ -418,9 +516,12 @@ export default function HideoutView({
           <h2>Don&rsquo;t sell</h2>
           <p className="hint">
             Items still missing here or for your active quests get a <span className="keep-tag">Keep</span>{' '}
-            tag in the Loot tab. <span className="badge bad rare-badge">Rare</span> ones are hard to replace:
-            they can&rsquo;t be bought on the flea, cost {formatRub(RARE_MIN_PRICE)} or more to buy back, or
-            have fewer than {RARE_MAX_OFFERS} offers up (and are worth {formatRub(RARE_SCARCE_MIN_PRICE)}+).
+            tag in the Loot tab. <span className="badge bad rare-badge">Rare</span> ones are hard to get even
+            once everything&rsquo;s unlocked: no trader sells them, and on the flea they&rsquo;re banned, cost{' '}
+            {formatRub(RARE_MIN_PRICE)} or more, or have fewer than {RARE_MAX_OFFERS} offers up (and are worth{' '}
+            {formatRub(RARE_SCARCE_MIN_PRICE)}+).{' '}
+            <span className="badge warn rare-badge">Can&rsquo;t buy yet</span> ones you can&rsquo;t buy at
+            your level and trader loyalty. Ones a trader sells you are neither.
           </p>
         </section>
       </aside>
@@ -433,6 +534,7 @@ export default function HideoutView({
                 ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ${maxed.length} maxed · ` +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
                   (rareCount ? ` · ${rareCount} rare` : '') +
+                  (lockedCount ? ` · ${lockedCount} you can’t buy yet` : '') +
                   (firCount ? ` · ${firCount} need finding in raid` : '') +
                   (money.length
                     ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`
@@ -483,7 +585,7 @@ export default function HideoutView({
           </div>
         </div>
         {h.tab === 'items' ? (
-          <ItemsNeeded needs={shownNeeds} items={items} hideDone={h.hideDone} firOnly={h.firOnly} />
+          <ItemsNeeded needs={shownNeeds} items={items} hideDone={h.hideDone} firOnly={h.firOnly} ctx={ctx} />
         ) : (
           <div className="upgrades">
             {upgrades.map(({ station, next }) => (
@@ -495,6 +597,7 @@ export default function HideoutView({
                 traders={dataset?.traders ?? []}
                 progress={progress}
                 items={items}
+                ctx={ctx}
               />
             ))}
             {maxed.length > 0 && (

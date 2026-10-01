@@ -41,6 +41,19 @@ export interface LootItem {
   offerCount?: number | null
   low24hPrice?: number | null
   high24hPrice?: number | null
+  /** What traders sell it for (cash), at a loyalty level and maybe after a quest; tarkov.dev only. */
+  buyFrom?: TraderOffer[]
+}
+
+export interface TraderOffer {
+  traderId: string
+  trader: string
+  /** Loyalty level needed. */
+  level: number
+  /** Roubles (dollar and euro prices converted). */
+  price: number
+  /** The quest that unlocks the offer, if any. */
+  questId: string | null
 }
 
 export interface PriceDataset {

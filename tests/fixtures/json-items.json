@@ -62,7 +62,26 @@
             "priceRUB": 105600
           }
         ],
-        "buyFromTrader": []
+        "buyFromTrader": [
+          {
+            "trader": "5a7c2eca46aef81a7ca2145d",
+            "price": 1200,
+            "priceRUB": 231000,
+            "currency": "EUR",
+            "currencyItem": "569668774bdc2da2298b4568",
+            "minTraderLevel": 3,
+            "taskUnlock": "5b47926a86f7747ccc057c15",
+            "restockAmount": 190000,
+            "buyLimit": 2
+          },
+          {
+            "trader": "54cb57776803fa99248b456e",
+            "price": 0,
+            "priceRUB": 0,
+            "minTraderLevel": 1,
+            "taskUnlock": null
+          }
+        ]
       },
       "5c1d0efb86f7744baf2e7b7b": {
         "id": "5c1d0efb86f7744baf2e7b7b",

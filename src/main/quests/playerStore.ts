@@ -63,7 +63,10 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             version: 1,
             progress: { ...base.progress, ...raw.progress },
             history: { ...base.history, ...raw.history },
-            hideout: { ...base.hideout, ...raw.hideout }
+            // 1.8.0 saved no trader levels.
+            hideout: Object.fromEntries(
+              MODES.map((mode) => [mode, { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }])
+            ) as Saved['hideout']
           }
         : base
     return data
@@ -109,6 +112,18 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return d.hideout[mode]
     },
 
+    /** The player's loyalty level with a trader (1–4), for what the trader will sell them. */
+    async setTraderLevel(mode: GameMode, traderId: string, level: number): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      d.hideout[mode] = {
+        ...current,
+        traders: { ...current.traders, [traderId]: Math.min(4, Math.max(1, Math.round(level))) }
+      }
+      await save()
+      return d.hideout[mode]
+    },
+
     /** Build a station level: set the level and use up the items put aside for it. */
     async build(
       mode: GameMode,
@@ -124,7 +139,7 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
         if (left > 0) have[itemId] = left
         else delete have[itemId]
       }
-      d.hideout[mode] = { levels: { ...current.levels, [stationId]: level }, have }
+      d.hideout[mode] = { ...current, levels: { ...current.levels, [stationId]: level }, have }
       await save()
       return d.hideout[mode]
     },

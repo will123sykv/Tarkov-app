@@ -28,7 +28,8 @@ describe('normalizeTarkovDevJson', () => {
     )
     expect(dataset).toMatchObject({ dataMode: 'pvp', source: 'tarkov.dev', fetchedAt: 42, fleaMinLevel: 15 })
     const comparable = (items: typeof dataset.items) =>
-      items.map(({ fleaFee: _fee, iconLink: _icon, category: _category, ...rest }) => rest)
+      // The GraphQL fallback doesn't ask what traders sell.
+      items.map(({ fleaFee: _fee, iconLink: _icon, category: _category, buyFrom: _buy, ...rest }) => rest)
     expect(comparable(dataset.items)).toEqual(comparable(graphql.items))
   })
 
@@ -38,6 +39,19 @@ describe('normalizeTarkovDevJson', () => {
       category: 'Electronics',
       bestTrader: { name: 'Mechanic', price: 105_600 }
     })
+  })
+
+  it('keeps what traders sell, in roubles, at a loyalty level and after a quest', () => {
+    expect(get('GPU').buyFrom).toEqual([
+      {
+        traderId: '5a7c2eca46aef81a7ca2145d',
+        trader: 'Mechanic',
+        level: 3,
+        price: 231_000,
+        questId: '5b47926a86f7747ccc057c15'
+      }
+    ])
+    expect(get('LEDX').buyFrom).toEqual([])
   })
 
   it('reads the category from the categories list, falling back to its slug when untranslated', () => {

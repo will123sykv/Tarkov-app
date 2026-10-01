@@ -102,9 +102,14 @@ function KeepTags({ keep }: { keep: KeepInfo }): React.JSX.Element {
     .join(' · ')
   return (
     <span className="keep-tags">
-      {keep.rare && (
-        <span className="badge bad rare-badge" title={`${keep.rare}. Don't sell it.`}>
+      {keep.scarce?.kind === 'rare' && (
+        <span className="badge bad rare-badge" title={`${keep.scarce.reason}. Don't sell it.`}>
           Rare: don&rsquo;t sell
+        </span>
+      )}
+      {keep.scarce?.kind === 'locked' && (
+        <span className="badge warn rare-badge" title={`${keep.scarce.reason}. Don't sell it.`}>
+          Can&rsquo;t buy yet
         </span>
       )}
       <span
@@ -260,7 +265,7 @@ export default function ItemTable({
               const classes = [
                 rowClass,
                 row.access.status !== 'sellable' ? 'not-sellable' : '',
-                needed ? (needed.rare ? 'keep rare' : 'keep') : ''
+                needed ? `keep ${needed.scarce?.kind ?? ''}` : ''
               ]
               return (
                 <div

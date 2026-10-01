@@ -5,7 +5,7 @@ import {
 } from '../../shared/constants'
 import { DEFAULT_FLEA_FEE_RATES, fleaMarketFee } from '../../shared/fleaFee'
 import { TARKOV_DEV_GAME_MODE } from '../../shared/gameModes'
-import type { DataMode, LootItem, PriceDataset, TraderPrice } from '../../shared/types'
+import type { DataMode, LootItem, PriceDataset, TraderOffer, TraderPrice } from '../../shared/types'
 import { fetchJson, type FetchFn } from './http'
 
 // json.tarkov.dev serves the raw data behind tarkov.dev's GraphQL API as static files:
@@ -35,6 +35,14 @@ export interface JsonItem {
   /** Category ids, most specific first (what tarkov.dev's site reads). */
   categories?: string[] | null
   sellToTrader?: { trader: string; priceRUB?: number | null }[] | null
+  buyFromTrader?:
+    | {
+        trader: string
+        priceRUB?: number | null
+        minTraderLevel?: number | null
+        taskUnlock?: string | null
+      }[]
+    | null
 }
 
 export interface JsonItemsData {
@@ -117,6 +125,23 @@ export function normalizeTarkovDevJson(
     return best
   }
 
+  function buyFrom(raw: JsonItem): TraderOffer[] {
+    const offers: TraderOffer[] = []
+    for (const offer of raw.buyFromTrader ?? []) {
+      const price = positive(offer?.priceRUB)
+      if (!price || !offer.trader) continue
+      const trader = input.traders[offer.trader]
+      offers.push({
+        traderId: offer.trader,
+        trader: traderText(trader?.name) ?? trader?.normalizedName ?? 'Trader',
+        level: positive(offer.minTraderLevel) ?? 1,
+        price,
+        questId: typeof offer.taskUnlock === 'string' && offer.taskUnlock ? offer.taskUnlock : null
+      })
+    }
+    return offers
+  }
+
   const items: LootItem[] = []
   for (const raw of values(input.items.items)) {
     const name = raw?.id ? itemText(raw.name) : null
@@ -151,7 +176,8 @@ export function normalizeTarkovDevJson(
       basePrice,
       offerCount: typeof raw.lastOfferCount === 'number' ? raw.lastOfferCount : null,
       low24hPrice: positive(raw.low24hPrice),
-      high24hPrice: positive(raw.high24hPrice)
+      high24hPrice: positive(raw.high24hPrice),
+      buyFrom: buyFrom(raw)
     })
   }
 

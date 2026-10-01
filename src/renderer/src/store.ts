@@ -62,6 +62,7 @@ interface AppStore {
   setStationLevel(stationId: string, level: number): Promise<void>
   setHideoutHave(itemId: string, count: number): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
+  setTraderLevel(traderId: string, level: number): Promise<void>
   rescanLogs(): Promise<void>
   chooseLogsFolder(): Promise<void>
   selectQuest(questId: string | null): void
@@ -309,6 +310,13 @@ export const useStore = create<AppStore>((set, get) => ({
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
     const hideout = await window.api.setHideoutHave(gameMode, itemId, count)
+    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+  },
+
+  async setTraderLevel(traderId, level) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const hideout = await window.api.setTraderLevel(gameMode, traderId, level)
     set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
   },
 

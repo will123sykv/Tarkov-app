@@ -115,10 +115,17 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
   **Mark level N built** sets the level and takes its items off what you've put aside.
+- **Buy** shows the cheapest way to buy one now at your PMC level and trader loyalty: the flea
+  (once it's open to you: level 15, or later for some items) or a trader's offer (at your loyalty
+  level, and after the quest that unlocks it, if any), or **Can't buy yet** with what would open
+  it up. Set your loyalty with the traders who sell what the hideout needs under **Trader
+  loyalty** in the sidebar (per game mode; unset is LL1).
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
-  sell** badge: they can't be bought on the flea, cost ₽75,000 or more to buy back, or have fewer
-  than 5 offers up while being worth ₽20,000 or more (hover the badge for which).
+  sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
+  have fewer than 5 offers up while being worth ₽20,000 or more. Ones you can't buy yet at your
+  level and trader loyalty get an amber **Can't buy yet** badge. Hover either for why; ones a
+  trader sells you get neither.
 
 ### Quests, maps and raids
 

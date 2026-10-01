@@ -1862,6 +1862,10 @@ button.link.small {
   box-shadow: inset 3px 0 var(--bad);
 }
 
+.hideout-table tr.locked td:first-child {
+  box-shadow: inset 3px 0 var(--warn);
+}
+
 .hideout-table tr.done td {
   color: var(--muted);
 }
@@ -1873,6 +1877,10 @@ button.link.small {
 .rare-badge {
   margin-left: 6px;
   vertical-align: 1px;
+}
+
+.locked-buy {
+  white-space: nowrap;
 }
 
 .fir-filter {
@@ -2070,6 +2078,10 @@ button.link.small {
 .table-body .row.keep.rare {
   box-shadow: inset 3px 0 var(--bad);
   background: rgba(213, 99, 79, 0.06);
+}
+
+.table-body .row.keep.locked {
+  box-shadow: inset 3px 0 var(--warn);
 }
 
 .any-of-list li {

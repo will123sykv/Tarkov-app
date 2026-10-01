@@ -47,13 +47,15 @@ async function smokeJson(dataMode: DataMode): Promise<PriceDataset> {
     `[json ${dataMode}] ${items.length} items in ${ms} ms · ${count((i) => i.fleaPrice)} with flea price · ` +
       `${count((i) => i.bestTrader)} with trader price · ${count((i) => i.fleaFee)} with flea fee · ` +
       `${count((i) => i.minLevelForFlea)} with a flea level gate · ${count((i) => i.bannedOnFlea)} flea-banned · ` +
-      `${count((i) => i.category)} with category · ${untranslated} untranslated · flea unlocks at ${dataset.fleaMinLevel}`
+      `${count((i) => i.category)} with category · ${untranslated} untranslated · flea unlocks at ${dataset.fleaMinLevel} · ` +
+      `${count((i) => i.buyFrom?.length)} sold by traders (${count((i) => i.buyFrom?.some((o) => o.questId))} after a quest)`
   )
   check(items.length > 1000, 'expected more than 1000 items')
   check(count((i) => i.fleaPrice) > 500, 'expected flea prices for more than 500 items')
   check(count((i) => i.bestTrader) > 500, 'expected trader prices for more than 500 items')
   check(untranslated < items.length / 10, 'item names are not being translated')
   check(count((i) => i.category) > items.length / 2, 'item categories are missing')
+  check(count((i) => i.buyFrom?.length) > 500, 'what traders sell is missing')
   check(
     items.some((i) => i.bestTrader && !/^[0-9a-f]{24}/.test(i.bestTrader.name)),
     'trader names are not being translated'

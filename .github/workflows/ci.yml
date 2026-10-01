@@ -64,7 +64,3 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
-      # Temporary 1.8.1 probe (informational).
-      - run: npx tsx scripts/probe-181.ts
-        if: always()
-        continue-on-error: true

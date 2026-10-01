@@ -119,6 +119,11 @@ export function registerIpc(deps: {
   ipcMain.handle(IPC.hideoutSetHave, (_e, gameMode: unknown, itemId: unknown, count: unknown) =>
     player.setHave(requireGameMode(gameMode), requireId(itemId, 'item'), requireCount(count, 100_000))
   )
+  ipcMain.handle(IPC.hideoutSetTrader, (_e, gameMode: unknown, traderId: unknown, level: unknown) => {
+    const n = requireCount(level, 4)
+    if (n < 1) throw new Error('Invalid loyalty level')
+    return player.setTraderLevel(requireGameMode(gameMode), requireId(traderId, 'trader'), n)
+  })
   ipcMain.handle(IPC.hideoutBuild, async (_e, gameMode: unknown, stationId: unknown, level: unknown) => {
     const mode = requireGameMode(gameMode)
     const id = requireId(stationId, 'station')
