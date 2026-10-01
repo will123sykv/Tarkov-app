@@ -1,18 +1,13 @@
 /**
- * Temporary probe for 1.9.0: item short names and sizes, and the icons of the items in the scav case
- * samples, for calibrating the screenshot scanner. Informational.
+ * Temporary probe for 1.9.0: tarkov.dev grid images of look-alike items, for calibrating the screenshot
+ * scanner. Informational.
  */
 import { errorMessage } from '../src/main/pricing/http'
-import { fetchTarkovDevJson } from '../src/main/pricing/tarkovDevJson'
 
-const SAMPLE_NAMES = (
-  'Powerban,SurvL,Meds,Syringe,Vitamins,Pliers,Nippers,MS2000,Jammer,Compass,Paper,TP,Apollo,Book,WFilter,' +
-  'Eagle,Hawk,Pass,GasAn,Rec.,PMC,Finances,Test,Blueprints,Medical,GreenBat,Chainlet,Skull,Zibbo,HMatches,' +
-  'TP-200,LEDX,MedTools,Duct tape,Bolts,Nuts,Nails,Xeno,Hose,Screws,M.parts,CPU fan,GPU,ES Lamp,Cord,Wires,' +
-  'Motor,Relay,Bulb,PAID,SMT,BakeEzy,MTape,Wrench,Hand drill,Bulbex,Awl,Filter'
-)
-  .split(',')
-  .map((n) => n.toLowerCase())
+const IDS =
+  '5d1b31ce86f7742523398394,60229948cacb6b0506369e27,5a33ca0fc4a282000d72292f,69cfe083ce0df53f230f29b0,69cfe095b96c8e8d3e002aa3,652910565ae2ae97b80fdf35,6529119424cbe3c74a05e5bb,5aa2b8d7e5b5b00014028f4a,61aa5aed32a4743c3453d319,5ad5cfbd86f7742c825d6104,66acd6702b17692df20144c0,5ad5ccd186f774446d5706e9,57347b8b24597737dd42e192,5734795124597738002c6176,606f262c6d0bd7580617bafa'.split(
+    ','
+  )
 
 async function image(url: string): Promise<string> {
   try {
@@ -25,24 +20,8 @@ async function image(url: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const dataset = await fetchTarkovDevJson(fetch, 'pvp')
-  const rows = dataset.items.map((i) => [i.id, i.shortName, i.width, i.height, i.name, i.category ?? ''])
-  console.log(`[items] ${rows.length} items`)
-  for (let i = 0; i < rows.length; i += 200) console.log(`[items] ${JSON.stringify(rows.slice(i, i + 200))}`)
-  const picked = dataset.items.filter((i) => {
-    const s = i.shortName.toLowerCase()
-    return SAMPLE_NAMES.some((n) => s === n || (n.length >= 6 && s.startsWith(n)))
-  })
-  console.log(`[picked] ${picked.length} items`)
-  for (const item of picked) console.log(`[full] ${JSON.stringify(item)}`)
-  for (const item of picked) {
-    const [icon, grid] = await Promise.all([
-      image(`https://assets.tarkov.dev/${item.id}-icon.webp`),
-      image(`https://assets.tarkov.dev/${item.id}-grid-image.webp`)
-    ])
-    console.log(`[icon] ${item.id} ${icon}`)
-    console.log(`[grid] ${item.id} ${grid}`)
-  }
+  for (const id of IDS)
+    console.log(`[grid] ${id} ${await image(`https://assets.tarkov.dev/${id}-grid-image.webp`)}`)
 }
 
 main().catch((e) => {
