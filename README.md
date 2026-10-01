@@ -114,7 +114,12 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
   showing how many of each.
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
-  **Mark level N built** sets the level and takes its items off what you've put aside.
+  **Mark level N built** sets the level and takes its items off what you've put aside. Each
+  card says what buying the missing items would cost now (at your level and trader loyalty, the
+  cheapest place for each) plus the upgrade's own money cost, and is marked **Ready** (everything
+  in hand), **Can buy the rest**, **Waiting on a requirement** (another station or a trader's
+  loyalty level) or neither (something you can't buy yet). Ready ones come first, then the ones you
+  can buy the rest for, cheapest first.
 - **Buy** shows the cheapest way to buy one now at your PMC level and trader loyalty: the flea
   (once it's open to you: level 15, or later for some items) or a trader's offer (at your loyalty
   level, and after the quest that unlocks it, if any), or **Can't buy yet** with what would open

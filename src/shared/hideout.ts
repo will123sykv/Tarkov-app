@@ -1,6 +1,6 @@
 import { CURRENCIES } from './constants'
 import type { NeededItem } from './questProgress'
-import type { HideoutStation } from './questTypes'
+import type { HideoutLevel, HideoutStation } from './questTypes'
 import type { LootItem } from './types'
 
 // The hideout tracker: what the stations' next levels still need, and which items not to sell.
@@ -237,4 +237,94 @@ export function keepList(
     if (need.missing > 0 && !CURRENCIES[need.itemId]) entry(need.itemId).hideout += need.missing
   for (const need of quests) if (!CURRENCIES[need.itemId]) entry(need.itemId).quests += need.count
   return result
+}
+
+/** One item a station level takes, and how the player could get the rest. */
+export interface UpgradePart {
+  itemId: string
+  needed: number
+  have: number
+  missing: number
+  /** The cheapest way to buy one now, if there is one. */
+  best: BuyOption | null
+  /** What would open up a way to buy it, when there's none now. */
+  locked: string[]
+}
+
+export interface UpgradeStatus {
+  /**
+   * `ready`: everything in hand and every station and trader level met; `buyable`: the rest can
+   * all be bought now; `blocked`: the items are covered but another station or a trader level isn't;
+   * `short`: something missing can't be bought yet.
+   */
+  state: 'ready' | 'buyable' | 'blocked' | 'short'
+  parts: UpgradePart[]
+  /** Roubles to buy every missing part that can be bought now. */
+  partsCost: number
+  /** How many missing parts (by kind) can't be bought now. */
+  unbuyable: number
+  /** The upgrade's own money cost. */
+  money: { itemId: string; count: number }[]
+  /** That money in roubles, at what traders charge for dollars and euros; null when unknown. */
+  moneyCost: number | null
+  unmetStations: { stationId: string; level: number }[]
+  unmetTraders: { traderId: string; level: number }[]
+}
+
+const ROUBLES_ID = Object.keys(CURRENCIES).find((id) => CURRENCIES[id] === '₽')
+
+/**
+ * What it takes to build a station level now: what's missing, what buying it would cost at the
+ * player's level and trader loyalty, and which other requirements aren't met.
+ */
+export function upgradeStatus(
+  level: HideoutLevel,
+  progress: HideoutProgress,
+  ctx: BuyContext,
+  items: ReadonlyMap<string, LootItem>,
+  stationsById: ReadonlyMap<string, HideoutStation>
+): UpgradeStatus {
+  const parts: UpgradePart[] = []
+  const money: { itemId: string; count: number }[] = []
+  let moneyCost: number | null = 0
+  for (const { itemId, count } of level.items) {
+    if (CURRENCIES[itemId]) {
+      money.push({ itemId, count })
+      const rate =
+        itemId === ROUBLES_ID ? 1 : (buyOptions(items.get(itemId) ?? NO_ITEM, ctx).options[0]?.price ?? null)
+      moneyCost = moneyCost !== null && rate !== null ? moneyCost + count * rate : null
+      continue
+    }
+    const have = Math.max(0, progress.have[itemId] ?? 0)
+    const missing = Math.max(0, count - have)
+    const item = items.get(itemId)
+    const buy = missing && item ? buyOptions(item, ctx) : { options: [], locked: [] }
+    parts.push({ itemId, needed: count, have, missing, best: buy.options[0] ?? null, locked: buy.locked })
+  }
+  const short = parts.filter((p) => p.missing > 0)
+  const partsCost = short.reduce((sum, p) => sum + (p.best ? p.best.price * p.missing : 0), 0)
+  const unbuyable = short.filter((p) => !p.best).length
+  const unmetStations = level.stations.filter((r) => {
+    const other = stationsById.get(r.stationId)
+    return other !== undefined && stationLevel(other, progress) < r.level
+  })
+  const unmetTraders = level.traders.filter((r) => (ctx.traderLevels[r.traderId] ?? 1) < r.level)
+  const met = !unmetStations.length && !unmetTraders.length
+  const state = unbuyable ? 'short' : !met ? 'blocked' : short.length ? 'buyable' : 'ready'
+  return { state, parts, partsCost, unbuyable, money, moneyCost, unmetStations, unmetTraders }
+}
+
+const NO_ITEM: Pick<LootItem, 'bannedOnFlea' | 'minLevelForFlea' | 'fleaPrice' | 'buyFrom'> = {
+  bannedOnFlea: true,
+  minLevelForFlea: null,
+  fleaPrice: null,
+  buyFrom: []
+}
+
+/** Upgrades in the order to look at them: ready, then buyable (cheapest first), blocked, short. */
+export const UPGRADE_ORDER: Record<UpgradeStatus['state'], number> = {
+  ready: 0,
+  buyable: 1,
+  blocked: 2,
+  short: 3
 }

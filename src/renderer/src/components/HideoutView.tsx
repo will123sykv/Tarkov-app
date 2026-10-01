@@ -10,6 +10,9 @@ import {
   buyOptions,
   scarcity,
   stationLevel,
+  UPGRADE_ORDER,
+  upgradeStatus,
+  type UpgradeStatus,
   type BuyContext,
   type Scarcity,
   type HideoutNeed,
@@ -265,10 +268,18 @@ const formatDuration = (seconds: number): string => {
   return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`
 }
 
-/** What a station's next level takes, and a button to mark it built. */
+const UPGRADE_BADGE: Record<UpgradeStatus['state'], { className: string; text: string } | null> = {
+  ready: { className: 'ok', text: 'Ready' },
+  buyable: { className: 'info', text: 'Can buy the rest' },
+  blocked: { className: 'warn', text: 'Waiting on a requirement' },
+  short: null
+}
+
+/** What a station's next level takes, what buying the rest would cost, and a button to mark it built. */
 function UpgradeCard({
   station,
   level,
+  status,
   stationsById,
   traders,
   progress,
@@ -277,6 +288,7 @@ function UpgradeCard({
 }: {
   station: HideoutStation
   level: HideoutLevel
+  status: UpgradeStatus
   stationsById: ReadonlyMap<string, HideoutStation>
   traders: QuestTrader[]
   progress: HideoutProgress
@@ -284,13 +296,19 @@ function UpgradeCard({
   ctx: BuyContext
 }): React.JSX.Element {
   const build = useStore((s) => s.buildStationLevel)
-  const itemsReady = level.items.every((i) => (progress.have[i.itemId] ?? 0) >= i.count)
-  const stationsReady = level.stations.every((r) => {
-    const other = stationsById.get(r.stationId)
-    return !other || stationLevel(other, progress) >= r.level
-  })
+  const badge = UPGRADE_BADGE[status.state]
+  const missing = status.parts.filter((p) => p.missing > 0)
+  const buyable = missing.filter((p) => p.best)
+  const traderName = (id: string): string => traders.find((t) => t.id === id)?.name ?? 'A trader'
+  const waiting = [
+    ...status.unmetStations.map(
+      (r) => `${stationsById.get(r.stationId)?.name ?? 'another station'} level ${r.level}`
+    ),
+    ...status.unmetTraders.map((r) => `${traderName(r.traderId)} LL${r.level}`)
+  ]
+  const total = status.moneyCost !== null ? status.partsCost + status.moneyCost : null
   return (
-    <article className="upgrade-card">
+    <article className={`upgrade-card ${status.state}`}>
       <header>
         <StationIcon station={station} />
         <div>
@@ -299,28 +317,69 @@ function UpgradeCard({
             Level {level.level - 1} → {level.level} · {formatDuration(level.constructionTime)}
           </span>
         </div>
-        {itemsReady && stationsReady && <span className="badge ok">Ready</span>}
+        {badge && <span className={`badge ${badge.className}`}>{badge.text}</span>}
       </header>
-      {level.items.length > 0 && (
+      <div className="upgrade-cost">
+        {missing.length === 0 ? (
+          <span>Every item in hand.</span>
+        ) : (
+          <span>
+            {buyable.length > 0 && (
+              <>
+                <strong>≈ {formatRub(status.partsCost)}</strong> to buy{' '}
+                {buyable.length === missing.length ? 'the rest' : 'what you can'} ({buyable.length} item
+                {buyable.length === 1 ? '' : 's'})
+              </>
+            )}
+            {status.unbuyable > 0 && (
+              <span className="muted">
+                {buyable.length > 0 ? ' · ' : ''}
+                {status.unbuyable} item{status.unbuyable === 1 ? '' : 's'} you can&rsquo;t buy yet
+              </span>
+            )}
+          </span>
+        )}
+        {status.money.length > 0 && (
+          <span className="muted">
+            Build cost {status.money.map((m) => formatMoney(m.itemId, m.count)).join(' + ')}
+            {status.money.some((m) => CURRENCIES[m.itemId] !== '₽') &&
+              status.moneyCost !== null &&
+              ` (≈ ${formatRub(status.moneyCost)})`}
+          </span>
+        )}
+        {total !== null && status.state !== 'short' && (missing.length > 0 || status.money.length > 0) && (
+          <span className="upgrade-total">
+            Total ≈ <strong>{formatRub(total)}</strong>
+          </span>
+        )}
+        {waiting.length > 0 && <span className="upgrade-waiting">Waiting on {waiting.join(', ')}</span>}
+      </div>
+      {status.parts.length > 0 && (
         <ul className="upgrade-items">
-          {level.items.map((i) => {
-            const have = progress.have[i.itemId] ?? 0
-            const item = items.get(i.itemId)
-            const money = formatMoney(i.itemId, i.count)
-            const scarce = item && have < i.count ? scarcity(item, ctx) : null
+          {status.parts.map((p) => {
+            const item = items.get(p.itemId)
+            const fir = level.items.find((i) => i.itemId === p.itemId)?.foundInRaid
+            const scarce = item && p.missing ? scarcity(item, ctx) : null
             return (
-              <li key={i.itemId} className={have >= i.count ? 'done' : ''}>
-                {item?.iconLink && !money && <img src={item.iconLink} alt="" loading="lazy" />}
+              <li key={p.itemId} className={p.missing ? '' : 'done'}>
+                {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span className="upgrade-item-name">
-                  {money ?? item?.name ?? 'Unknown item'}
-                  {i.foundInRaid && <span className="tag fir">FIR</span>}
+                  {item?.name ?? 'Unknown item'}
+                  {fir && <span className="tag fir">FIR</span>}
                   {scarce && <ScarceBadge scarce={scarce} />}
+                  {p.missing > 0 && (
+                    <small className={p.best ? '' : 'muted'}>
+                      {p.best
+                        ? `${p.missing} × ${formatRub(p.best.price)} · ${p.best.label}`
+                        : p.locked.length
+                          ? `Can’t buy yet: ${p.locked.join(', ')}`
+                          : 'Nobody sells it'}
+                    </small>
+                  )}
                 </span>
-                {!money && (
-                  <span className="num">
-                    {Math.min(have, i.count)}/{i.count}
-                  </span>
-                )}
+                <span className="num">
+                  {Math.min(p.have, p.needed)}/{p.needed}
+                </span>
               </li>
             )
           })}
@@ -338,8 +397,8 @@ function UpgradeCard({
             )
           })}
           {level.traders.map((r) => (
-            <li key={r.traderId}>
-              {traders.find((t) => t.id === r.traderId)?.name ?? 'A trader'} loyalty level {r.level}
+            <li key={r.traderId} className={(ctx.traderLevels[r.traderId] ?? 1) >= r.level ? 'done' : ''}>
+              {traderName(r.traderId)} loyalty level {r.level}
             </li>
           ))}
           {level.skills.map((r) => (
@@ -412,6 +471,16 @@ export default function HideoutView({
       return { station, next: station.levels.find((l) => l.level === current + 1) }
     })
     .filter((u): u is { station: HideoutStation; next: HideoutLevel } => u.next !== undefined)
+    .map((u) => ({ ...u, status: upgradeStatus(u.next, progress, ctx, items, stationsById) }))
+    // Ready first, then what can be bought (cheapest first), then the rest.
+    .sort(
+      (a, b) =>
+        UPGRADE_ORDER[a.status.state] - UPGRADE_ORDER[b.status.state] ||
+        a.status.partsCost - b.status.partsCost ||
+        a.station.name.localeCompare(b.station.name)
+    )
+  const readyCount = upgrades.filter((u) => u.status.state === 'ready').length
+  const buyableCount = upgrades.filter((u) => u.status.state === 'buyable').length
   const maxed = stations.filter((s) => stationLevel(s, progress) >= maxLevel(s))
 
   return (
@@ -538,6 +607,8 @@ export default function HideoutView({
             <span className="muted">
               {dataset
                 ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ${maxed.length} maxed · ` +
+                  (readyCount ? `${readyCount} ready to build · ` : '') +
+                  (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
                   (rareCount ? ` · ${rareCount} rare` : '') +
                   (lockedCount ? ` · ${lockedCount} you can’t buy yet` : '') +
@@ -612,11 +683,12 @@ export default function HideoutView({
           />
         ) : (
           <div className="upgrades">
-            {upgrades.map(({ station, next }) => (
+            {upgrades.map(({ station, next, status }) => (
               <UpgradeCard
                 key={station.id}
                 station={station}
                 level={next}
+                status={status}
                 stationsById={stationsById}
                 traders={dataset?.traders ?? []}
                 progress={progress}

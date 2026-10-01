@@ -2030,6 +2030,56 @@ button.link.small {
   color: var(--ok);
 }
 
+.upgrade-card.ready {
+  border-color: rgba(127, 176, 105, 0.7);
+  box-shadow: inset 3px 0 var(--ok);
+}
+
+.upgrade-card.buyable {
+  border-color: rgba(106, 159, 212, 0.7);
+  box-shadow: inset 3px 0 var(--info);
+}
+
+.upgrade-card.blocked {
+  box-shadow: inset 3px 0 var(--warn);
+}
+
+.upgrade-cost {
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+}
+
+.upgrade-cost strong {
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.upgrade-card.buyable .upgrade-cost strong {
+  color: var(--info);
+}
+
+.upgrade-total {
+  font-size: 13px;
+}
+
+.upgrade-waiting {
+  color: var(--warn);
+}
+
+.upgrade-item-name small {
+  display: block;
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upgrade-item-name small.muted {
+  color: var(--muted);
+}
+
 .upgrade-card > .button {
   justify-self: start;
 }

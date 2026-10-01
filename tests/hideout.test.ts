@@ -8,7 +8,8 @@ import {
   scarcity,
   startingLevel,
   stationLevel,
-  type BuyContext
+  type BuyContext,
+  upgradeStatus
 } from '../src/shared/hideout'
 import { createPlayerStore } from '../src/main/quests/playerStore'
 import type { HideoutLevel, HideoutStation } from '../src/shared/questTypes'
@@ -231,6 +232,146 @@ describe('what the player can buy, and rare items', () => {
     expect(keepList(needs, quests, items, ctx({ playerLevel: 5 })).get('salewa')?.scarce).toEqual({
       kind: 'locked',
       reason: 'You can’t buy it yet (flea at level 15)'
+    })
+  })
+})
+
+describe('upgradeStatus', () => {
+  const DOLLARS = '5696686a4bdc2da3298b456a'
+  const MECH = 'mech'
+  const base = (id: string, extra: Partial<LootItem> = {}): LootItem => ({
+    id,
+    name: id,
+    shortName: id,
+    iconLink: null,
+    wikiLink: null,
+    width: 1,
+    height: 1,
+    slots: 1,
+    types: [],
+    category: null,
+    bannedOnFlea: false,
+    minLevelForFlea: null,
+    fleaPrice: 10_000,
+    fleaFee: null,
+    bestTrader: null,
+    offerCount: 50,
+    buyFrom: [],
+    ...extra
+  })
+  const items = new Map<string, LootItem>([
+    ['bolts', base('bolts', { fleaPrice: 24_000 })],
+    ['screws', base('screws', { fleaPrice: 9_000 })],
+    ['ledx', base('ledx', { bannedOnFlea: true })],
+    [
+      'drill',
+      base('drill', {
+        fleaPrice: 60_000,
+        buyFrom: [{ traderId: MECH, trader: 'Mechanic', level: 1, price: 40_000, questId: null }]
+      })
+    ],
+    [
+      DOLLARS,
+      base(DOLLARS, {
+        bannedOnFlea: true,
+        buyFrom: [{ traderId: 'pk', trader: 'Peacekeeper', level: 1, price: 169, questId: null }]
+      })
+    ]
+  ])
+  const ctx = (extra: Partial<BuyContext> = {}): BuyContext => ({
+    playerLevel: 20,
+    fleaMinLevel: 15,
+    traderLevels: {},
+    completedQuests: new Set(),
+    ...extra
+  })
+  const GEN = station('gen', 'Generator', [level(1, []), level(2, [])])
+  const stations = new Map([['gen', GEN]])
+  const progress = (have: Record<string, number>, levels: Record<string, number> = { gen: 2 }) => ({
+    levels,
+    have,
+    traders: {}
+  })
+  const target = level(
+    2,
+    [
+      ['bolts', 6],
+      ['screws', 4],
+      ['drill', 1],
+      [ROUBLES, 50_000],
+      [DOLLARS, 100]
+    ],
+    { stations: [{ stationId: 'gen', level: 2 }], traders: [{ traderId: MECH, level: 2 }] }
+  )
+
+  it('is ready with everything in hand and every requirement met', () => {
+    const status = upgradeStatus(
+      target,
+      progress({ bolts: 6, screws: 9, drill: 1 }),
+      ctx({ traderLevels: { [MECH]: 2 } }),
+      items,
+      stations
+    )
+    expect(status).toMatchObject({
+      state: 'ready',
+      partsCost: 0,
+      unbuyable: 0,
+      moneyCost: 50_000 + 100 * 169
+    })
+  })
+
+  it('prices the missing parts at the cheapest place the player can buy them', () => {
+    const status = upgradeStatus(
+      target,
+      progress({ bolts: 2 }),
+      ctx({ traderLevels: { [MECH]: 2 } }),
+      items,
+      stations
+    )
+    expect(status.state).toBe('buyable')
+    // 4 bolts and 4 screws on the flea, the drill from Mechanic (cheaper than the flea).
+    expect(status.partsCost).toBe(4 * 24_000 + 4 * 9_000 + 40_000)
+    expect(status.parts.map((p) => [p.itemId, p.missing, p.best?.label])).toEqual([
+      ['bolts', 4, 'Flea'],
+      ['screws', 4, 'Flea'],
+      ['drill', 1, 'Mechanic LL1']
+    ])
+    expect(status.money).toEqual([
+      { itemId: ROUBLES, count: 50_000 },
+      { itemId: DOLLARS, count: 100 }
+    ])
+    expect(status.moneyCost).toBe(66_900)
+  })
+
+  it('says which station and trader levels are still missing', () => {
+    const status = upgradeStatus(target, progress({}, { gen: 1 }), ctx(), items, stations)
+    expect(status).toMatchObject({
+      state: 'blocked',
+      unmetStations: [{ stationId: 'gen', level: 2 }],
+      unmetTraders: [{ traderId: MECH, level: 2 }]
+    })
+  })
+
+  it('is short when something missing can’t be bought, and prices the rest', () => {
+    const withLedx = level(3, [
+      ['ledx', 1],
+      ['screws', 2]
+    ])
+    const status = upgradeStatus(withLedx, progress({}), ctx(), items, stations)
+    expect(status).toMatchObject({ state: 'short', unbuyable: 1, partsCost: 18_000 })
+    // Below the flea's level, only trader offers count.
+    expect(
+      upgradeStatus(
+        target,
+        progress({}),
+        ctx({ playerLevel: 5, traderLevels: { [MECH]: 2 } }),
+        items,
+        stations
+      )
+    ).toMatchObject({
+      state: 'short',
+      unbuyable: 2,
+      partsCost: 40_000
     })
   })
 })
