@@ -96,17 +96,20 @@ function HaveCounter({
 function ItemsNeeded({
   needs,
   items,
-  hideDone
+  hideDone,
+  firOnly
 }: {
   needs: HideoutNeed[]
   items: Items
   hideDone: boolean
+  /** Only items that must be found in raid. */
+  firOnly: boolean
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
   const rows = useMemo(
     () =>
       needs
-        .filter((n) => !CURRENCIES[n.itemId] && (!hideDone || n.missing > 0))
+        .filter((n) => !CURRENCIES[n.itemId] && (!hideDone || n.missing > 0) && (!firOnly || n.firNeeded > 0))
         .map((n) => {
           const item = items.get(n.itemId)
           return { need: n, item, rare: item ? rareReason(item) : null }
@@ -117,12 +120,18 @@ function ItemsNeeded({
             b.need.missing - a.need.missing ||
             (a.item?.name ?? '').localeCompare(b.item?.name ?? '')
         ),
-    [needs, items, hideDone]
+    [needs, items, hideDone, firOnly]
   )
   if (!rows.length)
     return (
       <div className="empty">
-        <p>{needs.length ? 'You have everything these upgrades need.' : 'Nothing left to build.'}</p>
+        <p>
+          {firOnly && needs.some((n) => n.missing > 0)
+            ? 'None of these upgrades need items found in raid.'
+            : needs.length
+              ? 'You have everything these upgrades need.'
+              : 'Nothing left to build.'}
+        </p>
       </div>
     )
   return (
@@ -132,7 +141,9 @@ function ItemsNeeded({
           <tr>
             <th>Item</th>
             <th>Have</th>
-            <th className="num">Needed</th>
+            <th className="num" title={firOnly ? 'Found in raid, of all needed' : undefined}>
+              {firOnly ? 'Found in raid' : 'Needed'}
+            </th>
             <th className="num">Missing</th>
             <th className="num">Flea now</th>
             <th>For</th>
@@ -145,7 +156,18 @@ function ItemsNeeded({
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span>
                   {item?.name ?? 'Unknown item'}
-                  {need.foundInRaid && <span className="tag fir">found in raid</span>}
+                  {need.foundInRaid && (
+                    <span
+                      className="tag fir"
+                      title={
+                        need.firNeeded < need.needed
+                          ? `${need.firNeeded} of the ${need.needed} must be found in raid; the rest can be bought`
+                          : 'Every one must be found in raid'
+                      }
+                    >
+                      {need.firNeeded < need.needed ? `${need.firNeeded} found in raid` : 'found in raid'}
+                    </span>
+                  )}
                   {rare && need.missing > 0 && <RareBadge reason={rare} />}
                 </span>
               </td>
@@ -156,16 +178,27 @@ function ItemsNeeded({
                   onChange={(n) => void setHave(need.itemId, n)}
                 />
               </td>
-              <td className="num">{need.needed}</td>
+              <td className="num">
+                {firOnly ? (
+                  <>
+                    {need.firNeeded}
+                    {need.firNeeded < need.needed && <small>of {need.needed}</small>}
+                  </>
+                ) : (
+                  need.needed
+                )}
+              </td>
               <td className={`num ${need.missing ? '' : 'muted'}`}>{need.missing || '✓'}</td>
               <td className="num">{item?.fleaPrice ? formatRub(item.fleaPrice) : '—'}</td>
               <td className="uses">
-                {need.uses.map((u) => (
-                  <span key={`${u.stationId}:${u.level}`} className="use-chip">
-                    {u.stationName} {u.level}
-                    {need.uses.length > 1 && <span className="muted"> ×{u.count}</span>}
-                  </span>
-                ))}
+                {need.uses
+                  .filter((u) => !firOnly || u.foundInRaid)
+                  .map((u, _, shown) => (
+                    <span key={`${u.stationId}:${u.level}`} className="use-chip">
+                      {u.stationName} {u.level}
+                      {shown.length > 1 && <span className="muted"> ×{u.count}</span>}
+                    </span>
+                  ))}
               </td>
             </tr>
           ))}
@@ -307,6 +340,7 @@ export default function HideoutView({
     const item = items.get(n.itemId)
     return item && rareReason(item)
   }).length
+  const firCount = missing.filter((n) => n.firNeeded > 0).length
   const upgrades = stations
     .map((station) => {
       const current = stationLevel(station, progress)
@@ -399,6 +433,7 @@ export default function HideoutView({
                 ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ${maxed.length} maxed · ` +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
                   (rareCount ? ` · ${rareCount} rare` : '') +
+                  (firCount ? ` · ${firCount} need finding in raid` : '') +
                   (money.length
                     ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`
                     : '')
@@ -427,18 +462,28 @@ export default function HideoutView({
               </button>
             </div>
             {h.tab === 'items' && (
-              <input
-                className="search"
-                type="search"
-                placeholder="Search items"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <>
+                <input
+                  className="search"
+                  type="search"
+                  placeholder="Search items"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <label className="check fir-filter">
+                  <input
+                    type="checkbox"
+                    checked={h.firOnly}
+                    onChange={(e) => set({ firOnly: e.target.checked })}
+                  />
+                  Found in raid only
+                </label>
+              </>
             )}
           </div>
         </div>
         {h.tab === 'items' ? (
-          <ItemsNeeded needs={shownNeeds} items={items} hideDone={h.hideDone} />
+          <ItemsNeeded needs={shownNeeds} items={items} hideDone={h.hideDone} firOnly={h.firOnly} />
         ) : (
           <div className="upgrades">
             {upgrades.map(({ station, next }) => (

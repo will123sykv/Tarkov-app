@@ -140,6 +140,8 @@ export interface HideoutSettings {
   scope: 'next' | 'all'
   /** Hide items the player already has enough of. */
   hideDone: boolean
+  /** Only items that must be found in raid. */
+  firOnly: boolean
   tab: 'items' | 'upgrades'
 }
 

@@ -68,16 +68,21 @@ describe('hideoutNeeds', () => {
 
   it('adds up what every level still to build needs, less what the player has', () => {
     const needs = hideoutNeeds(stations, { levels: { lav: 1 }, have: { bolts: 5, ledx: 3 } }, 'all')
-    expect(needs.map((n) => [n.itemId, n.needed, n.have, n.missing, n.foundInRaid])).toEqual([
-      [ROUBLES, 2_000_000, 0, 2_000_000, false],
-      ['bolts', 18, 5, 13, false],
-      ['screws', 6, 0, 6, false],
-      ['ledx', 2, 3, 0, true]
+    expect(needs.map((n) => [n.itemId, n.needed, n.firNeeded, n.have, n.missing, n.foundInRaid])).toEqual([
+      [ROUBLES, 2_000_000, 0, 0, 2_000_000, false],
+      ['bolts', 18, 0, 5, 13, false],
+      ['screws', 6, 0, 0, 6, false],
+      // The Lavatory wants its LEDX found in raid, the Workbench takes any.
+      ['ledx', 2, 1, 3, 0, true]
     ])
     expect(needs.find((n) => n.itemId === 'bolts')!.uses).toEqual([
-      { stationId: 'lav', stationName: 'Lavatory', level: 2, count: 6 },
-      { stationId: 'lav', stationName: 'Lavatory', level: 3, count: 10 },
-      { stationId: 'wb', stationName: 'Workbench', level: 1, count: 2 }
+      { stationId: 'lav', stationName: 'Lavatory', level: 2, count: 6, foundInRaid: false },
+      { stationId: 'lav', stationName: 'Lavatory', level: 3, count: 10, foundInRaid: false },
+      { stationId: 'wb', stationName: 'Workbench', level: 1, count: 2, foundInRaid: false }
+    ])
+    expect(needs.find((n) => n.itemId === 'ledx')!.uses.map((u) => [u.stationName, u.foundInRaid])).toEqual([
+      ['Lavatory', true],
+      ['Workbench', false]
     ])
   })
 

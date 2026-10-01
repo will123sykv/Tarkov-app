@@ -1875,6 +1875,16 @@ button.link.small {
   vertical-align: 1px;
 }
 
+.fir-filter {
+  align-items: center;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.fir-filter input {
+  margin-top: 0;
+}
+
 .have-counter {
   display: inline-flex;
   align-items: center;

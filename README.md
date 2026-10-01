@@ -108,8 +108,10 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
 
 - **Items needed** totals every item your stations' next levels (or every level still to build)
   need, how many you've put aside (use **−**/**+**, type a number, or **All**) and how many are
-  still missing, with found-in-raid items flagged and the station levels each is for. Rare items
-  come first; the money the upgrades cost is in the summary line.
+  still missing, with found-in-raid items flagged (and how many, when some levels take any) and
+  the station levels each is for. Rare items come first; the money the upgrades cost is in the
+  summary line. **Found in raid only** narrows the list to items that must be found in raid,
+  showing how many of each.
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
   **Mark level N built** sets the level and takes its items off what you've put aside.

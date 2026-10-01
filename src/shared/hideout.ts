@@ -40,9 +40,11 @@ export interface HideoutNeed {
   /** Any of the levels wants it found in raid. */
   foundInRaid: boolean
   needed: number
+  /** How many of `needed` must be found in raid (other levels take any). */
+  firNeeded: number
   have: number
   missing: number
-  uses: { stationId: string; stationName: string; level: number; count: number }[]
+  uses: { stationId: string; stationName: string; level: number; count: number; foundInRaid: boolean }[]
 }
 
 /**
@@ -64,13 +66,23 @@ export function hideoutNeeds(
           itemId,
           foundInRaid: false,
           needed: 0,
+          firNeeded: 0,
           have: 0,
           missing: 0,
           uses: []
         }
         need.needed += count
-        need.foundInRaid ||= foundInRaid
-        need.uses.push({ stationId: station.id, stationName: station.name, level: level.level, count })
+        if (foundInRaid) {
+          need.firNeeded += count
+          need.foundInRaid = true
+        }
+        need.uses.push({
+          stationId: station.id,
+          stationName: station.name,
+          level: level.level,
+          count,
+          foundInRaid
+        })
         byItem.set(itemId, need)
       }
     }

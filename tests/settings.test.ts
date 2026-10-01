@@ -187,16 +187,26 @@ describe('sanitizeSettings', () => {
   })
 
   it('validates the hideout view and its options', () => {
-    expect(DEFAULT_SETTINGS.hideout).toEqual({ scope: 'all', hideDone: false, tab: 'items' })
+    expect(DEFAULT_SETTINGS.hideout).toEqual({ scope: 'all', hideDone: false, firOnly: false, tab: 'items' })
     expect(
-      sanitizeSettings({ view: 'hideout', hideout: { scope: 'next', hideDone: true, tab: 'upgrades' } })
-    ).toMatchObject({ view: 'hideout', hideout: { scope: 'next', hideDone: true, tab: 'upgrades' } })
-    expect(sanitizeSettings({ hideout: { scope: 'some', hideDone: 'yes', tab: 'x' } }).hideout).toEqual(
-      DEFAULT_SETTINGS.hideout
-    )
+      sanitizeSettings({
+        view: 'hideout',
+        hideout: { scope: 'next', hideDone: true, firOnly: true, tab: 'upgrades' }
+      })
+    ).toMatchObject({
+      view: 'hideout',
+      hideout: { scope: 'next', hideDone: true, firOnly: true, tab: 'upgrades' }
+    })
+    expect(
+      sanitizeSettings({ hideout: { scope: 'some', hideDone: 'yes', firOnly: 1, tab: 'x' } }).hideout
+    ).toEqual(DEFAULT_SETTINGS.hideout)
+    // Settings saved by 1.8.0 have no firOnly.
+    expect(
+      sanitizeSettings({ hideout: { scope: 'next', hideDone: true, tab: 'items' } }).hideout.firOnly
+    ).toBe(false)
     expect(
       mergeSettings(DEFAULT_SETTINGS, { hideout: { ...DEFAULT_SETTINGS.hideout, scope: 'next' } }).hideout
-    ).toEqual({ scope: 'next', hideDone: false, tab: 'items' })
+    ).toEqual({ scope: 'next', hideDone: false, firOnly: false, tab: 'items' })
   })
 
   it('validates the flea trends view and background options', () => {

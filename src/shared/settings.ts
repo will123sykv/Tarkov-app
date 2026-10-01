@@ -69,7 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
     faction: 'pmc',
     style: '2d'
   },
-  hideout: { scope: 'all', hideDone: false, tab: 'items' }
+  hideout: { scope: 'all', hideDone: false, firOnly: false, tab: 'items' }
 }
 
 const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'hideout', 'maps', 'raids']
@@ -114,6 +114,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
   return {
     scope: r.scope === 'next' ? 'next' : 'all',
     hideDone: r.hideDone === true,
+    firOnly: r.firOnly === true,
     tab: r.tab === 'upgrades' ? 'upgrades' : 'items'
   }
 }
