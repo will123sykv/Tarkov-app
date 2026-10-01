@@ -57,6 +57,20 @@ async function probeTasks(): Promise<void> {
   }
   const startItems = tasks.filter((t) => ((rec(t.startRewards).items ?? []) as unknown[]).length).slice(0, 2)
   for (const t of startItems) log('rewards', `start items ${tr(t.name)}`, rec(t.startRewards).items)
+  const [hideout, hideoutEn] = await Promise.all([
+    fetchJsonData<Raw>(fetch, 'pvp', 'hideout'),
+    fetchJsonData<Record<string, string>>(fetch, 'pvp', 'hideout_en')
+  ])
+  log('hideout', 'top keys', Object.keys(hideout))
+  for (const [k, v] of Object.entries(hideout)) {
+    const list = values(v as Raw[] | Record<string, Raw>)
+    log('hideout', k, list.length, JSON.stringify(list[0] ?? null).slice(0, 400))
+    log(
+      'hideout',
+      `${k} names`,
+      list.slice(0, 30).map((x) => [rec(x).id, hideoutEn[String(rec(x).name)] ?? rec(x).name])
+    )
+  }
   const skillKeys = Object.keys(en)
     .filter((k) => /skill/i.test(k))
     .slice(0, 10)
