@@ -64,3 +64,6 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
+      # Temporary: what intraday price history tarkov.dev offers (removed after use).
+      - run: npx tsx scripts/probe-trends.ts
+        if: always()
