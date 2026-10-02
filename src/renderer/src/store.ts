@@ -3,7 +3,7 @@ import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
 import type { HideoutProgress } from '../../shared/hideout'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
-import type { ProgressEntry, QuestProgress } from '../../shared/questProgress'
+import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
 import type { QuestDataState } from '../../shared/questTypes'
 import type {
   ContainerCatalog,
@@ -35,6 +35,7 @@ interface AppStore {
   selectedTrendItem: string | null
   questData: Partial<Record<DataMode, QuestDataState>>
   questProgress: Partial<Record<GameMode, QuestProgress>>
+  objectiveProgress: Partial<Record<GameMode, ObjectiveProgress>>
   hideoutProgress: Partial<Record<GameMode, HideoutProgress>>
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
@@ -57,6 +58,7 @@ interface AppStore {
   selectTrendItem(itemId: string | null): void
   loadQuestData(force?: boolean): Promise<void>
   loadPlayerData(): Promise<void>
+  setObjectiveProgress(questId: string, objectiveId: string, value: number): Promise<void>
   setQuestStatus(questId: string, status: ProgressEntry['status'] | null): Promise<void>
   markQuestsUpTo(questId: string): Promise<void>
   setStationLevel(stationId: string, level: number): Promise<void>
@@ -111,6 +113,7 @@ export const useStore = create<AppStore>((set, get) => ({
   selectedTrendItem: null,
   questData: {},
   questProgress: {},
+  objectiveProgress: {},
   hideoutProgress: {},
   logHistory: {},
   logStatus: null,
@@ -274,16 +277,25 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history, hideout] = await Promise.all([
+    const [progress, history, hideout, objectives] = await Promise.all([
       window.api.getQuestProgress(gameMode),
       window.api.getLogHistory(gameMode),
-      window.api.getHideoutProgress(gameMode)
+      window.api.getHideoutProgress(gameMode),
+      window.api.getObjectiveProgress(gameMode)
     ])
     set((s) => ({
       questProgress: { ...s.questProgress, [gameMode]: progress },
+      objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives },
       logHistory: { ...s.logHistory, [gameMode]: history },
       hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout }
     }))
+  },
+
+  async setObjectiveProgress(questId, objectiveId, value) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const objectives = await window.api.setObjectiveProgress(gameMode, questId, objectiveId, value)
+    set((s) => ({ objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives } }))
   },
 
   async setQuestStatus(questId, status) {

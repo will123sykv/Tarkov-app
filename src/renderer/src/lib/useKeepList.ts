@@ -47,13 +47,17 @@ export function useKeepList(
   const settings = current ?? DEFAULT_SETTINGS
   const { questState, rows } = useQuestRows(current)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
+  const objectives = useStore((s) => s.objectiveProgress[settings.gameMode])
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(current, priceState)
   const scope = settings.hideout.scope
   const stations = questState?.dataset?.stations
   return useMemo(() => {
     const hideout = hideoutNeeds(stations ?? [], progress, scope)
-    const quests = neededItems(rows.filter((r) => r.status === 'active').map((r) => r.quest)).items
+    const quests = neededItems(
+      rows.filter((r) => r.status === 'active').map((r) => r.quest),
+      objectives
+    ).items
     return keepList(hideout, quests, items, ctx)
-  }, [stations, progress, scope, rows, items, ctx])
+  }, [stations, progress, scope, rows, items, ctx, objectives])
 }

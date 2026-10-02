@@ -1,6 +1,6 @@
 import type { HideoutProgress } from './hideout'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
-import type { ProgressEntry, QuestProgress } from './questProgress'
+import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
 import type { QuestDataState, QuestGuideState } from './questTypes'
 import type { OcrJob, OcrResult, ScreenshotFile } from './scanTypes'
 import type {
@@ -30,6 +30,8 @@ export const IPC = {
   questsProgress: 'quests:progress',
   questsSetStatus: 'quests:set-status',
   questsMarkUpTo: 'quests:mark-up-to',
+  questsObjectives: 'quests:objectives',
+  questsSetObjective: 'quests:set-objective',
   questsProgressChanged: 'quests:progress-changed',
   questsGuide: 'quests:guide',
   hideoutProgress: 'hideout:progress',
@@ -81,6 +83,15 @@ export interface TarkovApi {
   ): Promise<QuestProgress>
   /** Mark a quest and everything that had to come before it as done. */
   markQuestsUpTo(gameMode: GameMode, questId: string): Promise<QuestProgress>
+  /** How far along each quest's objectives are, set by hand. */
+  getObjectiveProgress(gameMode: GameMode): Promise<ObjectiveProgress>
+  /** Set how far along one objective is (a count, or 1 for done; 0 clears it). */
+  setObjectiveProgress(
+    gameMode: GameMode,
+    questId: string,
+    objectiveId: string,
+    value: number
+  ): Promise<ObjectiveProgress>
   /** The player's hideout (station levels and items put aside), set by hand. */
   getHideoutProgress(gameMode: GameMode): Promise<HideoutProgress>
   setStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>

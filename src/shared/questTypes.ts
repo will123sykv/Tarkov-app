@@ -35,6 +35,10 @@ export interface QuestObjective {
   traderLevel: { traderId: string; level: number } | null
   /** Keys it needs: one list per lock, any key in a list opens it. */
   requiredKeys: string[][]
+  /** Story chapters: how deep in the list it sits (0: a step of its own, 1: part of the step above). */
+  depth?: number
+  /** Story chapters: the path it's on, when the chapter branches (e.g. "If you kept the armored case"). */
+  branch?: string | null
 }
 
 /** An item and how many of it. */
@@ -99,6 +103,8 @@ export interface Quest {
   startRewards: QuestRewards
   /** The quest's picture in the game. */
   imageLink: string | null
+  /** For a story chapter: its blurb and what starts it. */
+  story?: { description: string; howItStarts: string }
 }
 
 export interface MapExtract {
@@ -164,6 +170,37 @@ export interface HideoutStation {
   levels: HideoutLevel[]
 }
 
+/** One step of a story chapter, as the wiki lists it. */
+export interface StoryObjective {
+  /** The step's text, slugged (`#2`… on repeats), so progress survives the list being refreshed. */
+  id: string
+  text: string
+  optional: boolean
+  /** 0 for a step of its own, 1+ for part of the step above. */
+  depth: number
+  /** How many it takes (items to hand over, targets…), when more than one. */
+  count: number | null
+  /** For a hand-over: the items linked in the step, by name (matched to items in the app). */
+  itemNames: string[]
+  handOver: boolean
+  foundInRaid: boolean
+  /** The path it's on, when the chapter branches. */
+  branch: string | null
+}
+
+/** A chapter of the main story (Tour, Falling Skies…), from its page on the wiki. */
+export interface StoryChapter {
+  /** The game's quest id (as the logs write it) when tarkov.dev names it, else `story-<name>`. */
+  id: string
+  name: string
+  wikiLink: string
+  description: string
+  /** What starts the chapter, as plain text (one line per point). */
+  howItStarts: string
+  imageLink: string | null
+  objectives: StoryObjective[]
+}
+
 export interface QuestDataset {
   dataMode: DataMode
   fetchedAt: number
@@ -177,6 +214,8 @@ export interface QuestDataset {
    * by id, so ones the logs mention can still be named.
    */
   otherQuestNames: Record<string, string>
+  /** The main story's chapters, from the wiki (empty when it couldn't be reached). Since 1.11.0. */
+  storyChapters: StoryChapter[]
 }
 
 /** A picture in a quest's guide on the Escape from Tarkov wiki. */

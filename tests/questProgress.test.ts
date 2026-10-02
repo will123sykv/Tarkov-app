@@ -10,7 +10,11 @@ import {
   lockReasons,
   markUpTo,
   neededItems,
+  objectiveSummary,
+  objectiveTarget,
+  objectiveValue,
   questMaps,
+  setObjective,
   questStatus,
   requirementLabels,
   setQuestStatus,
@@ -146,9 +150,54 @@ describe('neededItems', () => {
     expect(anyOf.map((a) => a.objective.id)).toEqual(['o-shootout-give'])
   })
 
+  it('leaves out what has been handed over already', () => {
+    const progress = setObjective(
+      setObjective({}, Q.debut, 'o-debut-give', 1),
+      Q.shootout,
+      'o-shootout-give',
+      2
+    )
+    const { items, anyOf } = neededItems([get(Q.debut), get(Q.shootout)], progress)
+    expect(items.map((i) => [i.itemId, i.count, i.quests[0].count])).toEqual([
+      ['5448be9a4bdc2dfd2f8b456a', 1, 1]
+    ])
+    expect(anyOf.map((a) => a.count)).toEqual([(get(Q.shootout).objectives.at(-1)!.count ?? 1) - 2])
+    // All handed over: nothing left.
+    expect(neededItems([get(Q.debut)], setObjective({}, Q.debut, 'o-debut-give', 2)).items).toEqual([])
+  })
+
   it('collects the maps a quest involves', () => {
     expect([...questMaps(get(Q.checking))]).toEqual([CUSTOMS])
     expect([...questMaps(get(Q.shootout))]).toEqual([WOODS])
+  })
+})
+
+describe('objective progress', () => {
+  const debut = get(Q.debut)
+  const give = debut.objectives.find((o) => o.id === 'o-debut-give')!
+
+  it('counts towards an objective’s target, one for a one-off', () => {
+    expect(objectiveTarget(give)).toBe(2)
+    expect(objectiveTarget({ count: null })).toBe(1)
+    let progress = setObjective({}, Q.debut, give.id, 1)
+    expect(objectiveValue(give, Q.debut, progress)).toBe(1)
+    progress = setObjective(progress, Q.debut, give.id, 9)
+    // Never more than it takes; every objective of a completed quest is done.
+    expect(objectiveValue(give, Q.debut, progress)).toBe(2)
+    expect(objectiveValue(give, Q.checking, progress)).toBe(0)
+    expect(objectiveValue(give, Q.checking, {}, true)).toBe(2)
+  })
+
+  it('clears an objective set back to 0, and a quest with none left', () => {
+    const progress = setObjective(setObjective({}, Q.debut, give.id, 1), Q.debut, give.id, 0)
+    expect(progress).toEqual({})
+  })
+
+  it('sums up the required objectives done', () => {
+    const progress = setObjective({}, Q.debut, give.id, 2)
+    const required = debut.objectives.filter((o) => !o.optional).length
+    expect(objectiveSummary(debut, progress)).toEqual({ done: 1, total: required })
+    expect(objectiveSummary(debut, {}, true)).toEqual({ done: required, total: required })
   })
 })
 
@@ -239,5 +288,20 @@ describe('createPlayerStore', () => {
     expect(Object.keys(await store.progress('pvp')).sort()).toEqual([Q.checking, Q.debut, Q.kappaOnly].sort())
     await store.setStatus('pvp', Q.kappaOnly, null)
     expect(await store.progress('pvp')).not.toHaveProperty(Q.kappaOnly)
+  })
+
+  it('keeps objective progress per game mode', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const store = createPlayerStore({ file })
+    await store.setObjective('pvp', Q.debut, 'o-debut-give', 1)
+    await store.setObjective('pve', Q.debut, 'o-debut-give', 2)
+    await store.setObjective('pvp', 'story-tour', 'escape-ground-zero', 1)
+    const reopened = createPlayerStore({ file })
+    expect(await reopened.objectives('pvp')).toEqual({
+      [Q.debut]: { 'o-debut-give': 1 },
+      'story-tour': { 'escape-ground-zero': 1 }
+    })
+    expect(await reopened.objectives('pve')).toEqual({ [Q.debut]: { 'o-debut-give': 2 } })
+    expect(await reopened.objectives('season')).toEqual({})
   })
 })

@@ -20,6 +20,7 @@ import type { DataMode } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, type FetchFn } from '../pricing/http'
 import { fetchJsonData, translator, values, type Collection } from '../pricing/tarkovDevJson'
+import { fetchStoryChapters } from './storyChapters'
 
 type Raw = Record<string, unknown>
 type Dict = Record<string, string>
@@ -500,7 +501,9 @@ export function normalizeQuestData(
     maps,
     traders,
     stations: hideoutStations(input.hideout ?? {}, input.hideoutLang ?? {}),
-    otherQuestNames
+    otherQuestNames,
+    // Filled in from the wiki by fetchQuestData.
+    storyChapters: []
   }
 }
 
@@ -528,7 +531,9 @@ export async function fetchQuestData(
     now
   )
   if (dataset.quests.length === 0) throw new Error('tasks: no quests in response')
-  return dataset
+  // The story chapters come from the wiki: without it, they're left as they were (see the service).
+  const storyChapters = await fetchStoryChapters(fetchFn, dataset.otherQuestNames).catch(() => [])
+  return { ...dataset, storyChapters }
 }
 
 /**
@@ -576,6 +581,7 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
       traders: result.traders.map((t) => ({ ...t, imageLink: t.imageLink ?? null }))
     }
   if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
+  if (!result.storyChapters) result = { ...result, fetchedAt: 0, storyChapters: [] }
   return result
 }
 
@@ -603,7 +609,11 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
     const recentCache = state.dataset && now() - state.dataset.fetchedAt < MAX_AGE_MS
     if (!force && (fresh || recentCache)) return state
     try {
-      const dataset = await fetchQuestData(deps.fetchFn, dataMode, now())
+      const fresh = await fetchQuestData(deps.fetchFn, dataMode, now())
+      // When the wiki couldn't be reached, keep the story chapters from last time.
+      const dataset = fresh.storyChapters.length
+        ? fresh
+        : { ...fresh, storyChapters: state.dataset?.storyChapters ?? [] }
       await writeJsonFileAtomic(cacheFile(dataMode), dataset)
       state = { dataset, fromCache: false, error: null, loading: false }
     } catch (err) {

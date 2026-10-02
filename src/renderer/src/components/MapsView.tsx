@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react'
+import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel } from '../../../shared/questTypes'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { interactiveProjection, posterProjection } from '../lib/mapProjection'
@@ -116,6 +117,7 @@ export default function MapsView({
 }): React.JSX.Element {
   const { questState, rows, ctx, questsById, mapsById } = useQuestRows(settings)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
+  const done = useStore((s) => s.objectiveProgress[settings.gameMode])
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
   const selectedQuest = useStore((s) => s.selectedQuest)
@@ -168,6 +170,9 @@ export default function MapsView({
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
       if (!wanted.has(status) && !focused) continue
       for (const objective of quest.objectives) {
+        // Done ones (ticked off in the quest's details) leave the map, unless it's the one asked for.
+        const shownAnyway = focus?.questId === quest.id && focus.objectiveId === objective.id
+        if (!shownAnyway && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
         const zones = objective.zones.filter((z) => mapIds.has(z.map))
         const spots = objective.locations.filter((l) => mapIds.has(l.map)).flatMap((l) => l.positions)
         if (zones.length || spots.length)
@@ -175,7 +180,7 @@ export default function MapsView({
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset])
+  }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset, done])
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null

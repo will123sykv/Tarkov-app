@@ -1,12 +1,16 @@
 import { mdiKeyVariant } from '@mdi/js'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   lockReasons,
+  objectiveSummary,
+  objectiveTarget,
+  objectiveValue,
   requirementLabels,
   type ProgressEntry,
   type QuestContext,
   type QuestProgress
 } from '../../../shared/questProgress'
+import { STORY_TRADER } from '../../../shared/storyQuests'
 import type {
   GameMap,
   GuideImage,
@@ -82,29 +86,102 @@ function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items }): React
   )
 }
 
+/** Tick an objective off, or count how many of it are done ("6 / 15"). */
+function ObjectiveTick({
+  quest,
+  objective,
+  value,
+  completed
+}: {
+  quest: Quest
+  objective: QuestObjective
+  value: number
+  /** The whole quest is done: everything's ticked, and can't be unticked here. */
+  completed: boolean
+}): React.JSX.Element {
+  const setProgress = useStore((s) => s.setObjectiveProgress)
+  const target = objectiveTarget(objective)
+  const set = (n: number): void => void setProgress(quest.id, objective.id, Math.min(target, Math.max(0, n)))
+  if (target <= 1)
+    return (
+      <input
+        type="checkbox"
+        className="objective-check"
+        checked={value >= 1}
+        disabled={completed}
+        aria-label="Done"
+        title={completed ? 'The quest is done' : 'Tick off when done'}
+        onChange={(e) => set(e.target.checked ? 1 : 0)}
+      />
+    )
+  return (
+    <span className={`objective-counter ${value >= target ? 'done' : ''}`} title="How many done so far">
+      <button className="button icon small" disabled={completed || value <= 0} onClick={() => set(value - 1)}>
+        −
+      </button>
+      <input
+        type="number"
+        min={0}
+        max={target}
+        value={value}
+        disabled={completed}
+        aria-label={`How many of ${target} done`}
+        onChange={(e) => {
+          const n = Math.round(Number(e.target.value))
+          if (Number.isFinite(n)) set(n)
+        }}
+      />
+      <span className="muted">/ {target.toLocaleString('en-US')}</span>
+      <button
+        className="button icon small"
+        disabled={completed || value >= target}
+        onClick={() => set(value + 1)}
+      >
+        +
+      </button>
+      {!completed && value < target && (
+        <button className="link small" onClick={() => set(target)}>
+          All
+        </button>
+      )}
+    </span>
+  )
+}
+
 function Objective({
   quest,
   objective,
   mapsById,
-  items
+  items,
+  value,
+  completed
 }: {
   quest: Quest
   objective: QuestObjective
   mapsById: ReadonlyMap<string, GameMap>
   items: Items
+  value: number
+  completed: boolean
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
   const onMap = objectiveMap(objective, mapsById)
   const mapNames = objective.maps.map((id) => mapsById.get(id)?.name).filter(Boolean)
   const single = objective.items.length === 1 ? objective.items[0] : undefined
+  const done = value >= objectiveTarget(objective)
   return (
-    <li className="objective">
-      <div>
-        {objective.description || objective.type}
-        {objective.optional && <span className="tag">optional</span>}
-        {objective.foundInRaid && objective.items.length > 0 && (
-          <span className="tag fir">found in raid</span>
-        )}
+    <li
+      className={`objective ${done ? 'done' : ''}`}
+      style={objective.depth ? { marginLeft: `${objective.depth * 18}px` } : undefined}
+    >
+      <div className="objective-head">
+        <ObjectiveTick quest={quest} objective={objective} value={value} completed={completed} />
+        <span className="objective-text">
+          {objective.description || objective.type}
+          {objective.optional && <span className="tag">optional</span>}
+          {objective.foundInRaid && objective.items.length > 0 && (
+            <span className="tag fir">found in raid</span>
+          )}
+        </span>
       </div>
       {single && (
         <div className="objective-item">
@@ -427,6 +504,7 @@ export default function QuestDetail({
   onOpenInQuests
 }: Props): React.JSX.Element {
   const { quest, status } = row
+  const objectives = useStore((s) => (s.settings ? s.objectiveProgress[s.settings.gameMode] : undefined))
   const setQuestStatus = useStore((s) => s.setQuestStatus)
   const markQuestsUpTo = useStore((s) => s.markQuestsUpTo)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -435,7 +513,9 @@ export default function QuestDetail({
   const entry = progress[quest.id]
   const reasons = status === 'locked' ? lockReasons(quest, progress, ctx, questsById) : []
   const unlocks = [...questsById.values()].filter((q) => q.requires.some((r) => r.questId === quest.id))
-  const trader = traders.find((t) => t.id === quest.traderId)
+  const trader = quest.story ? STORY_TRADER : traders.find((t) => t.id === quest.traderId)
+  const completed = status === 'completed'
+  const summary = objectiveSummary(quest, objectives, completed)
   const requirements = requirementLabels(quest, questsById, ctx.traders)
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
@@ -493,9 +573,28 @@ export default function QuestDetail({
           )
         })}
       </div>
-      <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
-        Mark this and everything before it done
-      </button>
+      {!quest.story && (
+        <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
+          Mark this and everything before it done
+        </button>
+      )}
+
+      {quest.story && (
+        <section className="quest-section story-intro">
+          {quest.imageLink && <img className="story-banner" src={quest.imageLink} alt="" loading="lazy" />}
+          {quest.story.description && <blockquote>{quest.story.description}</blockquote>}
+          {quest.story.howItStarts && (
+            <>
+              <h4>How it starts</h4>
+              {quest.story.howItStarts.split('\n').map((line, i) => (
+                <p key={i} className={line.startsWith('•') ? 'story-point' : ''}>
+                  {line}
+                </p>
+              ))}
+            </>
+          )}
+        </section>
+      )}
 
       {reasons.length > 0 && (
         <ul className="lock-reasons">
@@ -530,12 +629,41 @@ export default function QuestDetail({
       )}
 
       <section className="quest-section">
-        <h4>Objectives</h4>
+        <h4>
+          Objectives{' '}
+          {summary.total > 0 && (
+            <span className="muted objective-summary">
+              {summary.done} of {summary.total} done
+            </span>
+          )}
+        </h4>
         <ol className="objectives">
-          {quest.objectives.map((o) => (
-            <Objective key={o.id} quest={quest} objective={o} mapsById={mapsById} items={items} />
-          ))}
+          {quest.objectives.map((o, i) => {
+            const previous = quest.objectives[i - 1]?.branch ?? null
+            const branch = o.branch ?? null
+            return (
+              <Fragment key={o.id}>
+                {branch !== previous && (branch || previous) && (
+                  <li className="objective-branch">{branch ?? 'Then, whichever path you took'}</li>
+                )}
+                <Objective
+                  quest={quest}
+                  objective={o}
+                  mapsById={mapsById}
+                  items={items}
+                  value={objectiveValue(o, quest.id, objectives, completed)}
+                  completed={completed}
+                />
+              </Fragment>
+            )
+          })}
         </ol>
+        {quest.story && (
+          <p className="hint">
+            From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
+            and finishes: tick the steps off yourself.
+          </p>
+        )}
       </section>
       <Needs quest={quest} mapsById={mapsById} items={items} />
       <Rewards

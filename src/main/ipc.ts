@@ -30,8 +30,17 @@ function requireGameMode(value: unknown): GameMode {
   return value
 }
 
+/** tarkov.dev's quest ids (24 hex characters), or a story chapter's own (`story-<name>`). */
 function requireQuestId(value: unknown): string {
-  if (typeof value !== 'string' || !/^[0-9a-f]{24}$/i.test(value)) throw new Error('Invalid quest id')
+  if (typeof value !== 'string' || !/^([0-9a-f]{24}|story-[a-z0-9-]{1,80})$/i.test(value))
+    throw new Error('Invalid quest id')
+  return value
+}
+
+/** tarkov.dev's objective ids, or a story chapter objective's (its text, slugged, `#n` for repeats). */
+function requireObjectiveId(value: unknown): string {
+  if (typeof value !== 'string' || !/^([0-9a-f]{24}|[a-z0-9-]{1,120}(#\d{1,3})?)$/i.test(value))
+    throw new Error('Invalid objective id')
   return value
 }
 
@@ -124,6 +133,19 @@ export function registerIpc(deps: {
       status as ProgressEntry['status'] | null
     )
   })
+  ipcMain.handle(IPC.questsObjectives, (_e, gameMode: unknown) =>
+    player.objectives(requireGameMode(gameMode))
+  )
+  ipcMain.handle(
+    IPC.questsSetObjective,
+    (_e, gameMode: unknown, questId: unknown, objectiveId: unknown, value: unknown) =>
+      player.setObjective(
+        requireGameMode(gameMode),
+        requireQuestId(questId),
+        requireObjectiveId(objectiveId),
+        requireCount(value, 1_000_000_000)
+      )
+  )
   ipcMain.handle(IPC.questsMarkUpTo, async (_e, gameMode: unknown, questId: unknown) => {
     const mode = requireGameMode(gameMode)
     const { dataset } = await questData.get(dataModeFor(mode))

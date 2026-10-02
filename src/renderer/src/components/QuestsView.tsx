@@ -1,5 +1,12 @@
 import { memo, useCallback, useMemo, useState } from 'react'
-import { questMaps, requirementLabels, type QuestStatus } from '../../../shared/questProgress'
+import {
+  objectiveSummary,
+  questMaps,
+  requirementLabels,
+  type ObjectiveProgress,
+  type QuestStatus
+} from '../../../shared/questProgress'
+import { STORY_TRADER } from '../../../shared/storyQuests'
 import type { GameMap, Quest } from '../../../shared/questTypes'
 import type { PriceState, PublicSettings, QuestSettings, QuestStatusFilter } from '../../../shared/types'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
@@ -20,15 +27,19 @@ const QuestListRow = memo(function QuestListRow({
   row,
   selected,
   details,
+  objectives,
   onSelect
 }: {
   row: QuestRow
   selected: boolean
   /** Requirements and maps. */
   details: string
+  objectives: ObjectiveProgress | undefined
   onSelect: (id: string) => void
 }) {
   const { quest, status } = row
+  // How far along it is, once something's been ticked off.
+  const summary = status === 'completed' ? null : objectiveSummary(quest, objectives)
   return (
     <li>
       <button className={`quest-row ${selected ? 'selected' : ''}`} onClick={() => onSelect(quest.id)}>
@@ -38,6 +49,11 @@ const QuestListRow = memo(function QuestListRow({
           {details && <small>{details}</small>}
         </span>
         <span className="quest-flags">
+          {summary && summary.done > 0 && (
+            <span className="objective-tally" title="Objectives done">
+              {summary.done}/{summary.total}
+            </span>
+          )}
           {quest.kappaRequired && <abbr title="Needed for Kappa">K</abbr>}
           {quest.lightkeeperRequired && <abbr title="Needed for Lightkeeper">LK</abbr>}
         </span>
@@ -139,6 +155,7 @@ function Sidebar({
 export default function QuestsView({ settings, priceState }: Props): React.JSX.Element {
   const { questState, rows: all, ctx, questsById, mapsById } = useQuestRows(settings)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
+  const objectives = useStore((s) => s.objectiveProgress[settings.gameMode])
   const selected = useStore((s) => s.selectedQuest)
   const selectQuest = useStore((s) => s.selectQuest)
   const [tab, setTab] = useState<'quests' | 'items'>('quests')
@@ -148,7 +165,10 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const q = settings.quests
   const level = settings.playerLevels[settings.gameMode]
   const traders = useMemo(
-    () => dataset?.traders.filter((t) => dataset.quests.some((quest) => quest.traderId === t.id)) ?? [],
+    () => [
+      ...(dataset?.storyChapters.length ? [STORY_TRADER] : []),
+      ...(dataset?.traders.filter((t) => dataset.quests.some((quest) => quest.traderId === t.id)) ?? [])
+    ],
     [dataset]
   )
   const questMapList = useMemo(() => {
@@ -190,7 +210,11 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   }, [progress, questsById, dataset, term])
 
   const groups = useMemo(() => {
-    const order = new Map((dataset?.traders ?? []).map((t, i) => [t.id, i]))
+    // The story comes first.
+    const order = new Map([
+      [STORY_TRADER.id, -1],
+      ...(dataset?.traders ?? []).map((t, i) => [t.id, i] as const)
+    ])
     const byTrader = new Map<string, QuestRow[]>()
     for (const row of shown) {
       const list = byTrader.get(row.quest.traderId) ?? []
@@ -201,11 +225,18 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
       .sort(([a], [b]) => (order.get(a) ?? 99) - (order.get(b) ?? 99))
       .map(([traderId, rows]) => ({
         traderId,
-        name: dataset?.traders.find((t) => t.id === traderId)?.name ?? 'Other',
-        rows: rows.sort(
-          (a, b) =>
-            a.quest.minPlayerLevel - b.quest.minPlayerLevel || a.quest.name.localeCompare(b.quest.name)
-        )
+        name:
+          traderId === STORY_TRADER.id
+            ? STORY_TRADER.name
+            : (dataset?.traders.find((t) => t.id === traderId)?.name ?? 'Other'),
+        // Story chapters keep the story's order.
+        rows:
+          traderId === STORY_TRADER.id
+            ? rows
+            : rows.sort(
+                (a, b) =>
+                  a.quest.minPlayerLevel - b.quest.minPlayerLevel || a.quest.name.localeCompare(b.quest.name)
+              )
       }))
   }, [shown, dataset])
 
@@ -300,6 +331,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                         row={row}
                         selected={row.quest.id === selected}
                         details={detailsFor(row.quest)}
+                        objectives={objectives}
                         onSelect={onSelect}
                       />
                     ))}
@@ -312,8 +344,8 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                     From your game logs <span className="muted">{fromLogs.named.length}</span>
                   </h3>
                   <p className="hint">
-                    tarkov.dev doesn&rsquo;t list these (story chapters, and new or event quests), so there
-                    are no objectives or requirements to show.
+                    tarkov.dev doesn&rsquo;t list these (new or event quests), so there are no objectives or
+                    requirements to show.
                     {fromLogs.unnamed > 0 &&
                       ` Plus ${fromLogs.unnamed} operational or daily task${fromLogs.unnamed === 1 ? '' : 's'}.`}
                   </p>
@@ -350,9 +382,10 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
             ) : (
               <div className="quest-detail placeholder">
                 <p className="muted">
-                  Pick a quest to see its objectives. Quests you start, finish or fail in game are ticked off
-                  from the game&rsquo;s logs; to catch up on older ones, open a quest you&rsquo;ve reached and
-                  use <em>Mark this and everything before it done</em>.
+                  Pick a quest to see its objectives, and tick them off as you go (how many you&rsquo;ve
+                  handed over, for one that takes several). Quests you start, finish or fail in game are
+                  ticked off from the game&rsquo;s logs; to catch up on older ones, open a quest you&rsquo;ve
+                  reached and use <em>Mark this and everything before it done</em>.
                 </p>
               </div>
             )}

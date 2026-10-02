@@ -5,8 +5,8 @@
  * json.tarkov.dev (the primary source) must work, still know most bundled container loot items and
  * still carry what the flea trends, quests and maps views need; the GraphQL fallback is only
  * reported. db4tarkov's map tiles must still be where the app looks for them, the wiki must still
- * give quest guides with pictures, and items must still have short names, sizes and grid images (the
- * scav case scanner reads screenshots with them).
+ * give quest guides with pictures and the story chapters' steps, and items must still have short names,
+ * sizes and grid images (the scav case scanner reads screenshots with them).
  */
 import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
 import { levelRequirement } from '../src/shared/questProgress'
@@ -190,6 +190,21 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
   )
   check(loyalty > 20 && unlockLevels > 3, 'trader loyalty requirements are missing from the quest data')
   check(data.quests.length > 300, 'expected more than 300 quests')
+  // The story chapters come from the wiki, with the game's ids from tarkov.dev's names.
+  const chapters = data.storyChapters
+  const steps = chapters.reduce((n, c) => n + c.objectives.length, 0)
+  const handOvers = chapters
+    .flatMap((c) => c.objectives)
+    .filter((o) => o.handOver && o.itemNames.length).length
+  console.log(
+    `[story ${dataMode}] ${chapters.length} chapters (${chapters.map((c) => c.name).join(', ')}) · ${steps} steps · ` +
+      `${handOvers} hand-overs naming items · ${chapters.filter((c) => /^[0-9a-f]{24}$/.test(c.id)).length} with the game's id`
+  )
+  check(chapters.length >= 5 && steps > 100, 'the story chapters are missing (the wiki pages changed?)')
+  check(
+    chapters.some((c) => c.name === 'Tour' && /^[0-9a-f]{24}$/.test(c.id)),
+    'Tour has no game id'
+  )
   check(placed > 100, 'expected quest objectives with map positions')
   check(untranslated < data.quests.length / 10, 'quest names are not being translated')
   const mapKeys = new Set(data.maps.map((m) => m.normalizedName))

@@ -16,15 +16,17 @@ export default function NeededItems({
 }) {
   const [includeAvailable, setIncludeAvailable] = useState(false)
   const selectQuest = useStore((s) => s.selectQuest)
+  const objectives = useStore((s) => (s.settings ? s.objectiveProgress[s.settings.gameMode] : undefined))
   const items = useItemLookup(priceState)
   const { items: needed, anyOf } = useMemo(
     () =>
       neededItems(
         rows
           .filter((r) => r.status === 'active' || (includeAvailable && r.status === 'available'))
-          .map((r) => r.quest)
+          .map((r) => r.quest),
+        objectives
       ),
-    [rows, includeAvailable]
+    [rows, includeAvailable, objectives]
   )
 
   return (
@@ -86,10 +88,13 @@ export default function NeededItems({
         <>
           <h4>Hand over any of several items</h4>
           <ul className="any-of-list">
-            {anyOf.map(({ quest, objective }) => (
+            {anyOf.map(({ quest, objective, count }) => (
               <li key={objective.id}>
                 <strong>{quest.name}:</strong> {objective.description}{' '}
-                <span className="muted">({objective.items.length} accepted items)</span>
+                <span className="muted">
+                  ({count < (objective.count ?? 1) ? `${count} still to hand over, ` : ''}
+                  {objective.items.length} accepted items)
+                </span>
               </li>
             ))}
           </ul>

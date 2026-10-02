@@ -3,8 +3,10 @@ import type { FleaRecord, LogHistory, RaidRecord } from '../../shared/logTypes'
 import {
   applyQuestEvent,
   markUpTo,
+  setObjective,
   setQuestStatus,
   withoutLogEntries,
+  type ObjectiveProgress,
   type ProgressEntry,
   type QuestProgress
 } from '../../shared/questProgress'
@@ -23,10 +25,14 @@ interface Saved {
   history: Record<GameMode, LogHistory>
   /** Since 1.8.0. */
   hideout: Record<GameMode, HideoutProgress>
+  /** Since 1.11.0. */
+  objectives: Record<GameMode, ObjectiveProgress>
 }
 
 /** Item counts are whole and at least 0; a count of 0 isn't kept. */
 const MAX_HAVE = 100_000
+/** Objective counts go up to this (the most a story step asks for is 500,000,000 roubles). */
+const MAX_OBJECTIVE = 1_000_000_000
 
 const empty = (): Saved => ({
   version: 1,
@@ -36,7 +42,8 @@ const empty = (): Saved => ({
     pve: { raids: [], flea: [] },
     season: { raids: [], flea: [] }
   },
-  hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT }
+  hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT },
+  objectives: { pvp: {}, pve: {}, season: {} }
 })
 
 const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']> = {
@@ -66,7 +73,8 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             // 1.8.0 saved no trader levels.
             hideout: Object.fromEntries(
               MODES.map((mode) => [mode, { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }])
-            ) as Saved['hideout']
+            ) as Saved['hideout'],
+            objectives: { ...base.objectives, ...raw.objectives }
           }
         : base
     return data
@@ -85,6 +93,28 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
 
     async hideout(mode: GameMode): Promise<HideoutProgress> {
       return (await load()).hideout[mode]
+    },
+
+    async objectives(mode: GameMode): Promise<ObjectiveProgress> {
+      return (await load()).objectives[mode]
+    },
+
+    /** How far along one of a quest's objectives is, set by hand (0 clears it). */
+    async setObjective(
+      mode: GameMode,
+      questId: string,
+      objectiveId: string,
+      value: number
+    ): Promise<ObjectiveProgress> {
+      const d = await load()
+      d.objectives[mode] = setObjective(
+        d.objectives[mode],
+        questId,
+        objectiveId,
+        Math.min(MAX_OBJECTIVE, value)
+      )
+      await save()
+      return d.objectives[mode]
     },
 
     /** Set a station's built level by hand (catching up), leaving the items put aside alone. */

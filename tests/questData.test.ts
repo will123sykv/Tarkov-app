@@ -315,9 +315,41 @@ describe('createQuestDataService', () => {
     const service = createQuestDataService({ fetchFn, cacheDir: join(await tempDir(), 'c'), now: () => 5 })
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
-    expect(fetchFn).toHaveBeenCalledTimes(8)
+    // Eight tarkov.dev files and the wiki's list of story chapters.
+    expect(fetchFn).toHaveBeenCalledTimes(9)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(16)
+    expect(fetchFn).toHaveBeenCalledTimes(18)
+  })
+
+  it('keeps the story chapters it had when the wiki can’t be reached', async () => {
+    const cacheDir = await tempDir()
+    const chapter = {
+      id: 'story-tour',
+      name: 'Tour',
+      wikiLink: 'https://escapefromtarkov.fandom.com/wiki/Tour',
+      description: '',
+      howItStarts: '',
+      imageLink: null,
+      objectives: [
+        {
+          id: 'escape-ground-zero',
+          text: 'Escape Ground Zero',
+          optional: false,
+          depth: 0,
+          count: null,
+          itemNames: [],
+          handOver: false,
+          foundInRaid: false,
+          branch: null
+        }
+      ]
+    }
+    const cached = { ...normalizeQuestData(RAW_QUEST_DATA, 'pvp', 0), storyChapters: [chapter] }
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(cached))
+    const state = await createQuestDataService({ fetchFn: serve(), cacheDir, now: () => 1e12 }).get('pvp')
+    expect(state.error).toBeNull()
+    expect(state.dataset!.fetchedAt).toBe(1e12)
+    expect(state.dataset!.storyChapters).toEqual([chapter])
   })
 
   it('does without hideout station names when that file fails', async () => {

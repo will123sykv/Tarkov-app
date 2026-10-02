@@ -7,8 +7,9 @@ prices, your PMC level and the game mode you play. It also has:
 - **Flea trends:** liquid flea items whose price follows a daily pattern, and the best time of day
   to buy and to sell them;
 - **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
-  reading the game's log files, with each quest's keys, items, rewards and the wiki's guide and
-  pictures of where to go;
+  reading the game's log files, with the main story's chapters, objectives you tick off as you go
+  (and count, like 6/15 cigarettes handed over), each quest's keys, items, rewards and the wiki's
+  guide and pictures of where to go;
 - **Hideout:** what your hideout's upgrades still need, with the items you've put aside ticked
   off, and the items not to sell (rare ones flagged) marked in the loot list;
 - **Maps:** interactive maps with your quests (named, with their trader), extracts, transits and
@@ -191,7 +192,22 @@ the game's install folder, or its `build` folder.
   before it done**, which also completes everything that had to come before it. You can set any
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
   trader, map, faction, and Kappa or Lightkeeper. **Items needed** lists what your active quests
-  still want handed over, flagging found-in-raid items. A quest's panel shows its trader, its
+  still want handed over, flagging found-in-raid items.
+- **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
+  the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
+  for Bad Habit handed over. The game's logs don't record objectives, so this is by hand (per game
+  mode, kept with your progress). The quest list shows how many objectives are done (3/5), done
+  objectives leave the map, and what's been handed over comes off **Items needed** and the Keep
+  tags (9 more cigarettes, not 15). A completed quest shows every objective ticked.
+- **Story chapters:** the main story (Tour, Falling Skies, The Ticket, and the side chapters Batya,
+  The Unheard, Blue Fire, They Are Already Here, Accidental Witness, The Labyrinth and Boreas) is
+  listed first. tarkov.dev doesn't carry the chapters, so their steps come from each chapter's page
+  on the wiki: optional steps, sub-steps and the paths a chapter branches into (which ending, what
+  you did with the armored case) are shown as the wiki lists them, with what starts the chapter.
+  Chapters start and finish from the game's logs like quests; tick their steps off yourself. Items a
+  chapter's hand-overs take (rechargeable batteries, toolsets…) count towards **Items needed** while
+  it's active, except ones on a path you may not take. The steps are refreshed with the quest data,
+  and the last ones fetched are kept when the wiki can't be reached. A quest's panel shows its trader, its
   objectives with the keys each needs, the keys and items it takes, what it gives when you accept
   it, its rewards (experience, reputation, items and money, trader and craft unlocks, skills) and
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its

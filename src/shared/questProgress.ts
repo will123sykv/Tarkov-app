@@ -11,6 +11,58 @@ export interface ProgressEntry {
 /** Quest id → progress, for one game mode. Quests with no entry haven't been started. */
 export type QuestProgress = Record<string, ProgressEntry>
 
+/**
+ * How far the player has got with each quest's objectives, set by hand (the game's logs don't say):
+ * quest id → objective id → a count (items handed over, kills…), or 1 for one that's done.
+ */
+export type ObjectiveProgress = Record<string, Record<string, number>>
+
+/** What finishing an objective takes: its count, or 1 for a one-off. */
+export const objectiveTarget = (objective: Pick<QuestObjective, 'count'>): number =>
+  Math.max(1, Math.round(objective.count ?? 1))
+
+/** How far along one objective is; every objective of a completed quest is done. */
+export function objectiveValue(
+  objective: Pick<QuestObjective, 'id' | 'count'>,
+  questId: string,
+  objectives: ObjectiveProgress | undefined,
+  completed = false
+): number {
+  if (completed) return objectiveTarget(objective)
+  return Math.min(objectiveTarget(objective), Math.max(0, objectives?.[questId]?.[objective.id] ?? 0))
+}
+
+/** Set (or with 0, clear) how far along an objective is. */
+export function setObjective(
+  progress: ObjectiveProgress,
+  questId: string,
+  objectiveId: string,
+  value: number
+): ObjectiveProgress {
+  const quest = { ...progress[questId] }
+  const n = Math.max(0, Math.round(value))
+  if (n > 0) quest[objectiveId] = n
+  else delete quest[objectiveId]
+  const next = { ...progress }
+  if (Object.keys(quest).length) next[questId] = quest
+  else delete next[questId]
+  return next
+}
+
+/** The quest's required objectives, and how many of them are done. */
+export function objectiveSummary(
+  quest: Pick<Quest, 'id' | 'objectives'>,
+  objectives: ObjectiveProgress | undefined,
+  completed = false
+): { done: number; total: number } {
+  const required = quest.objectives.filter((o) => !o.optional)
+  return {
+    done: required.filter((o) => objectiveValue(o, quest.id, objectives, completed) >= objectiveTarget(o))
+      .length,
+    total: required.length
+  }
+}
+
 export type QuestStatus = 'completed' | 'failed' | 'active' | 'available' | 'locked'
 
 export interface QuestContext {
@@ -228,24 +280,29 @@ export interface NeededItem {
 const CONSUMING = new Set(['giveItem', 'plantItem'])
 
 /**
- * Items still to hand over or plant for the given quests. Only objectives that name a single item
- * add up per item; "any of these" objectives are listed separately.
+ * Items still to hand over or plant for the given quests (less what's been handed over already). Only
+ * objectives that name a single item add up per item; "any of these" objectives are listed separately.
  */
-export function neededItems(quests: readonly Quest[]): {
+export function neededItems(
+  quests: readonly Quest[],
+  objectives?: ObjectiveProgress
+): {
   items: NeededItem[]
-  anyOf: { quest: Quest; objective: QuestObjective }[]
+  /** With how many are still to hand over. */
+  anyOf: { quest: Quest; objective: QuestObjective; count: number }[]
 } {
   const byKey = new Map<string, NeededItem>()
-  const anyOf: { quest: Quest; objective: QuestObjective }[] = []
+  const anyOf: { quest: Quest; objective: QuestObjective; count: number }[] = []
   for (const quest of quests) {
     for (const objective of quest.objectives) {
       if (!CONSUMING.has(objective.type) || !objective.items.length || objective.optional) continue
+      const count = (objective.count ?? 1) - objectiveValue(objective, quest.id, objectives)
+      if (count <= 0) continue
       if (objective.items.length > 1) {
-        anyOf.push({ quest, objective })
+        anyOf.push({ quest, objective, count })
         continue
       }
       const itemId = objective.items[0]
-      const count = objective.count ?? 1
       const key = `${itemId}:${objective.foundInRaid}`
       const entry = byKey.get(key) ?? { itemId, count: 0, foundInRaid: objective.foundInRaid, quests: [] }
       entry.count += count

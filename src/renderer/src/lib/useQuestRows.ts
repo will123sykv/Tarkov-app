@@ -4,6 +4,7 @@ import { forFaction, questStatus, type QuestContext, type QuestStatus } from '..
 import type { GameMap, Quest, QuestDataState } from '../../../shared/questTypes'
 import type { PublicSettings } from '../../../shared/types'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
+import { storyQuests } from '../../../shared/storyQuests'
 import { useStore } from '../store'
 
 export interface QuestRow {
@@ -13,7 +14,7 @@ export interface QuestRow {
 
 export interface QuestRows {
   questState: QuestDataState | undefined
-  /** Every quest for the player's faction, with its status. */
+  /** Every quest for the player's faction (and every story chapter), with its status. */
   rows: QuestRow[]
   ctx: QuestContext
   questsById: ReadonlyMap<string, Quest>
@@ -29,6 +30,7 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
   const settings = current ?? DEFAULT_SETTINGS
   const dataMode = dataModeFor(settings.gameMode)
   const questState = useStore((s) => s.questData[dataMode])
+  const priceItems = useStore((s) => s.prices[dataMode]?.dataset?.items)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
   const loadQuestData = useStore((s) => s.loadQuestData)
   const loadPlayerData = useStore((s) => s.loadPlayerData)
@@ -48,14 +50,23 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
     () => ({ playerLevel: level, faction, traders }),
     [level, faction, traders]
   )
-  const questsById = useMemo(() => new Map((dataset?.quests ?? []).map((q) => [q.id, q])), [dataset])
+  // Story chapters' hand-overs name their items: match them to the price data's items.
+  const itemIds = useMemo(
+    () => new Map((priceItems ?? []).map((i) => [i.name.toLowerCase(), i.id])),
+    [priceItems]
+  )
+  const quests = useMemo(
+    () => [...(dataset?.quests ?? []), ...storyQuests(dataset?.storyChapters ?? [], itemIds)],
+    [dataset, itemIds]
+  )
+  const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
   const rows = useMemo<QuestRow[]>(
     () =>
-      (dataset?.quests ?? [])
+      quests
         .filter((q) => forFaction(q, ctx.faction))
         .map((q) => ({ quest: q, status: questStatus(q, progress ?? {}, ctx, questsById) })),
-    [dataset, progress, ctx, questsById]
+    [quests, progress, ctx, questsById]
   )
   return { questState, rows, ctx, questsById, mapsById }
 }

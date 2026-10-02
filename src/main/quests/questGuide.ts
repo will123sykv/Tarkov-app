@@ -8,7 +8,7 @@ import { errorMessage, fetchJson, type FetchFn } from '../pricing/http'
 // CC BY-SA 3.0): what to do, as plain text, and its pictures of where things are, with captions.
 
 export const WIKI_BASE = 'https://escapefromtarkov.fandom.com'
-const WIKI_PAGE = `${WIKI_BASE}/wiki/`
+export const WIKI_PAGE = `${WIKI_BASE}/wiki/`
 /** Guides change now and then: refresh weekly. */
 const MAX_AGE_MS = 7 * 24 * 3_600_000
 const TIMEOUT_MS = 20_000
@@ -207,7 +207,7 @@ export function parseGuide(wikitext: string): {
   return { blocks, images }
 }
 
-async function wikiApi(fetchFn: FetchFn, params: Record<string, string>): Promise<Raw> {
+export async function wikiApi(fetchFn: FetchFn, params: Record<string, string>): Promise<Raw> {
   const query = new URLSearchParams({ format: 'json', formatversion: '2', ...params })
   const body = (await fetchJson(
     fetchFn,
@@ -222,7 +222,7 @@ async function wikiApi(fetchFn: FetchFn, params: Record<string, string>): Promis
 }
 
 /** Where the wiki serves each file (scaled to IMAGE_WIDTH at most), by file name. */
-async function imageInfo(
+export async function imageInfo(
   fetchFn: FetchFn,
   files: string[]
 ): Promise<Map<string, Omit<GuideImage, 'caption'>>> {
