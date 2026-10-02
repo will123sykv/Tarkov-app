@@ -156,7 +156,8 @@ export function requirementLabels(
   return labels
 }
 
-const satisfies = (entry: ProgressEntry | undefined, wanted: RequirementStatus[]): boolean =>
+/** Whether a quest's progress is one of the statuses wanted (finished counts as started). */
+export const satisfies = (entry: ProgressEntry | undefined, wanted: RequirementStatus[]): boolean =>
   (wanted.includes('complete') && entry?.status === 'completed') ||
   (wanted.includes('active') && (entry?.status === 'active' || entry?.status === 'completed')) ||
   (wanted.includes('failed') && entry?.status === 'failed')

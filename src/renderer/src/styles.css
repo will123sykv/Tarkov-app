@@ -1261,6 +1261,13 @@ button.link {
   color: var(--warn);
 }
 
+/* An objective the app ticked off by itself (the reason is in its tooltip). */
+.tag.auto {
+  background: rgba(106, 159, 212, 0.16);
+  color: var(--info);
+  cursor: help;
+}
+
 button.link.active {
   color: var(--accent-strong);
 }
@@ -1635,9 +1642,21 @@ button.link.active {
 
 .objective-meta {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-top: 2px;
   font-size: 12px;
+}
+
+.objective-meta select.pin-map {
+  padding: 1px 4px;
+  font-size: 12px;
+}
+
+/* Most steps without a map are done in menus: the picker shows when the step is pointed at. */
+.objective:not(:hover, :focus-within) select.pin-map {
+  opacity: 0;
 }
 
 .wiki-link {
@@ -3096,4 +3115,72 @@ button.link.small {
   .scan-results {
     overflow: visible;
   }
+}
+
+/* Story steps on the map: "roughly here" pins (a place the step names) and the player's own. */
+
+.map-pin.quest.rough .map-pin-label,
+.map-pin.quest.rough .map-pin-icon {
+  border-style: dashed;
+}
+
+.map-pin.quest .map-pin-icon.note {
+  background: #e9ecef;
+}
+
+.map-canvas.placing .leaflet-container,
+.map-canvas.placing .leaflet-interactive {
+  cursor: crosshair;
+}
+
+.placing-banner {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px 6px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.story-steps + .story-steps {
+  margin-top: 8px;
+}
+
+.story-steps .story-chapter {
+  font-weight: 600;
+}
+
+.story-steps ul {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.story-steps li {
+  display: grid;
+  gap: 1px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+
+.story-steps li.placing {
+  border-left-color: var(--accent);
+}
+
+.story-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

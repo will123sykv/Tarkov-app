@@ -1,15 +1,17 @@
 import {
+  mdiApproximatelyEqual,
   mdiCrosshairsGps,
   mdiExitRun,
   mdiEye,
   mdiFlag,
   mdiHandBackLeft,
   mdiKeyVariant,
+  mdiMapMarkerAccount,
   mdiPackageDown,
   mdiSkull
 } from '@mdi/js'
 import type { QuestStatus } from '../../../shared/questProgress'
-import type { Quest, QuestObjective, QuestTrader, Vec3 } from '../../../shared/questTypes'
+import type { Quest, QuestObjective, QuestTrader, QuestZone, Vec3 } from '../../../shared/questTypes'
 
 // Quest objectives on a map as labelled pins: one per spot a quest sends you to, named with the
 // quest and its trader, with an icon for each thing to do there.
@@ -19,8 +21,8 @@ export interface ObjectiveMarker {
   status: QuestStatus
   trader: QuestTrader | undefined
   objective: QuestObjective
-  /** Zones and quest-item spots on this map. */
-  zones: { position: Vec3; outline: Vec3[] }[]
+  /** Zones and quest-item spots on this map (a story step's "roughly here" or own pin is a zone). */
+  zones: Pick<QuestZone, 'position' | 'outline' | 'source' | 'place'>[]
   spots: Vec3[]
 }
 
@@ -68,6 +70,9 @@ export const OBJECTIVE_KIND_LABEL: Record<ObjectiveKind, string> = {
 }
 
 export const KEY_ICON = mdiKeyVariant
+/** A story step's pin the player put there, and one only roughly placed (where the step names a place). */
+export const MINE_ICON = mdiMapMarkerAccount
+export const ROUGH_ICON = mdiApproximatelyEqual
 
 export interface QuestPin {
   quest: Quest
@@ -79,6 +84,11 @@ export interface QuestPin {
   kinds: ObjectiveKind[]
   /** Any of them needs a key. */
   needsKey: boolean
+  /** Only roughly here: a place its story step names (`places`). */
+  rough: boolean
+  places: string[]
+  /** The player put it there. */
+  mine: boolean
   /** How many pins of other quests are already at this spot (each is drawn above the last). */
   stack: number
 }
@@ -106,11 +116,11 @@ export function questPins(markers: ObjectiveMarker[]): { pins: QuestPin[]; dots:
   const pins: QuestPin[] = []
   const dots: QuestDot[] = []
   for (const { quest, status, trader, objective, zones, spots } of markers) {
-    const points = zones.map((z) => z.position)
+    const points: Pick<QuestZone, 'position' | 'source' | 'place'>[] = [...zones]
     if (spots.length > MAX_PINNED_SPOTS)
       dots.push(...spots.map((position) => ({ quest, status, objective, position })))
-    else points.push(...spots)
-    for (const position of points) {
+    else points.push(...spots.map((position) => ({ position })))
+    for (const { position, source, place } of points) {
       const pin = pins.find((p) => p.quest.id === quest.id && near(p.position, position, MERGE_RADIUS))
       if (!pin) {
         pins.push({
@@ -121,9 +131,17 @@ export function questPins(markers: ObjectiveMarker[]): { pins: QuestPin[]; dots:
           objectives: [objective],
           kinds: [objectiveKind(objective)],
           needsKey: objective.requiredKeys.length > 0,
+          rough: source === 'rough',
+          places: place ? [place] : [],
+          mine: source === 'mine',
           stack: 0
         })
-      } else if (!pin.objectives.includes(objective)) {
+      } else {
+        // Exactly here if anything at the spot is.
+        pin.rough &&= source === 'rough'
+        pin.mine ||= source === 'mine'
+        if (place && !pin.places.includes(place)) pin.places.push(place)
+        if (pin.objectives.includes(objective)) continue
         pin.objectives.push(objective)
         const kind = objectiveKind(objective)
         if (!pin.kinds.includes(kind)) pin.kinds.push(kind)

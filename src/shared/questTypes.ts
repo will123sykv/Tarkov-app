@@ -13,6 +13,12 @@ export interface QuestZone {
   position: Vec3
   /** Ground outline, when the zone has one. */
   outline: Vec3[]
+  /**
+   * Story steps only, which have no zones of their own: `rough` for the place the step names
+   * (`place` says which), `mine` for a pin the player put there.
+   */
+  source?: 'rough' | 'mine'
+  place?: string
 }
 
 export interface QuestObjective {
@@ -33,6 +39,12 @@ export interface QuestObjective {
   locations: { map: string; positions: Vec3[] }[]
   /** For "reach loyalty level N with a trader" objectives. */
   traderLevel: { traderId: string; level: number } | null
+  /** For "reach level N" objectives. Since 1.12.0. */
+  playerLevel: number | null
+  /** For objectives that another quest be started, finished or failed. Since 1.12.0. */
+  questStatus: { questId: string; status: RequirementStatus[] } | null
+  /** Story chapters: "visit the map N times", counted from the raids in the logs. */
+  visits?: boolean
   /** Keys it needs: one list per lock, any key in a list opens it. */
   requiredKeys: string[][]
   /** Story chapters: how deep in the list it sits (0: a step of its own, 1: part of the step above). */
@@ -186,6 +198,14 @@ export interface StoryObjective {
   foundInRaid: boolean
   /** The path it's on, when the chapter branches. */
   branch: string | null
+  /** The maps it's done on (ids), from the step or its part of the page's guide. Since 1.12.0. */
+  maps: string[]
+  /** That part of the guide, as plain text (shortened), for the places it names. */
+  guide: string | null
+  /** "Survive and extract from X or visit X N times": `count` is N. */
+  visits: boolean
+  /** "Reach Loyalty Level N with a trader", by the trader's name. */
+  loyalty: { trader: string; level: number } | null
 }
 
 /** A chapter of the main story (Tour, Falling Skies…), from its page on the wiki. */

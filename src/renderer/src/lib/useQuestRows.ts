@@ -1,11 +1,20 @@
 import { useEffect, useMemo } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
-import { forFaction, questStatus, type QuestContext, type QuestStatus } from '../../../shared/questProgress'
+import { EMPTY_HIDEOUT } from '../../../shared/hideout'
+import { detectObjectives, withDetected, type DetectedProgress } from '../../../shared/objectiveDetection'
+import {
+  forFaction,
+  questStatus,
+  type ObjectiveProgress,
+  type QuestContext,
+  type QuestStatus
+} from '../../../shared/questProgress'
 import type { GameMap, Quest, QuestDataState } from '../../../shared/questTypes'
 import type { PublicSettings } from '../../../shared/types'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { storyQuests } from '../../../shared/storyQuests'
 import { useStore } from '../store'
+import { mapPlaces, raidMapLookup } from './storyMaps'
 
 export interface QuestRow {
   quest: Quest
@@ -19,6 +28,10 @@ export interface QuestRows {
   ctx: QuestContext
   questsById: ReadonlyMap<string, Quest>
   mapsById: ReadonlyMap<string, GameMap>
+  /** How far along each objective is: ticked off by the player, or detected (whichever is further). */
+  objectives: ObjectiveProgress
+  /** What the app worked out by itself, and how. */
+  detected: DetectedProgress
 }
 
 /**
@@ -32,6 +45,10 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
   const questState = useStore((s) => s.questData[dataMode])
   const priceItems = useStore((s) => s.prices[dataMode]?.dataset?.items)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
+  const ticked = useStore((s) => s.objectiveProgress[settings.gameMode])
+  const traderLevels = useStore((s) => s.hideoutProgress[settings.gameMode]?.traders) ?? EMPTY_HIDEOUT.traders
+  const raids = useStore((s) => s.logHistory[settings.gameMode]?.raids)
+  const pins = useStore((s) => s.storyPins)
   const loadQuestData = useStore((s) => s.loadQuestData)
   const loadPlayerData = useStore((s) => s.loadPlayerData)
 
@@ -55,9 +72,17 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
     () => new Map((priceItems ?? []).map((i) => [i.name.toLowerCase(), i.id])),
     [priceItems]
   )
+  const traderIds = useMemo(
+    () => new Map((dataset?.traders ?? []).map((t) => [t.name.toLowerCase(), t.id])),
+    [dataset]
+  )
+  const places = useMemo(() => mapPlaces(dataset?.maps ?? []), [dataset])
   const quests = useMemo(
-    () => [...(dataset?.quests ?? []), ...storyQuests(dataset?.storyChapters ?? [], itemIds)],
-    [dataset, itemIds]
+    () => [
+      ...(dataset?.quests ?? []),
+      ...storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins })
+    ],
+    [dataset, itemIds, traderIds, places, pins]
   )
   const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
@@ -68,5 +93,21 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
         .map((q) => ({ quest: q, status: questStatus(q, progress ?? {}, ctx, questsById) })),
     [quests, progress, ctx, questsById]
   )
-  return { questState, rows, ctx, questsById, mapsById }
+  const raidMaps = useMemo(() => raidMapLookup(dataset?.maps ?? []), [dataset])
+  const detected = useMemo(
+    () =>
+      detectObjectives(quests, {
+        playerLevel: level,
+        traderLevels,
+        progress: progress ?? {},
+        raids: raids ?? [],
+        raidMaps,
+        traderName: (id) => traders.get(id)?.name,
+        questName: (id) => questsById.get(id)?.name,
+        mapName: (id) => mapsById.get(id)?.name
+      }),
+    [quests, level, traderLevels, progress, raids, raidMaps, traders, questsById, mapsById]
+  )
+  const objectives = useMemo(() => withDetected(ticked, detected), [ticked, detected])
+  return { questState, rows, ctx, questsById, mapsById, objectives, detected }
 }

@@ -8,12 +8,12 @@ prices, your PMC level and the game mode you play. It also has:
   to buy and to sell them;
 - **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
   reading the game's log files, with the main story's chapters, objectives you tick off as you go
-  (and count, like 6/15 cigarettes handed over), each quest's keys, items, rewards and the wiki's
-  guide and pictures of where to go;
+  (and count, like 6/15 cigarettes handed over) or that the app ticks off itself where it can, each
+  quest's keys, items, rewards and the wiki's guide and pictures of where to go;
 - **Hideout:** what your hideout's upgrades still need, with the items you've put aside ticked
   off, and the items not to sell (rare ones flagged) marked in the loot list;
-- **Maps:** interactive maps with your quests (named, with their trader), extracts, transits and
-  spawns;
+- **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
+  extracts, transits and spawns;
 - **Raids:** your raid history and flea market sales, also from the logs.
 
 ## Download
@@ -195,16 +195,24 @@ the game's install folder, or its `build` folder.
   still want handed over, flagging found-in-raid items.
 - **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
   the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
-  for Bad Habit handed over. The game's logs don't record objectives, so this is by hand (per game
-  mode, kept with your progress). The quest list shows how many objectives are done (3/5), done
-  objectives leave the map, and what's been handed over comes off **Items needed** and the Keep
-  tags (9 more cigarettes, not 15). A completed quest shows every objective ticked.
+  for Bad Habit handed over (per game mode, kept with your progress). The quest list shows how many
+  objectives are done (3/5), done objectives leave the map, and what's been handed over comes off
+  **Items needed** and the Keep tags (9 more cigarettes, not 15). A completed quest shows every
+  objective ticked.
+- **Objectives ticked off for you:** the game's logs only say when a quest starts, finishes or
+  fails, not its objectives, but some the app can tell by itself, marked **auto** (point at it to
+  see why): "reach level N" from your PMC level, "reach loyalty level N with a trader" from the
+  levels set in the Hideout tab, objectives on another quest's progress, and story steps like
+  "survive and extract from Customs or visit Customs 3 times", counted from your raids on that map
+  in the logs since the chapter started (not as a scav). You can count further than the app did, but
+  not below it.
 - **Story chapters:** the main story (Tour, Falling Skies, The Ticket, and the side chapters Batya,
   The Unheard, Blue Fire, They Are Already Here, Accidental Witness, The Labyrinth and Boreas) is
   listed first. tarkov.dev doesn't carry the chapters, so their steps come from each chapter's page
   on the wiki: optional steps, sub-steps and the paths a chapter branches into (which ending, what
   you did with the armored case) are shown as the wiki lists them, with what starts the chapter.
-  Chapters start and finish from the game's logs like quests; tick their steps off yourself. Items a
+  Chapters start and finish from the game's logs like quests; tick their steps off yourself (or let
+  the app count the ones it can, see above). Items a
   chapter's hand-overs take (rechargeable batteries, toolsets…) count towards **Items needed** while
   it's active, except ones on a path you may not take. The steps are refreshed with the quest data,
   and the last ones fetched are kept when the wiki can't be reached. A quest's panel shows its trader, its
@@ -224,6 +232,14 @@ the game's install folder, or its `build` folder.
   Zero underground, the Shoreline resort's floors, Reserve's bunkers, Interchange's mall), and a
   switch goes back to tarkov.dev's map; The Lab uses tarkov.dev's interactive map. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards.
+- **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
+  out, and the wiki describes places in words), so the app works out which map each step is on from
+  the step and its part of the wiki's guide, and lists the unfinished ones under **Story steps
+  here**. A step that names a place the map knows (the Resort, Lexos, the Tunnel extract) gets a
+  dashed **≈ roughly here** pin there. **Pin it** (or **Pin it exactly**) lets you click where a step
+  really is: your pin is kept (in every game mode), and **Move** and **Remove** change it. In a
+  chapter's panel, steps with no map can be pinned on any map you pick (point at the step to see
+  the picker).
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
 
@@ -265,7 +281,7 @@ offline cache.
 ### Where data is stored
 
 Settings, the encrypted API key, the price and quest caches, the flea price recordings (`trends\`,
-about 1 MB a day), your quest progress, raid history and hideout (`player.json`), where the app got to in the
+about 1 MB a day), your quest progress, raid history, hideout and pins on story steps (`player.json`), where the app got to in the
 game's logs (`logs\`), quest guides from the wiki (`cache\quest-guides\`) and downloaded map
 images and item pictures (`map-cache\`) live in
 `%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.

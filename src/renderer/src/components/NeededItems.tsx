@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { neededItems } from '../../../shared/questProgress'
+import { neededItems, type ObjectiveProgress } from '../../../shared/questProgress'
 import type { PriceState } from '../../../shared/types'
 import { formatRub } from '../lib/format'
 import { useItemLookup } from '../lib/useItemLookup'
@@ -9,14 +9,16 @@ import type { QuestRow } from '../lib/useQuestRows'
 /** Items still to hand over or plant for active (and optionally available) quests. */
 export default function NeededItems({
   rows,
+  objectives,
   priceState
 }: {
   rows: QuestRow[]
+  /** How far along each objective is (hand-overs already made aren't needed). */
+  objectives: ObjectiveProgress
   priceState: PriceState | null
 }) {
   const [includeAvailable, setIncludeAvailable] = useState(false)
   const selectQuest = useStore((s) => s.selectQuest)
-  const objectives = useStore((s) => (s.settings ? s.objectiveProgress[s.settings.gameMode] : undefined))
   const items = useItemLookup(priceState)
   const { items: needed, anyOf } = useMemo(
     () =>

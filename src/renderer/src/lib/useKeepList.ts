@@ -45,9 +45,8 @@ export function useKeepList(
   priceState: PriceState | null
 ): ReadonlyMap<string, KeepInfo> {
   const settings = current ?? DEFAULT_SETTINGS
-  const { questState, rows } = useQuestRows(current)
+  const { questState, rows, objectives } = useQuestRows(current)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
-  const objectives = useStore((s) => s.objectiveProgress[settings.gameMode])
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(current, priceState)
   const scope = settings.hideout.scope

@@ -1,11 +1,12 @@
 import { useCallback, useMemo } from 'react'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
-import type { GameMap, MapLabel } from '../../../shared/questTypes'
+import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
+import { STORY_TRADER } from '../../../shared/storyQuests'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { interactiveProjection, posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
-import { KEY_ICON, OBJECTIVE_ICONS, type ObjectiveMarker } from '../lib/questPins'
+import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type ObjectiveMarker } from '../lib/questPins'
 import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
@@ -97,6 +98,83 @@ function KindLegend({ icon, children }: { icon: string; children: React.ReactNod
   )
 }
 
+/** A story step on this map, and where it is (if anywhere yet). */
+interface StepHere {
+  quest: Quest
+  objective: QuestObjective
+  pin: 'mine' | 'rough' | null
+}
+
+/** Story chapters' unfinished steps on this map, with a way to pin each. */
+function StorySteps({
+  steps,
+  mapKey,
+  placing
+}: {
+  steps: StepHere[]
+  mapKey: string
+  placing: { questId: string; objectiveId: string } | null
+}): React.JSX.Element | null {
+  const pinOnMap = useStore((s) => s.pinOnMap)
+  const setStoryPin = useStore((s) => s.setStoryPin)
+  const showOnMap = useStore((s) => s.showOnMap)
+  const selectQuest = useStore((s) => s.selectQuest)
+  if (!steps.length) return null
+  const chapters = [...new Set(steps.map((s) => s.quest))]
+  return (
+    <section>
+      <h2>Story steps here</h2>
+      {chapters.map((quest) => (
+        <div key={quest.id} className="story-steps">
+          <button className="link story-chapter" onClick={() => selectQuest(quest.id)}>
+            {quest.name}
+          </button>
+          <ul>
+            {steps
+              .filter((s) => s.quest === quest)
+              .map(({ objective, pin }) => {
+                const active = placing?.questId === quest.id && placing.objectiveId === objective.id
+                return (
+                  <li key={objective.id} className={active ? 'placing' : ''}>
+                    <span>{objective.description}</span>
+                    <span className="story-step-actions">
+                      {pin && (
+                        <button
+                          className="link small"
+                          onClick={() => void showOnMap(quest.id, objective.id, mapKey)}
+                        >
+                          {pin === 'rough' ? 'Roughly here' : 'Your pin'}
+                        </button>
+                      )}
+                      <button
+                        className="link small"
+                        onClick={() => void pinOnMap(quest.id, objective.id, mapKey)}
+                      >
+                        {pin === 'mine' ? 'Move' : pin === 'rough' ? 'Pin it exactly' : 'Pin it'}
+                      </button>
+                      {pin === 'mine' && (
+                        <button
+                          className="link small"
+                          onClick={() => void setStoryPin(quest.id, objective.id, null)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </span>
+                  </li>
+                )
+              })}
+          </ul>
+        </div>
+      ))}
+      <p className="hint">
+        The wiki doesn&rsquo;t say exactly where story steps are: &asymp; pins sit on the place a step names.
+        Pin a step yourself to mark the spot.
+      </p>
+    </section>
+  )
+}
+
 const NO_LABELS: MapLabel[] = []
 
 const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
@@ -115,13 +193,15 @@ export default function MapsView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState, rows, ctx, questsById, mapsById } = useQuestRows(settings)
+  const { questState, rows, ctx, questsById, mapsById, objectives: done, detected } = useQuestRows(settings)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
-  const done = useStore((s) => s.objectiveProgress[settings.gameMode])
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
   const selectedQuest = useStore((s) => s.selectedQuest)
   const focus = useStore((s) => s.mapFocus)
+  const placing = useStore((s) => s.placing)
+  const setPlacing = useStore((s) => s.setPlacing)
+  const setStoryPin = useStore((s) => s.setStoryPin)
   const m = settings.maps
   const set = (patch: Partial<MapSettings>): void => void updateSettings({ maps: { ...m, ...patch } })
   const dataset = questState?.dataset ?? null
@@ -139,7 +219,12 @@ export default function MapsView({
   const poster = config ? posterFor(config.key) : null
   const showPoster = poster !== null && m.style === '2d'
   const projection = useMemo(
-    () => (showPoster ? posterProjection(poster) : config ? interactiveProjection(config) : null),
+    () =>
+      showPoster
+        ? posterProjection(poster, config?.bounds ?? null)
+        : config
+          ? interactiveProjection(config)
+          : null,
     [config, poster, showPoster]
   )
   const layers = useMemo<MapLayers>(
@@ -169,18 +254,56 @@ export default function MapsView({
     for (const { quest, status } of rows) {
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
       if (!wanted.has(status) && !focused) continue
+      const trader = quest.story ? STORY_TRADER : traders.get(quest.traderId)
       for (const objective of quest.objectives) {
         // Done ones (ticked off in the quest's details) leave the map, unless it's the one asked for.
         const shownAnyway = focus?.questId === quest.id && focus.objectiveId === objective.id
         if (!shownAnyway && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
         const zones = objective.zones.filter((z) => mapIds.has(z.map))
         const spots = objective.locations.filter((l) => mapIds.has(l.map)).flatMap((l) => l.positions)
-        if (zones.length || spots.length)
-          result.push({ quest, status, trader: traders.get(quest.traderId), objective, zones, spots })
+        if (zones.length || spots.length) result.push({ quest, status, trader, objective, zones, spots })
       }
     }
     return result
   }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset, done])
+
+  // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
+  const storySteps = useMemo<StepHere[]>(() => {
+    const wanted = new Set(m.questScope === 'available' ? ['active', 'available'] : ['active'])
+    const result: StepHere[] = []
+    for (const { quest, status } of rows) {
+      if (!quest.story) continue
+      const chosen = placing?.questId === quest.id || selectedQuest === quest.id
+      if (!chosen && (m.questScope === 'none' || !wanted.has(status))) continue
+      for (const objective of quest.objectives) {
+        const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
+        if (!pinning && !objective.maps.some((id) => mapIds.has(id))) continue
+        if (!pinning && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
+        const zone = objective.zones.find((z) => mapIds.has(z.map))
+        result.push({ quest, objective, pin: zone?.source ?? null })
+      }
+    }
+    return result
+  }, [rows, m.questScope, mapIds, placing, selectedQuest, done])
+  const placingStep = placing
+    ? (rows
+        .find((r) => r.quest.id === placing.questId)
+        ?.quest.objectives.find((o) => o.id === placing.objectiveId) ?? null)
+    : null
+  const cancelPlace = useCallback(() => setPlacing(null), [setPlacing])
+  const onPlace = useCallback(
+    (position: Vec3) => {
+      if (!placing) return
+      const step = rows
+        .find((r) => r.quest.id === placing.questId)
+        ?.quest.objectives.find((o) => o.id === placing.objectiveId)
+      // On the map the step names, when it's one of this image's versions (Factory, not Night Factory).
+      const map = step?.maps.find((id) => mapIds.has(id)) ?? maps[0]?.id
+      setPlacing(null)
+      if (map) void setStoryPin(placing.questId, placing.objectiveId, { map, position })
+    },
+    [placing, rows, mapIds, maps, setPlacing, setStoryPin]
+  )
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
@@ -253,6 +376,10 @@ export default function MapsView({
             )}
           </ul>
           <ul className="legend legend-kinds">
+            <KindLegend icon={ROUGH_ICON}>Story step, roughly here</KindLegend>
+            <KindLegend icon={MINE_ICON}>Your pin</KindLegend>
+          </ul>
+          <ul className="legend legend-kinds">
             <KindLegend icon={OBJECTIVE_ICONS.visit}>Go to</KindLegend>
             <KindLegend icon={OBJECTIVE_ICONS.pickup}>Pick up</KindLegend>
             <KindLegend icon={OBJECTIVE_ICONS.stash}>Stash or plant</KindLegend>
@@ -304,6 +431,7 @@ export default function MapsView({
             <Legend color={MARKER_COLORS.spawn}>PMC spawn</Legend>
           </ul>
         </section>
+        <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
         <section>
           <h2>On this map</h2>
           {questsHere.length === 0 ? (
@@ -370,6 +498,14 @@ export default function MapsView({
         )}
       </aside>
       <main className="content map-content">
+        {placing && (
+          <div className="placing-banner" role="status">
+            <span>Click where &ldquo;{placingStep?.description ?? 'the step'}&rdquo; is on the map.</span>
+            <button className="button small" onClick={cancelPlace}>
+              Cancel
+            </button>
+          </div>
+        )}
         {projection && maps.length ? (
           <MapCanvas
             projection={projection}
@@ -382,6 +518,9 @@ export default function MapsView({
             focus={focus}
             selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
+            placing={placing !== null}
+            onPlace={onPlace}
+            onCancelPlace={cancelPlace}
           />
         ) : (
           <div className="empty">
@@ -393,6 +532,8 @@ export default function MapsView({
         <QuestDetail
           row={selected}
           progress={progress ?? {}}
+          objectives={done}
+          detected={detected}
           ctx={ctx}
           questsById={questsById}
           mapsById={mapsById}

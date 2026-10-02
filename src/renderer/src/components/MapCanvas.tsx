@@ -38,6 +38,10 @@ interface Props {
   /** Its pins stand out and the others fade. */
   selectedQuest: string | null
   onSelectQuest: (questId: string) => void
+  /** Waiting for a click on where a story step is; `onPlace` gets the spot in the game. */
+  placing?: boolean
+  onPlace?: (position: Vec3) => void
+  onCancelPlace?: () => void
 }
 
 export const MARKER_COLORS = {
@@ -59,6 +63,8 @@ function pinTooltip(pin: QuestPin, itemName: (id: string) => string | undefined)
     ...(pin.trader ? [pin.trader.name] : []),
     ...pin.objectives.map((o) => `• ${o.description || o.type}`),
     ...keys,
+    ...(pin.rough ? [`Roughly here: the step names ${pin.places.join(' and ')}`] : []),
+    ...(pin.mine ? ['Your pin'] : []),
     'Click for details'
   ])
 }
@@ -100,7 +106,10 @@ export default function MapCanvas({
   itemName,
   focus,
   selectedQuest,
-  onSelectQuest
+  onSelectQuest,
+  placing = false,
+  onPlace,
+  onCancelPlace
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -264,6 +273,23 @@ export default function MapCanvas({
     markersRef.current = markers
   }, [projection, maps, labels, objectives, layers, faction, itemName, selectedQuest, onSelectQuest])
 
+  // Placing a pin: the next click on the map is where it goes; Esc cancels.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !placing || !onPlace) return
+    const click = (e: L.LeafletMouseEvent): void =>
+      onPlace(projection.fromLatLng([e.latlng.lat, e.latlng.lng]))
+    const key = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') onCancelPlace?.()
+    }
+    map.on('click', click)
+    window.addEventListener('keydown', key)
+    return () => {
+      map.off('click', click)
+      window.removeEventListener('keydown', key)
+    }
+  }, [placing, onPlace, onCancelPlace, projection])
+
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {
     const map = mapRef.current
@@ -288,7 +314,7 @@ export default function MapCanvas({
   }, [focus, objectives, projection])
 
   return (
-    <div className="map-canvas">
+    <div className={`map-canvas ${placing ? 'placing' : ''}`}>
       <div ref={containerRef} className="leaflet-host" />
       {baseError && <div className="map-error">{baseError}</div>}
     </div>

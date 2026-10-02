@@ -18,6 +18,8 @@ const objective = (id: string, type: string, extra: Partial<QuestObjective> = {}
   zones: [],
   locations: [],
   traderLevel: null,
+  playerLevel: null,
+  questStatus: null,
   requiredKeys: [],
   ...extra
 })
@@ -104,6 +106,34 @@ describe('quest pins', () => {
       ['two', 'available', 1]
     ])
     expect(dots.map((d) => d.position)).toEqual(many)
+  })
+})
+
+describe('story steps on the map', () => {
+  it('marks pins that are only roughly placed, or the player’s own', () => {
+    const plane = objective('plane', 'story')
+    const drive = objective('drive', 'story')
+    const recorder = objective('recorder', 'story')
+    const q = quest('skies', [plane, drive, recorder])
+    const zone = (position: Vec3, source: 'rough' | 'mine', place?: string) => ({
+      position,
+      outline: [],
+      source,
+      place
+    })
+    const { pins } = questPins([
+      { ...marker(q, plane, []), zones: [zone(at(10, 10), 'rough', 'Crash Site')] },
+      { ...marker(q, drive, []), zones: [zone(at(200, 10), 'mine')] },
+      // The player's pin right by a rough one: the spot is known.
+      { ...marker(q, recorder, []), zones: [zone(at(12, 10), 'mine')] }
+    ])
+    expect(pins.map((p) => [p.objectives.map((o) => o.id), p.rough, p.mine, p.places])).toEqual([
+      [['plane', 'recorder'], false, true, ['Crash Site']],
+      [['drive'], false, true, []]
+    ])
+    expect(
+      questPins([{ ...marker(q, plane, []), zones: [zone(at(10, 10), 'rough', 'Crash Site')] }]).pins[0]
+    ).toMatchObject({ rough: true, mine: false, places: ['Crash Site'] })
   })
 })
 

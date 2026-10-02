@@ -153,9 +153,8 @@ function Sidebar({
 }
 
 export default function QuestsView({ settings, priceState }: Props): React.JSX.Element {
-  const { questState, rows: all, ctx, questsById, mapsById } = useQuestRows(settings)
+  const { questState, rows: all, ctx, questsById, mapsById, objectives, detected } = useQuestRows(settings)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
-  const objectives = useStore((s) => s.objectiveProgress[settings.gameMode])
   const selected = useStore((s) => s.selectedQuest)
   const selectQuest = useStore((s) => s.selectQuest)
   const [tab, setTab] = useState<'quests' | 'items'>('quests')
@@ -315,7 +314,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           </div>
         </div>
         {tab === 'items' ? (
-          <NeededItems rows={all} priceState={priceState} />
+          <NeededItems rows={all} objectives={objectives} priceState={priceState} />
         ) : (
           <div className="quests-main">
             <div className="quest-list">
@@ -373,6 +372,8 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
               <QuestDetail
                 row={selectedRow}
                 progress={progress ?? {}}
+                objectives={objectives}
+                detected={detected}
                 ctx={ctx}
                 questsById={questsById}
                 mapsById={mapsById}

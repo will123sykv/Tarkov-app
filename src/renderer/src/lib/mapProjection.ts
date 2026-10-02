@@ -1,7 +1,7 @@
 import L from 'leaflet'
 import type { MapConfig, Vec3 } from '../../../shared/questTypes'
 import { mapAsset } from './questUi'
-import { toImagePoint, type Anchor, type PosterMap } from './posterMap'
+import { fromImagePoint, toImagePoint, type Anchor, type PosterMap } from './posterMap'
 import { createCrs, prepareSvg, toBounds, toLatLng } from './tarkovMap'
 
 /** How a map's base image and game positions are laid out in Leaflet. */
@@ -16,6 +16,8 @@ export interface MapProjection {
   focusZoom: number
   /** `anchor` picks the floor or inset a point is drawn on (e.g. an outline on its zone's floor). */
   toLatLng: (p: Vec3, anchor?: Anchor) => L.LatLngTuple
+  /** Where a spot on the map (a click) is in the game, on the floor drawn there. */
+  fromLatLng: (at: L.LatLngTuple) => Vec3
   /** Adds the base image in the `mapBase` pane; returns a cleanup. */
   addBase: (map: L.Map, onError: (message: string) => void) => () => void
   /** Whether a marker there is on (or just off the edge of) the image, not somewhere else entirely. */
@@ -35,6 +37,7 @@ export function interactiveProjection(config: MapConfig): MapProjection {
     maxZoom: config.maxZoom + 2,
     focusZoom: Math.max(config.minZoom + 1, config.maxZoom - 2),
     toLatLng: (p) => toLatLng(p),
+    fromLatLng: ([lat, lng]) => ({ x: lng, y: 0, z: lat }),
     shows: () => true,
     background: null,
     addBase(map, onError) {
@@ -75,7 +78,10 @@ export function interactiveProjection(config: MapConfig): MapProjection {
  * panel (floor or inset) they belong to. Re3MR's come as one image, db4tarkov's as tiles whose top
  * zoom is the image at full size.
  */
-export function posterProjection(poster: PosterMap): MapProjection {
+export function posterProjection(
+  poster: PosterMap,
+  gameBounds: [[number, number], [number, number]] | null = null
+): MapProjection {
   const bounds = L.latLngBounds([-poster.height, 0], [0, poster.width])
   const failed = `The ${poster.author} map couldn’t be loaded (offline?). Switch to tarkov.dev, or try again later.`
   // tarkov.dev lists the odd position from another map; a little past the edge is still this map.
@@ -91,6 +97,7 @@ export function posterProjection(poster: PosterMap): MapProjection {
       const [u, v] = toImagePoint(poster, p, anchor)
       return [-v, u]
     },
+    fromLatLng: ([lat, lng]) => fromImagePoint(poster, [lng, -lat], gameBounds),
     shows: ([lat, lng]) =>
       lng > -margin && lng < poster.width + margin && lat < margin && lat > -poster.height - margin,
     // db4tarkov's tiles are padded with this grey.

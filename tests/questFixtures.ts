@@ -182,7 +182,27 @@ export const RAW_QUEST_DATA: QuestDataInput = {
           }
         ]
       }),
-      quest(Q.firstAid, { trader: THERAPIST, taskRequirements: [{ task: Q.debut, status: ['failed'] }] }),
+      quest(Q.firstAid, {
+        trader: THERAPIST,
+        taskRequirements: [{ task: Q.debut, status: ['failed'] }],
+        objectives: [
+          {
+            id: 'o-aid-level',
+            description: 'o-aid-level',
+            type: 'playerLevel',
+            optional: false,
+            playerLevel: 15
+          },
+          {
+            id: 'o-aid-task',
+            description: 'o-aid-task',
+            type: 'taskStatus',
+            optional: false,
+            task: { id: Q.checking },
+            status: ['active', 'complete']
+          }
+        ]
+      }),
       quest(Q.kappaOnly, { kappaRequired: true, lightkeeperRequired: true, minPlayerLevel: 40 }),
       quest(Q.usecOnly, { factionName: 'USEC' }),
       // Since update 1.1: gated by Therapist LL2 (level 5), which tarkov.dev folds into its level.

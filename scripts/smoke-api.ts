@@ -20,6 +20,8 @@ import { fetchJsonData, fetchTarkovDevJson } from '../src/main/pricing/tarkovDev
 import { fetchQuestData } from '../src/main/quests/questData'
 import { fetchQuestGuide, wikiTitle } from '../src/main/quests/questGuide'
 import mapConfigData from '../src/renderer/src/data/mapConfigs.json'
+import { mapPlaces } from '../src/renderer/src/lib/storyMaps'
+import { storyQuests } from '../src/shared/storyQuests'
 import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../src/shared/db4tarkov'
 import type { MapConfig } from '../src/shared/questTypes'
 import { normalizeDailyHistory } from '../src/main/trends/trendService'
@@ -188,6 +190,14 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
       `${unlockLevels} traders with loyalty-level player levels · ` +
       `${Object.keys(data.otherQuestNames).length} names of quests not in the list (story and others)`
   )
+  // What objectives the app can tick off by itself.
+  const playerLevels = objectives.filter((o) => o.playerLevel !== null).length
+  const questStatuses = objectives.filter((o) => o.questStatus !== null).length
+  const loyaltySteps = objectives.filter((o) => o.traderLevel !== null).length
+  console.log(
+    `[quests ${dataMode}] objectives the app checks itself: ${playerLevels} player levels · ` +
+      `${loyaltySteps} loyalty levels · ${questStatuses} other quests' progress`
+  )
   check(loyalty > 20 && unlockLevels > 3, 'trader loyalty requirements are missing from the quest data')
   check(data.quests.length > 300, 'expected more than 300 quests')
   // The story chapters come from the wiki, with the game's ids from tarkov.dev's names.
@@ -200,7 +210,29 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
     `[story ${dataMode}] ${chapters.length} chapters (${chapters.map((c) => c.name).join(', ')}) · ${steps} steps · ` +
       `${handOvers} hand-overs naming items · ${chapters.filter((c) => /^[0-9a-f]{24}$/.test(c.id)).length} with the game's id`
   )
+  // Which maps their steps are on, and the places they name there.
+  const asQuests = storyQuests(chapters, {
+    itemIds: new Map(),
+    traderIds: new Map(data.traders.map((t) => [t.name.toLowerCase(), t.id])),
+    places: mapPlaces(data.maps)
+  })
+  const storySteps = asQuests.flatMap((q) => q.objectives)
+  console.log(
+    `[story ${dataMode}] ${storySteps.filter((o) => o.maps.length).length} steps placed on a map, ` +
+      `${storySteps.filter((o) => o.zones.length).length} with a rough pin · ` +
+      `${storySteps.filter((o) => o.visits).length} "visit N times" · ` +
+      `${storySteps.filter((o) => o.traderLevel).length} loyalty levels · e.g. ` +
+      storySteps
+        .filter((o) => o.zones.length)
+        .slice(0, 6)
+        .map((o) => `"${o.description}" → ${o.zones.map((z) => z.place).join(', ')}`)
+        .join('; ')
+  )
   check(chapters.length >= 5 && steps > 100, 'the story chapters are missing (the wiki pages changed?)')
+  check(
+    storySteps.filter((o) => o.maps.length).length > 50,
+    'story steps are no longer placed on maps (the wiki pages changed?)'
+  )
   check(
     chapters.some((c) => c.name === 'Tour' && /^[0-9a-f]{24}$/.test(c.id)),
     'Tour has no game id'

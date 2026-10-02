@@ -1,6 +1,7 @@
 import type { HideoutProgress } from './hideout'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
+import type { StoryPin, StoryPins } from './storyPlaces'
 import type { QuestDataState, QuestGuideState } from './questTypes'
 import type { OcrJob, OcrResult, ScreenshotFile } from './scanTypes'
 import type {
@@ -32,6 +33,8 @@ export const IPC = {
   questsMarkUpTo: 'quests:mark-up-to',
   questsObjectives: 'quests:objectives',
   questsSetObjective: 'quests:set-objective',
+  questsPins: 'quests:pins',
+  questsSetPin: 'quests:set-pin',
   questsProgressChanged: 'quests:progress-changed',
   questsGuide: 'quests:guide',
   hideoutProgress: 'hideout:progress',
@@ -92,6 +95,10 @@ export interface TarkovApi {
     objectiveId: string,
     value: number
   ): Promise<ObjectiveProgress>
+  /** The player's own pins on story steps (the same in every game mode). */
+  getStoryPins(): Promise<StoryPins>
+  /** Put a pin on a step (or with null, take it off). */
+  setStoryPin(questId: string, objectiveId: string, pin: StoryPin | null): Promise<StoryPins>
   /** The player's hideout (station levels and items put aside), set by hand. */
   getHideoutProgress(gameMode: GameMode): Promise<HideoutProgress>
   setStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>

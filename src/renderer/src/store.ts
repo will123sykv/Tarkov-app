@@ -5,6 +5,7 @@ import type { HideoutProgress } from '../../shared/hideout'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
 import type { QuestDataState } from '../../shared/questTypes'
+import type { StoryPin, StoryPins } from '../../shared/storyPlaces'
 import type {
   ContainerCatalog,
   ContainerLoot,
@@ -42,6 +43,10 @@ interface AppStore {
   selectedQuest: string | null
   /** A quest objective to centre the map on. */
   mapFocus: { questId: string; objectiveId: string | null } | null
+  /** The player's own pins on story steps (the same in every game mode). */
+  storyPins: StoryPins
+  /** A story step waiting for the player to click where it is on the map. */
+  placing: { questId: string; objectiveId: string } | null
   updater: UpdaterStatus
   appVersion: string
   settingsOpen: boolean
@@ -70,6 +75,10 @@ interface AppStore {
   chooseLogsFolder(): Promise<void>
   selectQuest(questId: string | null): void
   showOnMap(questId: string, objectiveId: string | null, mapKey: string): Promise<void>
+  /** Open the map to put a pin on a story step (`mapKey` null: the map shown now). */
+  pinOnMap(questId: string, objectiveId: string, mapKey: string | null): Promise<void>
+  setPlacing(placing: AppStore['placing']): void
+  setStoryPin(questId: string, objectiveId: string, pin: StoryPin | null): Promise<void>
   setSearch(search: string): void
   setSettingsOpen(open: boolean): void
 }
@@ -119,6 +128,8 @@ export const useStore = create<AppStore>((set, get) => ({
   logStatus: null,
   selectedQuest: null,
   mapFocus: null,
+  storyPins: {},
+  placing: null,
   updater: { state: 'idle' },
   appVersion: '',
   settingsOpen: false,
@@ -157,6 +168,8 @@ export const useStore = create<AppStore>((set, get) => ({
     const current = get().settings
     if (!current) return
     const { tarkovMarketApiKey, ...rest } = patch
+    // Leaving the maps drops a pin waiting to be placed.
+    if (patch.view && patch.view !== 'maps') set({ placing: null })
     // Optimistic so inputs stay responsive; the main process returns the sanitized result.
     set({
       settings: {
@@ -277,13 +290,15 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history, hideout, objectives] = await Promise.all([
+    const [progress, history, hideout, objectives, storyPins] = await Promise.all([
       window.api.getQuestProgress(gameMode),
       window.api.getLogHistory(gameMode),
       window.api.getHideoutProgress(gameMode),
-      window.api.getObjectiveProgress(gameMode)
+      window.api.getObjectiveProgress(gameMode),
+      window.api.getStoryPins()
     ])
     set((s) => ({
+      storyPins,
       questProgress: { ...s.questProgress, [gameMode]: progress },
       objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives },
       logHistory: { ...s.logHistory, [gameMode]: history },
@@ -363,6 +378,22 @@ export const useStore = create<AppStore>((set, get) => ({
     if (!settings) return
     set({ mapFocus: { questId, objectiveId }, selectedQuest: questId })
     await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
+  },
+
+  async pinOnMap(questId, objectiveId, mapKey) {
+    const settings = get().settings
+    if (!settings) return
+    set({ placing: { questId, objectiveId }, selectedQuest: questId })
+    await get().updateSettings({
+      view: 'maps',
+      maps: { ...settings.maps, mapKey: mapKey ?? settings.maps.mapKey }
+    })
+  },
+
+  setPlacing: (placing) => set({ placing }),
+
+  async setStoryPin(questId, objectiveId, pin) {
+    set({ storyPins: await window.api.setStoryPin(questId, objectiveId, pin) })
   },
   setSearch: (search) => set({ search }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen })

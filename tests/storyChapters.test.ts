@@ -87,7 +87,89 @@ const BOREAS = `==Objectives==
 ==Guide==
 `
 
+const MAPS = [
+  { id: 'woods', name: 'Woods', normalizedName: 'woods' },
+  { id: 'customs', name: 'Customs', normalizedName: 'customs' },
+  { id: 'reserve', name: 'Reserve', normalizedName: 'reserve' },
+  { id: 'shoreline', name: 'Shoreline', normalizedName: 'shoreline' },
+  { id: 'lab', name: 'The Lab', normalizedName: 'the-lab' },
+  { id: 'factory', name: 'Factory', normalizedName: 'factory' },
+  { id: 'terminal', name: 'Terminal', normalizedName: 'terminal' }
+]
+
+// Steps from Tour, Boreas, Batya and Falling Skies, with parts of their guides.
+const MIXED = `==Objectives==
+* Survive and extract from [[Customs]] or visit [[Customs]] 3 times
+* Talk to [[Skier]]
+* Locate the entrance to the port Terminal
+* Find a way to contact the soldiers at the Terminal
+* Ensure access to [[Reserve]]
+** Survive and extract from [[Shoreline]] or visit [[Shoreline]] 3 times
+** Hand over 5 [[Dogtag|PMC dogtag]]s to [[Prapor]]
+* Ensure access to [[The Lab]]
+** Access the secret [[The Lab|TerraGroup facility]]
+** (''Optional'') Locate the entrance to the [[The Lab|facility]] on [[Factory]]
+*** Find the way in
+** Obtain the [[TerraGroup Labs access keycard]]
+* Launch a yellow signal flare at the Woods transit on [[Reserve]]
+* Locate the traces of the BEAR special squad
+* Retrieve the flash drive from one of the G-Wagon SUVs
+* Wait for information from [[Prapor]]
+* Reach Loyalty Level 2 with [[Prapor]]
+
+==Guide==
+===Locate the traces of the BEAR special squad===
+To fulfill this objective, you have to pick up and read the patch.
+====Customs====
+On a couch inside the cabin.
+====Woods====
+On the ground next to the BRDM.
+===Retrieve the flash drive from one of the G-Wagon SUVs===
+The [[G-Wagon flash drive]] can be found next to the "Tunnel" extraction on [[Shoreline]].
+<gallery>
+File:Tunnel.png|Seen from [[Customs]]
+</gallery>
+===Wait for the information from [[Prapor]]===
+Wait 1 hour then visit [[Prapor]] in the menu.
+`
+
 describe('reading story chapters from the wiki', () => {
+  it('finds the maps each step is on: named, from its part of the guide, or its parent’s', () => {
+    const steps = parseObjectives(MIXED, MAPS)
+    expect(steps.map((s) => [s.text, s.maps])).toEqual([
+      ['Survive and extract from Customs or visit Customs 3 times', ['customs']],
+      ['Talk to Skier', []],
+      // The Terminal is also a place seen from Shoreline: only "on/in Terminal" or a link counts.
+      ['Locate the entrance to the port Terminal', []],
+      ['Find a way to contact the soldiers at the Terminal', []],
+      // Where a step leads isn't where it's done.
+      ['Ensure access to Reserve', []],
+      ['Survive and extract from Shoreline or visit Shoreline 3 times', ['shoreline']],
+      ['Hand over 5 PMC dogtags to Prapor', []],
+      ['Ensure access to The Lab', []],
+      ['Access the secret TerraGroup facility', ['lab']],
+      ['Locate the entrance to the facility on Factory', ['factory']],
+      ['Find the way in', ['factory']],
+      // "TerraGroup Labs" in an item's name isn't the map.
+      ['Obtain the TerraGroup Labs access keycard', []],
+      // A way to Woods, on Reserve.
+      ['Launch a yellow signal flare at the Woods transit on Reserve', ['reserve']],
+      // The guide's sub-headings name the maps.
+      ['Locate the traces of the BEAR special squad', ['customs', 'woods']],
+      // The guide names Shoreline (and the gallery's caption isn't read).
+      ['Retrieve the flash drive from one of the G-Wagon SUVs', ['shoreline']],
+      ['Wait for information from Prapor', []],
+      ['Reach Loyalty Level 2 with Prapor', []]
+    ])
+    expect(steps[0]).toMatchObject({ visits: true, count: 3 })
+    expect(steps[1]).toMatchObject({ visits: false, guide: null })
+    expect(steps[14].guide).toBe(
+      'The G-Wagon flash drive can be found next to the "Tunnel" extraction on Shoreline.'
+    )
+    expect(steps[15].guide).toBe('Wait 1 hour then visit Prapor in the menu.')
+    expect(steps[16].loyalty).toEqual({ trader: 'Prapor', level: 2 })
+  })
+
   it('lists the chapters with the names they go by', () => {
     expect(chapterList(LIST)).toEqual([
       { title: 'Batya', name: 'Batya' },
@@ -210,12 +292,14 @@ describe('story chapters as quests', () => {
           objectives: steps
         }
       ],
-      new Map([
-        ['rechargeable battery', 'battery-id'],
-        ['military power filter', 'filter-id'],
-        ['7.62x54mm r bt gzh', 'ammo-id'],
-        ['dollars', 'usd-id']
-      ])
+      {
+        itemIds: new Map([
+          ['rechargeable battery', 'battery-id'],
+          ['military power filter', 'filter-id'],
+          ['7.62x54mm r bt gzh', 'ammo-id'],
+          ['dollars', 'usd-id']
+        ])
+      }
     )
     expect(quest).toMatchObject({
       traderId: 'story',

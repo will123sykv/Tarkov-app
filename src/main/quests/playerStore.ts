@@ -11,6 +11,7 @@ import {
   type QuestProgress
 } from '../../shared/questProgress'
 import type { Quest } from '../../shared/questTypes'
+import type { StoryPin, StoryPins } from '../../shared/storyPlaces'
 import type { GameMode } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import type { LogEvent } from '../logs/interpret'
@@ -27,12 +28,16 @@ interface Saved {
   hideout: Record<GameMode, HideoutProgress>
   /** Since 1.11.0. */
   objectives: Record<GameMode, ObjectiveProgress>
+  /** The player's own pins on story steps, the same in every mode. Since 1.12.0. */
+  pins: StoryPins
 }
 
 /** Item counts are whole and at least 0; a count of 0 isn't kept. */
 const MAX_HAVE = 100_000
 /** Objective counts go up to this (the most a story step asks for is 500,000,000 roubles). */
 const MAX_OBJECTIVE = 1_000_000_000
+/** Far more pins than there are story steps. */
+export const MAX_PINS = 2000
 
 const empty = (): Saved => ({
   version: 1,
@@ -43,7 +48,8 @@ const empty = (): Saved => ({
     season: { raids: [], flea: [] }
   },
   hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT },
-  objectives: { pvp: {}, pve: {}, season: {} }
+  objectives: { pvp: {}, pve: {}, season: {} },
+  pins: {}
 })
 
 const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']> = {
@@ -74,7 +80,8 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             hideout: Object.fromEntries(
               MODES.map((mode) => [mode, { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }])
             ) as Saved['hideout'],
-            objectives: { ...base.objectives, ...raw.objectives }
+            objectives: { ...base.objectives, ...raw.objectives },
+            pins: raw.pins ?? {}
           }
         : base
     return data
@@ -115,6 +122,27 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       )
       await save()
       return d.objectives[mode]
+    },
+
+    async pins(): Promise<StoryPins> {
+      return (await load()).pins
+    },
+
+    /** Put the player's pin on a story step, or take it off (null). */
+    async setPin(questId: string, objectiveId: string, pin: StoryPin | null): Promise<StoryPins> {
+      const d = await load()
+      const quest = { ...d.pins[questId] }
+      if (pin) {
+        const count = Object.values(d.pins).reduce((n, q) => n + Object.keys(q).length, 0)
+        if (!quest[objectiveId] && count >= MAX_PINS) throw new Error('Too many pins')
+        quest[objectiveId] = pin
+      } else delete quest[objectiveId]
+      const pins = { ...d.pins }
+      if (Object.keys(quest).length) pins[questId] = quest
+      else delete pins[questId]
+      d.pins = pins
+      await save()
+      return d.pins
     },
 
     /** Set a station's built level by hand (catching up), leaving the items put aside alone. */

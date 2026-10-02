@@ -82,3 +82,60 @@ export function toImagePoint(map: PosterMap, p: Vec3, anchor: Anchor = p): [numb
   const [a, b, c, d, e, f] = panelFor(map, anchor).transform
   return [a * p.x + b * p.z + e, c * p.x + d * p.z + f]
 }
+
+/** Image pixels → game (x, z) on one panel. */
+function invert([a, b, c, d, e, f]: Affine, u: number, v: number): { x: number; z: number } {
+  const det = a * d - b * c
+  return { x: (d * (u - e) - b * (v - f)) / det, z: (a * (v - f) - c * (u - e)) / det }
+}
+
+/** A height on a panel's floor (its middle, or just inside an open end). */
+function panelHeight(panel: PosterPanel): number {
+  const { minY, maxY } = panel
+  if (minY !== null && maxY !== null) return (minY + maxY) / 2
+  if (minY !== null) return minY + 1
+  if (maxY !== null) return maxY - 1
+  return 0
+}
+
+/**
+ * Where a point on the image is in the game, on the floor drawn there: an inset whose drawing holds
+ * it, else the floor that puts it nearest the middle of the map (floors drawn side by side each map
+ * the whole level; `gameBounds`, [[x, z], [x, z]], says where the map's middle is).
+ */
+export function fromImagePoint(
+  map: PosterMap,
+  [u, v]: [number, number],
+  gameBounds: [[number, number], [number, number]] | null = null
+): Vec3 {
+  for (const panel of map.panels) {
+    if (!panel.area) continue
+    const [x0, z0, x1, z1] = panel.area
+    const [a, b, c, d, e, f] = panel.transform
+    const corners = [
+      [x0, z0],
+      [x1, z0],
+      [x0, z1],
+      [x1, z1]
+    ].map(([x, z]) => [a * x + b * z + e, c * x + d * z + f])
+    const us = corners.map((p) => p[0])
+    const vs = corners.map((p) => p[1])
+    if (u >= Math.min(...us) && u <= Math.max(...us) && v >= Math.min(...vs) && v <= Math.max(...vs))
+      return { ...invert(panel.transform, u, v), y: panelHeight(panel) }
+  }
+  const middle = gameBounds
+    ? { x: (gameBounds[0][0] + gameBounds[1][0]) / 2, z: (gameBounds[0][1] + gameBounds[1][1]) / 2 }
+    : { x: 0, z: 0 }
+  let best: Vec3 | null = null
+  let bestDistance = Infinity
+  for (const panel of map.panels) {
+    if (panel.area) continue
+    const at = invert(panel.transform, u, v)
+    const distance = Math.hypot(at.x - middle.x, at.z - middle.z)
+    if (distance < bestDistance) {
+      best = { ...at, y: panelHeight(panel) }
+      bestDistance = distance
+    }
+  }
+  return best ?? { ...invert(map.panels[0].transform, u, v), y: 0 }
+}

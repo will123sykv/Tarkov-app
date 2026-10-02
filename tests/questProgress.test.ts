@@ -1,8 +1,9 @@
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { LogEvent } from '../src/main/logs/interpret'
 import { normalizeQuestData } from '../src/main/quests/questData'
-import { createPlayerStore } from '../src/main/quests/playerStore'
+import { createPlayerStore, MAX_PINS } from '../src/main/quests/playerStore'
 import {
   applyQuestEvent,
   forFaction,
@@ -303,5 +304,35 @@ describe('createPlayerStore', () => {
     })
     expect(await reopened.objectives('pve')).toEqual({ [Q.debut]: { 'o-debut-give': 2 } })
     expect(await reopened.objectives('season')).toEqual({})
+  })
+
+  it('keeps the player’s pins on story steps, the same in every mode, and loads files from before them', async () => {
+    const file = join(await tempDir(), 'player.json')
+    await writeFile(file, JSON.stringify({ version: 1, progress: {}, history: {} }))
+    const store = createPlayerStore({ file })
+    expect(await store.pins()).toEqual({})
+    const pin = { map: 'customs-id', position: { x: 1, y: 2, z: 3 } }
+    await store.setPin('story-tour', 'escape-ground-zero', pin)
+    await store.setPin('story-tour', 'talk-to-skier', { ...pin, map: 'woods-id' })
+    expect(await createPlayerStore({ file }).pins()).toEqual({
+      'story-tour': { 'escape-ground-zero': pin, 'talk-to-skier': { ...pin, map: 'woods-id' } }
+    })
+    await store.setPin('story-tour', 'escape-ground-zero', null)
+    await store.setPin('story-tour', 'talk-to-skier', null)
+    expect(await createPlayerStore({ file }).pins()).toEqual({})
+  })
+
+  it('stops taking new pins at the limit, but still moves the ones there', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const pin = { map: 'customs-id', position: { x: 0, y: 0, z: 0 } }
+    const full = Object.fromEntries(Array.from({ length: MAX_PINS }, (_, i) => [`step-${i}`, pin]))
+    await writeFile(
+      file,
+      JSON.stringify({ version: 1, progress: {}, history: {}, pins: { 'story-tour': full } })
+    )
+    const store = createPlayerStore({ file })
+    await expect(store.setPin('story-tour', 'one-more', pin)).rejects.toThrow('Too many pins')
+    await store.setPin('story-tour', 'step-0', { ...pin, map: 'woods-id' })
+    expect((await store.pins())['story-tour']['step-0'].map).toBe('woods-id')
   })
 })

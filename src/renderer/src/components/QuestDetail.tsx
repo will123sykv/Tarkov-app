@@ -1,11 +1,13 @@
 import { mdiKeyVariant } from '@mdi/js'
 import { Fragment, useEffect, useState } from 'react'
+import type { Detected, DetectedProgress } from '../../../shared/objectiveDetection'
 import {
   lockReasons,
   objectiveSummary,
   objectiveTarget,
   objectiveValue,
   requirementLabels,
+  type ObjectiveProgress,
   type ProgressEntry,
   type QuestContext,
   type QuestProgress
@@ -37,6 +39,10 @@ interface Props {
   mapsById: ReadonlyMap<string, GameMap>
   traders: QuestTrader[]
   priceState: PriceState | null
+  /** How far along each objective is (ticked off, or detected). */
+  objectives: ObjectiveProgress
+  /** What the app worked out by itself, and how. */
+  detected: DetectedProgress
   /** Shown on the maps view: a link to the quest in the quests view. */
   onOpenInQuests?: () => void
 }
@@ -91,37 +97,49 @@ function ObjectiveTick({
   quest,
   objective,
   value,
+  detected,
   completed
 }: {
   quest: Quest
   objective: QuestObjective
   value: number
+  /** What the app worked out by itself: the value can't go below it. */
+  detected: Detected | undefined
   /** The whole quest is done: everything's ticked, and can't be unticked here. */
   completed: boolean
 }): React.JSX.Element {
   const setProgress = useStore((s) => s.setObjectiveProgress)
   const target = objectiveTarget(objective)
-  const set = (n: number): void => void setProgress(quest.id, objective.id, Math.min(target, Math.max(0, n)))
+  const floor = detected?.value ?? 0
+  const set = (n: number): void =>
+    void setProgress(quest.id, objective.id, Math.min(target, Math.max(floor, n)))
   if (target <= 1)
     return (
       <input
         type="checkbox"
         className="objective-check"
         checked={value >= 1}
-        disabled={completed}
+        disabled={completed || floor >= 1}
         aria-label="Done"
-        title={completed ? 'The quest is done' : 'Tick off when done'}
+        title={completed ? 'The quest is done' : detected ? detected.why : 'Tick off when done'}
         onChange={(e) => set(e.target.checked ? 1 : 0)}
       />
     )
   return (
-    <span className={`objective-counter ${value >= target ? 'done' : ''}`} title="How many done so far">
-      <button className="button icon small" disabled={completed || value <= 0} onClick={() => set(value - 1)}>
+    <span
+      className={`objective-counter ${value >= target ? 'done' : ''}`}
+      title={detected ? detected.why : 'How many done so far'}
+    >
+      <button
+        className="button icon small"
+        disabled={completed || value <= floor}
+        onClick={() => set(value - 1)}
+      >
         −
       </button>
       <input
         type="number"
-        min={0}
+        min={floor}
         max={target}
         value={value}
         disabled={completed}
@@ -148,12 +166,78 @@ function ObjectiveTick({
   )
 }
 
+/** Keys of the maps that can be shown (one per map image), with their names, by name. */
+function mapChoices(mapsById: ReadonlyMap<string, GameMap>): { key: string; name: string }[] {
+  const seen = new Map<string, string>()
+  for (const map of mapsById.values()) {
+    const config = configFor(map)
+    if (config && !seen.has(config.key)) seen.set(config.key, map.name)
+  }
+  return [...seen].map(([key, name]) => ({ key, name })).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * A story step's pin: put one on the map it's on (or any map, when the wiki doesn't say), move or
+ * take off the player's own, or replace a "roughly here" one.
+ */
+function StepPin({
+  quest,
+  objective,
+  mapsById
+}: {
+  quest: Quest
+  objective: QuestObjective
+  mapsById: ReadonlyMap<string, GameMap>
+}): React.JSX.Element | null {
+  const pinOnMap = useStore((s) => s.pinOnMap)
+  const setStoryPin = useStore((s) => s.setStoryPin)
+  const keyOf = (id: string | undefined): string | null => {
+    const map = id ? mapsById.get(id) : undefined
+    return map ? (configFor(map)?.key ?? null) : null
+  }
+  const zone = objective.zones[0]
+  if (zone?.source === 'mine')
+    return (
+      <>
+        <button className="link" onClick={() => void pinOnMap(quest.id, objective.id, keyOf(zone.map))}>
+          Move pin
+        </button>
+        <button className="link" onClick={() => void setStoryPin(quest.id, objective.id, null)}>
+          Remove pin
+        </button>
+      </>
+    )
+  const key = keyOf(zone?.map) ?? objective.maps.map((id) => keyOf(id)).find(Boolean) ?? null
+  if (key)
+    return (
+      <button className="link" onClick={() => void pinOnMap(quest.id, objective.id, key)}>
+        {zone ? 'Pin it exactly' : 'Pin on map'}
+      </button>
+    )
+  return (
+    <select
+      className="pin-map"
+      value=""
+      aria-label="Pin on a map"
+      onChange={(e) => e.target.value && void pinOnMap(quest.id, objective.id, e.target.value)}
+    >
+      <option value="">Pin on a map…</option>
+      {mapChoices(mapsById).map((m) => (
+        <option key={m.key} value={m.key}>
+          {m.name}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 function Objective({
   quest,
   objective,
   mapsById,
   items,
   value,
+  detected,
   completed
 }: {
   quest: Quest
@@ -161,10 +245,12 @@ function Objective({
   mapsById: ReadonlyMap<string, GameMap>
   items: Items
   value: number
+  detected: Detected | undefined
   completed: boolean
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
   const onMap = objectiveMap(objective, mapsById)
+  const zone = objective.zones[0]
   const mapNames = objective.maps.map((id) => mapsById.get(id)?.name).filter(Boolean)
   const single = objective.items.length === 1 ? objective.items[0] : undefined
   const done = value >= objectiveTarget(objective)
@@ -174,10 +260,21 @@ function Objective({
       style={objective.depth ? { marginLeft: `${objective.depth * 18}px` } : undefined}
     >
       <div className="objective-head">
-        <ObjectiveTick quest={quest} objective={objective} value={value} completed={completed} />
+        <ObjectiveTick
+          quest={quest}
+          objective={objective}
+          value={value}
+          detected={detected}
+          completed={completed}
+        />
         <span className="objective-text">
           {objective.description || objective.type}
           {objective.optional && <span className="tag">optional</span>}
+          {detected && !completed && (
+            <span className="tag auto" title={detected.why}>
+              auto
+            </span>
+          )}
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
           )}
@@ -217,8 +314,11 @@ function Objective({
               void showOnMap(quest.id, objective.id, configFor(onMap)?.key ?? onMap.normalizedName)
             }
           >
-            Show on map
+            {zone?.source === 'rough' ? `Show on map (roughly: ${zone.place})` : 'Show on map'}
           </button>
+        )}
+        {quest.story && !completed && value < objectiveTarget(objective) && (
+          <StepPin quest={quest} objective={objective} mapsById={mapsById} />
         )}
       </div>
     </li>
@@ -501,10 +601,11 @@ export default function QuestDetail({
   mapsById,
   traders,
   priceState,
+  objectives,
+  detected,
   onOpenInQuests
 }: Props): React.JSX.Element {
   const { quest, status } = row
-  const objectives = useStore((s) => (s.settings ? s.objectiveProgress[s.settings.gameMode] : undefined))
   const setQuestStatus = useStore((s) => s.setQuestStatus)
   const markQuestsUpTo = useStore((s) => s.markQuestsUpTo)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -652,6 +753,7 @@ export default function QuestDetail({
                   mapsById={mapsById}
                   items={items}
                   value={objectiveValue(o, quest.id, objectives, completed)}
+                  detected={detected[quest.id]?.[o.id]}
                   completed={completed}
                 />
               </Fragment>
@@ -661,7 +763,8 @@ export default function QuestDetail({
         {quest.story && (
           <p className="hint">
             From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
-            and finishes: tick the steps off yourself.
+            and finishes: tick the steps off yourself. Steps like &ldquo;visit Customs 3 times&rdquo; count
+            your raids from the logs, and loyalty steps use the levels set in the Hideout tab.
           </p>
         )}
       </section>

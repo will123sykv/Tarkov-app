@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fromImagePoint,
   panelFor,
   posterFor,
   POSTER_MAPS,
   toImagePoint,
   type PosterMap
 } from '../src/renderer/src/lib/posterMap'
+import { MAP_CONFIGS } from '../src/renderer/src/lib/questUi'
 import { DB4TARKOV_MAPS } from '../src/shared/db4tarkov'
 import { RE3MR_FILES } from '../src/shared/re3mr'
 
@@ -158,5 +160,35 @@ describe('2D maps', () => {
     expect(toImagePoint(factory, corner, { ...corner, y: 1 })).toEqual(
       toImagePoint(factory, { ...corner, y: 1 })
     )
+  })
+
+  it('turns a spot on the image back into the game position drawn there, on its floor', () => {
+    let checked = 0
+    for (const poster of POSTER_MAPS) {
+      const bounds = MAP_CONFIGS.find((c) => c.key === poster.key)!.bounds
+      const [[bx0, bz0], [bx1, bz1]] = bounds
+      for (const panel of poster.panels) {
+        const { minY, maxY } = panel
+        const y =
+          minY !== null && maxY !== null ? (minY + maxY) / 2 : minY !== null ? minY + 1 : (maxY ?? 1) - 1
+        const spots = panel.area
+          ? [[(panel.area[0] + panel.area[2]) / 2, (panel.area[1] + panel.area[3]) / 2]]
+          : [0.4, 0.5, 0.6].flatMap((fx) =>
+              [0.3, 0.6].map((fz) => [bx0 + fx * (bx1 - bx0), bz0 + fz * (bz1 - bz0)])
+            )
+        for (const [x, z] of spots) {
+          const p = { x, y, z }
+          // Spots inside a building's inset are drawn there instead.
+          if (panelFor(poster, p) !== panel) continue
+          const back = fromImagePoint(poster, toImagePoint(poster, p), bounds)
+          expect(back.x, `${poster.key} ${panel.name}`).toBeCloseTo(x, 1)
+          expect(back.z, `${poster.key} ${panel.name}`).toBeCloseTo(z, 1)
+          // Drawn in the same place (Reserve's two bunkers share one drawing).
+          expect(panelFor(poster, back).transform, `${poster.key} ${panel.name}`).toEqual(panel.transform)
+          checked++
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(60)
   })
 })

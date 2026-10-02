@@ -3,6 +3,7 @@ import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import type { ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
+import type { StoryPin } from '../shared/storyPlaces'
 import type { DataMode, GameMode, Settings, SettingsPatch } from '../shared/types'
 import type { ContainerService } from './containers'
 import type { LogWatcher } from './logs/watcher'
@@ -54,6 +55,25 @@ function requireCount(value: unknown, max: number): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > max)
     throw new Error('Invalid number')
   return value
+}
+
+/** Game coordinates are within a few kilometres of a map's centre. */
+const MAX_COORDINATE = 20_000
+
+/** A pin on a story step: a map (tarkov.dev's id) and a position on it, or null to take it off. */
+function requirePin(value: unknown): StoryPin | null {
+  if (value === null) return null
+  const { map, position } = (value ?? {}) as Partial<StoryPin>
+  const coordinate = (n: unknown): number => {
+    if (typeof n !== 'number' || !Number.isFinite(n) || Math.abs(n) > MAX_COORDINATE)
+      throw new Error('Invalid position')
+    return n
+  }
+  if (!position || typeof position !== 'object') throw new Error('Invalid position')
+  return {
+    map: requireId(map, 'map'),
+    position: { x: coordinate(position.x), y: coordinate(position.y), z: coordinate(position.z) }
+  }
 }
 
 /** Labels from the renderer: a bounded list of small images. */
@@ -145,6 +165,10 @@ export function registerIpc(deps: {
         requireObjectiveId(objectiveId),
         requireCount(value, 1_000_000_000)
       )
+  )
+  ipcMain.handle(IPC.questsPins, () => player.pins())
+  ipcMain.handle(IPC.questsSetPin, (_e, questId: unknown, objectiveId: unknown, pin: unknown) =>
+    player.setPin(requireQuestId(questId), requireObjectiveId(objectiveId), requirePin(pin))
   )
   ipcMain.handle(IPC.questsMarkUpTo, async (_e, gameMode: unknown, questId: unknown) => {
     const mode = requireGameMode(gameMode)

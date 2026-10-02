@@ -71,7 +71,12 @@ describe('normalizeQuestData', () => {
       questItem: { id: '590c62a386f77412b0130255', name: 'Bronze pocket watch' },
       locations: [{ map: CUSTOMS, positions: [{ x: 10, y: 1, z: -20 }] }]
     })
-    expect(visit).toMatchObject({ optional: true, maps: [CUSTOMS] })
+    expect(visit).toMatchObject({ optional: true, maps: [CUSTOMS], playerLevel: null, questStatus: null })
+    // What the app can check by itself: a level, and another quest's progress.
+    expect(quest(Q.firstAid).objectives.map((o) => [o.playerLevel, o.questStatus])).toEqual([
+      [15, null],
+      [null, { questId: Q.checking, status: ['active', 'complete'] }]
+    ])
     // The zone without a position is dropped.
     expect(visit.zones).toEqual([
       {
@@ -340,7 +345,11 @@ describe('createQuestDataService', () => {
           itemNames: [],
           handOver: false,
           foundInRaid: false,
-          branch: null
+          branch: null,
+          maps: [CUSTOMS],
+          guide: null,
+          visits: false,
+          loyalty: null
         }
       ]
     }
@@ -350,6 +359,41 @@ describe('createQuestDataService', () => {
     expect(state.error).toBeNull()
     expect(state.dataset!.fetchedAt).toBe(1e12)
     expect(state.dataset!.storyChapters).toEqual([chapter])
+  })
+
+  it('upgrades a 1.11 cache without objective checks or story maps, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const fresh = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 1e12 - 60_000)
+    const old = {
+      ...fresh,
+      quests: fresh.quests.map((q) => ({
+        ...q,
+        objectives: q.objectives.map(({ playerLevel: _, questStatus: __, ...o }) => o)
+      })),
+      storyChapters: [
+        {
+          id: 'story-tour',
+          name: 'Tour',
+          wikiLink: 'https://escapefromtarkov.fandom.com/wiki/Tour',
+          description: '',
+          howItStarts: '',
+          imageLink: null,
+          objectives: [{ id: 'step', text: 'Step', optional: false, depth: 0, count: null }]
+        }
+      ]
+    }
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => 1e12 }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0 } })
+    expect(offline.dataset!.quests[0].objectives[0]).toMatchObject({ playerLevel: null, questStatus: null })
+    expect(offline.dataset!.storyChapters[0].objectives[0]).toMatchObject({
+      maps: [],
+      guide: null,
+      visits: false,
+      loyalty: null
+    })
   })
 
   it('does without hideout station names when that file fails', async () => {

@@ -103,6 +103,12 @@ function traderLevel(objective: Raw): QuestObjective['traderLevel'] {
   return traderId && level !== null ? { traderId, level } : null
 }
 
+function questStatus(objective: Raw): QuestObjective['questStatus'] {
+  if (objective.type !== 'taskStatus') return null
+  const questId = str(objective.task) ?? str(rec(objective.task).id)
+  return questId ? { questId, status: requirementStatus(objective.status) } : null
+}
+
 const QUEST_NAME_KEY = /^([0-9a-f]{24}) name$/
 
 const idOf = (value: unknown): string | null => str(value) ?? str(rec(value).id)
@@ -392,6 +398,8 @@ export function normalizeQuestData(
           }))
           .filter((l) => l.map && l.positions.length),
         traderLevel: traderLevel(obj),
+        playerLevel: obj.type === 'playerLevel' ? num(obj.playerLevel) : null,
+        questStatus: questStatus(obj),
         requiredKeys: requiredKeys(obj.requiredKeys)
       }
     })
@@ -532,14 +540,17 @@ export async function fetchQuestData(
   )
   if (dataset.quests.length === 0) throw new Error('tasks: no quests in response')
   // The story chapters come from the wiki: without it, they're left as they were (see the service).
-  const storyChapters = await fetchStoryChapters(fetchFn, dataset.otherQuestNames).catch(() => [])
+  const storyChapters = await fetchStoryChapters(fetchFn, dataset.otherQuestNames, dataset.maps).catch(
+    () => []
+  )
   return { ...dataset, storyChapters }
 }
 
 /**
  * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
  * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures; 1.8.0: the
- * hideout): fill in defaults so they still work offline, and date them so they're refetched straight away.
+ * hideout; 1.11.0: story chapters; 1.12.0: what objectives check, and the story steps' maps): fill in
+ * defaults so they still work offline, and date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
   let result = cached
@@ -582,6 +593,35 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
     }
   if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
   if (!result.storyChapters) result = { ...result, fetchedAt: 0, storyChapters: [] }
+  // 1.12.0: objectives' level and quest-status checks, and the maps story steps are on.
+  if (result.quests.some((q) => q.objectives.some((o) => o.playerLevel === undefined)))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      quests: result.quests.map((q) => ({
+        ...q,
+        objectives: q.objectives.map((o) => ({
+          ...o,
+          playerLevel: o.playerLevel ?? null,
+          questStatus: o.questStatus ?? null
+        }))
+      }))
+    }
+  if (result.storyChapters.some((c) => c.objectives.some((o) => !o.maps)))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      storyChapters: result.storyChapters.map((c) => ({
+        ...c,
+        objectives: c.objectives.map((o) => ({
+          ...o,
+          maps: o.maps ?? [],
+          guide: o.guide ?? null,
+          visits: o.visits ?? false,
+          loyalty: o.loyalty ?? null
+        }))
+      }))
+    }
   return result
 }
 

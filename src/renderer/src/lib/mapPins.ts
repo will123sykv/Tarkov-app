@@ -1,6 +1,6 @@
 import type { MapLabel } from '../../../shared/questTypes'
 import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from './mapMarkers'
-import { KEY_ICON, OBJECTIVE_ICONS, type QuestPin } from './questPins'
+import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type QuestPin } from './questPins'
 
 // The map's HTML markers (see mapMarkers.ts for what they show).
 
@@ -53,7 +53,14 @@ const QUEST_PIN_HEIGHT = 44
  */
 export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | null): HTMLElement {
   const el = document.createElement('div')
-  el.className = ['map-pin', 'quest', pin.status === 'active' ? '' : 'other', state ?? '']
+  el.className = [
+    'map-pin',
+    'quest',
+    pin.status === 'active' ? '' : 'other',
+    pin.rough ? 'rough' : '',
+    pin.mine ? 'mine' : '',
+    state ?? ''
+  ]
     .filter(Boolean)
     .join(' ')
   const label = document.createElement('div')
@@ -79,6 +86,8 @@ export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | nu
     tile.append(img)
     icons.append(tile)
   }
+  if (pin.rough) icons.append(iconTile(ROUGH_ICON, 'map-pin-icon note'))
+  if (pin.mine) icons.append(iconTile(MINE_ICON, 'map-pin-icon note'))
   for (const kind of pin.kinds) icons.append(iconTile(OBJECTIVE_ICONS[kind]))
   if (pin.needsKey) icons.append(iconTile(KEY_ICON, 'map-pin-icon key'))
   const stem = document.createElement('div')
