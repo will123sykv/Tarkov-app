@@ -17,6 +17,7 @@ import { createScanService } from './scan/scanService'
 import { createQuestDataService } from './quests/questData'
 import { createQuestGuideService } from './quests/questGuide'
 import { createSettingsStore } from './settings'
+import { createTarkovDevHistory } from './trends/history'
 import { createPriceRecorder } from './trends/recorder'
 import { createTrendService } from './trends/trendService'
 import { initUpdater } from './updater'
@@ -123,6 +124,7 @@ async function bootstrap(): Promise<void> {
 
   const trends = createTrendService({
     recorder,
+    history: createTarkovDevHistory({ dir: join(userData, 'trends'), fetchFn }),
     fetchFn,
     getDataset: (dataMode) => prices.peek(dataMode)?.dataset ?? null
   })

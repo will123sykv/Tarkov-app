@@ -26,8 +26,9 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
     void loadTrendSeries(item.id)
   }, [loadTrendSeries, item.id])
 
-  const bucketHours = analysis?.bucketHours ?? 1
+  const bucketHours = analysis?.bucketHours ?? 3
   const stats = hasPattern(row) ? row.stats! : null
+  const partDay = stats !== null && stats.coveredHours.length * bucketHours < 24
   const hourPoints: ChartPoint[] = (stats?.buckets ?? []).map((b) => ({
     x: b.startHour + bucketHours / 2,
     y: b.median,
@@ -63,12 +64,13 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
                 ? ` · worked on ${stats.consistency.wins} of ${stats.consistency.days} days (${formatPercent(consistencyShare(stats))})`
                 : ''}
               {stats.volatility != null ? ` · usual daily swing ${formatPercent(stats.volatility)}` : ''}
+              {partDay && ' · only some hours of the day have prices so far'}
             </span>
           ) : (
             <span className="muted">
               {row.stats?.insufficient
                 ? `No time-of-day pattern yet: ${row.stats.insufficient}.`
-                : 'Not recorded yet: only the most-listed items are recorded.'}
+                : 'No price history: only the most-listed items have one.'}
             </span>
           )}
         </div>
@@ -103,13 +105,13 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
                         }
                       ]
                     : []),
-                  { label: 'recordings', value: String(samplesAt.get(p.x) ?? 0) }
+                  { label: 'prices', value: String(samplesAt.get(p.x) ?? 0) }
                 ]
               })}
             />
           ) : (
             <div className="chart-empty">
-              Shown once a few days of recordings cover most hours of the day.
+              Shown once there are prices at two or more times of day on 4 or more days.
             </div>
           )}
           {stats && (
@@ -121,7 +123,7 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
                     <th>Time</th>
                     <th className="num">Typical lowest</th>
                     <th className="num">Middle half</th>
-                    <th className="num">Recordings</th>
+                    <th className="num">Prices</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -142,10 +144,12 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
         </figure>
 
         <figure>
-          <figcaption>Lowest price per day (tarkov.dev, last 60 days)</figcaption>
+          <figcaption>
+            Lowest price over the last 60 days (tarkov.dev: every check for 30 days, then one a day)
+          </figcaption>
           {dailyPoints.length > 1 ? (
             <LineChart
-              ariaLabel={`Lowest daily price of ${item.name} over 60 days`}
+              ariaLabel={`Lowest price of ${item.name} over 60 days`}
               points={dailyPoints}
               xDomain={[firstDay, lastDay]}
               xTicks={dayTicks}

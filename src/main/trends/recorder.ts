@@ -1,7 +1,7 @@
 import { appendFile, mkdir, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { HistoryPoint } from '../../shared/fleaTrends'
-import type { DataMode, PriceDataset } from '../../shared/types'
+import type { DataMode, LootItem, PriceDataset } from '../../shared/types'
 
 const DAY_MS = 24 * 3_600_000
 
@@ -24,6 +24,23 @@ export interface RecorderOptions {
 /** UTC calendar day, used only to name files. */
 function fileDay(t: number): string {
   return new Date(t).toISOString().slice(0, 10)
+}
+
+/**
+ * The most-listed items worth recording or fetching the history of: tradable on the flea, not
+ * weapon presets (which duplicate their guns), worth `minPrice` or more, most offers first.
+ */
+export function liquidItems(items: readonly LootItem[], minPrice: number, max: number): LootItem[] {
+  return items
+    .filter(
+      (i) =>
+        !i.bannedOnFlea &&
+        !i.types.includes('preset') &&
+        (i.fleaPrice ?? 0) >= minPrice &&
+        (i.offerCount ?? 0) > 0
+    )
+    .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
+    .slice(0, max)
 }
 
 /**
@@ -58,16 +75,7 @@ export function createPriceRecorder(opts: RecorderOptions) {
       const t = now()
       const previous = lastRecorded.get(dataset.dataMode)
       if (previous !== undefined && t - previous < intervalMs) return 0
-      const liquid = dataset.items
-        .filter(
-          (i) =>
-            !i.bannedOnFlea &&
-            !i.types.includes('preset') &&
-            (i.fleaPrice ?? 0) >= minPrice &&
-            (i.offerCount ?? 0) > 0
-        )
-        .sort((a, b) => (b.offerCount ?? 0) - (a.offerCount ?? 0))
-        .slice(0, maxItems)
+      const liquid = liquidItems(dataset.items, minPrice, maxItems)
       if (liquid.length === 0) return 0
       lastRecorded.set(dataset.dataMode, t)
       await mkdir(modeDir(dataset.dataMode), { recursive: true })

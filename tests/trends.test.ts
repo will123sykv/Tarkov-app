@@ -176,11 +176,12 @@ describe('createTrendService', () => {
         fleaFeeRates: { sellOfferFeeRate: 0.03, sellRequirementFeeRate: 0.03 }
       })
     })
-    const analysis = await service.analyze('pvp', 7)
+    // Two-hour intervals: 04:00–06:00 is the cheapest and 20:00–22:00 the dearest.
+    const analysis = await service.analyze('pvp', 7, 2)
     expect(analysis).toMatchObject({
       dataMode: 'pvp',
       days: 7,
-      bucketHours: 1,
+      bucketHours: 2,
       coverage: { snapshots: 5 * 24 + 1, days: 6, firstAt: NOW - 5 * DAY, lastAt: NOW, items: 1 }
     })
     expect(analysis.coverage.snapshotsByHour[12]).toBe(6)
@@ -224,7 +225,9 @@ describe('createTrendService', () => {
       firstAt: null,
       lastAt: null,
       snapshotsByHour: Array(24).fill(0),
-      items: 0
+      items: 0,
+      // Without tarkov.dev's history, only the app's own recordings.
+      sources: [{ id: 'local', items: 0, days: 0, byHour: Array(24).fill(0), lastAt: null, error: null }]
     })
   })
 

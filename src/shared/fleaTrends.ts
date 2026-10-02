@@ -30,10 +30,13 @@ export interface TrendOptions {
 
 export interface TrendBucket {
   startHour: number
+  /** Typical lowest price in this interval: its usual level against the day, at today's prices. */
   median: number | null
   q1: number | null
   q3: number | null
   samples: number
+  /** Days with prices in this interval. */
+  days: number
 }
 
 export interface TrendSlot {
@@ -57,7 +60,7 @@ export interface TrendStats {
   profit: number | null
   /** Days on which buying in the buy slot and selling in the sell slot would have made money. */
   consistency: { wins: number; days: number } | null
-  /** Median over days of that day's (dearest − cheapest hour) ÷ its median lowest price. */
+  /** Median over days of that day's (dearest − cheapest interval) ÷ its median lowest price. */
   volatility: number | null
   avgOffers: number | null
   latestMin: number | null
@@ -65,16 +68,17 @@ export interface TrendStats {
   holdHours: number | null
   /** The last 24 hours' cheapest and dearest hour (hourly medians), once enough hours are recorded. */
   recent: { low: number; high: number; swing: number; hours: number } | null
+  /** Start hours of the intervals with enough days of prices (all of them when the whole day is known). */
+  coveredHours: number[]
 }
 
-const MIN_DAYS = 3
+/** An interval needs prices on this many days before it counts. */
+export const MIN_INTERVAL_DAYS = 4
 /** Hours with recordings in the last 24 needed before their range stands in for tarkov.dev's. */
 const RECENT_MIN_HOURS = 6
 const HOUR = 3_600_000
-/** A time slot counts once it has prices from this many different days. */
-const MIN_SLOT_DAYS = 2
-/** At least this share of time slots needs data for a pattern to count. */
-const MIN_SLOT_COVERAGE = 0.75
+/** The price shown for an interval is its usual level times the median of this many recent days. */
+const REFERENCE_DAYS = 3
 
 function quantile(sorted: ArrayLike<number>, q: number): number {
   const pos = (sorted.length - 1) * q
@@ -114,7 +118,8 @@ function emptyStats(
     avgOffers: null,
     latestMin,
     holdHours: null,
-    recent
+    recent,
+    coveredHours: []
   }
 }
 
@@ -139,8 +144,14 @@ function recentRange(window: readonly HistoryPoint[], now: number): TrendStats['
 }
 
 /**
- * Find the cheapest and dearest time of day for an item from its recent lowest-offer prices, and
- * how reliably buying in one and selling in the other would have paid off after the listing fee.
+ * Find the cheapest and dearest time of day for an item from its lowest-offer prices, and how
+ * reliably buying in one and selling in the other would have paid off after the listing fee.
+ *
+ * The day is split into equal intervals. Each day's intervals are measured against that day's own
+ * median, so a price that drifts over the week doesn't pass for a time-of-day effect; an interval's
+ * usual level is the median of those over the days it has prices on. Only intervals with prices on
+ * `MIN_INTERVAL_DAYS` days count, and two are enough: with recordings from only part of the day,
+ * the buy and sell times are the best within those hours (`coveredHours`).
  */
 export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptions): TrendStats {
   const from = opts.now - opts.days * 24 * 3_600_000
@@ -152,11 +163,11 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
   const slotCount = Math.round(24 / opts.bucketHours)
   const slotOf = (t: number): number => Math.min(slotCount - 1, Math.floor(opts.hourOf(t) / opts.bucketHours))
 
-  const bySlot: number[][] = Array.from({ length: slotCount }, () => [])
+  const samples = Array.from({ length: slotCount }, () => 0)
   const byDay = new Map<string, number[][]>()
   for (const p of window) {
     const slot = slotOf(p.t)
-    bySlot[slot].push(p.priceMin!)
+    samples[slot]++
     const day = opts.dayOf(p.t)
     let slots = byDay.get(day)
     if (!slots) {
@@ -166,26 +177,50 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
     slots[slot].push(p.priceMin!)
   }
 
-  if (byDay.size < MIN_DAYS)
+  if (byDay.size < MIN_INTERVAL_DAYS)
     return emptyStats(`only ${byDay.size} day(s) of prices`, window.length, byDay.size, latestMin, recent)
 
-  const slotDays = Array.from({ length: slotCount }, () => 0)
-  for (const slots of byDay.values()) slots.forEach((values, slot) => values.length && slotDays[slot]++)
-  const buckets: TrendBucket[] = bySlot.map((values, slot) => {
+  // Each day's intervals against the day's median (days with prices in only one interval say nothing).
+  const ratios: number[][] = Array.from({ length: slotCount }, () => [])
+  const dailyRanges: number[] = []
+  for (const slots of byDay.values()) {
+    const medians = slots.map((values) => (values.length ? median(values) : null))
+    const known = medians.filter((m): m is number => m !== null)
+    if (known.length < 2) continue
+    const mid = median(slots.flat())
+    if (!(mid > 0)) continue
+    medians.forEach((m, slot) => m !== null && ratios[slot].push(m / mid))
+    // Interval medians, so a single silly listing doesn't count as the day's swing.
+    if (known.length >= 3) dailyRanges.push((Math.max(...known) - Math.min(...known)) / mid)
+  }
+
+  // Today's price level: the median of the last few days, which the usual levels scale.
+  const lastDays = new Set([...byDay.keys()].sort().slice(-REFERENCE_DAYS))
+  const reference = median(window.filter((p) => lastDays.has(opts.dayOf(p.t))).map((p) => p.priceMin!))
+  const buckets: TrendBucket[] = ratios.map((values, slot) => {
     const ordered = sorted(values)
-    const enough = slotDays[slot] >= MIN_SLOT_DAYS
+    const enough = values.length >= MIN_INTERVAL_DAYS
     return {
       startHour: slot * opts.bucketHours,
-      median: enough ? quantile(ordered, 0.5) : null,
-      q1: enough ? quantile(ordered, 0.25) : null,
-      q3: enough ? quantile(ordered, 0.75) : null,
-      samples: ordered.length
+      median: enough ? quantile(ordered, 0.5) * reference : null,
+      q1: enough ? quantile(ordered, 0.25) * reference : null,
+      q3: enough ? quantile(ordered, 0.75) * reference : null,
+      samples: samples[slot],
+      days: values.length
     }
   })
   const filled = buckets.filter((b) => b.median !== null)
-  if (filled.length < slotCount * MIN_SLOT_COVERAGE) {
-    return emptyStats('too many gaps in the price history', window.length, byDay.size, latestMin, recent)
-  }
+  if (filled.length < 2)
+    return {
+      ...emptyStats(
+        `prices at fewer than two times of day on ${MIN_INTERVAL_DAYS}+ days`,
+        window.length,
+        byDay.size,
+        latestMin,
+        recent
+      ),
+      buckets
+    }
 
   const cheapest = filled.reduce((a, b) => (b.median! < a.median! ? b : a))
   const dearest = filled.reduce((a, b) => (b.median! > a.median! ? b : a))
@@ -201,21 +236,12 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
   const sellSlot = dearest.startHour / opts.bucketHours
   let wins = 0
   let comparable = 0
-  const dailyRanges: number[] = []
   for (const slots of byDay.values()) {
-    if (slots[buySlot].length && slots[sellSlot].length) {
-      const dayBuy = median(slots[buySlot])
-      const daySell = median(slots[sellSlot])
-      const dayFee = feeFor(daySell) ?? 0
-      comparable++
-      if (daySell - dayFee > dayBuy) wins++
-    }
-    // Hourly medians, so a single silly listing doesn't count as the day's swing.
-    const hourly = sorted(slots.filter((values) => values.length).map(median))
-    if (hourly.length >= 3) {
-      const mid = quantile(hourly, 0.5)
-      if (mid > 0) dailyRanges.push((hourly[hourly.length - 1] - hourly[0]) / mid)
-    }
+    if (!slots[buySlot].length || !slots[sellSlot].length) continue
+    const dayBuy = median(slots[buySlot])
+    const daySell = median(slots[sellSlot])
+    comparable++
+    if (daySell - (feeFor(daySell) ?? 0) > dayBuy) wins++
   }
 
   const offers = window.map((p) => p.offers).filter((o): o is number => o != null)
@@ -234,8 +260,28 @@ export function analyzeHistory(points: readonly HistoryPoint[], opts: TrendOptio
     avgOffers: offers.length ? offers.reduce((a, b) => a + b, 0) / offers.length : null,
     latestMin,
     holdHours: (sell.startHour - buy.startHour + 24) % 24 || 24,
-    recent
+    recent,
+    coveredHours: filled.map((b) => b.startHour)
   }
+}
+
+/** What to do with an item at an hour of the day: buy or sell now, and hours until each next opens. */
+export interface Timing {
+  now: 'buy' | 'sell' | null
+  buyIn: number
+  sellIn: number
+}
+
+/** Where the hour falls against an item's buy and sell intervals. */
+export function timing(stats: TrendStats, hour: number, bucketHours: number): Timing | null {
+  if (!stats.buy || !stats.sell || stats.buy.startHour === stats.sell.startHour) return null
+  const hoursUntil = (start: number): number => {
+    const into = (hour - start + 24) % 24
+    return into < bucketHours ? 0 : 24 - into
+  }
+  const buyIn = hoursUntil(stats.buy.startHour)
+  const sellIn = hoursUntil(stats.sell.startHour)
+  return { now: buyIn === 0 ? 'buy' : sellIn === 0 ? 'sell' : null, buyIn, sellIn }
 }
 
 export interface TrendRow {
@@ -283,6 +329,14 @@ export interface TrendFilters {
   minSwing: number
   /** Only items the player can buy and sell on the flea at their level. */
   tradableOnly: boolean
+  /** Only items whose buy or sell interval is now. */
+  nowOnly: boolean
+}
+
+/** The time of day the "now" filter uses, and the analysis' interval length. */
+export interface TrendClock {
+  hour: number
+  bucketHours: number
 }
 
 export type TrendSortKey = 'profit' | 'spread' | 'volatility' | 'consistency' | 'offers' | 'swing'
@@ -319,11 +373,12 @@ function sortValue(row: TrendRow, key: TrendSortKey): number {
 
 /** A filter of the flea trends list; `trendSteps` applies them in order. */
 export type TrendFilterKey =
-  'tradableOnly' | 'minOffers' | 'minPrice' | 'minSwing' | 'pattern' | 'minProfit' | 'minConsistency'
+  'tradableOnly' | 'minOffers' | 'minPrice' | 'minSwing' | 'pattern' | 'minProfit' | 'minConsistency' | 'now'
 
 function trendSteps(
   filters: TrendFilters,
-  patternsOnly: boolean
+  patternsOnly: boolean,
+  clock: TrendClock | null
 ): { key: TrendFilterKey; pass: (row: TrendRow) => boolean }[] {
   const steps: { key: TrendFilterKey; pass: (row: TrendRow) => boolean }[] = [
     { key: 'tradableOnly', pass: (row) => !filters.tradableOnly || row.access.status === 'sellable' },
@@ -346,25 +401,37 @@ function trendSteps(
     { key: 'minProfit', pass: (row) => (row.stats!.profit ?? -Infinity) >= filters.minProfit },
     { key: 'minConsistency', pass: (row) => consistencyShare(row.stats) >= filters.minConsistency }
   )
+  if (filters.nowOnly && clock)
+    steps.push({
+      key: 'now',
+      pass: (row) => timing(row.stats!, clock.hour, clock.bucketHours)?.now != null
+    })
   return steps
 }
 
 /** Items that can be traded on the flea at all. Weapon presets duplicate their base guns. */
 const onFlea = (row: TrendRow): boolean => !row.item.bannedOnFlea && !row.item.types.includes('preset')
 
+/** Whether any item on the flea has a buy and sell time yet: until then, the list ranks by today's swing. */
+export function anyPattern(rows: readonly TrendRow[]): boolean {
+  return rows.some((row) => onFlea(row) && hasPattern(row))
+}
+
 /**
  * Liquid, tradable items that pass the filters, best first. With `patternsOnly`, only items
  * with a measurable time-of-day pattern count, and the swing filter applies to the typical day's
- * swing along with the profit and consistency filters; without it (while recordings are still too
- * short) the swing filter applies to today's 24h swing.
+ * swing along with the profit and consistency filters (and, with `nowOnly` and a clock, only items
+ * to buy or sell now); without it (before any item has a pattern) the swing filter applies to
+ * today's 24h swing.
  */
 export function rankTrends(
   rows: readonly TrendRow[],
   filters: TrendFilters,
   sort: TrendSortKey,
-  patternsOnly: boolean
+  patternsOnly: boolean,
+  clock: TrendClock | null = null
 ): TrendRow[] {
-  const steps = trendSteps(filters, patternsOnly)
+  const steps = trendSteps(filters, patternsOnly, clock)
   return rows
     .filter((row) => onFlea(row) && steps.every((step) => step.pass(row)))
     .sort((a, b) => sortValue(b, sort) - sortValue(a, sort) || a.item.name.localeCompare(b.item.name))
@@ -377,11 +444,12 @@ export function rankTrends(
 export function trendFunnel(
   rows: readonly TrendRow[],
   filters: TrendFilters,
-  patternsOnly: boolean
+  patternsOnly: boolean,
+  clock: TrendClock | null = null
 ): { key: TrendFilterKey | null; count: number }[] {
   let left = rows.filter(onFlea)
   const funnel: { key: TrendFilterKey | null; count: number }[] = [{ key: null, count: left.length }]
-  for (const step of trendSteps(filters, patternsOnly)) {
+  for (const step of trendSteps(filters, patternsOnly, clock)) {
     left = left.filter(step.pass)
     funnel.push({ key: step.key, count: left.length })
   }

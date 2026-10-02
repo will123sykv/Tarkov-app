@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { fleaMarketFee } from '../src/shared/fleaFee'
 import {
   analyzeHistory,
+  anyPattern,
   currentSwing,
   rankTrends,
+  timing,
   trendFunnel,
   todaySwing,
   type HistoryPoint,
@@ -65,7 +67,8 @@ describe('analyzeHistory', () => {
       latestMin: 10_000
     })
     expect(stats.buckets).toHaveLength(24)
-    expect(stats.buckets[4]).toMatchObject({ median: 8_000, q1: 8_000, q3: 8_000, samples: 28 })
+    expect(stats.buckets[4]).toMatchObject({ median: 8_000, q1: 8_000, q3: 8_000, samples: 28, days: 7 })
+    expect(stats.coveredHours).toHaveLength(24)
     // Each day's hours range from 8k to 13k around a 10k median.
     expect(stats.volatility).toBeCloseTo(0.5)
   })
@@ -125,23 +128,65 @@ describe('analyzeHistory', () => {
     expect(stats.volatility).toBe(0)
   })
 
-  it('needs at least three days of prices', () => {
-    const stats = analyzeHistory(record(2, cycle), opts())
-    expect(stats).toMatchObject({ insufficient: 'only 2 day(s) of prices', buy: null, profit: null, days: 2 })
-    expect(stats.samples).toBe(2 * 96)
+  it('needs prices on at least four days', () => {
+    const stats = analyzeHistory(record(3, cycle), opts())
+    expect(stats).toMatchObject({ insufficient: 'only 3 day(s) of prices', buy: null, profit: null, days: 3 })
+    expect(stats.samples).toBe(3 * 96)
+    // One 26-hour session touches three calendar days.
+    const session = record(2, cycle, NOW - 3 * DAY + 23 * HOUR).filter((p) => p.t < NOW - DAY + HOUR)
+    expect(analyzeHistory(session, opts()).insufficient).toBe('only 3 day(s) of prices')
   })
 
-  it('needs most hours of the day covered on more than one day', () => {
-    // Only recorded during the working day.
-    const office = analyzeHistory(
-      record(5, (hour) => (hour >= 9 && hour < 17 ? cycle(hour) : null)),
-      opts()
+  it('finds the best times within the hours recorded, when only part of the day is', () => {
+    // Recorded only in the evenings: cheapest 18:00–21:00, dearest 21:00–24:00.
+    const evenings = (hour: number): number | null => (hour < 18 ? null : hour < 21 ? 9_000 : 11_000)
+    const stats = analyzeHistory(record(6, evenings), opts({ bucketHours: 3 }))
+    expect(stats).toMatchObject({
+      insufficient: null,
+      buy: { startHour: 18, price: 9_000 },
+      sell: { startHour: 21, price: 11_000 },
+      coveredHours: [18, 21],
+      consistency: { wins: 6, days: 6 }
+    })
+    expect(stats.buckets.filter((b) => b.median === null)).toHaveLength(6)
+    // A single time of day can't be compared with anything.
+    const one = analyzeHistory(
+      record(6, (hour) => (hour === 20 ? 10_000 : null)),
+      opts({ bucketHours: 3 })
     )
-    expect(office.insufficient).toBe('too many gaps in the price history')
+    expect(one.insufficient).toBe('prices at fewer than two times of day on 4+ days')
+  })
 
-    // One 26-hour session touches three calendar days but covers most hours only once.
-    const session = record(2, cycle, NOW - 3 * DAY + 23 * HOUR).filter((p) => p.t < NOW - DAY + HOUR)
-    expect(analyzeHistory(session, opts()).insufficient).toBe('too many gaps in the price history')
+  it('splits the day into equal intervals of the chosen length', () => {
+    // Cheap 03:00–06:00, dear 18:00–21:00.
+    const blocks = (hour: number): number =>
+      hour >= 3 && hour < 6 ? 8_000 : hour >= 18 && hour < 21 ? 12_000 : 10_000
+    const three = analyzeHistory(record(7, blocks), opts({ bucketHours: 3 }))
+    expect(three.buckets.map((b) => b.startHour)).toEqual([0, 3, 6, 9, 12, 15, 18, 21])
+    expect(three).toMatchObject({
+      buy: { startHour: 3, price: 8_000 },
+      sell: { startHour: 18, price: 12_000 }
+    })
+    const six = analyzeHistory(record(7, blocks), opts({ bucketHours: 6 }))
+    expect(six.buckets.map((b) => b.startHour)).toEqual([0, 6, 12, 18])
+    expect(six.buy?.startHour).toBe(0)
+    expect(six.sell?.startHour).toBe(18)
+  })
+
+  it("doesn't take a price drifting over the week for a time of day", () => {
+    // Falling 5% a day with no daily cycle, recorded in the mornings on some days and the
+    // evenings on others: raw prices would make the evenings look cheap.
+    const days = 8
+    const points = record(days, (hour, day) => {
+      const morning = day % 2 === 0
+      if (morning ? hour >= 12 : hour < 12) return null
+      return 20_000 * (1 - 0.05 * day)
+    })
+    const stats = analyzeHistory(points, opts({ days, bucketHours: 6 }))
+    expect(stats.insufficient).toBeNull()
+    expect(stats.spreadPct).toBeCloseTo(0)
+    // Shown at today's price level: the last three days' median.
+    expect(stats.buy?.price).toBeCloseTo(20_000 * (1 - 0.05 * 6))
   })
 
   it('ignores prices outside the look-back window and missing prices', () => {
@@ -149,7 +194,7 @@ describe('analyzeHistory', () => {
     const recent = record(7, (hour) => (hour === 12 ? null : cycle(hour)))
     const stats = analyzeHistory([...old, ...recent], opts())
     expect(stats.buy).toEqual({ startHour: 4, price: 8_000 })
-    expect(stats.buckets[12]).toMatchObject({ median: null, samples: 0 })
+    expect(stats.buckets[12]).toMatchObject({ median: null, samples: 0, days: 0 })
   })
 
   it('leaves profit unknown without a base price to work out the fee', () => {
@@ -222,9 +267,38 @@ const filters = (overrides: Partial<TrendFilters> = {}): TrendFilters => ({
   minConsistency: 0.6,
   minSwing: 0,
   tradableOnly: true,
+  nowOnly: false,
   ...overrides
 })
 const ids = (rows: TrendRow[]): string[] => rows.map((r) => r.item.id)
+
+describe('timing', () => {
+  // Buy 03:00–06:00, sell 18:00–21:00.
+  const blocks = (hour: number): number =>
+    hour >= 3 && hour < 6 ? 8_000 : hour >= 18 && hour < 21 ? 12_000 : 10_000
+  const stats = analyzeHistory(record(7, blocks), opts({ bucketHours: 3 }))
+
+  it('says when to buy and sell, and how long until each', () => {
+    expect(timing(stats, 4, 3)).toEqual({ now: 'buy', buyIn: 0, sellIn: 14 })
+    expect(timing(stats, 20, 3)).toEqual({ now: 'sell', buyIn: 7, sellIn: 0 })
+    expect(timing(stats, 10, 3)).toEqual({ now: null, buyIn: 17, sellIn: 8 })
+    // Past midnight.
+    expect(timing(stats, 23, 3)).toEqual({ now: null, buyIn: 4, sellIn: 19 })
+  })
+
+  it('has nothing to say for a flat price', () => {
+    expect(
+      timing(
+        analyzeHistory(
+          record(5, () => 10_000),
+          opts({ bucketHours: 3 })
+        ),
+        4,
+        3
+      )
+    ).toBeNull()
+  })
+})
 
 describe('currentSwing', () => {
   it("prefers the recordings' last 24 hours to tarkov.dev's range, which bait listings inflate", () => {
@@ -315,6 +389,23 @@ describe('rankTrends', () => {
     expect(trendFunnel(all, filters(), false).at(-1)!.count).toBe(
       rankTrends(all, filters(), 'swing', false).length
     )
+  })
+
+  it('lists only items to buy or sell now, when asked', () => {
+    // The fixtures buy at 04:00 and sell at 20:00 (one-hour intervals).
+    const f = filters({ nowOnly: true })
+    expect(ids(rankTrends(all, f, 'profit', true, { hour: 4, bucketHours: 1 }))).toEqual(['liquid'])
+    expect(ids(rankTrends(all, f, 'profit', true, { hour: 20, bucketHours: 1 }))).toEqual(['liquid'])
+    expect(ids(rankTrends(all, f, 'profit', true, { hour: 12, bucketHours: 1 }))).toEqual([])
+    expect(trendFunnel(all, f, true, { hour: 12, bucketHours: 1 }).at(-1)).toEqual({ key: 'now', count: 0 })
+    // Without a clock (or while there are no patterns), it doesn't apply.
+    expect(ids(rankTrends(all, f, 'profit', true))).toEqual(['liquid'])
+  })
+
+  it('knows whether any item has a pattern yet', () => {
+    expect(anyPattern(all)).toBe(true)
+    expect(anyPattern([unrecorded, banned])).toBe(false)
+    expect(anyPattern([row(item('short'), analyzeHistory(record(2, cycle), opts()))])).toBe(false)
   })
 
   it('never lists flea-banned items or weapon presets', () => {

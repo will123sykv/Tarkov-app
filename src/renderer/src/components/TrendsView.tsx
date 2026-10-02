@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { TrendFilterKey, TrendSortKey } from '../../../shared/fleaTrends'
 import { dataModeFor } from '../../../shared/gameModes'
-import type { PriceState, PublicSettings, TrendAnalysis, TrendSettings } from '../../../shared/types'
+import { TREND_INTERVALS } from '../../../shared/settings'
+import type {
+  HistorySourceStatus,
+  PriceState,
+  PublicSettings,
+  TrendAnalysis,
+  TrendSettings
+} from '../../../shared/types'
 import { formatAgo, formatPercent, formatRub, formatSlot } from '../lib/format'
 import { useNow } from '../lib/useNow'
-import { MIN_PATTERN_DAYS, type TrendRanking } from '../lib/useTrendRanking'
+import type { TrendRanking } from '../lib/useTrendRanking'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
 import NumberField from './NumberField'
@@ -48,13 +55,15 @@ function stepLabel(
     case 'minPrice':
       return `at ${formatRub(t.minPrice)} or more`
     case 'pattern':
-      return 'with a time-of-day pattern in the recordings'
+      return 'with buy and sell times (prices at two or more times of day on 4+ days)'
     case 'minSwing':
       return `swinging ${formatPercent(t.minSwing)}+ ${patternsReady ? 'on a usual day' : 'today'}`
     case 'minProfit':
       return `making ${formatRub(t.minProfit)}+ after the fee`
     case 'minConsistency':
       return `that worked on ${formatPercent(t.minConsistency)}+ of days`
+    case 'now':
+      return 'to buy or sell now'
   }
 }
 
@@ -104,6 +113,8 @@ function loosen(
     }
     case 'pattern':
       return null
+    case 'now':
+      return t.nowOnly ? { patch: { nowOnly: false }, text: 'show every time of day' } : null
   }
 }
 
@@ -159,14 +170,14 @@ function FilterFunnel({
   )
 }
 
-/** "01:00–08:00, 23:00–00:00" for the hours with no recordings. */
-function missingHours(byHour: number[]): string {
+/** "18:00–23:00" for the hours of the day with prices. */
+function hourRanges(byHour: number[]): string {
   const ranges: string[] = []
   let start: number | null = null
   for (let h = 0; h <= 24; h++) {
-    const empty = h < 24 && byHour[h] === 0
-    if (empty && start === null) start = h
-    if (!empty && start !== null) {
+    const has = h < 24 && byHour[h] > 0
+    if (has && start === null) start = h
+    if (!has && start !== null) {
       ranges.push(formatSlot(start, h - start))
       start = null
     }
@@ -174,28 +185,40 @@ function missingHours(byHour: number[]): string {
   return ranges.join(', ')
 }
 
-function Coverage({ analysis }: { analysis: TrendAnalysis | undefined }): React.JSX.Element {
+/** Where the prices come from, and what each source covers. */
+function PriceHistory({
+  analysis,
+  loading
+}: {
+  analysis: TrendAnalysis | undefined
+  loading: boolean
+}): React.JSX.Element {
   const now = useNow(60_000)
-  if (!analysis) return <p className="hint">Loading recordings…</p>
-  const { coverage } = analysis
-  if (coverage.snapshots === 0) {
-    return (
-      <p className="hint">
-        Nothing recorded yet. The app records the most-listed items at each price refresh (at most every 15
-        minutes) while it's running.
-      </p>
-    )
-  }
-  const gaps = missingHours(coverage.snapshotsByHour)
+  if (!analysis) return <p className="hint">{loading ? 'Loading tarkov.dev’s price history…' : 'Loading…'}</p>
+  const source = (id: HistorySourceStatus['id']): HistorySourceStatus | undefined =>
+    analysis.coverage.sources?.find((s) => s.id === id)
+  const theirs = source('tarkov.dev')
+  const ours = source('local')
   return (
-    <p className="hint">
-      Recording {coverage.items} items:{' '}
-      {coverage.days >= MIN_PATTERN_DAYS
-        ? `${coverage.days} days so far`
-        : `${coverage.days} of the ${MIN_PATTERN_DAYS} days needed`}
-      {coverage.lastAt ? `, last ${formatAgo(coverage.lastAt, now)}` : ''}.
-      {gaps && ` No recordings yet for ${gaps}; keep the app running then (see below) to fill the gaps.`}
-    </p>
+    <ul className="history-sources">
+      <li>
+        <strong>tarkov.dev:</strong>{' '}
+        {theirs && theirs.items > 0
+          ? `${theirs.items} items, ${theirs.days} days, a price about every 2 hours ✓`
+          : loading
+            ? 'loading the last 30 days of prices…'
+            : 'no prices yet.'}
+        {theirs?.error && <span className="error"> Couldn’t update: {theirs.error}</span>}
+      </li>
+      <li>
+        <strong>This app:</strong>{' '}
+        {ours && ours.items > 0
+          ? `recorded ${hourRanges(ours.byHour)} on ${ours.days} day${ours.days === 1 ? '' : 's'}` +
+            (ours.lastAt ? `, last ${formatAgo(ours.lastAt, now)}` : '') +
+            ' (finer detail at those times)'
+          : 'records prices every 15 minutes while it’s running, for finer detail.'}
+      </li>
+    </ul>
   )
 }
 
@@ -217,12 +240,33 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
   return (
     <aside className="sidebar">
       <section>
-        <h2>Recording</h2>
-        <Coverage analysis={analysis} />
+        <h2>Price history</h2>
+        <PriceHistory analysis={analysis} loading={trendsLoading} />
         <BackgroundToggles settings={settings} />
         <button className="button small" onClick={() => void loadTrends()} disabled={trendsLoading}>
           {trendsLoading ? 'Analysing…' : 'Re-analyse now'}
         </button>
+      </section>
+
+      <section>
+        <h2>Split the day into</h2>
+        <div className="mini-toggle wide" role="radiogroup" aria-label="Interval length">
+          {TREND_INTERVALS.map((hours) => (
+            <button
+              key={hours}
+              role="radio"
+              aria-checked={t.intervalHours === hours}
+              className={t.intervalHours === hours ? 'active' : ''}
+              onClick={() => set({ intervalHours: hours })}
+            >
+              {hours} h
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          {24 / t.intervalHours} parts of {t.intervalHours} hours. Shorter parts are more precise; longer ones
+          are steadier. tarkov.dev checks prices about every 2 hours.
+        </p>
       </section>
 
       <section>
@@ -258,8 +302,8 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
         </label>
         <p className="hint">
           {patternsReady
-            ? "A usual day's cheapest hour to its dearest, from the recordings."
-            : "Today's low to high: from the recordings once there are 6 hours of them, before that tarkov.dev's 24h range (which bait offers can inflate)."}
+            ? "A usual day's cheapest part to its dearest, from the price history."
+            : "Today's low to high: from the price history once there are 6 hours of it, before that tarkov.dev's 24h range (which bait offers can inflate)."}
         </p>
         <NumberField
           label="Min offers up (sells quickly)"
@@ -301,6 +345,10 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
           />
           Only items I can trade at my level
         </label>
+        <label className="check">
+          <input type="checkbox" checked={t.nowOnly} onChange={(e) => set({ nowOnly: e.target.checked })} />
+          Only items to buy or sell now
+        </label>
         <label className="field">
           <span>Sort by</span>
           <select value={t.sort} onChange={(e) => set({ sort: e.target.value as TrendSortKey })}>
@@ -313,7 +361,7 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
         </label>
         {sort !== t.sort && (
           <p className="hint">
-            Sorted by {SORT_LABELS[sort].toLowerCase()} until {MIN_PATTERN_DAYS} days are recorded.
+            Sorted by {SORT_LABELS[sort].toLowerCase()} until buy and sell times are known.
           </p>
         )}
       </section>
@@ -323,7 +371,7 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
 
 export default function TrendsView({ settings, priceState, ranking }: Props): React.JSX.Element {
   const dataMode = dataModeFor(settings.gameMode)
-  const { analysis, rows: ranked, patternsReady, sort } = ranking
+  const { analysis, rows: ranked, patternsReady, sort, clock } = ranking
   const loadTrends = useStore((s) => s.loadTrends)
   const trendsError = useStore((s) => s.trendsError)
   const selected = useStore((s) => s.selectedTrendItem)
@@ -339,7 +387,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
   useEffect(() => {
     lastLoad.current = Date.now()
     void loadTrends()
-  }, [loadTrends, dataMode, settings.trends.days, hasPrices])
+  }, [loadTrends, dataMode, settings.trends.days, settings.trends.intervalHours, hasPrices])
   useEffect(() => {
     if (Date.now() - lastLoad.current < 60_000) return
     lastLoad.current = Date.now()
@@ -348,7 +396,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
 
   const t = settings.trends
   const selectedRow = ranked.find((r) => r.item.id === selected) ?? null
-  const bucketHours = analysis?.bucketHours ?? 1
+  const bucketHours = clock.bucketHours
   // Stable, so memoised rows don't all re-render when the selection changes.
   const toggleItem = useCallback(
     (itemId: string) => selectTrendItem(useStore.getState().selectedTrendItem === itemId ? null : itemId),
@@ -377,8 +425,8 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             <strong>Flea trends</strong>
             <span className="muted">
               {patternsReady
-                ? `Best time to buy and to sell, from ${analysis!.coverage.days} days of recordings.`
-                : `Collecting prices (${analysis?.coverage.days ?? 0} of ${MIN_PATTERN_DAYS} days). Until then, items are ranked by today's price swing.`}
+                ? `The ${bucketHours}-hour part of the day each item is usually cheapest and dearest in, over the last ${t.days} days (your time zone).`
+                : 'No buy and sell times yet (they need prices at two or more times of day on 4+ days). Until then, items are ranked by today’s price swing.'}
               {t.minSwing > 0 &&
                 ` Showing items that swing ${formatPercent(t.minSwing)} or more ${
                   patternsReady ? 'on a usual day' : 'today'
@@ -386,12 +434,23 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             </span>
           </div>
           <div className="summary-stats muted">
+            {patternsReady && (
+              <span className="day-legend" aria-label="Day column key">
+                Day:
+                <span className="day-cell cheap" style={{ '--strength': '100%' } as React.CSSProperties} />
+                cheaper
+                <span className="day-cell dear" style={{ '--strength': '100%' } as React.CSSProperties} />
+                dearer than the rest of the day · <b>B</b> buy · <b>S</b> sell ·
+                <span className="day-cell now" />
+                now
+              </span>
+            )}
             <span>
               Offers up stand in for sales volume, which isn't published. Past patterns aren't guarantees:
               prices move, and the listing fee is charged when you list.
             </span>
           </div>
-          {trendsError && <div className="hint error">Couldn't read recordings: {trendsError}</div>}
+          {trendsError && <div className="hint error">Couldn't load the price history: {trendsError}</div>}
         </div>
 
         <div className="trends-table-wrap">
@@ -399,9 +458,11 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             <thead>
               <tr>
                 <th>Item</th>
+                <th>Now</th>
                 <th className="num">{header('offers', 'Offers up')}</th>
                 <th className="num">Lowest now</th>
                 <th className="num">{header('swing', 'Today (low–high)')}</th>
+                <th>Day</th>
                 <th>Buy at</th>
                 <th>{header('spread', 'Sell at')}</th>
                 <th className="num">{header('profit', 'Profit / unit')}</th>
@@ -415,6 +476,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
                   row={row}
                   selected={row.item.id === selected}
                   bucketHours={bucketHours}
+                  hour={clock.hour}
                   patternsReady={patternsReady}
                   onSelect={toggleItem}
                 />

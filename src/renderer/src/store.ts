@@ -230,7 +230,11 @@ export const useStore = create<AppStore>((set, get) => ({
     const dataMode = dataModeFor(settings.gameMode)
     set({ trendsLoading: true })
     try {
-      const analysis = await window.api.analyzeTrends(dataMode, settings.trends.days)
+      const analysis = await window.api.analyzeTrends(
+        dataMode,
+        settings.trends.days,
+        settings.trends.intervalHours
+      )
       set((s) => ({ trendAnalysis: { ...s.trendAnalysis, [dataMode]: analysis }, trendsError: null }))
     } catch (err) {
       set({ trendsError: err instanceof Error ? err.message : String(err) })

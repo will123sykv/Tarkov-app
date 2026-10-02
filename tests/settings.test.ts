@@ -66,6 +66,22 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ trends: { minSwing: 0 } }).trends.minSwing).toBe(0)
   })
 
+  it('splits the day into 3-hour parts unless told otherwise, and shows every time of day', () => {
+    // Settings from before 1.13.0 have neither.
+    expect(sanitizeSettings({ trends: { days: 14 } }).trends).toMatchObject({
+      intervalHours: 3,
+      nowOnly: false
+    })
+    expect(sanitizeSettings({ trends: { intervalHours: 6, nowOnly: true } }).trends).toMatchObject({
+      intervalHours: 6,
+      nowOnly: true
+    })
+    expect(sanitizeSettings({ trends: { intervalHours: 5, nowOnly: 'yes' } }).trends).toMatchObject({
+      intervalHours: 3,
+      nowOnly: false
+    })
+  })
+
   it("moves filters left at 1.3.0's defaults to the new ones, keeping the player's own", () => {
     const saved130 = {
       days: 14,

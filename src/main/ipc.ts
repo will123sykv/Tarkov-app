@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
+import { TREND_INTERVALS } from '../shared/settings'
 import type { ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
 import type { StoryPin } from '../shared/storyPlaces'
@@ -126,8 +127,12 @@ export function registerIpc(deps: {
   ipcMain.handle(IPC.pricesGet, (_e, dataMode: unknown) => prices.getState(requireDataMode(dataMode)))
   ipcMain.handle(IPC.pricesRefresh, (_e, dataMode: unknown) => prices.refresh(requireDataMode(dataMode)))
   ipcMain.handle(IPC.containersCatalog, () => containers.catalog())
-  ipcMain.handle(IPC.trendsAnalyze, (_e, dataMode: unknown, days: unknown) =>
-    trends.analyze(requireDataMode(dataMode), lookbackDays(days))
+  ipcMain.handle(IPC.trendsAnalyze, (_e, dataMode: unknown, days: unknown, intervalHours: unknown) =>
+    trends.analyze(
+      requireDataMode(dataMode),
+      lookbackDays(days),
+      TREND_INTERVALS.find((n) => n === intervalHours) ?? 3
+    )
   )
   ipcMain.handle(IPC.trendsSeries, (_e, dataMode: unknown, itemId: unknown) => {
     if (typeof itemId !== 'string' || !/^[0-9a-z-]{1,64}$/i.test(itemId)) throw new Error('Invalid item id')

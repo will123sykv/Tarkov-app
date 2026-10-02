@@ -208,6 +208,28 @@ export interface TrendSettings {
   sort: TrendSortKey
   /** Only items the player can buy and sell on the flea at their level. */
   tradableOnly: boolean
+  /** Length of the parts the day is split into, in hours. Since 1.13.0. */
+  intervalHours: TrendInterval
+  /** Only items to buy or sell now. Since 1.13.0. */
+  nowOnly: boolean
+}
+
+export type TrendInterval = 2 | 3 | 4 | 6
+
+/** Where flea price history comes from: tarkov.dev's 30 days of scans, or this PC's own recordings. */
+export type HistorySourceId = 'tarkov.dev' | 'local'
+
+export interface HistorySourceStatus {
+  id: HistorySourceId
+  /** Items it has prices for. */
+  items: number
+  /** Calendar days it covers. */
+  days: number
+  /** Price points per hour of the day (local time), to show which hours it covers. */
+  byHour: number[]
+  lastAt: number | null
+  /** Why it couldn't be used this time (it may still have older prices). */
+  error: string | null
 }
 
 /** Settings as exposed to the renderer: the API key itself never leaves the main process. */
@@ -244,6 +266,8 @@ export interface TrendAnalysis {
     /** Recordings per hour of the day (local time), to show gaps in coverage. */
     snapshotsByHour: number[]
     items: number
+    /** Each source of price history and what it covers. Since 1.13.0. */
+    sources: HistorySourceStatus[]
   }
   stats: Record<string, TrendStats>
 }

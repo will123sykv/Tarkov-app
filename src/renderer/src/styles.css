@@ -924,25 +924,106 @@ button.link {
 
 /* Item takes the rest; the others are sized for their widest usual value. */
 .trends-table th:nth-child(2) {
-  width: 72px;
+  width: 100px;
 }
 .trends-table th:nth-child(3) {
-  width: 96px;
+  width: 64px;
 }
 .trends-table th:nth-child(4) {
-  width: 124px;
+  width: 88px;
 }
 .trends-table th:nth-child(5) {
-  width: 108px;
+  width: 124px;
 }
 .trends-table th:nth-child(6) {
-  width: 124px;
+  width: 116px;
 }
 .trends-table th:nth-child(7) {
   width: 120px;
 }
 .trends-table th:nth-child(8) {
-  width: 116px;
+  width: 120px;
+}
+.trends-table th:nth-child(9) {
+  width: 112px;
+}
+.trends-table th:nth-child(10) {
+  width: 112px;
+}
+
+/*
+ * An item's day: one cell per part of the day, on a diverging scale from blue (usually cheaper
+ * than the middle of its day) through grey to red (dearer), lettered where to buy (B) and sell
+ * (S); the part of the day it is now is outlined.
+ */
+.day-strip {
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.day-cell {
+  --neutral: #383835;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: var(--neutral);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.day-cell.cheap {
+  background: color-mix(in oklab, #3987e5 var(--strength), var(--neutral));
+}
+
+.day-cell.dear {
+  background: color-mix(in oklab, #e66767 var(--strength), var(--neutral));
+}
+
+.day-cell.empty {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--border) 3px 4px);
+}
+
+.day-cell.now {
+  outline: 1px solid var(--text);
+  outline-offset: 1px;
+}
+
+.day-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+.day-legend .day-cell {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.history-sources {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.history-sources strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.history-sources .error {
+  color: var(--bad);
 }
 
 .trends-table td {

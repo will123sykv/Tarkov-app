@@ -1,11 +1,23 @@
 import { analyzeHistory, type HistoryPoint } from '../../shared/fleaTrends'
-import type { DataMode, PriceDataset, TrendAnalysis, TrendSeries } from '../../shared/types'
+import type {
+  DataMode,
+  HistorySourceStatus,
+  PriceDataset,
+  TrendAnalysis,
+  TrendInterval,
+  TrendSeries
+} from '../../shared/types'
 import { errorMessage, type FetchFn } from '../pricing/http'
 import { fetchJsonData } from '../pricing/tarkovDevJson'
+import { normalizeDailyHistory, type TarkovDevHistoryService } from './history'
 import type { PriceRecorder } from './recorder'
+
+export { normalizeDailyHistory }
 
 export interface TrendServiceDeps {
   recorder: PriceRecorder
+  /** tarkov.dev's last 30 days of prices; without it, only the app's own recordings are used. */
+  history?: TarkovDevHistoryService
   getDataset: (dataMode: DataMode) => PriceDataset | null
   fetchFn: FetchFn
   now?: () => number
@@ -14,28 +26,14 @@ export interface TrendServiceDeps {
   dayOf?: (t: number) => string
 }
 
-const BUCKET_HOURS = 1
 /** Re-analyse at least this often even without new recordings, as the look-back window moves on. */
 const CACHE_MS = 15 * 60_000
 const DAILY_HISTORY_DAYS = 60
+const DEFAULT_INTERVAL: TrendInterval = 3
 
 function localDay(t: number): string {
   const d = new Date(t)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-/** tarkov.dev's per-item history: one point per day, plus the latest scan. */
-export function normalizeDailyHistory(raw: unknown): HistoryPoint[] {
-  if (!Array.isArray(raw)) return []
-  const points: HistoryPoint[] = []
-  for (const p of raw as Record<string, unknown>[]) {
-    const t = Number(p?.timestamp)
-    if (!Number.isFinite(t)) continue
-    const num = (v: unknown): number | null =>
-      typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null
-    points.push({ t, price: num(p.price), priceMin: num(p.priceMin), offers: num(p.offerCount) })
-  }
-  return points.sort((a, b) => a.t - b.t)
 }
 
 /** Every recorded item shares its snapshot times, so each time only needs converting once. */
@@ -48,38 +46,83 @@ function memoize<T>(fn: (t: number) => T): (t: number) => T {
   }
 }
 
+/** What one source of prices covers: items, days, points per hour of the day, the newest point. */
+function sourceStatus(
+  id: HistorySourceStatus['id'],
+  byItem: ReadonlyMap<string, readonly HistoryPoint[]>,
+  from: number,
+  hourOf: (t: number) => number,
+  dayOf: (t: number) => string,
+  error: string | null
+): HistorySourceStatus {
+  const byHour = Array.from({ length: 24 }, () => 0)
+  const days = new Set<string>()
+  let lastAt: number | null = null
+  let items = 0
+  for (const points of byItem.values()) {
+    let any = false
+    for (const p of points) {
+      if (p.t < from) continue
+      any = true
+      byHour[hourOf(p.t)]++
+      days.add(dayOf(p.t))
+      if (lastAt === null || p.t > lastAt) lastAt = p.t
+    }
+    if (any) items++
+  }
+  return { id, items, days: days.size, byHour, lastAt, error }
+}
+
 export function createTrendService(deps: TrendServiceDeps) {
   const now = deps.now ?? Date.now
   const localHour = deps.hourOf ?? ((t: number) => new Date(t).getHours())
   const localDayOf = deps.dayOf ?? localDay
 
-  async function analyzeNow(dataMode: DataMode, days: number): Promise<TrendAnalysis> {
-    const recordings = await deps.recorder.load(dataMode, days)
+  async function analyzeNow(
+    dataMode: DataMode,
+    days: number,
+    bucketHours: number,
+    recordings: Map<string, HistoryPoint[]>,
+    history: Awaited<ReturnType<TarkovDevHistoryService['load']>> | null
+  ): Promise<TrendAnalysis> {
     const hourOf = memoize(localHour)
     const dayOf = memoize(localDayOf)
     const dataset = deps.getDataset(dataMode)
     const itemsById = new Map(dataset?.items.map((i) => [i.id, i]) ?? [])
     const t = now()
+    const from = t - days * 24 * 3_600_000
 
+    // The app's recordings: when they were taken, for the coverage summary.
     const hours = Array.from({ length: 24 }, () => 0)
     const snapshotTimes = new Set<number>()
     const dayKeys = new Set<string>()
+    for (const points of recordings.values()) {
+      for (const p of points) {
+        if (snapshotTimes.has(p.t)) continue
+        snapshotTimes.add(p.t)
+        hours[hourOf(p.t)]++
+        dayKeys.add(dayOf(p.t))
+      }
+    }
+
+    const ids = new Set([...recordings.keys(), ...(history?.byItem.keys() ?? [])])
     const stats: TrendAnalysis['stats'] = {}
     let analysed = 0
-    for (const [id, points] of recordings) {
-      // Let the main process handle other events between batches (30 days takes ~0.5 s in all).
+    for (const id of ids) {
+      // Let the main process handle other events between batches.
       if (++analysed % 25 === 0) await new Promise<void>((resolve) => setImmediate(resolve))
-      for (const p of points) {
-        if (!snapshotTimes.has(p.t)) {
-          snapshotTimes.add(p.t)
-          hours[hourOf(p.t)]++
-          dayKeys.add(dayOf(p.t))
-        }
-      }
+      const own = recordings.get(id) ?? []
+      const theirs = history?.byItem.get(id) ?? []
+      const points =
+        own.length && theirs.length
+          ? [...theirs, ...own].sort((a, b) => a.t - b.t)
+          : own.length
+            ? own
+            : theirs
       stats[id] = analyzeHistory(points, {
         now: t,
         days,
-        bucketHours: BUCKET_HOURS,
+        bucketHours,
         hourOf,
         dayOf,
         basePrice: itemsById.get(id)?.basePrice ?? null,
@@ -87,17 +130,21 @@ export function createTrendService(deps: TrendServiceDeps) {
       })
     }
     const times = [...snapshotTimes].sort((a, b) => a - b)
+    const sources: HistorySourceStatus[] = []
+    if (history) sources.push(sourceStatus('tarkov.dev', history.byItem, from, hourOf, dayOf, history.error))
+    sources.push(sourceStatus('local', recordings, from, hourOf, dayOf, null))
     return {
       dataMode,
       days,
-      bucketHours: BUCKET_HOURS,
+      bucketHours,
       coverage: {
         snapshots: times.length,
         days: dayKeys.size,
         firstAt: times[0] ?? null,
         lastAt: times.at(-1) ?? null,
         snapshotsByHour: hours,
-        items: recordings.size
+        items: ids.size,
+        sources
       },
       stats
     }
@@ -107,24 +154,35 @@ export function createTrendService(deps: TrendServiceDeps) {
 
   return {
     /**
-     * Time-of-day statistics for every recorded item, plus how much has been recorded so far.
-     * Reuses the last result until something is recorded (a 30-day analysis takes about a second).
+     * Time-of-day statistics for every item with prices (tarkov.dev's last 30 days and the app's
+     * own recordings), plus what each source covers. Reuses the last result until something new
+     * is recorded or fetched.
      */
-    async analyze(dataMode: DataMode, days: number): Promise<TrendAnalysis> {
+    async analyze(
+      dataMode: DataMode,
+      days: number,
+      bucketHours: TrendInterval = DEFAULT_INTERVAL
+    ): Promise<TrendAnalysis> {
+      const dataset = deps.getDataset(dataMode)
+      const history = deps.history ? await deps.history.load(dataMode, dataset) : null
       const key = [
         dataMode,
         days,
+        bucketHours,
         deps.recorder.lastRecordedAt(dataMode),
-        deps.getDataset(dataMode) !== null,
+        history?.fetchedAt ?? null,
+        history?.error ?? null,
+        dataset !== null,
         Math.floor(now() / CACHE_MS)
       ].join('|')
       if (cached?.key === key) return cached.analysis
-      const analysis = await analyzeNow(dataMode, days)
+      const recordings = await deps.recorder.load(dataMode, days)
+      const analysis = await analyzeNow(dataMode, days, bucketHours, recordings, history)
       cached = { key, analysis }
       return analysis
     },
 
-    /** tarkov.dev's daily history for one item, for the longer view. */
+    /** tarkov.dev's history for one item (a point a day, and every scan over the last 30 days). */
     async series(dataMode: DataMode, itemId: string): Promise<TrendSeries> {
       let daily: HistoryPoint[] = []
       let dailyError: string | null = null

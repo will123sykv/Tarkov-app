@@ -16,6 +16,7 @@ import type {
   QuestStatusFilter,
   Settings,
   SortKey,
+  TrendInterval,
   TrendSettings
 } from './types'
 
@@ -45,7 +46,9 @@ export const DEFAULT_SETTINGS: Settings = {
     minConsistency: 0.6,
     minSwing: 0.15,
     sort: 'profit',
-    tradableOnly: true
+    tradableOnly: true,
+    intervalHours: 3,
+    nowOnly: false
   },
   backgroundRecording: false,
   startWithWindows: false,
@@ -123,6 +126,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
 
 const TREND_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency', 'offers', 'swing']
 const TREND_DAYS = [7, 14, 30] as const
+export const TREND_INTERVALS: TrendInterval[] = [2, 3, 4, 6]
 
 /** 1.3.0's filter defaults. It saved them in full, so a block without `minSwing` came from it. */
 const TRENDS_1_3_0_DEFAULTS: Record<string, number> = {
@@ -160,7 +164,9 @@ function sanitizeTrends(raw: unknown, version: number): TrendSettings {
     minConsistency: Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : d.minConsistency,
     minSwing: Number.isFinite(swing) ? Math.min(2, Math.max(0, swing)) : d.minSwing,
     sort: TREND_SORTS.includes(r.sort as TrendSortKey) ? (r.sort as TrendSortKey) : d.sort,
-    tradableOnly: typeof r.tradableOnly === 'boolean' ? r.tradableOnly : d.tradableOnly
+    tradableOnly: typeof r.tradableOnly === 'boolean' ? r.tradableOnly : d.tradableOnly,
+    intervalHours: TREND_INTERVALS.find((n) => n === r.intervalHours) ?? d.intervalHours,
+    nowOnly: r.nowOnly === true
   }
 }
 

@@ -14,7 +14,8 @@ const api: TarkovApi = {
   refreshPrices: (dataMode) => ipcRenderer.invoke(IPC.pricesRefresh, dataMode),
   getContainerCatalog: () => ipcRenderer.invoke(IPC.containersCatalog),
   getContainerLoot: (mapId) => ipcRenderer.invoke(IPC.containersLoot, mapId),
-  analyzeTrends: (dataMode, days) => ipcRenderer.invoke(IPC.trendsAnalyze, dataMode, days),
+  analyzeTrends: (dataMode, days, intervalHours) =>
+    ipcRenderer.invoke(IPC.trendsAnalyze, dataMode, days, intervalHours),
   getTrendSeries: (dataMode, itemId) => ipcRenderer.invoke(IPC.trendsSeries, dataMode, itemId),
   getQuestData: (dataMode, force) => ipcRenderer.invoke(IPC.questsData, dataMode, force === true),
   getQuestGuide: (wikiLink) => ipcRenderer.invoke(IPC.questsGuide, wikiLink),

@@ -11,6 +11,7 @@ import type {
   GameMode,
   PriceState,
   TrendAnalysis,
+  TrendInterval,
   TrendSeries,
   PublicSettings,
   SettingsPatch,
@@ -70,7 +71,8 @@ export interface TarkovApi {
   /** Loot per container for one map, or all maps combined when mapId is null. */
   getContainerLoot(mapId: string | null): Promise<ContainerLoot[]>
   /** Time-of-day price patterns from the app's own recordings over the last `days` days. */
-  analyzeTrends(dataMode: DataMode, days: number): Promise<TrendAnalysis>
+  /** Buy and sell times per item, with the day split into `intervalHours`-hour parts. */
+  analyzeTrends(dataMode: DataMode, days: number, intervalHours: TrendInterval): Promise<TrendAnalysis>
   /** tarkov.dev's daily price history for one item (the last 60 days). */
   getTrendSeries(dataMode: DataMode, itemId: string): Promise<TrendSeries>
   /** Quests and maps for a game mode's data (cached; `force` refetches). */

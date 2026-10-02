@@ -8,7 +8,10 @@
  * give quest guides with pictures and the story chapters' steps, and items must still have short names,
  * sizes and grid images (the scav case scanner reads screenshots with them).
  */
-import { rankTrends, todaySwing } from '../src/shared/fleaTrends'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { analyzeHistory, rankTrends, todaySwing } from '../src/shared/fleaTrends'
 import { levelRequirement } from '../src/shared/questProgress'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
 import type { DataMode, PriceDataset } from '../src/shared/types'
@@ -24,7 +27,7 @@ import { mapPlaces } from '../src/renderer/src/lib/storyMaps'
 import { storyQuests } from '../src/shared/storyQuests'
 import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../src/shared/db4tarkov'
 import type { MapConfig } from '../src/shared/questTypes'
-import { normalizeDailyHistory } from '../src/main/trends/trendService'
+import { createTarkovDevHistory, normalizeDailyHistory } from '../src/main/trends/history'
 
 /** Matches the recorder's default price floor (src/main/trends/recorder.ts). */
 const RECORDER_MIN_PRICE = 10_000
@@ -160,6 +163,55 @@ async function smokeTrends(dataset: PriceDataset): Promise<void> {
       `latest ${new Date(daily.at(-1)?.t ?? 0).toISOString()}`
   )
   check(priced.length >= 7, 'the daily price history has fewer than 7 points with a lowest price')
+
+  // Buy and sell times from tarkov.dev's last 30 days (a point every scan), for the 60 most-listed
+  // items, as the app works them out (3-hour parts of the day, UTC here).
+  const now = Date.now()
+  const history = await createTarkovDevHistory({
+    dir: await mkdtemp(join(tmpdir(), 'trends-')),
+    fetchFn: fetch,
+    maxItems: 60
+  }).load(dataMode, dataset)
+  const counts = [...history.byItem.values()].map((p) => p.length).sort((a, b) => a - b)
+  console.log(
+    `[trends ${dataMode}] 30-day history for ${history.byItem.size} items: ${counts[0] ?? 0}–${counts.at(-1) ?? 0} points each` +
+      (history.error ? ` · error: ${history.error}` : '')
+  )
+  check(history.byItem.size >= 50, "tarkov.dev's 30-day price history is missing")
+  check(
+    (counts[Math.floor(counts.length / 2)] ?? 0) > 150,
+    "tarkov.dev's 30-day price history has under 5 points a day"
+  )
+  const withStats = rows.map((row) => {
+    const points = history.byItem.get(row.item.id)
+    return {
+      ...row,
+      stats: points
+        ? analyzeHistory(points, {
+            now,
+            days: 30,
+            bucketHours: 3,
+            hourOf: (t) => new Date(t).getUTCHours(),
+            dayOf: (t) => new Date(t).toISOString().slice(0, 10),
+            basePrice: row.item.basePrice ?? null,
+            feeRates: dataset.fleaFeeRates
+          })
+        : null
+    }
+  })
+  const patterns = withStats.filter((row) => row.stats?.insufficient === null)
+  const passing = rankTrends(withStats, d, 'profit', true)
+  console.log(
+    `[trends ${dataMode}] ${patterns.length} items with buy and sell times · ${passing.length} pass the default filters ` +
+      `(profit ≥ ₽${d.minProfit.toLocaleString()}, worked on ≥ ${d.minConsistency * 100}% of days):`
+  )
+  for (const { item: i, stats } of passing.slice(0, 5))
+    console.log(
+      `  ${i.name}: buy ${stats!.buy!.startHour}:00 UTC ~₽${Math.round(stats!.buy!.price).toLocaleString()}, ` +
+        `sell ${stats!.sell!.startHour}:00 ~₽${Math.round(stats!.sell!.price).toLocaleString()}, ` +
+        `profit ₽${Math.round(stats!.profit ?? 0).toLocaleString()}, worked on ${stats!.consistency?.wins} of ${stats!.consistency?.days} days`
+    )
+  check(patterns.length >= 40, 'fewer than 40 items have buy and sell times from 30 days of prices')
 }
 
 /**

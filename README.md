@@ -4,8 +4,8 @@ A Windows desktop app that tells you which Escape from Tarkov items are worth th
 bag. Every item is ranked by **roubles per inventory slot**, using live flea market and trader
 prices, your PMC level and the game mode you play. It also has:
 
-- **Flea trends:** liquid flea items whose price follows a daily pattern, and the best time of day
-  to buy and to sell them;
+- **Flea trends:** liquid flea items whose price follows a daily pattern, the best time of day to
+  buy and to sell them, and which to buy or sell right now;
 - **Quests:** a quest tracker that ticks off quests as you start, finish or fail them in game, by
   reading the game's log files, with the main story's chapters, objectives you tick off as you go
   (and count, like 6/15 cigarettes handed over) or that the app ticks off itself where it can, each
@@ -62,45 +62,54 @@ next time you close the app.
 
 ### Flea trends
 
-tarkov.dev only publishes one historical price per day, so the app records prices itself. At each
-price refresh (at most every 15 minutes), it saves the lowest flea price and the number of offers
-up for the 300 most-listed items worth ₽10,000 or more in the current game mode. Recordings are
-kept for 30 days.
+Many flea prices follow the clock: across the most-traded items, prices are usually lowest around
+12:00–15:00 UTC (the European afternoon) and highest around 21:00–00:00 UTC (the American evening).
+The **Flea trends** tab finds when each item is usually cheapest and dearest, so you can buy at one
+time and sell at the other.
 
-Once there are **3 days** of recordings, each item gets:
+**Where the prices come from:**
 
-- **Buy at / Sell at:** the hour of day when its lowest price is usually cheapest and dearest, in
-  your time zone;
+- **tarkov.dev** keeps every price it checked over the last 30 days, about every 2 hours. The app
+  downloads that history for the 300 most-listed items worth ₽10,000 or more, the first time you
+  open the tab (it takes a few seconds), and refreshes each item every 2 hours while the tab is in
+  use. So buy and sell times are there straight away, for every hour of the day.
+- **The app's own recordings** add finer detail for the hours it runs: at each price refresh (at
+  most every 15 minutes), it saves the lowest price and offers up of the same items, for 30 days.
+  The sidebar shows which hours it has recorded.
+
+**Split the day into** 2-, 3-, 4- or 6-hour parts (3 by default). Shorter parts are more precise;
+longer ones are steadier, and tarkov.dev only checks a price about every 2 hours. Each day is
+compared with itself (each part's lowest price against that day's middle), so a price that rises
+or falls over the week isn't mistaken for a time of day. An item gets buy and sell times once it
+has prices at two or more times of day on 4 or more days. Each item shows:
+
+- **Now:** **Buy now** or **Sell now** when it's that time (in your time zone), otherwise how long
+  until the next one; tick **Only items to buy or sell now** to list just those;
+- **Day:** a strip with one cell per part of the day, blue where the item is usually cheaper than
+  the middle of its day and red where it's dearer (grey in between), with **B** and **S** on the
+  buy and sell parts and the part it is now outlined; point at a cell for its usual price;
+- **Buy at / Sell at:** the part of the day it's usually cheapest and dearest in, and at roughly
+  what price;
 - **Profit / unit:** the typical sell price minus the flea listing fee minus the typical buy price;
-- **Worked on:** how many of the recorded days that trade would have made money;
-- charts of its lowest price by hour of day (with the middle half of prices shaded) and of
-  tarkov.dev's daily lowest price over the last 60 days (click a row).
+- **Worked on:** how many days that trade would have made money;
+- charts of its lowest price by time of day (with the middle half of prices shaded) and over the
+  last 60 days (click a row).
 
-Until then, the list is ranked by **today's swing**: how far tarkov.dev's 24h high is above its 24h
-low. Ranges that include bait or mistaken listings (under 2/3 or over 1.5× the current price) are
-ignored. The buy and sell columns say "collecting".
+Until any item has buy and sell times, the list is ranked by **today's swing**: how far today's
+high is above today's low. Ranges that include bait or mistaken listings (under 2/3 or over 1.5×
+the current price) are ignored.
 
-The list is kept short by default. It shows only items that:
-
-- **swing 30% or more**: today's low to high while collecting, then between the cheapest and
-  dearest hour once patterns are ready;
-- have **at least 50 offers up** and cost **₽20,000 or more**;
-- once patterns are ready, make **₽5,000 or more per unit** after the fee and would have worked on
-  **at least 70% of days**;
-- you can trade on the flea at your level.
-
-All of these can be loosened in the sidebar. Look back 7, 14 or 30 days. Weapon presets are left
-out. If you used 1.3.0, filters you'd left at its looser defaults move to these ones; any you
-changed stay as you set them.
+The default filters show items that swing 15% or more on a usual day, have at least 25 offers up,
+cost ₽10,000 or more, make ₽2,000 or more per unit after the fee, worked on at least 60% of days,
+and that you can trade at your level. All of these can be loosened in the sidebar, and when the
+list is short it says which filter left out the most and offers to loosen it. Look back 7, 14 or
+30 days. Weapon presets are left out.
 
 "High volume" means **many offers up**: sales volume isn't published anywhere, so the number of
-active listings stands in for how quickly an item sells. Patterns are only as good as the hours
-the app was running for, so it lists any hours of the day with no recordings. To record around
-the clock, turn on **Keep running in the system tray when the window is closed** (in the Flea
-trends sidebar or Settings). Closing the window then leaves the app in the tray, still refreshing
-prices; use **Quit** in the tray menu to exit. **Start with Windows** starts it straight into the
-tray. Past patterns are no guarantee, and the flea listing fee is charged when you list, even if
-the item doesn't sell.
+active listings stands in for how quickly an item sells. To keep recording while the window is
+closed, turn on **Keep running in the system tray when the window is closed** (in the Flea trends
+sidebar or Settings); **Start with Windows** starts it straight into the tray. Past patterns are no
+guarantee, and the flea listing fee is charged when you list, even if the item doesn't sell.
 
 ### Hideout
 
