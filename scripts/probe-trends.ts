@@ -6,10 +6,7 @@
  */
 import { fleaMarketFee, type FleaFeeRates } from '../src/shared/fleaFee'
 
-const GQL = 'https://api.tarkov.dev/graphql'
 const JSON_BASE = 'https://json.tarkov.dev'
-const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
 const HOUR = 3_600_000
 
 type Raw = Record<string, unknown>
@@ -35,46 +32,6 @@ async function get(url: string, init: RequestInit = {}): Promise<{ status: numbe
     return { status: 0, text: String(err) }
   }
 }
-
-interface Variant {
-  name: string
-  run: (query: string) => Promise<{ status: number; text: string }>
-}
-
-const VARIANTS: Variant[] = [
-  {
-    name: 'POST',
-    run: (query) =>
-      get(GQL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ query })
-      })
-  },
-  {
-    name: 'POST+UA',
-    run: (query) =>
-      get(GQL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'User-Agent': BROWSER_UA,
-          Origin: 'https://tarkov.dev',
-          Referer: 'https://tarkov.dev/'
-        },
-        body: JSON.stringify({ query })
-      })
-  },
-  { name: 'GET', run: (query) => get(`${GQL}?query=${encodeURIComponent(query)}`) },
-  {
-    name: 'GET+UA',
-    run: (query) =>
-      get(`${GQL}?query=${encodeURIComponent(query)}`, {
-        headers: { 'User-Agent': BROWSER_UA, Origin: 'https://tarkov.dev', Referer: 'https://tarkov.dev/' }
-      })
-  }
-]
 
 interface Point {
   t: number
@@ -202,15 +159,7 @@ async function probeMode(mode: 'regular' | 'pve'): Promise<void> {
   const first = String(liquid[0]?.id)
 
   // Other JSON files that might hold intraday history.
-  for (const path of [
-    '',
-    `prices/${first}`,
-    `historical_prices/${first}`,
-    `historicalPrices/${first}`,
-    `historical-prices/${first}`,
-    `history/${first}`,
-    `prices_30d/${first}`
-  ]) {
+  for (const path of [`prices/${first}`]) {
     const res = await get(`${JSON_BASE}/${mode}/${path}`)
     let detail = res.text.slice(0, 160).replace(/\s+/g, ' ')
     if (res.status === 200) {
@@ -228,66 +177,24 @@ async function probeMode(mode: 'regular' | 'pve'): Promise<void> {
     console.log(`[probe ${mode}] json /${path}: HTTP ${res.status}: ${detail}`)
   }
 
-  // GraphQL: is it up at all, and from which kind of request?
-  const gqlMode = mode === 'regular' ? 'regular' : 'pve'
-  let working: Variant | null = null
-  for (const variant of VARIANTS) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const res = await variant.run(`{ status { generalStatus { name } } }`)
-      const ok = res.status === 200 && res.text.includes('generalStatus')
-      console.log(
-        `[probe ${mode}] graphql ${variant.name} status, try ${attempt}: HTTP ${res.status} ${res.text.slice(0, 160).replace(/\s+/g, ' ')}`
-      )
-      if (ok) {
-        working ??= variant
-        break
-      }
-      await new Promise((r) => setTimeout(r, 3000))
-    }
-  }
-  const history = async (ids: string[]): Promise<Map<string, Point[]> | null> => {
-    if (!working) return null
-    const query = `{ ${ids.map((id, i) => `h${i}: historicalItemPrices(id: "${id}", days: 30, gameMode: ${gqlMode}) { priceMin timestamp }`).join(' ')} }`
-    const res = await working.run(query)
-    if (res.status !== 200) {
-      console.log(`[probe ${mode}] history batch: HTTP ${res.status} ${res.text.slice(0, 200)}`)
-      return null
-    }
-    const body = JSON.parse(res.text) as { data?: Record<string, unknown>; errors?: unknown }
-    if (!body.data) {
-      console.log(`[probe ${mode}] history batch: no data ${JSON.stringify(body.errors).slice(0, 200)}`)
-      return null
-    }
-    return new Map(ids.map((id, i) => [id, toPoints(body.data![`h${i}`])]))
-  }
-  // Also try the history query directly on every variant, in case only the status query is blocked.
-  for (const variant of VARIANTS) {
-    const res = await variant.run(
-      `{ historicalItemPrices(id: "${first}", days: 30, gameMode: ${gqlMode}) { priceMin timestamp } }`
-    )
-    let detail = res.text.slice(0, 160).replace(/\s+/g, ' ')
-    try {
-      const points = toPoints((JSON.parse(res.text) as { data?: Raw }).data?.historicalItemPrices)
-      if (points.length) {
-        detail = `${points.length} points over ${((points.at(-1)!.t - points[0].t) / 86_400_000).toFixed(1)} days, ${gaps(points)}`
-        working ??= variant
-      }
-    } catch {
-      // not JSON
-    }
-    console.log(`[probe ${mode}] graphql ${variant.name} history: HTTP ${res.status}: ${detail}`)
-  }
-  if (!working) {
-    console.log(`[probe ${mode}] GraphQL history: NOT AVAILABLE from here`)
-    return
-  }
-
-  // Do lowest prices follow the time of day? 150 liquid items, 30 days.
+  // Do lowest prices follow the time of day? 150 liquid items, the JSON history's last 30 days.
   const top = liquid.slice(0, 150)
   const series = new Map<string, Point[]>()
-  for (let i = 0; i < top.length; i += 10) {
-    const batch = await history(top.slice(i, i + 10).map((item) => String(item.id)))
-    for (const [id, points] of batch ?? []) series.set(id, points)
+  for (let i = 0; i < top.length; i += 6) {
+    await Promise.all(
+      top.slice(i, i + 6).map(async (item) => {
+        const res = await get(`${JSON_BASE}/${mode}/prices/${String(item.id)}`)
+        if (res.status !== 200) return
+        try {
+          const points = toPoints((JSON.parse(res.text) as { data?: unknown }).data).filter(
+            (p) => p.t >= now - 30 * 24 * HOUR
+          )
+          series.set(String(item.id), points)
+        } catch {
+          // skip
+        }
+      })
+    )
   }
   const counts = [...series.values()].map((p) => p.length)
   console.log(`[probe ${mode}] history for ${series.size} items: points per item ${quantiles(counts)}`)
