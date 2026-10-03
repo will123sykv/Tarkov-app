@@ -210,6 +210,7 @@ describe('sanitizeSettings', () => {
       firOnly: false,
       keepOnly: false,
       sellOnly: false,
+      scanSellBuyable: false,
       tab: 'items'
     })
     const chosen = { scope: 'next', hideDone: true, firOnly: true, keepOnly: true, tab: 'upgrades' } as const
@@ -250,6 +251,10 @@ describe('sanitizeSettings', () => {
       sellOnly: false
     })
     expect(hideout({ keepOnly: true, sellOnly: true })).toMatchObject({ keepOnly: true, sellOnly: false })
+    // The screenshot scanner's "sell what I can buy back later" is off unless chosen (since 1.15.0).
+    expect(hideout({}).scanSellBuyable).toBe(false)
+    expect(hideout({ scanSellBuyable: true }).scanSellBuyable).toBe(true)
+    expect(hideout({ scanSellBuyable: 'yes' }).scanSellBuyable).toBe(false)
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

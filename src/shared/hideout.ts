@@ -245,6 +245,11 @@ export interface KeepInfo {
   hideout: number
   /** How many active quests want handed over or planted. */
   quests: number
+  /**
+   * How many of each of those must be found in raid (bought ones won't do). The copies put aside
+   * are taken to be the ones that needn't be, so this errs towards keeping.
+   */
+  fir: { hideout: number; quests: number }
   /** Why it'd be hard to replace, if it would. */
   scarce: Scarcity | null
 }
@@ -265,24 +270,54 @@ export function keepList(
     let info = result.get(itemId)
     if (!info) {
       const item = items.get(itemId)
-      info = { hideout: 0, quests: 0, scarce: item ? scarcity(item, ctx) : null }
+      info = {
+        hideout: 0,
+        quests: 0,
+        fir: { hideout: 0, quests: 0 },
+        scarce: item ? scarcity(item, ctx) : null
+      }
       result.set(itemId, info)
     }
     return info
   }
   // Money isn't loot to keep.
   for (const need of hideout)
-    if (need.missing > 0 && !CURRENCIES[need.itemId]) entry(need.itemId).hideout += need.missing
+    if (need.missing > 0 && !CURRENCIES[need.itemId]) {
+      const info = entry(need.itemId)
+      info.hideout += need.missing
+      info.fir.hideout += Math.min(need.missing, need.firNeeded)
+    }
   const hideoutNeeded = new Map(hideout.map((n) => [n.itemId, n.needed]))
-  const questNeeded = new Map<string, number>()
+  const questNeeded = new Map<string, { count: number; fir: number }>()
   for (const need of quests)
-    if (!CURRENCIES[need.itemId])
-      questNeeded.set(need.itemId, (questNeeded.get(need.itemId) ?? 0) + need.count)
-  for (const [itemId, count] of questNeeded) {
+    if (!CURRENCIES[need.itemId]) {
+      const total = questNeeded.get(need.itemId) ?? { count: 0, fir: 0 }
+      total.count += need.count
+      if (need.foundInRaid) total.fir += need.count
+      questNeeded.set(need.itemId, total)
+    }
+  for (const [itemId, { count, fir }] of questNeeded) {
     const spare = Math.max(0, (have[itemId] ?? 0) - (hideoutNeeded.get(itemId) ?? 0))
-    if (count > spare) entry(itemId).quests += count - spare
+    if (count > spare) {
+      const info = entry(itemId)
+      info.quests += count - spare
+      info.fir.quests += Math.min(count - spare, fir)
+    }
   }
   return result
+}
+
+/**
+ * The keep list with items that can be bought back now (not rare, nothing in the way) cut down to
+ * the copies that must be found in raid: the rest can be sold and bought again when needed.
+ */
+export function keepOnlyHardToReplace(keep: ReadonlyMap<string, KeepInfo>): Map<string, KeepInfo> {
+  return new Map(
+    [...keep].map(([itemId, info]) => [
+      itemId,
+      info.scarce ? info : { ...info, hideout: info.fir.hideout, quests: info.fir.quests }
+    ])
+  )
 }
 
 /** Items put aside that nothing left needs (no level still to build, no quest left), as rows of 0 needed. */

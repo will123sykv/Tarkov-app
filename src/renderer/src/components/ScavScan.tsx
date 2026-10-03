@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
 import { CURRENCIES } from '../../../shared/constants'
-import type { HideoutNeed, HideoutProgress } from '../../../shared/hideout'
+import {
+  buyOptions,
+  keepOnlyHardToReplace,
+  type BuyOption,
+  type HideoutNeed,
+  type HideoutProgress
+} from '../../../shared/hideout'
 import {
   adviseScan,
   lootAdditions,
@@ -36,7 +42,7 @@ import {
   type RgbaImage,
   type ScanTile
 } from '../lib/scavScan'
-import { useKeepList } from '../lib/useKeepList'
+import { useBuyContext, useKeepList } from '../lib/useKeepList'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
 
@@ -415,7 +421,16 @@ function ItemPicker({
   )
 }
 
-function Advice({ advice, item }: { advice: ScanAdvice; item: LootItem | undefined }): React.JSX.Element {
+function Advice({
+  advice,
+  item,
+  buyLater
+}: {
+  advice: ScanAdvice
+  item: LootItem | undefined
+  /** Set when it's sold only because it can be bought back: where and for how much. */
+  buyLater: BuyOption | null
+}): React.JSX.Element {
   if (!item) return <span className="badge warn">Pick the item</span>
   const keepFor = [
     advice.keepFor.hideout ? `hideout ×${advice.keepFor.hideout}` : null,
@@ -443,6 +458,15 @@ function Advice({ advice, item }: { advice: ScanAdvice; item: LootItem | undefin
             <span className="badge info">
               {advice.keep ? `Sell ${advice.sell}` : 'Sell'} {where}
             </span>
+            {buyLater && (
+              <span
+                className="muted nowrap"
+                title="The hideout or a quest needs it, but you can buy it back when you do"
+              >
+                {' '}
+                needed later · buy back {formatRub(buyLater.price)} ({buyLater.label})
+              </span>
+            )}
           </span>
         ) : (
           <span
@@ -493,7 +517,20 @@ export default function ScavScan({
   allNeeds: HideoutNeed[]
 }): React.JSX.Element {
   const state = useScan()
-  const keep = useKeepList(settings, priceState)
+  const keepAll = useKeepList(settings, priceState)
+  const buyCtx = useBuyContext(settings, priceState)
+  const updateSettings = useStore((s) => s.updateSettings)
+  // Optionally sell what's needed but easy to buy back, keeping only what's hard to replace.
+  const sellBuyable = settings.hideout.scanSellBuyable
+  const keep = useMemo(() => (sellBuyable ? keepOnlyHardToReplace(keepAll) : keepAll), [keepAll, sellBuyable])
+  /** For an item sold only because it can be bought back: the cheapest way to buy it back now. */
+  const buyLater = (itemId: string | null, item: LootItem | undefined): BuyOption | null => {
+    if (!sellBuyable || !itemId || !item) return null
+    const all = keepAll.get(itemId)
+    const kept = keep.get(itemId)
+    if (!all || !kept || all.hideout + all.quests <= kept.hideout + kept.quests) return null
+    return buyOptions(item, buyCtx).options[0] ?? null
+  }
   const setHaveMany = useStore((s) => s.setHideoutHaveMany)
   const [picking, setPicking] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
@@ -1018,9 +1055,26 @@ export default function ScavScan({
                 <div className="muted scan-note">
                   Keeps what your active quests need and what the hideout needs for{' '}
                   {settings.hideout.scope === 'next' ? 'the next level of each station' : 'every level left'}{' '}
-                  (see <em>Count items for</em>), sells the rest where it pays most at level {ctx.playerLevel}
-                  .
+                  (see <em>Count items for</em>)
+                  {sellBuyable &&
+                    ', except what you can buy back now: only the rare ones, the ones you can’t buy yet and the ones that must be found in raid'}
+                  , and sells the rest where it pays most at level {ctx.playerLevel}.
                 </div>
+                <label
+                  className="check scan-note"
+                  title="Sell needed items you can buy back now on the flea or from a trader, and buy them again when you need them"
+                >
+                  <input
+                    type="checkbox"
+                    checked={sellBuyable}
+                    onChange={(e) =>
+                      void updateSettings({
+                        hideout: { ...settings.hideout, scanSellBuyable: e.target.checked }
+                      })
+                    }
+                  />
+                  Sell what I can buy back later
+                </label>
               </div>
             )}
             {stash && (
@@ -1187,7 +1241,7 @@ export default function ScavScan({
                         {mode === 'stash' ? (
                           <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
                         ) : (
-                          <Advice advice={a} item={item} />
+                          <Advice advice={a} item={item} buyLater={buyLater(r.itemId, item)} />
                         )}
                       </td>
                       <td className="num">

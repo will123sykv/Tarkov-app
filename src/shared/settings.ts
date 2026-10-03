@@ -80,6 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
     firOnly: false,
     keepOnly: false,
     sellOnly: false,
+    scanSellBuyable: false,
     tab: 'items'
   }
 }
@@ -131,6 +132,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
     // The two "only" filters contradict each other; keep the older one if both were saved.
     keepOnly: r.keepOnly === true,
     sellOnly: r.sellOnly === true && r.keepOnly !== true,
+    scanSellBuyable: r.scanSellBuyable === true,
     tab: r.tab === 'upgrades' || r.tab === 'scav' ? r.tab : 'items'
   }
 }

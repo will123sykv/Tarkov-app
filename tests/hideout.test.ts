@@ -6,6 +6,7 @@ import {
   handOversLeft,
   hideoutNeeds,
   keepList,
+  keepOnlyHardToReplace,
   scarcity,
   sellAdvice,
   startingLevel,
@@ -230,19 +231,34 @@ describe('what the player can buy, and rare items', () => {
       ledx: {
         hideout: 1,
         quests: 1,
+        fir: { hideout: 1, quests: 1 },
         scarce: { kind: 'rare', reason: '₽610,000 to buy back on the flea market' }
       },
-      salewa: { hideout: 0, quests: 3, scarce: null }
+      salewa: { hideout: 0, quests: 3, fir: { hideout: 0, quests: 3 }, scarce: null }
     })
     // What's put aside covers the hideout first, then the quests.
     expect(Object.fromEntries(keepList(needs, quests, items, ctx(), { ledx: 1, salewa: 2 }))).toMatchObject({
-      ledx: { hideout: 1, quests: 1 },
-      salewa: { hideout: 0, quests: 1 }
+      ledx: { hideout: 1, quests: 1, fir: { hideout: 1, quests: 1 } },
+      salewa: { hideout: 0, quests: 1, fir: { hideout: 0, quests: 1 } }
     })
     // Before the flea opens, the common one can't be bought yet either.
     expect(keepList(needs, quests, items, ctx({ playerLevel: 5 })).get('salewa')?.scarce).toEqual({
       kind: 'locked',
       reason: 'You can’t buy it yet (flea at level 15)'
+    })
+  })
+
+  it('keeps only what’s hard to replace, or must be found in raid, when buying back later is fine', () => {
+    const scarce = { kind: 'rare', reason: 'Rare' } as const
+    const keep = new Map([
+      ['bolts', { hideout: 6, quests: 2, fir: { hideout: 0, quests: 0 }, scarce: null }],
+      ['salewa', { hideout: 0, quests: 3, fir: { hideout: 0, quests: 2 }, scarce: null }],
+      ['ledx', { hideout: 1, quests: 0, fir: { hideout: 0, quests: 0 }, scarce }]
+    ])
+    expect(Object.fromEntries(keepOnlyHardToReplace(keep))).toEqual({
+      bolts: { hideout: 0, quests: 0, fir: { hideout: 0, quests: 0 }, scarce: null },
+      salewa: { hideout: 0, quests: 2, fir: { hideout: 0, quests: 2 }, scarce: null },
+      ledx: keep.get('ledx')
     })
   })
 })

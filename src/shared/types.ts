@@ -163,6 +163,11 @@ export interface HideoutSettings {
   keepOnly: boolean
   /** Only items the player could sell: extras, or ones they can buy back now (since 1.14.0). */
   sellOnly: boolean
+  /**
+   * Screenshots of new loot: sell what's needed but can be bought back now, keeping only what's hard
+   * to replace or must be found in raid (since 1.15.0).
+   */
+  scanSellBuyable: boolean
   /** Items needed, the next upgrades, or the screenshot scanner. */
   tab: 'items' | 'upgrades' | 'scav'
 }

@@ -21,7 +21,7 @@ import {
   type RgbaImage,
   type ScanTile
 } from '../src/renderer/src/lib/scavScan'
-import type { HideoutNeed, KeepInfo } from '../src/shared/hideout'
+import { keepOnlyHardToReplace, type HideoutNeed, type KeepInfo } from '../src/shared/hideout'
 import { adviseScan, lootAdditions, scanTotals, stashCounts } from '../src/shared/scavAdvice'
 import type { LootItem } from '../src/shared/types'
 
@@ -385,10 +385,15 @@ describe('what to keep and what to sell', () => {
     ].map((i) => [i.id, i])
   )
   const keep = new Map<string, KeepInfo>([
-    ['bolts', { hideout: 3, quests: 1, scarce: null }],
+    ['bolts', { hideout: 3, quests: 1, fir: { hideout: 1, quests: 0 }, scarce: null }],
     [
       'ledx',
-      { hideout: 1, quests: 0, scarce: { kind: 'rare', reason: 'Can’t be bought on the flea market' } }
+      {
+        hideout: 1,
+        quests: 0,
+        fir: { hideout: 0, quests: 0 },
+        scarce: { kind: 'rare', reason: 'Can’t be bought on the flea market' }
+      }
     ]
   ])
   const ctx = { playerLevel: 20, fleaMinLevel: 15, subtractFleaFee: true }
@@ -422,6 +427,26 @@ describe('what to keep and what to sell', () => {
     expect(advice[2].scarce?.kind).toBe('rare')
     expect(advice[3]).toMatchObject({ trader: 'Therapist', each: 4_000, total: 12_000 })
     expect(scanTotals(advice)).toEqual({ sell: 66_000, flea: 54_000, traders: 12_000, keep: 5 })
+  })
+
+  it('sells what can be bought back later, keeping what’s rare or must be found in raid', () => {
+    const advice = adviseScan(
+      [
+        { itemId: 'bolts', count: 2 },
+        { itemId: 'bolts', count: 5 },
+        { itemId: 'ledx', count: 1 }
+      ],
+      items,
+      keepOnlyHardToReplace(keep),
+      ctx
+    )
+    // Bolts can be bought back: only the one that must be found in raid is kept. The LEDX is rare.
+    expect(advice.map((a) => [a.keep, a.sell])).toEqual([
+      [1, 1],
+      [0, 5],
+      [1, 0]
+    ])
+    expect(scanTotals(advice)).toMatchObject({ sell: 6 * 18_000, keep: 2 })
   })
 
   it('keeps stacks already added to the hideout’s counts, and adds only what’s new', () => {

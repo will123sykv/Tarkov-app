@@ -180,7 +180,10 @@ stash and cases).
 setting, or your active quests, and a **Rare** or **Can't buy yet** badge when it would be hard to
 replace), **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the
 flea fee, if that setting is on). Several stacks of one item are kept until the need is met, and the
-rest sold. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
+rest sold. Tick **Sell what I can buy back later** to keep only what's hard to replace (rare items,
+ones you can't buy yet at your level and trader loyalty, and copies that must be found in raid):
+needed items you can buy back now on the flea or from a trader are sold instead, marked **needed
+later** with what buying them back costs and where. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
 you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
 again). A haul that takes two screenshots can be read together with **Add another**.
 
