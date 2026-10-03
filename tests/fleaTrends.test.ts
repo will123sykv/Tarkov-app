@@ -213,10 +213,27 @@ describe('analyzeHistory', () => {
       low: 8_000,
       high: 13_000,
       swing: 5 / 8,
-      hours: 24
+      hours: 24,
+      prices: points.filter((p) => p.t >= NOW - 24 * HOUR).length
     })
     // Five hours aren't enough to judge the day by.
     expect(analyzeHistory(record(1, cycle, NOW - 5 * HOUR).slice(0, 20), opts()).recent).toBeNull()
+  })
+
+  it("doesn't call one price all day a 0% swing, and lets tarkov.dev's checks show the range", () => {
+    // The same price every 15 minutes all day: an old copy recorded over and over.
+    const flat = record(1, () => 10_000)
+    expect(analyzeHistory(flat, opts()).recent).toBeNull()
+    // tarkov.dev's checks every 2 hours over the same day do move.
+    const checks = Array.from({ length: 12 }, (_, i) => ({
+      t: NOW - 23 * HOUR + i * 2 * HOUR,
+      price: null,
+      priceMin: i === 3 ? 9_000 : i === 9 ? 11_500 : 10_000,
+      offers: 40
+    }))
+    // Recorded once (the recorder skips repeats), next to the checks.
+    const merged = [flat[0], ...checks]
+    expect(analyzeHistory(merged, opts()).recent).toMatchObject({ low: 9_000, high: 11_500, prices: 13 })
   })
 
   it('uses the dataset fee rates', () => {
@@ -305,11 +322,16 @@ describe('currentSwing', () => {
     const bait = item('bait', { high24hPrice: 99_999 })
     expect(currentSwing(row(bait))).toBeNull()
     expect(
-      currentSwing(row(bait, pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12 } })))
+      currentSwing(
+        row(bait, pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12, prices: 48 } }))
+      )
     ).toBe(0.2)
     expect(currentSwing(row(item('a')))).toBeCloseTo(2_000 / 9_000)
     // While collecting, the swing filter goes by it.
-    const recorded = row(bait, pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12 } }))
+    const recorded = row(
+      bait,
+      pattern({ recent: { low: 9_000, high: 10_800, swing: 0.2, hours: 12, prices: 48 } })
+    )
     expect(ids(rankTrends([recorded], filters({ minSwing: 0.15 }), 'swing', false))).toEqual(['bait'])
   })
 })

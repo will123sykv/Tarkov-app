@@ -157,7 +157,8 @@ describe('the trend service with both sources', () => {
     const recorder = createPriceRecorder({ dir, now: () => t, minPrice: 0 })
     for (; t <= NOW; t += 15 * MIN) {
       const hour = new Date(t).getUTCHours()
-      if (hour >= 18) await recorder.record(dataset([item('a', 50)]))
+      // The offer count changes with every snapshot, as it does live.
+      if (hour >= 18) await recorder.record(dataset([item('a', 50 + ((t / (15 * MIN)) % 2))]))
     }
     const service = createTrendService({
       recorder,

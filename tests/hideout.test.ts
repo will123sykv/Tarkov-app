@@ -3,14 +3,20 @@ import { describe, expect, it } from 'vitest'
 import {
   buyOptions,
   EMPTY_HIDEOUT,
+  handOversLeft,
   hideoutNeeds,
   keepList,
   scarcity,
+  sellAdvice,
   startingLevel,
   stationLevel,
   type BuyContext,
+  unneededHave,
   upgradeStatus
 } from '../src/shared/hideout'
+import { normalizeQuestData } from '../src/main/quests/questData'
+import { neededItems, setObjective } from '../src/shared/questProgress'
+import { Q, RAW_QUEST_DATA } from './questFixtures'
 import { createPlayerStore } from '../src/main/quests/playerStore'
 import type { HideoutLevel, HideoutStation } from '../src/shared/questTypes'
 import type { LootItem } from '../src/shared/types'
@@ -228,6 +234,11 @@ describe('what the player can buy, and rare items', () => {
       },
       salewa: { hideout: 0, quests: 3, scarce: null }
     })
+    // What's put aside covers the hideout first, then the quests.
+    expect(Object.fromEntries(keepList(needs, quests, items, ctx(), { ledx: 1, salewa: 2 }))).toMatchObject({
+      ledx: { hideout: 1, quests: 1 },
+      salewa: { hideout: 0, quests: 1 }
+    })
     // Before the flea opens, the common one can't be bought yet either.
     expect(keepList(needs, quests, items, ctx({ playerLevel: 5 })).get('salewa')?.scarce).toEqual({
       kind: 'locked',
@@ -379,7 +390,7 @@ describe('upgradeStatus', () => {
 describe('hideout progress', () => {
   it('keeps station levels and items put aside per game mode, and building uses them up', async () => {
     const file = join(await tempDir(), 'player.json')
-    const store = createPlayerStore({ file })
+    const store = createPlayerStore({ file, now: () => 1_000 })
     expect(await store.hideout('pvp')).toEqual(EMPTY_HIDEOUT)
     await store.setStationLevel('pvp', 'lav', 1)
     await store.setHave('pvp', 'bolts', 8)
@@ -391,16 +402,23 @@ describe('hideout progress', () => {
     expect(await store.build('pvp', 'lav', 2, LAVATORY.levels[1].items)).toEqual({
       levels: { lav: 2 },
       have: { bolts: 2 },
-      traders: { mechanic: 3, skier: 4 }
+      traders: { mechanic: 3, skier: 4 },
+      haveAt: { bolts: 1_000 }
     })
     // Saved, and each mode is its own.
     const reopened = createPlayerStore({ file })
     expect(await reopened.hideout('pvp')).toEqual({
       levels: { lav: 2 },
       have: { bolts: 2 },
-      traders: { mechanic: 3, skier: 4 }
+      traders: { mechanic: 3, skier: 4 },
+      haveAt: { bolts: 1_000 }
     })
-    expect(await reopened.hideout('pve')).toEqual({ levels: {}, have: { bolts: 2 }, traders: {} })
+    expect(await reopened.hideout('pve')).toEqual({
+      levels: {},
+      have: { bolts: 2 },
+      traders: {},
+      haveAt: { bolts: 1_000 }
+    })
     expect(await reopened.hideout('season')).toEqual(EMPTY_HIDEOUT)
   })
 
@@ -445,5 +463,195 @@ describe('hideout progress', () => {
       have: {},
       traders: {}
     })
+  })
+})
+
+describe('quest items in the tracker', () => {
+  const quests = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 0).quests
+  const debut = quests.find((q) => q.id === Q.debut)!
+  const BOTTLE = '5448be9a4bdc2dfd2f8b456a'
+
+  it('adds quest hand-overs to the hideout’s needs, with the quests listed', () => {
+    const fromQuests = [
+      ...neededItems([debut]).items,
+      { itemId: 'bolts', count: 3, foundInRaid: false, quests: [{ questId: 'q1', name: 'Q1', count: 3 }] }
+    ]
+    const needs = hideoutNeeds(
+      [LAVATORY],
+      { levels: { lav: 2 }, have: { [BOTTLE]: 1 }, traders: {} },
+      'all',
+      fromQuests
+    )
+    expect(needs.find((n) => n.itemId === BOTTLE)).toEqual({
+      itemId: BOTTLE,
+      foundInRaid: true,
+      needed: 2,
+      firNeeded: 2,
+      have: 1,
+      missing: 1,
+      uses: [],
+      quests: [{ questId: Q.debut, name: 'Debut', count: 2, foundInRaid: true }]
+    })
+    expect(needs.find((n) => n.itemId === 'bolts')).toMatchObject({
+      needed: 13,
+      firNeeded: 0,
+      uses: [{ stationId: 'lav', level: 3, count: 10 }],
+      quests: [{ questId: 'q1', count: 3, foundInRaid: false }]
+    })
+  })
+
+  it('lists counts put aside that nothing left needs', () => {
+    const progress = { levels: {}, have: { bolts: 2, junk: 4, [ROUBLES]: 9 }, traders: {} }
+    const needs = hideoutNeeds([LAVATORY], progress, 'all')
+    expect(unneededHave(progress, needs)).toEqual([
+      {
+        itemId: 'junk',
+        foundInRaid: false,
+        needed: 0,
+        firNeeded: 0,
+        have: 4,
+        missing: 0,
+        uses: [],
+        quests: []
+      }
+    ])
+  })
+
+  it('works out what a quest still wants handed over', () => {
+    expect(handOversLeft(debut, undefined)).toEqual([{ itemId: BOTTLE, count: 2 }])
+    expect(handOversLeft(debut, setObjective({}, Q.debut, 'o-debut-give', 1))).toEqual([
+      { itemId: BOTTLE, count: 1 }
+    ])
+    expect(handOversLeft(debut, setObjective({}, Q.debut, 'o-debut-give', 2))).toEqual([])
+  })
+
+  it('takes hand-overs off what is put aside: ticked in the Quests tab, or completed per the logs', async () => {
+    let t = 1_000
+    const store = createPlayerStore({ file: join(await tempDir(), 'player.json'), now: () => t })
+    await store.setHave('pvp', BOTTLE, 5)
+    // Ticking two handed over, then one back.
+    await store.setObjective('pvp', Q.debut, 'o-debut-give', 2, BOTTLE)
+    expect((await store.hideout('pvp')).have[BOTTLE]).toBe(3)
+    await store.setObjective('pvp', Q.debut, 'o-debut-give', 1, BOTTLE)
+    expect((await store.hideout('pvp')).have[BOTTLE]).toBe(4)
+    // An objective that hands nothing over leaves the count alone.
+    await store.setObjective('pvp', Q.debut, 'o-debut-shoot', 3, null)
+    expect((await store.hideout('pvp')).have[BOTTLE]).toBe(4)
+
+    // The logs say Debut was handed in at 500, before the count was last set: already counted.
+    expect(await store.handOver('pvp', [{ itemId: BOTTLE, count: 1 }], 500)).toBe(false)
+    // At 2,000, after it: it comes off.
+    t = 3_000
+    expect(await store.handOver('pvp', [{ itemId: BOTTLE, count: 1 }], 2_000)).toBe(true)
+    expect((await store.hideout('pvp')).have[BOTTLE]).toBe(3)
+    // Nothing put aside: nothing to take off.
+    expect(await store.handOver('pvp', [{ itemId: 'other', count: 2 }], 2_500)).toBe(false)
+  })
+
+  it('reports quests newly completed by the logs, and none when old logs are read again', async () => {
+    const store = createPlayerStore({ file: join(await tempDir(), 'player.json'), now: () => 1_000 })
+    const done = { kind: 'quest', mode: 'pvp', questId: Q.debut, status: 'completed', t: 50 } as const
+    const started = { ...done, status: 'started', t: 10 } as const
+    expect((await store.applyEvents([started, done], false)).completed).toEqual([
+      { mode: 'pvp', questId: Q.debut, at: 50 }
+    ])
+    expect((await store.applyEvents([started, done], true)).completed).toEqual([])
+  })
+
+  it('gives counts saved before 1.14.0 a time, so older log events never take them off', async () => {
+    const file = join(await tempDir(), 'player.json')
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        progress: {},
+        history: {},
+        hideout: { pvp: { levels: {}, have: { [BOTTLE]: 2 } } }
+      })
+    )
+    const store = createPlayerStore({ file, now: () => 9_000 })
+    expect((await store.hideout('pvp')).haveAt).toEqual({ [BOTTLE]: 9_000 })
+    expect(await store.handOver('pvp', [{ itemId: BOTTLE, count: 2 }], 8_000)).toBe(false)
+  })
+})
+
+describe('sell advice', () => {
+  const item = (extra: Partial<LootItem> = {}): LootItem => ({
+    id: 'x',
+    name: 'X',
+    shortName: 'X',
+    iconLink: null,
+    wikiLink: null,
+    width: 1,
+    height: 1,
+    slots: 1,
+    types: [],
+    category: null,
+    bannedOnFlea: false,
+    minLevelForFlea: null,
+    fleaPrice: 30_000,
+    fleaFee: 2_000,
+    bestTrader: { name: 'Therapist', price: 15_000 },
+    offerCount: 50,
+    buyFrom: [],
+    ...extra
+  })
+  const ctx = (extra: Partial<BuyContext> = {}): BuyContext => ({
+    playerLevel: 30,
+    fleaMinLevel: 15,
+    traderLevels: {},
+    completedQuests: new Set(),
+    ...extra
+  })
+  const need = (have: number, needed: number, firNeeded = 0) => ({ have, needed, firNeeded })
+
+  it('sells what can be bought back now, keeping copies that must be found in raid', () => {
+    expect(sellAdvice(need(3, 5), item(), ctx())).toEqual({
+      count: 3,
+      reason: 'buyBack',
+      keepFir: 0,
+      sellEach: 28_000,
+      sellVia: 'flea',
+      buyBack: { source: 'flea', label: 'Flea', price: 30_000 }
+    })
+    expect(sellAdvice(need(3, 5, 2), item(), ctx())).toMatchObject({ count: 1, keepFir: 2 })
+    expect(sellAdvice(need(3, 5, 3), item(), ctx())).toBeNull()
+    expect(sellAdvice(need(0, 5), item(), ctx())).toBeNull()
+  })
+
+  it('counts a trader who sells it to the player as buying back, and sells to the better buyer', () => {
+    const traderOnly = item({
+      bannedOnFlea: true,
+      buyFrom: [{ traderId: 'mech', trader: 'Mechanic', level: 2, price: 20_000, questId: null }]
+    })
+    expect(sellAdvice(need(2, 4), traderOnly, ctx({ traderLevels: { mech: 2 } }))).toMatchObject({
+      count: 2,
+      reason: 'buyBack',
+      sellEach: 15_000,
+      sellVia: 'Therapist',
+      buyBack: { source: 'trader', label: 'Mechanic LL2', price: 20_000 }
+    })
+    // Below that loyalty it can't be bought back: keep it.
+    expect(sellAdvice(need(2, 4), traderOnly, ctx())).toBeNull()
+  })
+
+  it('only sells extras of what is rare or can’t be bought yet', () => {
+    const rare = item({ bannedOnFlea: true })
+    expect(sellAdvice(need(5, 3), rare, ctx())).toMatchObject({ count: 2, reason: 'extra', buyBack: null })
+    expect(sellAdvice(need(2, 3), rare, ctx())).toBeNull()
+    // Before the flea opens.
+    expect(sellAdvice(need(2, 3), item(), ctx({ playerLevel: 10 }))).toBeNull()
+    expect(sellAdvice(need(4, 3), item(), ctx({ playerLevel: 10 }))).toMatchObject({
+      count: 1,
+      reason: 'extra',
+      sellVia: 'Therapist'
+    })
+    // Scarce on the flea (few offers, pricey).
+    expect(sellAdvice(need(2, 3), item({ offerCount: 2 }), ctx())).toBeNull()
+  })
+
+  it('calls extras extra even when they can be bought back', () => {
+    expect(sellAdvice(need(4, 0), item(), ctx())).toMatchObject({ count: 4, reason: 'extra' })
+    expect(sellAdvice(need(4, 2, 2), item(), ctx())).toMatchObject({ count: 2, reason: 'extra', keepFir: 2 })
   })
 })

@@ -55,6 +55,8 @@ export function createPriceRecorder(opts: RecorderOptions) {
   const minPrice = Math.max(1, opts.minPrice ?? 10_000)
   const retentionDays = opts.retentionDays ?? 30
   const lastRecorded = new Map<DataMode, number>()
+  /** What the last snapshot held, to skip recording the same prices again. */
+  const lastContent = new Map<DataMode, string>()
   const lastPruned = new Map<DataMode, string>()
   const modeDir = (dataMode: DataMode): string => join(opts.dir, dataMode)
 
@@ -77,14 +79,18 @@ export function createPriceRecorder(opts: RecorderOptions) {
       if (previous !== undefined && t - previous < intervalMs) return 0
       const liquid = liquidItems(dataset.items, minPrice, maxItems)
       if (liquid.length === 0) return 0
-      lastRecorded.set(dataset.dataMode, t)
-      await mkdir(modeDir(dataset.dataMode), { recursive: true })
-      const line = JSON.stringify([
-        t,
+      const content = JSON.stringify([
         liquid.map((i) => i.id),
         liquid.map((i) => i.fleaPrice),
         liquid.map((i) => i.offerCount)
       ])
+      // Nothing changed since the last snapshot (tarkov.dev hasn't checked prices again): recording
+      // it again would only make the same prices look like a steady price.
+      if (lastContent.get(dataset.dataMode) === content) return 0
+      lastContent.set(dataset.dataMode, content)
+      lastRecorded.set(dataset.dataMode, t)
+      await mkdir(modeDir(dataset.dataMode), { recursive: true })
+      const line = `[${t},${content.slice(1)}`
       await appendFile(join(modeDir(dataset.dataMode), `${fileDay(t)}.ndjson`), line + '\n', 'utf8')
       await prune(dataset.dataMode)
       return liquid.length
@@ -103,6 +109,8 @@ export function createPriceRecorder(opts: RecorderOptions) {
         .filter((f) => f.endsWith('.ndjson') && f.slice(0, 10) >= firstFile)
         .sort()
       const byItem = new Map<string, HistoryPoint[]>()
+      // Snapshots the same as the one before (recorded before 1.14.0 from an old cached copy) count once.
+      let previous = ''
       for (const file of files) {
         const text = await readFile(join(modeDir(dataMode), file), 'utf8').catch(() => '')
         for (const line of text.split('\n')) {
@@ -116,6 +124,9 @@ export function createPriceRecorder(opts: RecorderOptions) {
           if (!Array.isArray(snapshot)) continue
           const [t, ids, prices, offers] = snapshot as [unknown, unknown, unknown, unknown]
           if (typeof t !== 'number' || t < from || !Array.isArray(ids) || !Array.isArray(prices)) continue
+          const content = line.slice(line.indexOf(','))
+          if (content === previous) continue
+          previous = content
           const counts = Array.isArray(offers) ? offers : []
           ids.forEach((id, i) => {
             const priceMin = prices[i]

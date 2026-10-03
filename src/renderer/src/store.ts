@@ -146,6 +146,9 @@ export const useStore = create<AppStore>((set, get) => ({
       api.onLogHistory(({ gameMode, history }) =>
         set((s) => ({ logHistory: { ...s.logHistory, [gameMode]: history } }))
       ),
+      api.onHideoutProgress(({ gameMode, hideout }) =>
+        set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+      ),
       api.onLogStatus((logStatus) => set({ logStatus }))
     ]
     void api.getLogStatus().then((logStatus) => set((s) => (s.logStatus ? s : { logStatus })))
@@ -314,7 +317,12 @@ export const useStore = create<AppStore>((set, get) => ({
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
     const objectives = await window.api.setObjectiveProgress(gameMode, questId, objectiveId, value)
-    set((s) => ({ objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives } }))
+    // A hand-over takes the items off what's put aside.
+    const hideout = await window.api.getHideoutProgress(gameMode)
+    set((s) => ({
+      objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives },
+      hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout }
+    }))
   },
 
   async setQuestStatus(questId, status) {

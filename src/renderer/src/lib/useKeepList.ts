@@ -39,7 +39,10 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
   )
 }
 
-/** Items not to sell: what the hideout (in the Hideout tab's scope) and active quests still need. */
+/**
+ * Items not to sell: what the hideout (in the Hideout tab's scope) and active quests still need,
+ * less what's put aside for them.
+ */
 export function useKeepList(
   current: PublicSettings | null,
   priceState: PriceState | null
@@ -57,6 +60,6 @@ export function useKeepList(
       rows.filter((r) => r.status === 'active').map((r) => r.quest),
       objectives
     ).items
-    return keepList(hideout, quests, items, ctx)
+    return keepList(hideout, quests, items, ctx, progress.have)
   }, [stations, progress, scope, rows, items, ctx, objectives])
 }

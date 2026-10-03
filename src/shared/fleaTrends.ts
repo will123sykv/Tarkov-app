@@ -66,8 +66,11 @@ export interface TrendStats {
   latestMin: number | null
   /** Hours from the start of the buy slot to the start of the sell slot. */
   holdHours: number | null
-  /** The last 24 hours' cheapest and dearest hour (hourly medians), once enough hours are recorded. */
-  recent: { low: number; high: number; swing: number; hours: number } | null
+  /**
+   * The last 24 hours' cheapest and dearest hour (hourly medians), once enough hours have prices and
+   * the price has changed at least once. `prices` is how many prices it's from.
+   */
+  recent: { low: number; high: number; swing: number; hours: number; prices: number } | null
   /** Start hours of the intervals with enough days of prices (all of them when the whole day is known). */
   coveredHours: number[]
 }
@@ -130,17 +133,22 @@ function emptyStats(
  */
 function recentRange(window: readonly HistoryPoint[], now: number): TrendStats['recent'] {
   const byHour = new Map<number, number[]>()
+  const distinct = new Set<number>()
+  let prices = 0
   for (let i = window.length - 1; i >= 0 && window[i].t >= now - 24 * HOUR; i--) {
     const hour = Math.floor(window[i].t / HOUR)
     const values = byHour.get(hour)
     if (values) values.push(window[i].priceMin!)
     else byHour.set(hour, [window[i].priceMin!])
+    distinct.add(window[i].priceMin!)
+    prices++
   }
-  if (byHour.size < RECENT_MIN_HOURS) return null
+  // One price all day says more about the feed (an old copy over and over) than about the market.
+  if (byHour.size < RECENT_MIN_HOURS || distinct.size < 2) return null
   const medians = [...byHour.values()].map(median)
   const low = Math.min(...medians)
   const high = Math.max(...medians)
-  return { low, high, swing: low > 0 ? (high - low) / low : 0, hours: byHour.size }
+  return { low, high, swing: low > 0 ? (high - low) / low : 0, hours: byHour.size, prices }
 }
 
 /**

@@ -35,7 +35,9 @@ export async function fetchJson(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetchFn(url, { ...init, signal: controller.signal })
+    // Always the current copy: Electron's net.fetch would otherwise reuse a cached response that
+    // the server allows to be cached, and the app would keep showing (and recording) old prices.
+    const res = await fetchFn(url, { cache: 'no-store', ...init, signal: controller.signal })
     if (!res.ok) {
       const status = `HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`
       const detail = describeErrorBody(await res.text().catch(() => ''))

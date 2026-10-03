@@ -75,8 +75,26 @@ describe('createPriceRecorder', () => {
     expect(await recorder.record(dataset(items))).toBe(0)
     expect(await recorder.record(dataset(items, 'pve'))).toBe(1)
     c.advance(10 * MIN)
-    expect(await recorder.record(dataset(items))).toBe(1)
+    expect(await recorder.record(dataset([item('a', 51)]))).toBe(1)
     expect((await recorder.load('pvp', 1)).get('a')).toHaveLength(2)
+  })
+
+  it('skips a snapshot the same as the last one, and counts repeats already on disk once', async () => {
+    const dir = await tempDir()
+    const c = clock()
+    const recorder = createPriceRecorder({ dir, now: c.now, intervalMs: 15 * MIN })
+    expect(await recorder.record(dataset([item('a', 50)]))).toBe(1)
+    c.advance(15 * MIN)
+    // tarkov.dev hasn't checked again: the same prices aren't recorded twice.
+    expect(await recorder.record(dataset([item('a', 50)]))).toBe(0)
+    c.advance(15 * MIN)
+    expect(await recorder.record(dataset([item('a', 50, { fleaPrice: 11_000 })]))).toBe(1)
+    // An older version recorded an old cached copy over and over.
+    const file = join(dir, 'pvp', '2026-09-28.ndjson')
+    const repeat = (t: number): string => `[${t},["a"],[11000],[50]]\n`
+    await appendFile(file, repeat(NOW + 45 * MIN) + repeat(NOW + 60 * MIN) + repeat(NOW + 75 * MIN), 'utf8')
+    c.advance(HOUR)
+    expect((await recorder.load('pvp', 1)).get('a')?.map((p) => p.priceMin)).toEqual([10_000, 11_000])
   })
 
   it('loads recordings within the look-back window and skips damaged lines', async () => {
@@ -114,11 +132,11 @@ describe('createPriceRecorder', () => {
     await writeFile(join(dir, 'pvp', '2026-08-01.ndjson'), '', 'utf8')
     await writeFile(join(dir, 'pvp', '2026-08-30.ndjson'), '', 'utf8')
     c.advance(HOUR)
-    await recorder.record(dataset([item('a', 50)]))
+    await recorder.record(dataset([item('a', 51)]))
     // Already pruned today.
     expect(await readdir(join(dir, 'pvp'))).toHaveLength(3)
     c.advance(DAY)
-    await recorder.record(dataset([item('a', 50)]))
+    await recorder.record(dataset([item('a', 52)]))
     expect((await readdir(join(dir, 'pvp'))).sort()).toEqual([
       '2026-08-30.ndjson',
       '2026-09-28.ndjson',
@@ -158,7 +176,8 @@ describe('createTrendService', () => {
     for (let t = NOW - days * DAY; t <= NOW; t += HOUR) {
       const hour = new Date(t).getUTCHours()
       const price = hour === 4 ? 8_000 : hour === 20 ? 13_000 : 10_000
-      await recorder.record(dataset([item('a', 50, { fleaPrice: price })]))
+      // The offer count changes every hour, so no snapshot repeats the one before.
+      await recorder.record(dataset([item('a', 50 + (hour % 2), { fleaPrice: price })]))
       c.advance(HOUR)
     }
     return { recorder, now: () => NOW }
@@ -209,7 +228,7 @@ describe('createTrendService', () => {
     await service.analyze('pvp', 14)
     expect(load).toHaveBeenCalledTimes(2)
     c.advance(15 * MIN)
-    await recorder.record(dataset([item('a', 50)]))
+    await recorder.record(dataset([item('a', 51)]))
     expect((await service.analyze('pvp', 14)).coverage.snapshots).toBe(2)
   })
 

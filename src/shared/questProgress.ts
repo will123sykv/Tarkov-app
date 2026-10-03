@@ -280,6 +280,15 @@ export interface NeededItem {
 /** Objectives that consume items: hand-overs and plants. (Finding them is the same items again.) */
 const CONSUMING = new Set(['giveItem', 'plantItem'])
 
+/** The one item an objective hands over or plants, or null when it takes none or any of several. */
+export function handOverItemOf(
+  objective: Pick<QuestObjective, 'type' | 'items' | 'optional'>
+): string | null {
+  return CONSUMING.has(objective.type) && objective.items.length === 1 && !objective.optional
+    ? objective.items[0]
+    : null
+}
+
 /**
  * Items still to hand over or plant for the given quests (less what's been handed over already). Only
  * objectives that name a single item add up per item; "any of these" objectives are listed separately.

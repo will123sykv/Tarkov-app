@@ -73,7 +73,15 @@ export const DEFAULT_SETTINGS: Settings = {
     faction: 'pmc',
     style: '2d'
   },
-  hideout: { scope: 'all', hideDone: false, firOnly: false, keepOnly: false, tab: 'items' }
+  hideout: {
+    scope: 'all',
+    questScope: 'active',
+    hideDone: false,
+    firOnly: false,
+    keepOnly: false,
+    sellOnly: false,
+    tab: 'items'
+  }
 }
 
 const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'hideout', 'maps', 'raids']
@@ -117,9 +125,12 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
   const r = isRecord(raw) ? raw : {}
   return {
     scope: r.scope === 'next' ? 'next' : 'all',
+    questScope: r.questScope === 'all' ? 'all' : 'active',
     hideDone: r.hideDone === true,
     firOnly: r.firOnly === true,
+    // The two "only" filters contradict each other; keep the older one if both were saved.
     keepOnly: r.keepOnly === true,
+    sellOnly: r.sellOnly === true && r.keepOnly !== true,
     tab: r.tab === 'upgrades' || r.tab === 'scav' ? r.tab : 'items'
   }
 }

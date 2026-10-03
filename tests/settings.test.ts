@@ -205,9 +205,11 @@ describe('sanitizeSettings', () => {
   it('validates the hideout view and its options', () => {
     expect(DEFAULT_SETTINGS.hideout).toEqual({
       scope: 'all',
+      questScope: 'active',
       hideDone: false,
       firOnly: false,
       keepOnly: false,
+      sellOnly: false,
       tab: 'items'
     })
     const chosen = { scope: 'next', hideDone: true, firOnly: true, keepOnly: true, tab: 'upgrades' } as const
@@ -229,7 +231,25 @@ describe('sanitizeSettings', () => {
     })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { hideout: { ...DEFAULT_SETTINGS.hideout, scope: 'next' } }).hideout
-    ).toEqual({ scope: 'next', hideDone: false, firOnly: false, keepOnly: false, tab: 'items' })
+    ).toEqual({ ...DEFAULT_SETTINGS.hideout, scope: 'next' })
+  })
+
+  it('keeps the tracker’s quest scope and sell filter, and never both "only" filters', () => {
+    const hideout = (raw: Record<string, unknown>) => sanitizeSettings({ hideout: raw }).hideout
+    // Settings saved before 1.14.0: active quests, no sell filter.
+    expect(hideout({ scope: 'next', keepOnly: true })).toMatchObject({
+      questScope: 'active',
+      sellOnly: false
+    })
+    expect(hideout({ questScope: 'all', sellOnly: true })).toMatchObject({
+      questScope: 'all',
+      sellOnly: true
+    })
+    expect(hideout({ questScope: 'none', sellOnly: 'yes' })).toMatchObject({
+      questScope: 'active',
+      sellOnly: false
+    })
+    expect(hideout({ keepOnly: true, sellOnly: true })).toMatchObject({ keepOnly: true, sellOnly: false })
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

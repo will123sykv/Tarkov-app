@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import { TREND_INTERVALS } from '../shared/settings'
-import type { ProgressEntry } from '../shared/questProgress'
+import { handOverItemOf, type ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
 import type { StoryPin } from '../shared/storyPlaces'
 import type { DataMode, GameMode, Settings, SettingsPatch } from '../shared/types'
@@ -163,13 +163,16 @@ export function registerIpc(deps: {
   )
   ipcMain.handle(
     IPC.questsSetObjective,
-    (_e, gameMode: unknown, questId: unknown, objectiveId: unknown, value: unknown) =>
-      player.setObjective(
-        requireGameMode(gameMode),
-        requireQuestId(questId),
-        requireObjectiveId(objectiveId),
-        requireCount(value, 1_000_000_000)
-      )
+    async (_e, gameMode: unknown, questId: unknown, objectiveId: unknown, value: unknown) => {
+      const mode = requireGameMode(gameMode)
+      const quest = requireQuestId(questId)
+      const id = requireObjectiveId(objectiveId)
+      const count = requireCount(value, 1_000_000_000)
+      // Items handed over come off what the player has put aside.
+      const { dataset } = await questData.get(dataModeFor(mode))
+      const objective = dataset?.quests.find((q) => q.id === quest)?.objectives.find((o) => o.id === id)
+      return player.setObjective(mode, quest, id, count, objective ? handOverItemOf(objective) : null)
+    }
   )
   ipcMain.handle(IPC.questsPins, () => player.pins())
   ipcMain.handle(IPC.questsSetPin, (_e, questId: unknown, objectiveId: unknown, pin: unknown) =>

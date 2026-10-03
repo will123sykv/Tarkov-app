@@ -96,6 +96,8 @@ describe('fetchTarkovDevJson', () => {
     ])
     await fetchTarkovDevJson(fetchFn, 'pvp')
     expect(fetchFn.mock.calls.at(-1)![0]).toMatch(/^https:\/\/json\.tarkov\.dev\/regular\//)
+    // Never an old cached copy: Electron's fetch would otherwise reuse one the server allows.
+    expect(fetchFn.mock.calls.every(([, init]) => init?.cache === 'no-store')).toBe(true)
   })
 
   it('accepts traders wrapped in a { traders } object', async () => {

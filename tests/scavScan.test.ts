@@ -432,25 +432,25 @@ describe('what to keep and what to sell', () => {
     ]
     const before = adviseScan(entries, items, keep, ctx)
     const { changes, stored } = lootAdditions(entries, before, { bolts: 1 })
-    // Quests' bolts aren't the hideout's to count.
+    // What's kept for the hideout and for quests: the tracker counts both.
     expect(changes).toEqual([
-      { itemId: 'bolts', from: 1, to: 4 },
+      { itemId: 'bolts', from: 1, to: 5 },
       { itemId: 'ledx', from: 0, to: 1 }
     ])
-    expect(stored).toEqual([2, 1, 1])
-    // Once added, the hideout needs none: the stored ones stay kept, and the quests still get theirs.
+    expect(stored).toEqual([2, 2, 1])
+    // Once added, nothing more is needed: the stored ones stay kept, and the rest is sold.
     const after = adviseScan(
       entries.map((e, i) => ({ ...e, stored: stored[i] })),
       items,
-      new Map<string, KeepInfo>([['bolts', { hideout: 0, quests: 1, scarce: null }]]),
+      new Map<string, KeepInfo>(),
       ctx
     )
-    expect(after.map((a) => [a.keep, a.stored, a.keepFor.quests, a.sell])).toEqual([
-      [2, 2, 0, 0],
-      [2, 1, 1, 3],
-      [1, 1, 0, 0]
+    expect(after.map((a) => [a.keep, a.stored, a.sell])).toEqual([
+      [2, 2, 0],
+      [2, 2, 3],
+      [1, 1, 0]
     ])
-    expect(lootAdditions(entries, after, { bolts: 4, ledx: 1 }).changes).toEqual([])
+    expect(lootAdditions(entries, after, { bolts: 5, ledx: 1 }).changes).toEqual([])
   })
 
   it('sets the hideout’s counts to everything the screenshots show', () => {
@@ -461,7 +461,8 @@ describe('what to keep and what to sell', () => {
       firNeeded: 0,
       have: 0,
       missing: 5,
-      uses: []
+      uses: [],
+      quests: []
     })
     const ROUBLES = '5449016a4bdc2d6f028b456f'
     const result = stashCounts(

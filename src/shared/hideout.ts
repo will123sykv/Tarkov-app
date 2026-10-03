@@ -1,7 +1,8 @@
 import { CURRENCIES } from './constants'
-import type { NeededItem } from './questProgress'
-import type { HideoutLevel, HideoutStation } from './questTypes'
+import { neededItems, type NeededItem, type ObjectiveProgress } from './questProgress'
+import type { HideoutLevel, HideoutStation, Quest } from './questTypes'
 import type { LootItem } from './types'
+import { evaluateItem } from './valuation'
 
 // The hideout tracker: what the stations' next levels still need, and which items not to sell.
 
@@ -9,13 +10,26 @@ import type { LootItem } from './types'
 export interface HideoutProgress {
   /** Built level per station id; a station not in here is at its starting level. */
   levels: Record<string, number>
-  /** How many of each item the player has put aside for the hideout. */
+  /** How many of each item the player has put aside for the hideout and quests. */
   have: Record<string, number>
   /** Loyalty level per trader id, for what traders sell; a trader not in here is at level 1. */
   traders: Record<string, number>
+  /**
+   * When each count in `have` was last set or used up (epoch ms). A quest hand-over from before then
+   * is already reflected in the count, so isn't taken off again. Since 1.14.0.
+   */
+  haveAt?: Record<string, number>
 }
 
 export const EMPTY_HIDEOUT: HideoutProgress = { levels: {}, have: {}, traders: {} }
+
+/** Items a quest consumes that are still to hand over or plant, one entry per objective. */
+export function handOversLeft(
+  quest: Quest,
+  objectives: ObjectiveProgress | undefined
+): { itemId: string; count: number }[] {
+  return neededItems([quest], objectives).items.map((n) => ({ itemId: n.itemId, count: n.count }))
+}
 
 export const maxLevel = (station: HideoutStation): number =>
   station.levels.reduce((max, l) => Math.max(max, l.level), 0)
@@ -36,48 +50,64 @@ export function stationLevel(station: HideoutStation, progress: HideoutProgress)
   return Math.min(maxLevel(station), Math.max(0, set ?? startingLevel(station)))
 }
 
-/** An item the hideout still needs, for the levels in scope. */
+/** An item the hideout (and, when asked, quests) still needs, for the levels and quests in scope. */
 export interface HideoutNeed {
   itemId: string
-  /** Any of the levels wants it found in raid. */
+  /** Any of the levels or quests wants it found in raid. */
   foundInRaid: boolean
   needed: number
-  /** How many of `needed` must be found in raid (other levels take any). */
+  /** How many of `needed` must be found in raid (the rest take any). */
   firNeeded: number
   have: number
   missing: number
   uses: { stationId: string; stationName: string; level: number; count: number; foundInRaid: boolean }[]
+  /** Quests that want it handed over or planted. */
+  quests: { questId: string; name: string; count: number; foundInRaid: boolean }[]
 }
 
 /**
  * Items the stations' unbuilt levels need: only each station's next level, or every level still to
- * build. Items put aside count against them.
+ * build. Quest hand-overs (from `neededItems`) are added in when given. Items put aside count
+ * against them.
  */
 export function hideoutNeeds(
   stations: readonly HideoutStation[],
   progress: HideoutProgress,
-  scope: 'next' | 'all'
+  scope: 'next' | 'all',
+  questNeeds: readonly NeededItem[] = []
 ): HideoutNeed[] {
   const byItem = new Map<string, HideoutNeed>()
+  const entry = (itemId: string): HideoutNeed => {
+    let need = byItem.get(itemId)
+    if (!need) {
+      need = {
+        itemId,
+        foundInRaid: false,
+        needed: 0,
+        firNeeded: 0,
+        have: 0,
+        missing: 0,
+        uses: [],
+        quests: []
+      }
+      byItem.set(itemId, need)
+    }
+    return need
+  }
+  const add = (need: HideoutNeed, count: number, foundInRaid: boolean): void => {
+    need.needed += count
+    if (foundInRaid) {
+      need.firNeeded += count
+      need.foundInRaid = true
+    }
+  }
   for (const station of stations) {
     const current = stationLevel(station, progress)
     for (const level of station.levels) {
       if (level.level <= current || (scope === 'next' && level.level !== current + 1)) continue
       for (const { itemId, count, foundInRaid } of level.items) {
-        const need = byItem.get(itemId) ?? {
-          itemId,
-          foundInRaid: false,
-          needed: 0,
-          firNeeded: 0,
-          have: 0,
-          missing: 0,
-          uses: []
-        }
-        need.needed += count
-        if (foundInRaid) {
-          need.firNeeded += count
-          need.foundInRaid = true
-        }
+        const need = entry(itemId)
+        add(need, count, foundInRaid)
         need.uses.push({
           stationId: station.id,
           stationName: station.name,
@@ -85,9 +115,13 @@ export function hideoutNeeds(
           count,
           foundInRaid
         })
-        byItem.set(itemId, need)
       }
     }
+  }
+  for (const { itemId, count, foundInRaid, quests } of questNeeds) {
+    const need = entry(itemId)
+    add(need, count, foundInRaid)
+    for (const q of quests) need.quests.push({ ...q, foundInRaid })
   }
   const result = [...byItem.values()]
   for (const need of result) {
@@ -215,12 +249,16 @@ export interface KeepInfo {
   scarce: Scarcity | null
 }
 
-/** Items the hideout or active quests still need, with the hard-to-replace ones marked. */
+/**
+ * Items the hideout or active quests still need, with the hard-to-replace ones marked. What's put
+ * aside (`have`) covers the hideout's needs first, then the quests'.
+ */
 export function keepList(
   hideout: readonly HideoutNeed[],
   quests: readonly NeededItem[],
   items: ReadonlyMap<string, LootItem>,
-  ctx: BuyContext
+  ctx: BuyContext,
+  have: Readonly<Record<string, number>> = {}
 ): Map<string, KeepInfo> {
   const result = new Map<string, KeepInfo>()
   const entry = (itemId: string): KeepInfo => {
@@ -235,8 +273,93 @@ export function keepList(
   // Money isn't loot to keep.
   for (const need of hideout)
     if (need.missing > 0 && !CURRENCIES[need.itemId]) entry(need.itemId).hideout += need.missing
-  for (const need of quests) if (!CURRENCIES[need.itemId]) entry(need.itemId).quests += need.count
+  const hideoutNeeded = new Map(hideout.map((n) => [n.itemId, n.needed]))
+  const questNeeded = new Map<string, number>()
+  for (const need of quests)
+    if (!CURRENCIES[need.itemId])
+      questNeeded.set(need.itemId, (questNeeded.get(need.itemId) ?? 0) + need.count)
+  for (const [itemId, count] of questNeeded) {
+    const spare = Math.max(0, (have[itemId] ?? 0) - (hideoutNeeded.get(itemId) ?? 0))
+    if (count > spare) entry(itemId).quests += count - spare
+  }
   return result
+}
+
+/** Items put aside that nothing left needs (no level still to build, no quest left), as rows of 0 needed. */
+export function unneededHave(progress: HideoutProgress, everything: readonly HideoutNeed[]): HideoutNeed[] {
+  const needed = new Set(everything.map((n) => n.itemId))
+  return Object.entries(progress.have)
+    .filter(([itemId, have]) => have > 0 && !needed.has(itemId) && !CURRENCIES[itemId])
+    .map(([itemId, have]) => ({
+      itemId,
+      foundInRaid: false,
+      needed: 0,
+      firNeeded: 0,
+      have,
+      missing: 0,
+      uses: [],
+      quests: []
+    }))
+}
+
+/** Why and how many of an item put aside could be sold. */
+export interface SellAdvice {
+  /** How many to sell. */
+  count: number
+  /**
+   * `extra`: more than every level and quest left needs; `buyBack`: it can be bought back now, so
+   * there's no need to hold on to it.
+   */
+  reason: 'extra' | 'buyBack'
+  /** Copies kept back because they must be found in raid (bought ones aren't). */
+  keepFir: number
+  /** Roubles one sells for: the flea after the fee (when the player can list it) or a trader. */
+  sellEach: number | null
+  /** "flea" or the trader's name. */
+  sellVia: string | null
+  /** The cheapest way to buy one back now. */
+  buyBack: BuyOption | null
+}
+
+/**
+ * Whether to sell some of an item put aside. `everything` is the same item's need over every level
+ * and quest left, so a later level's or quest's copies are never called extra. An item that can be
+ * bought back now (and isn't rare) needn't be held: sell all but the copies that must be found in
+ * raid. Otherwise only the extras.
+ */
+export function sellAdvice(
+  everything: Pick<HideoutNeed, 'have' | 'needed' | 'firNeeded'>,
+  item: LootItem | undefined,
+  ctx: BuyContext
+): SellAdvice | null {
+  const have = everything.have
+  if (have <= 0 || (item && CURRENCIES[item.id])) return null
+  const extra = Math.max(0, have - everything.needed)
+  const buy = item ? buyOptions(item, ctx) : null
+  const buyBack = buy?.options[0] ?? null
+  const easy = item !== undefined && buyBack !== null && scarcity(item, ctx) === null
+  const sellable = easy ? Math.max(0, have - everything.firNeeded) : extra
+  if (sellable <= 0) return null
+  const value = item
+    ? evaluateItem(item, {
+        playerLevel: ctx.playerLevel,
+        fleaMinLevel: ctx.fleaMinLevel,
+        subtractFleaFee: true
+      })
+    : null
+  return {
+    count: sellable,
+    reason: sellable > extra ? 'buyBack' : 'extra',
+    keepFir: easy ? Math.min(have, everything.firNeeded) : 0,
+    sellEach: value && value.worth > 0 ? value.worth : null,
+    sellVia:
+      value?.via === 'flea'
+        ? 'flea'
+        : value?.via === 'trader'
+          ? (item?.bestTrader?.name ?? 'a trader')
+          : null,
+    buyBack
+  }
 }
 
 /** One item a station level takes, and how the player could get the rest. */

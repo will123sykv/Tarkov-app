@@ -52,6 +52,21 @@ const empty = (): Saved => ({
   pins: {}
 })
 
+/** `progress` with one item's count put aside set (0 or less clears it), noting when. */
+function withHave(progress: HideoutProgress, itemId: string, count: number, at: number): HideoutProgress {
+  const have = { ...progress.have }
+  const haveAt = { ...progress.haveAt }
+  const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
+  if (n > 0) {
+    have[itemId] = n
+    haveAt[itemId] = Math.max(at, haveAt[itemId] ?? 0)
+  } else {
+    delete have[itemId]
+    delete haveAt[itemId]
+  }
+  return { ...progress, have, haveAt }
+}
+
 const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']> = {
   started: 'active',
   failed: 'failed',
@@ -76,9 +91,16 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             version: 1,
             progress: { ...base.progress, ...raw.progress },
             history: { ...base.history, ...raw.history },
-            // 1.8.0 saved no trader levels.
             hideout: Object.fromEntries(
-              MODES.map((mode) => [mode, { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }])
+              MODES.map((mode) => {
+                // 1.8.0 saved no trader levels.
+                const hideout: HideoutProgress = { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }
+                // Before 1.14.0 counts had no times: treat them as set now, so quests the logs
+                // completed before this version never come off them.
+                if (!hideout.haveAt && Object.keys(hideout.have).length)
+                  hideout.haveAt = Object.fromEntries(Object.keys(hideout.have).map((id) => [id, now()]))
+                return [mode, hideout]
+              })
             ) as Saved['hideout'],
             objectives: { ...base.objectives, ...raw.objectives },
             pins: raw.pins ?? {}
@@ -106,20 +128,30 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return (await load()).objectives[mode]
     },
 
-    /** How far along one of a quest's objectives is, set by hand (0 clears it). */
+    /**
+     * How far along one of a quest's objectives is, set by hand (0 clears it). For a hand-over, the
+     * items handed over come off the count put aside (and go back on when the count goes down).
+     */
     async setObjective(
       mode: GameMode,
       questId: string,
       objectiveId: string,
-      value: number
+      value: number,
+      handOverItem: string | null = null
     ): Promise<ObjectiveProgress> {
       const d = await load()
+      const before = d.objectives[mode][questId]?.[objectiveId] ?? 0
       d.objectives[mode] = setObjective(
         d.objectives[mode],
         questId,
         objectiveId,
         Math.min(MAX_OBJECTIVE, value)
       )
+      const handed = (d.objectives[mode][questId]?.[objectiveId] ?? 0) - before
+      if (handOverItem && handed !== 0) {
+        const current = d.hideout[mode]
+        d.hideout[mode] = withHave(current, handOverItem, (current.have[handOverItem] ?? 0) - handed, now())
+      }
       await save()
       return d.objectives[mode]
     },
@@ -157,15 +189,10 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return d.hideout[mode]
     },
 
-    /** How many of an item the player has put aside for the hideout. */
+    /** How many of an item the player has put aside for the hideout and quests. */
     async setHave(mode: GameMode, itemId: string, count: number): Promise<HideoutProgress> {
       const d = await load()
-      const current = d.hideout[mode]
-      const have = { ...current.have }
-      const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
-      if (n > 0) have[itemId] = n
-      else delete have[itemId]
-      d.hideout[mode] = { ...current, have }
+      d.hideout[mode] = withHave(d.hideout[mode], itemId, count, now())
       await save()
       return d.hideout[mode]
     },
@@ -173,16 +200,33 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
     /** Several of those counts at once (0 clears one), e.g. from screenshots. */
     async setHaveMany(mode: GameMode, counts: Record<string, number>): Promise<HideoutProgress> {
       const d = await load()
-      const current = d.hideout[mode]
-      const have = { ...current.have }
-      for (const [itemId, count] of Object.entries(counts)) {
-        const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
-        if (n > 0) have[itemId] = n
-        else delete have[itemId]
-      }
-      d.hideout[mode] = { ...current, have }
+      const t = now()
+      for (const [itemId, count] of Object.entries(counts))
+        d.hideout[mode] = withHave(d.hideout[mode], itemId, count, t)
       await save()
       return d.hideout[mode]
+    },
+
+    /**
+     * Items handed over for a quest the logs say was completed at `at`: they come off the counts put
+     * aside, except counts set since then (which already leave them out). Returns whether any changed.
+     */
+    async handOver(
+      mode: GameMode,
+      items: readonly { itemId: string; count: number }[],
+      at: number
+    ): Promise<boolean> {
+      const d = await load()
+      let changed = false
+      for (const { itemId, count } of items) {
+        const current = d.hideout[mode]
+        const have = current.have[itemId] ?? 0
+        if (count <= 0 || have <= 0 || (current.haveAt?.[itemId] ?? 0) >= at) continue
+        d.hideout[mode] = withHave(current, itemId, have - count, at)
+        changed = true
+      }
+      if (changed) await save()
+      return changed
     },
 
     /** The player's loyalty level with a trader (1–4), for what the trader will sell them. */
@@ -205,22 +249,36 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       items: readonly { itemId: string; count: number }[]
     ): Promise<HideoutProgress> {
       const d = await load()
-      const current = d.hideout[mode]
-      const have = { ...current.have }
-      for (const { itemId, count } of items) {
-        const left = (have[itemId] ?? 0) - count
-        if (left > 0) have[itemId] = left
-        else delete have[itemId]
-      }
-      d.hideout[mode] = { ...current, levels: { ...current.levels, [stationId]: level }, have }
+      const t = now()
+      let current = d.hideout[mode]
+      for (const { itemId, count } of items)
+        current = withHave(current, itemId, (current.have[itemId] ?? 0) - count, t)
+      d.hideout[mode] = { ...current, levels: { ...current.levels, [stationId]: level } }
       await save()
       return d.hideout[mode]
     },
 
-    /** Apply log events; `reset` first drops everything that came from the logs. Returns the modes that changed. */
-    async applyEvents(events: readonly LogEvent[], reset: boolean): Promise<Set<GameMode>> {
+    /**
+     * Apply log events; `reset` first drops everything that came from the logs. Returns the modes that
+     * changed, and the quests that are completed now but weren't before (re-reading old events
+     * completes nothing new).
+     */
+    async applyEvents(
+      events: readonly LogEvent[],
+      reset: boolean
+    ): Promise<{ changed: Set<GameMode>; completed: { mode: GameMode; questId: string; at: number }[] }> {
       const d = await load()
       const changed = new Set<GameMode>()
+      const doneBefore = new Map(
+        MODES.map((mode) => [
+          mode,
+          new Set(
+            Object.entries(d.progress[mode])
+              .filter(([, entry]) => entry.status === 'completed')
+              .map(([id]) => id)
+          )
+        ])
+      )
       if (reset) {
         for (const mode of MODES) {
           d.progress[mode] = withoutLogEntries(d.progress[mode])
@@ -252,7 +310,12 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
         }
       }
       if (changed.size) await save()
-      return changed
+      const completed: { mode: GameMode; questId: string; at: number }[] = []
+      for (const mode of changed)
+        for (const [questId, entry] of Object.entries(d.progress[mode]))
+          if (entry.status === 'completed' && !doneBefore.get(mode)!.has(questId))
+            completed.push({ mode, questId, at: entry.at })
+      return { changed, completed }
     },
 
     async setStatus(

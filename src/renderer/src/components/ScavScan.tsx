@@ -489,7 +489,7 @@ export default function ScavScan({
   priceState: PriceState | null
   items: Items
   progress: HideoutProgress
-  /** What every unbuilt level still needs (the list counts are set against). */
+  /** What every unbuilt level and quest left still needs (the list counts are set against). */
   allNeeds: HideoutNeed[]
 }): React.JSX.Element {
   const state = useScan()
@@ -540,7 +540,6 @@ export default function ScavScan({
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
   const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
   const added = advice.reduce((n, a) => n + a.stored, 0)
-  const forQuests = advice.reduce((n, a) => n + a.keepFor.quests, 0)
   const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress.have) : null
   const zeroed = stash?.changes.filter((c) => c.to === 0) ?? []
   const active = state.active !== null ? (shotsById.get(state.active) ?? null) : null
@@ -1015,11 +1014,6 @@ export default function ScavScan({
                       Undo
                     </button>
                   )}
-                  {forQuests > 0 && (
-                    <span className="muted scan-note">
-                      {forQuests} kept for quests: Items needed only counts the hideout&rsquo;s.
-                    </span>
-                  )}
                 </div>
                 <div className="muted scan-note">
                   Keeps what your active quests need and what the hideout needs for{' '}
@@ -1067,7 +1061,7 @@ export default function ScavScan({
                 )}
                 <div className="muted scan-note">
                   {stash.unchanged} already right · {stash.ignored} item{stash.ignored === 1 ? '' : 's'} seen
-                  that the hideout doesn&rsquo;t need{toCheck ? ` · ${toCheck} to check` : ''}
+                  that neither the hideout nor a quest needs{toCheck ? ` · ${toCheck} to check` : ''}
                 </div>
                 <div className="scan-apply">
                   {stash.changes.length > 0 &&

@@ -10,8 +10,9 @@ prices, your PMC level and the game mode you play. It also has:
   reading the game's log files, with the main story's chapters, objectives you tick off as you go
   (and count, like 6/15 cigarettes handed over) or that the app ticks off itself where it can, each
   quest's keys, items, rewards and the wiki's guide and pictures of where to go;
-- **Hideout:** what your hideout's upgrades still need, with the items you've put aside ticked
-  off, and the items not to sell (rare ones flagged) marked in the loot list;
+- **Hideout:** what your hideout's upgrades and your quests' hand-ins still need, with the items
+  you've put aside ticked off, which of those you could sell (and buy back later), and the items
+  not to sell (rare ones flagged) marked in the loot list;
 - **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
   extracts, transits and spawns;
 - **Raids:** your raid history and flea market sales, also from the logs.
@@ -74,8 +75,9 @@ time and sell at the other.
   open the tab (it takes a few seconds), and refreshes each item every 2 hours while the tab is in
   use. So buy and sell times are there straight away, for every hour of the day.
 - **The app's own recordings** add finer detail for the hours it runs: at each price refresh (at
-  most every 15 minutes), it saves the lowest price and offers up of the same items, for 30 days.
-  The sidebar shows which hours it has recorded.
+  most every 15 minutes), it saves the lowest price and offers up of the same items, for 30 days,
+  skipping a refresh when tarkov.dev hasn't checked any of their prices again. The sidebar shows
+  which hours it has recorded.
 
 **Split the day into** 2-, 3-, 4- or 6-hour parts (3 by default). Shorter parts are more precise;
 longer ones are steadier, and tarkov.dev only checks a price about every 2 hours. Each day is
@@ -95,9 +97,11 @@ has prices at two or more times of day on 4 or more days. Each item shows:
 - charts of its lowest price by time of day (with the middle half of prices shaded) and over the
   last 60 days (click a row).
 
-Until any item has buy and sell times, the list is ranked by **today's swing**: how far today's
-high is above today's low. Ranges that include bait or mistaken listings (under 2/3 or over 1.5×
-the current price) are ignored.
+**Today (low–high)** is the cheapest and dearest hour of the last 24 hours (each hour's middle
+price, so one stray listing doesn't count), once 6 hours have prices and the price has moved at
+least once; before that it's tarkov.dev's own 24-hour range. Until any item has buy and sell times,
+the list is ranked by this **swing**: how far the high is above the low. Ranges that include bait
+or mistaken listings (under 2/3 or over 1.5× the current price) are ignored.
 
 The default filters show items that swing 15% or more on a usual day, have at least 25 offers up,
 cost ₽10,000 or more, make ₽2,000 or more per unit after the fee, worked on at least 60% of days,
@@ -117,11 +121,24 @@ The **Hideout** tab tracks your hideout per game mode. The game's logs don't rec
 upgrades, so set each station's level in the sidebar (the Stash starts at level 1).
 
 - **Items needed** totals every item your stations' next levels (or every level still to build)
-  need, how many you've put aside (use **−**/**+**, type a number, or **All**) and how many are
-  still missing, with found-in-raid items flagged (and how many, when some levels take any) and
-  the station levels each is for. Rare items come first; the money the upgrades cost is in the
-  summary line. **Found in raid only** narrows the list to items that must be found in raid,
-  showing how many of each.
+  and your quests' hand-ins need, how many you've put aside (use **−**/**+**, type a number, or
+  **All**) and how many are still missing, with found-in-raid items flagged (and how many, when
+  some take any) and the station levels and quests each is for (click a quest to open it). Rare
+  items come first; the money the upgrades cost is in the summary line. **Found in raid only**
+  narrows the list to items that must be found in raid, showing how many of each.
+- **Quest items:** under **Count items for**, choose **Active quests** (the default) or **Every
+  quest left**, which adds quests you haven't started or unlocked yet (the Collector's items, for
+  example). Quests that take any of several items are listed in the Quests tab's **Items needed**
+  instead. Items you hand over come off what you've put aside: when you count them up on the
+  quest's objective in the Quests tab, or when the game's logs say you finished the quest (only
+  what you hadn't counted already, and only if you set the count before finishing it).
+- **Sell:** items you've put aside that you could sell get a green **Sell** badge saying how many:
+  any more than every level and quest left needs, and anything you can buy back now on the flea
+  or from a trader at your loyalty (and that isn't rare). Copies that must be found in raid are
+  kept, as bought ones aren't. Hover the badge for what selling gets (the flea after the fee, or a
+  trader), what buying back costs and where, and what selling now and buying back later costs in
+  all. Items put aside that nothing needs any more are listed too. Tick **Can sell only** to see
+  just these.
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
   **Mark level N built** sets the level and takes its items off what you've put aside. Each
@@ -164,17 +181,16 @@ setting, or your active quests, and a **Rare** or **Can't buy yet** badge when i
 replace), **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the
 flea fee, if that setting is on). Several stacks of one item are kept until the need is met, and the
 rest sold. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
-you're keeping for the hideout to its **Have** counts (**Undo** takes them off again); items kept for
-quests aren't counted there. A haul that takes two screenshots can be read together with **Add
-another**.
+you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
+again). A haul that takes two screenshots can be read together with **Add another**.
 
 **Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,
 paste and drop all add to the same scan; **Start over** clears it. The panel lists how each count in
-Items needed would change, and **Update my counts** sets each item the hideout still needs (for any
-level left) to the number your screenshots show. Items on the list that aren't in any screenshot go
-back to 0 (it asks first), so include every place you keep them; items the hideout doesn't need are
-left out, and so is money. **Undo** puts the old counts back. When a screenshot repeats rows from the
+Items needed would change, and **Update my counts** sets each item the hideout or a quest still needs
+(for any level or quest left) to the number your screenshots show. Items on the list that aren't in
+any screenshot go back to 0 (it asks first), so include every place you keep them; items nothing
+needs are left out, and so is money. **Undo** puts the old counts back. When a screenshot repeats rows from the
 one before (a stash page that didn't scroll far enough), those rows aren't counted twice (**Count
 them anyway** if they really are different items). Items cut off by a screenshot's edge are left out:
 they're read on the screenshot that shows them whole. **Count from screenshots** in the Items needed

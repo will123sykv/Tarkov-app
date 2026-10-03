@@ -19,7 +19,7 @@ export interface ScanAdvice {
   /** How many of the stack to keep, and what for. */
   keep: number
   keepFor: { hideout: number; quests: number }
-  /** Of those kept for the hideout, how many are already in its counts. */
+  /** Of those kept, how many are already in the tracker's counts (counted as the hideout's). */
   stored: number
   /** Why the kept ones would be hard to replace, if they would. */
   scarce: Scarcity | null
@@ -116,8 +116,8 @@ export interface CountChange {
 }
 
 /**
- * New loot into the hideout's counts: the units kept for the hideout that aren't in its counts yet,
- * added to what the player has. `stored` is each stack's units in the counts afterwards.
+ * New loot into the tracker's counts: the units kept for the hideout and quests that aren't in its
+ * counts yet, added to what the player has. `stored` is each stack's units in the counts afterwards.
  */
 export function lootAdditions(
   entries: readonly ScanEntry[],
@@ -126,7 +126,7 @@ export function lootAdditions(
 ): { changes: CountChange[]; stored: number[] } {
   const add = new Map<string, number>()
   entries.forEach((e, i) => {
-    const extra = advice[i].keepFor.hideout - advice[i].stored
+    const extra = advice[i].keep - advice[i].stored
     if (e.itemId && extra > 0) add.set(e.itemId, (add.get(e.itemId) ?? 0) + extra)
   })
   return {
@@ -135,7 +135,7 @@ export function lootAdditions(
       from: have[itemId] ?? 0,
       to: (have[itemId] ?? 0) + n
     })),
-    stored: advice.map((a, i) => (entries[i].itemId ? a.keepFor.hideout : 0))
+    stored: advice.map((a, i) => (entries[i].itemId ? a.keep : 0))
   }
 }
 
@@ -144,14 +144,14 @@ export interface StashCounts {
   changes: CountChange[]
   /** Listed items whose count already matches. */
   unchanged: number
-  /** Items seen that the hideout doesn't need. */
+  /** Items seen that nothing on the list needs. */
   ignored: number
 }
 
 /**
  * Everything the player has into the hideout's counts: each item any unbuilt level still needs
  * (`needs`, for every level left) is set to how many the screenshots show, and to 0 when they show
- * none. Items the hideout doesn't need are left out, and so is money.
+ * none. Items nothing on the list needs are left out, and so is money.
  */
 export function stashCounts(
   entries: readonly ScanEntry[],

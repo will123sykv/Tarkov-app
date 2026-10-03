@@ -219,7 +219,7 @@ describe('createPlayerStore', () => {
   it('applies log events per game mode and keeps raids and flea sales newest first', async () => {
     const file = join(await tempDir(), 'player.json')
     const store = createPlayerStore({ file, now: () => 1_000 })
-    const changed = await store.applyEvents(
+    const { changed, completed } = await store.applyEvents(
       [
         quest('pve', Q.debut, 'started', 10),
         quest('pve', Q.debut, 'completed', 20),
@@ -266,6 +266,7 @@ describe('createPlayerStore', () => {
       false
     )
     expect([...changed].sort()).toEqual(['pve', 'pvp'])
+    expect(completed).toEqual([{ mode: 'pve', questId: Q.debut, at: 20 }])
     expect(await store.progress('pve')).toEqual({ [Q.debut]: { status: 'completed', at: 20, source: 'log' } })
     expect(await store.progress('pvp')).toEqual({})
     const history = await store.history('pvp')
@@ -284,8 +285,9 @@ describe('createPlayerStore', () => {
     await store.applyEvents([quest('pvp', Q.checking, 'started', 10)], false)
     await store.markUpTo('pvp', Q.checking, quests)
     await store.setStatus('pvp', Q.kappaOnly, 'active')
-    const changed = await store.applyEvents([], true)
+    const { changed, completed } = await store.applyEvents([], true)
     expect(changed.size).toBe(3)
+    expect(completed).toEqual([])
     expect(Object.keys(await store.progress('pvp')).sort()).toEqual([Q.checking, Q.debut, Q.kappaOnly].sort())
     await store.setStatus('pvp', Q.kappaOnly, null)
     expect(await store.progress('pvp')).not.toHaveProperty(Q.kappaOnly)

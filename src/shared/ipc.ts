@@ -37,6 +37,7 @@ export const IPC = {
   questsPins: 'quests:pins',
   questsSetPin: 'quests:set-pin',
   questsProgressChanged: 'quests:progress-changed',
+  hideoutProgressChanged: 'hideout:progress-changed',
   questsGuide: 'quests:guide',
   hideoutProgress: 'hideout:progress',
   hideoutSetLevel: 'hideout:set-level',
@@ -126,6 +127,8 @@ export interface TarkovApi {
   chooseLogsFolder(): Promise<PublicSettings | null>
   onQuestProgress(listener: (update: { gameMode: GameMode; progress: QuestProgress }) => void): () => void
   onLogHistory(listener: (update: { gameMode: GameMode; history: LogHistory }) => void): () => void
+  /** Items put aside changed outside the Hideout tab, e.g. a quest the logs say was handed in. */
+  onHideoutProgress(listener: (update: { gameMode: GameMode; hideout: HideoutProgress }) => void): () => void
   onLogStatus(listener: (status: LogWatcherStatus) => void): () => void
   getUpdaterStatus(): Promise<UpdaterStatus>
   checkForUpdates(): Promise<UpdaterStatus>

@@ -9,15 +9,19 @@ import {
   RARE_SCARCE_MIN_PRICE,
   buyOptions,
   scarcity,
+  sellAdvice,
   stationLevel,
+  unneededHave,
   UPGRADE_ORDER,
   upgradeStatus,
   type UpgradeStatus,
   type BuyContext,
   type Scarcity,
+  type SellAdvice,
   type HideoutNeed,
   type HideoutProgress
 } from '../../../shared/hideout'
+import { neededItems } from '../../../shared/questProgress'
 import type { HideoutLevel, HideoutStation, QuestTrader } from '../../../shared/questTypes'
 import type { HideoutSettings, LootItem, PriceState, PublicSettings } from '../../../shared/types'
 import { formatRub } from '../lib/format'
@@ -116,59 +120,107 @@ function BuyCell({ buy }: { buy: ReturnType<typeof buyOptions> | null }): React.
   return <span className="muted">—</span>
 }
 
-/** Every item the stations still need, rare ones first. */
+/** What selling some of an item would get, and buying them back would cost. */
+function sellTitle(advice: SellAdvice): string {
+  const them = advice.count === 1 ? 'it' : 'them'
+  const lines = [
+    advice.reason === 'extra'
+      ? `${advice.count} more than every level and quest left needs: sell ${them}.`
+      : `You can buy ${them} back now, so there's no need to hold on to ${them}.`
+  ]
+  if (advice.sellEach !== null)
+    lines.push(
+      `Sells for ~${formatRub(advice.sellEach)} each ${advice.sellVia === 'flea' ? 'on the flea after the fee' : `to ${advice.sellVia}`}.`
+    )
+  if (advice.reason === 'buyBack' && advice.buyBack) {
+    lines.push(
+      `Buy back for ${formatRub(advice.buyBack.price)} each (${advice.buyBack.label}) when you need ${them}.`
+    )
+    if (advice.sellEach !== null) {
+      const gap = (advice.buyBack.price - advice.sellEach) * advice.count
+      lines.push(
+        gap > 0
+          ? `Selling now and buying back later costs ~${formatRub(gap)} in all, for the stash space.`
+          : `Selling now and buying back later comes out ~${formatRub(-gap)} ahead.`
+      )
+    }
+  }
+  if (advice.keepFir > 0)
+    lines.push(
+      `Keep ${advice.keepFir}: ${advice.keepFir === 1 ? 'it has' : 'they have'} to be found in raid, and bought ones aren't.`
+    )
+  return lines.join('\n')
+}
+
+/** Every item the stations and quests still need, rare ones first, then what's put aside but no longer needed. */
 function ItemsNeeded({
   needs,
+  everything,
   items,
   hideDone,
   firOnly,
   keepOnly,
-  ctx
+  sellOnly,
+  ctx,
+  onOpenQuest
 }: {
   needs: HideoutNeed[]
+  /** Each item's need over every level and quest left, for what's extra. */
+  everything: ReadonlyMap<string, HideoutNeed>
   items: Items
   hideDone: boolean
   /** Only items that must be found in raid. */
   firOnly: boolean
   /** Only what to save: still missing, and can't be bought now or rare. */
   keepOnly: boolean
+  /** Only what could be sold: extras, or what can be bought back now. */
+  sellOnly: boolean
   ctx: BuyContext
+  onOpenQuest: (questId: string) => void
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
   const rows = useMemo(
     () =>
       needs
-        .filter((n) => !CURRENCIES[n.itemId] && (!hideDone || n.missing > 0) && (!firOnly || n.firNeeded > 0))
+        .filter(
+          (n) =>
+            !CURRENCIES[n.itemId] && (sellOnly || !hideDone || n.missing > 0) && (!firOnly || n.firNeeded > 0)
+        )
         .map((n) => {
           const item = items.get(n.itemId)
           return {
             need: n,
             item,
             scarce: item ? scarcity(item, ctx) : null,
-            buy: item ? buyOptions(item, ctx) : null
+            buy: item ? buyOptions(item, ctx) : null,
+            sell: sellAdvice(everything.get(n.itemId) ?? n, item, ctx)
           }
         })
         .filter((r) => !keepOnly || (r.need.missing > 0 && r.scarce !== null))
+        .filter((r) => !sellOnly || r.sell !== null)
         .sort(
           (a, b) =>
+            Number(a.need.needed === 0) - Number(b.need.needed === 0) ||
             (b.need.missing > 0 ? SCARCE_ORDER(b.scarce) : 0) -
               (a.need.missing > 0 ? SCARCE_ORDER(a.scarce) : 0) ||
             b.need.missing - a.need.missing ||
             (a.item?.name ?? '').localeCompare(b.item?.name ?? '')
         ),
-    [needs, items, hideDone, firOnly, keepOnly, ctx]
+    [needs, everything, items, hideDone, firOnly, keepOnly, sellOnly, ctx]
   )
   if (!rows.length)
     return (
       <div className="empty">
         <p>
-          {keepOnly && needs.some((n) => n.missing > 0)
-            ? `Nothing ${firOnly ? 'found-in-raid ' : ''}still missing is hard to replace right now: you can buy it all.`
-            : firOnly && needs.some((n) => n.missing > 0)
-              ? 'None of these upgrades need items found in raid.'
-              : needs.length
-                ? 'You have everything these upgrades need.'
-                : 'Nothing left to build.'}
+          {sellOnly
+            ? 'Nothing you’ve put aside can be sold: none of it is extra, and the rest can’t be bought back now.'
+            : keepOnly && needs.some((n) => n.missing > 0)
+              ? `Nothing ${firOnly ? 'found-in-raid ' : ''}still missing is hard to replace right now: you can buy it all.`
+              : firOnly && needs.some((n) => n.missing > 0)
+                ? 'None of these upgrades or quests need items found in raid.'
+                : needs.length
+                  ? 'You have everything these upgrades and quests need.'
+                  : 'Nothing left to build or hand over.'}
         </p>
       </div>
     )
@@ -190,7 +242,7 @@ function ItemsNeeded({
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ need, item, scarce, buy }) => (
+          {rows.map(({ need, item, scarce, buy, sell }) => (
             <tr key={need.itemId} className={need.missing === 0 ? 'done' : (scarce?.kind ?? '')}>
               <td className="item-cell">
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
@@ -209,6 +261,11 @@ function ItemsNeeded({
                     </span>
                   )}
                   {scarce && need.missing > 0 && <ScarceBadge scarce={scarce} />}
+                  {sell && (
+                    <span className="badge ok rare-badge" title={sellTitle(sell)}>
+                      Sell {sell.count}
+                    </span>
+                  )}
                 </span>
               </td>
               <td>
@@ -238,9 +295,22 @@ function ItemsNeeded({
                   .map((u, _, shown) => (
                     <span key={`${u.stationId}:${u.level}`} className="use-chip">
                       {u.stationName} {u.level}
-                      {shown.length > 1 && <span className="muted"> ×{u.count}</span>}
+                      {shown.length + need.quests.length > 1 && <span className="muted"> ×{u.count}</span>}
                     </span>
                   ))}
+                {need.quests
+                  .filter((q) => !firOnly || q.foundInRaid)
+                  .map((q) => (
+                    <span key={`${q.questId}:${q.foundInRaid}`} className="use-chip quest-chip">
+                      <button className="link" title="Open this quest" onClick={() => onOpenQuest(q.questId)}>
+                        {q.name}
+                      </button>
+                      {need.uses.length + need.quests.length > 1 && (
+                        <span className="muted"> ×{q.count}</span>
+                      )}
+                    </span>
+                  ))}
+                {need.needed === 0 && <span className="muted">Nothing left needs these</span>}
               </td>
             </tr>
           ))}
@@ -416,7 +486,8 @@ export default function HideoutView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState } = useQuestRows(settings)
+  const { questState, rows: questRows, objectives } = useQuestRows(settings)
+  const selectQuest = useStore((s) => s.selectQuest)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const setStationLevel = useStore((s) => s.setStationLevel)
   const updateSettings = useStore((s) => s.updateSettings)
@@ -430,14 +501,47 @@ export default function HideoutView({
   const dataset = questState?.dataset ?? null
   const stations = useMemo(() => dataset?.stations ?? [], [dataset])
   const stationsById = useMemo(() => new Map(stations.map((s) => [s.id, s])), [stations])
-  const needs = useMemo(() => hideoutNeeds(stations, progress, h.scope), [stations, progress, h.scope])
-  // Counts set from screenshots cover every level left, whatever the list shows.
-  const allNeeds = useMemo(() => hideoutNeeds(stations, progress, 'all'), [stations, progress])
+  // What quests still want handed over or planted: active ones, and every one not yet done.
+  const questNeeds = useMemo(() => {
+    const left = questRows.filter((r) => r.status !== 'completed' && r.status !== 'failed')
+    return {
+      active: neededItems(
+        left.filter((r) => r.status === 'active').map((r) => r.quest),
+        objectives
+      ).items,
+      all: neededItems(
+        left.map((r) => r.quest),
+        objectives
+      ).items
+    }
+  }, [questRows, objectives])
+  const needs = useMemo(
+    () => hideoutNeeds(stations, progress, h.scope, questNeeds[h.questScope]),
+    [stations, progress, h.scope, h.questScope, questNeeds]
+  )
+  // Every level and quest left: what's extra, and what counts from screenshots cover.
+  const allNeeds = useMemo(
+    () => hideoutNeeds(stations, progress, 'all', questNeeds.all),
+    [stations, progress, questNeeds]
+  )
+  const everything = useMemo(() => new Map(allNeeds.map((n) => [n.itemId, n])), [allNeeds])
+  // Plus what's put aside that nothing needs any more.
+  const listed = useMemo(() => [...needs, ...unneededHave(progress, allNeeds)], [needs, progress, allNeeds])
+  const sellCount = useMemo(
+    () =>
+      listed.filter((n) => sellAdvice(everything.get(n.itemId) ?? n, items.get(n.itemId), ctx) !== null)
+        .length,
+    [listed, everything, items, ctx]
+  )
   const term = search.trim().toLowerCase()
   const shownNeeds = useMemo(
-    () => (term ? needs.filter((n) => items.get(n.itemId)?.name.toLowerCase().includes(term)) : needs),
-    [needs, items, term]
+    () => (term ? listed.filter((n) => items.get(n.itemId)?.name.toLowerCase().includes(term)) : listed),
+    [listed, items, term]
   )
+  const openQuest = (questId: string): void => {
+    selectQuest(questId)
+    void updateSettings({ view: 'quests' })
+  }
   const money = needs.filter((n) => CURRENCIES[n.itemId] && n.missing > 0)
   const missing = needs.filter((n) => !CURRENCIES[n.itemId] && n.missing > 0)
   const scarceKinds = missing.map((n) => {
@@ -456,6 +560,7 @@ export default function HideoutView({
     return (dataset?.traders ?? []).filter((t) => ids.has(t.id)).sort((a, b) => a.name.localeCompare(b.name))
   }, [needs, items, dataset])
   const firCount = missing.filter((n) => n.firNeeded > 0).length
+  const questCount = missing.filter((n) => n.quests.length > 0).length
   const upgrades = stations
     .map((station) => {
       const current = stationLevel(station, progress)
@@ -569,6 +674,29 @@ export default function HideoutView({
               </button>
             ))}
           </div>
+          <div className="mini-toggle wide" role="radiogroup" aria-label="Quests to count items for">
+            {(
+              [
+                ['active', 'Active quests'],
+                ['all', 'Every quest left']
+              ] as const
+            ).map(([id, text]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={h.questScope === id}
+                className={h.questScope === id ? 'active' : ''}
+                onClick={() => set({ questScope: id })}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <p className="hint">
+            Quest items are the ones to hand over or plant. Quests that take any of several items are in the
+            Quests tab&rsquo;s Items needed. Handing items over in the Quests tab, or a quest the game&rsquo;s
+            logs say you finished, takes them off Have.
+          </p>
           <label className="check">
             <input
               type="checkbox"
@@ -589,6 +717,12 @@ export default function HideoutView({
             <span className="badge warn rare-badge">Can&rsquo;t buy yet</span> ones you can&rsquo;t buy at
             your level and trader loyalty. Ones a trader sells you are neither.
           </p>
+          <p className="hint">
+            <span className="badge ok rare-badge">Sell</span> marks what you could sell from what you&rsquo;ve
+            put aside: anything more than every level and quest left needs, and anything you can buy back now
+            on the flea or from a trader (except copies that must be found in raid). Hover it for what selling
+            gets and buying back costs.
+          </p>
         </section>
       </aside>
       <main className="content">
@@ -601,9 +735,11 @@ export default function HideoutView({
                   (readyCount ? `${readyCount} ready to build · ` : '') +
                   (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
+                  (questCount ? ` (${questCount} for quests)` : '') +
                   (rareCount ? ` · ${rareCount} rare` : '') +
                   (lockedCount ? ` · ${lockedCount} you can’t buy yet` : '') +
                   (firCount ? ` · ${firCount} need finding in raid` : '') +
+                  (sellCount ? ` · ${sellCount} you could sell` : '') +
                   (money.length
                     ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`
                     : '')
@@ -664,9 +800,24 @@ export default function HideoutView({
                   <input
                     type="checkbox"
                     checked={h.keepOnly}
-                    onChange={(e) => set({ keepOnly: e.target.checked })}
+                    onChange={(e) =>
+                      set({ keepOnly: e.target.checked, sellOnly: e.target.checked ? false : h.sellOnly })
+                    }
                   />
                   Can&rsquo;t buy or rare only
+                </label>
+                <label
+                  className="check fir-filter"
+                  title="What you've put aside that you could sell: extras, and items you can buy back now"
+                >
+                  <input
+                    type="checkbox"
+                    checked={h.sellOnly}
+                    onChange={(e) =>
+                      set({ sellOnly: e.target.checked, keepOnly: e.target.checked ? false : h.keepOnly })
+                    }
+                  />
+                  Can sell only
                 </label>
                 <button
                   className="button small"
@@ -693,11 +844,14 @@ export default function HideoutView({
         ) : h.tab === 'items' ? (
           <ItemsNeeded
             needs={shownNeeds}
+            everything={everything}
             items={items}
             hideDone={h.hideDone}
             firOnly={h.firOnly}
             keepOnly={h.keepOnly}
+            sellOnly={h.sellOnly}
             ctx={ctx}
+            onOpenQuest={openQuest}
           />
         ) : (
           <div className="upgrades">

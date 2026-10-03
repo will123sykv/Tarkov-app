@@ -153,12 +153,16 @@ export type AppView = 'loot' | 'trends' | 'quests' | 'hideout' | 'maps' | 'raids
 export interface HideoutSettings {
   /** Count what each station's next level needs, or every level still to build. */
   scope: 'next' | 'all'
+  /** Count hand-overs for active quests, or for every quest not yet done (since 1.14.0). */
+  questScope: 'active' | 'all'
   /** Hide items the player already has enough of. */
   hideDone: boolean
   /** Only items that must be found in raid. */
   firOnly: boolean
   /** Only items the player can't buy now, or that are rare. */
   keepOnly: boolean
+  /** Only items the player could sell: extras, or ones they can buy back now (since 1.14.0). */
+  sellOnly: boolean
   /** Items needed, the next upgrades, or the screenshot scanner. */
   tab: 'items' | 'upgrades' | 'scav'
 }

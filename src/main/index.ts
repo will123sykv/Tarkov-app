@@ -1,8 +1,10 @@
 import { app, BrowserWindow, net, protocol, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
 import { dataModeFor } from '../shared/gameModes'
+import { handOversLeft } from '../shared/hideout'
 import { IPC } from '../shared/ipc'
 import type { ContainerLootData } from '../shared/containerData'
+import type { GameMode } from '../shared/types'
 import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
 import { createBackgroundMode, launchedHidden } from './background'
@@ -144,10 +146,22 @@ async function bootstrap(): Promise<void> {
     stateFile: join(userData, 'logs', 'state.json'),
     locate: () => locateLogsDir(settings.get().gameLogsDir),
     onEvents: async (events, reset) => {
-      for (const gameMode of await player.applyEvents(events, reset)) {
+      const { changed, completed } = await player.applyEvents(events, reset)
+      for (const gameMode of changed) {
         send(IPC.questsProgressChanged, { gameMode, progress: await player.progress(gameMode) })
         send(IPC.logsHistoryChanged, { gameMode, history: await player.history(gameMode) })
       }
+      // Quests just handed in: what was still to hand over comes off the items put aside.
+      const handedIn = new Set<GameMode>()
+      for (const { mode, questId, at } of completed) {
+        if (!Object.keys((await player.hideout(mode)).have).length) continue
+        const { dataset } = await questData.get(dataModeFor(mode))
+        const quest = dataset?.quests.find((q) => q.id === questId)
+        if (quest && (await player.handOver(mode, handOversLeft(quest, await player.objectives(mode)), at)))
+          handedIn.add(mode)
+      }
+      for (const gameMode of handedIn)
+        send(IPC.hideoutProgressChanged, { gameMode, hideout: await player.hideout(gameMode) })
     },
     onStatus: (status) => send(IPC.logsStatusChanged, status)
   })

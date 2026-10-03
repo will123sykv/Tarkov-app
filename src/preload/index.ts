@@ -47,6 +47,7 @@ const api: TarkovApi = {
   chooseLogsFolder: () => ipcRenderer.invoke(IPC.logsChooseFolder),
   onQuestProgress: (listener) => subscribe(IPC.questsProgressChanged, listener),
   onLogHistory: (listener) => subscribe(IPC.logsHistoryChanged, listener),
+  onHideoutProgress: (listener) => subscribe(IPC.hideoutProgressChanged, listener),
   onLogStatus: (listener) => subscribe(IPC.logsStatusChanged, listener),
   getUpdaterStatus: () => ipcRenderer.invoke(IPC.updaterGetStatus),
   checkForUpdates: () => ipcRenderer.invoke(IPC.updaterCheck),

@@ -76,7 +76,9 @@ function TrendTableRow({
         {swing !== null ? (
           <small
             title={
-              recent ? `From the last 24 hours' prices (${recent.hours} hours)` : 'tarkov.dev’s 24h range'
+              recent
+                ? `The cheapest and dearest hour of the last 24 (from ${recent.prices} prices over ${recent.hours} hours)`
+                : 'tarkov.dev’s 24h range'
             }
           >
             {formatPercent(swing)} swing{recent ? '' : ' (tarkov.dev)'}
