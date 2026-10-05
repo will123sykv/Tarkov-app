@@ -76,6 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hideout: {
     scope: 'all',
     questScope: 'active',
+    source: 'all',
     hideDone: false,
     firOnly: false,
     keepOnly: false,
@@ -85,7 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
   }
 }
 
-const VIEWS: AppView[] = ['loot', 'trends', 'quests', 'hideout', 'maps', 'raids']
+const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'maps', 'raids']
 const QUEST_STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'completed', 'failed']
 
 function sanitizeQuests(raw: unknown): QuestSettings {
@@ -127,6 +128,7 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
   return {
     scope: r.scope === 'next' ? 'next' : 'all',
     questScope: r.questScope === 'all' ? 'all' : 'active',
+    source: r.source === 'hideout' || r.source === 'quests' ? r.source : 'all',
     hideDone: r.hideDone === true,
     firOnly: r.firOnly === true,
     // The two "only" filters contradict each other; keep the older one if both were saved.

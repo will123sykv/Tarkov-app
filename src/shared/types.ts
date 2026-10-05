@@ -148,13 +148,16 @@ export interface Settings {
   hideout: HideoutSettings
 }
 
-export type AppView = 'loot' | 'trends' | 'quests' | 'hideout' | 'maps' | 'raids'
+/** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */
+export type AppView = 'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'maps' | 'raids'
 
 export interface HideoutSettings {
   /** Count what each station's next level needs, or every level still to build. */
   scope: 'next' | 'all'
   /** Count hand-overs for active quests, or for every quest not yet done (since 1.14.0). */
   questScope: 'active' | 'all'
+  /** Items list: what the hideout and quests need, or only one of them (since 1.16.0). */
+  source: 'all' | 'hideout' | 'quests'
   /** Hide items the player already has enough of. */
   hideDone: boolean
   /** Only items that must be found in raid. */

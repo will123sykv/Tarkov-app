@@ -96,9 +96,9 @@ describe('objectives the app ticks off by itself', () => {
     expect(found).toEqual({
       q: {
         'level-15': { value: 1, why: 'Your level is 20 (set in Settings)' },
-        'prapor-2': { value: 1, why: "You're LL2 with Prapor (set in the Hideout tab)" },
-        // A trader not set in the Hideout tab is at level 1.
-        'therapist-1': { value: 1, why: "You're LL1 with the trader (set in the Hideout tab)" },
+        'prapor-2': { value: 1, why: "You're LL2 with Prapor (set in the Items to collect tab)" },
+        // A trader not set in the Items to collect tab is at level 1.
+        'therapist-1': { value: 1, why: "You're LL1 with the trader (set in the Items to collect tab)" },
         'debut-started': { value: 1, why: 'Debut is started' }
       }
     })

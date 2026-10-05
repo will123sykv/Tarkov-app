@@ -3,7 +3,7 @@ import { objectiveTarget, satisfies, type ObjectiveProgress, type QuestProgress 
 import type { Quest, QuestObjective } from './questTypes'
 
 // Objectives the app can tick off by itself, from what it already knows: the player's level (set in
-// Settings), their loyalty levels (set in the Hideout tab), other quests' progress, and for story steps
+// Settings), their loyalty levels (set in the Items to collect tab), other quests' progress, and for story steps
 // like "visit Customs 3 times", the raids in the game's logs. The logs say nothing else about objectives.
 
 export interface DetectionContext {
@@ -43,7 +43,7 @@ function detect(quest: Quest, objective: QuestObjective, ctx: DetectionContext):
     return yours >= level
       ? {
           value: 1,
-          why: `You're LL${yours} with ${ctx.traderName(traderId) ?? 'the trader'} (set in the Hideout tab)`
+          why: `You're LL${yours} with ${ctx.traderName(traderId) ?? 'the trader'} (set in the Items to collect tab)`
         }
       : null
   }

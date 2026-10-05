@@ -206,6 +206,7 @@ describe('sanitizeSettings', () => {
     expect(DEFAULT_SETTINGS.hideout).toEqual({
       scope: 'all',
       questScope: 'active',
+      source: 'all',
       hideDone: false,
       firOnly: false,
       keepOnly: false,
@@ -255,6 +256,16 @@ describe('sanitizeSettings', () => {
     expect(hideout({}).scanSellBuyable).toBe(false)
     expect(hideout({ scanSellBuyable: true }).scanSellBuyable).toBe(true)
     expect(hideout({ scanSellBuyable: 'yes' }).scanSellBuyable).toBe(false)
+  })
+
+  it('keeps whose items the list shows, and the To do view (since 1.16.0)', () => {
+    const hideout = (raw: Record<string, unknown>) => sanitizeSettings({ hideout: raw }).hideout
+    // Settings saved before 1.16.0 list both.
+    expect(hideout({ scope: 'next' }).source).toBe('all')
+    expect(hideout({ source: 'hideout' }).source).toBe('hideout')
+    expect(hideout({ source: 'quests' }).source).toBe('quests')
+    expect(hideout({ source: 'stash' }).source).toBe('all')
+    expect(sanitizeSettings({ view: 'todo' }).view).toBe('todo')
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

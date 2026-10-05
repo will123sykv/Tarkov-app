@@ -152,10 +152,48 @@ function sellTitle(advice: SellAdvice): string {
   return lines.join('\n')
 }
 
+const SOURCE_WORDS: Record<HideoutSettings['source'], { these: string; either: string; none: string }> = {
+  all: {
+    these: 'upgrades and quests',
+    either: 'upgrades or quests',
+    none: 'Nothing left to build or hand over.'
+  },
+  hideout: { these: 'upgrades', either: 'upgrades', none: 'Nothing left to build.' },
+  quests: { these: 'quests', either: 'quests', none: 'No quest in scope needs items handed over or planted.' }
+}
+
+/** With only the hideout's or the quests' needs listed: how many the other one needs too. */
+function AlsoNeeded({
+  need,
+  all,
+  source
+}: {
+  need: HideoutNeed
+  all: HideoutNeed | undefined
+  source: 'hideout' | 'quests'
+}): React.JSX.Element | null {
+  const other = all ? all.needed - need.needed : 0
+  if (!all || other <= 0) return null
+  const who = source === 'hideout' ? 'quests' : 'the hideout'
+  return (
+    <span
+      className={`use-chip also-needed ${all.missing > 0 ? 'short' : ''}`}
+      title={
+        `${all.needed} needed in all with ${who}'s ${other}, and you have ${all.have}` +
+        (all.missing > 0 ? `: ${all.missing} short for both.` : ': enough for both.')
+      }
+    >
+      +{other} for {who}
+    </span>
+  )
+}
+
 /** Every item the stations and quests still need, rare ones first, then what's put aside but no longer needed. */
 function ItemsNeeded({
   needs,
   everything,
+  combined,
+  source,
   items,
   hideDone,
   firOnly,
@@ -167,6 +205,10 @@ function ItemsNeeded({
   needs: HideoutNeed[]
   /** Each item's need over every level and quest left, for what's extra. */
   everything: ReadonlyMap<string, HideoutNeed>
+  /** Each item's need for the hideout and quests together (in scope), for what the other one needs. */
+  combined: ReadonlyMap<string, HideoutNeed>
+  /** Whose needs are listed. */
+  source: HideoutSettings['source']
   items: Items
   hideDone: boolean
   /** Only items that must be found in raid. */
@@ -217,10 +259,10 @@ function ItemsNeeded({
             : keepOnly && needs.some((n) => n.missing > 0)
               ? `Nothing ${firOnly ? 'found-in-raid ' : ''}still missing is hard to replace right now: you can buy it all.`
               : firOnly && needs.some((n) => n.missing > 0)
-                ? 'None of these upgrades or quests need items found in raid.'
+                ? `None of these ${SOURCE_WORDS[source].either} need items found in raid.`
                 : needs.length
-                  ? 'You have everything these upgrades and quests need.'
-                  : 'Nothing left to build or hand over.'}
+                  ? `You have everything these ${SOURCE_WORDS[source].these} need.`
+                  : SOURCE_WORDS[source].none}
         </p>
       </div>
     )
@@ -311,6 +353,9 @@ function ItemsNeeded({
                     </span>
                   ))}
                 {need.needed === 0 && <span className="muted">Nothing left needs these</span>}
+                {source !== 'all' && (
+                  <AlsoNeeded need={need} all={combined.get(need.itemId)} source={source} />
+                )}
               </td>
             </tr>
           ))}
@@ -519,14 +564,31 @@ export default function HideoutView({
     () => hideoutNeeds(stations, progress, h.scope, questNeeds[h.questScope]),
     [stations, progress, h.scope, h.questScope, questNeeds]
   )
+  const combined = useMemo(() => new Map(needs.map((n) => [n.itemId, n])), [needs])
+  // Only the hideout's or the quests' needs, counted on their own against what's put aside.
+  const sourceNeeds = useMemo(
+    () =>
+      h.source === 'all'
+        ? needs
+        : hideoutNeeds(
+            h.source === 'hideout' ? stations : [],
+            progress,
+            h.scope,
+            h.source === 'quests' ? questNeeds[h.questScope] : []
+          ),
+    [h.source, needs, stations, progress, h.scope, h.questScope, questNeeds]
+  )
   // Every level and quest left: what's extra, and what counts from screenshots cover.
   const allNeeds = useMemo(
     () => hideoutNeeds(stations, progress, 'all', questNeeds.all),
     [stations, progress, questNeeds]
   )
   const everything = useMemo(() => new Map(allNeeds.map((n) => [n.itemId, n])), [allNeeds])
-  // Plus what's put aside that nothing needs any more.
-  const listed = useMemo(() => [...needs, ...unneededHave(progress, allNeeds)], [needs, progress, allNeeds])
+  // Plus what's put aside that nothing needs any more (when both are listed).
+  const listed = useMemo(
+    () => (h.source === 'all' ? [...needs, ...unneededHave(progress, allNeeds)] : sourceNeeds),
+    [h.source, needs, sourceNeeds, progress, allNeeds]
+  )
   const sellCount = useMemo(
     () =>
       listed.filter((n) => sellAdvice(everything.get(n.itemId) ?? n, items.get(n.itemId), ctx) !== null)
@@ -542,8 +604,8 @@ export default function HideoutView({
     selectQuest(questId)
     void updateSettings({ view: 'quests' })
   }
-  const money = needs.filter((n) => CURRENCIES[n.itemId] && n.missing > 0)
-  const missing = needs.filter((n) => !CURRENCIES[n.itemId] && n.missing > 0)
+  const money = sourceNeeds.filter((n) => CURRENCIES[n.itemId] && n.missing > 0)
+  const missing = sourceNeeds.filter((n) => !CURRENCIES[n.itemId] && n.missing > 0)
   const scarceKinds = missing.map((n) => {
     const item = items.get(n.itemId)
     return item ? scarcity(item, ctx)?.kind : undefined
@@ -697,6 +759,11 @@ export default function HideoutView({
             Quests tab&rsquo;s Items needed. Handing items over in the Quests tab, or a quest the game&rsquo;s
             logs say you finished, takes them off Have.
           </p>
+          <p className="hint">
+            <strong>Hideout only</strong> and <strong>Quests only</strong> above the list count each on its
+            own against what you have; <span className="also-needed">+N for quests</span> says how many the
+            other needs too.
+          </p>
           <label className="check">
             <input
               type="checkbox"
@@ -728,14 +795,20 @@ export default function HideoutView({
       <main className="content">
         <div className="summary">
           <div className="summary-title">
-            <strong>Hideout</strong>
+            <strong>Items to collect</strong>
             <span className="muted">
               {dataset
                 ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ${maxed.length} maxed · ` +
                   (readyCount ? `${readyCount} ready to build · ` : '') +
                   (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
-                  (questCount ? ` (${questCount} for quests)` : '') +
+                  (h.source === 'hideout'
+                    ? ' for the hideout'
+                    : h.source === 'quests'
+                      ? ' for quests'
+                      : questCount
+                        ? ` (${questCount} for quests)`
+                        : '') +
                   (rareCount ? ` · ${rareCount} rare` : '') +
                   (lockedCount ? ` · ${lockedCount} you can’t buy yet` : '') +
                   (firCount ? ` · ${firCount} need finding in raid` : '') +
@@ -778,6 +851,30 @@ export default function HideoutView({
             </div>
             {h.tab === 'items' && (
               <>
+                <div className="segmented small" role="radiogroup" aria-label="Show items for">
+                  {(
+                    [
+                      ['all', 'Hideout + quests', 'Everything the hideout and quests need'],
+                      ['hideout', 'Hideout only', 'Only what the hideout needs, counted on its own'],
+                      [
+                        'quests',
+                        'Quests only',
+                        'Only what quests need handed over or planted, counted on their own'
+                      ]
+                    ] as const
+                  ).map(([id, text, title]) => (
+                    <button
+                      key={id}
+                      role="radio"
+                      aria-checked={h.source === id}
+                      className={h.source === id ? 'active' : ''}
+                      title={title}
+                      onClick={() => set({ source: id })}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
                 <input
                   className="search"
                   type="search"
@@ -845,6 +942,8 @@ export default function HideoutView({
           <ItemsNeeded
             needs={shownNeeds}
             everything={everything}
+            combined={combined}
+            source={h.source}
             items={items}
             hideDone={h.hideDone}
             firOnly={h.firOnly}

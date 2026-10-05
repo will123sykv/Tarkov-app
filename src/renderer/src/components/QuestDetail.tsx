@@ -63,7 +63,15 @@ const KeyIcon = (): React.JSX.Element => (
 )
 
 /** An item's icon and name, with a count or an amount of money. */
-function ItemChip({ id, count, items }: { id: string; count?: number; items: Items }): React.JSX.Element {
+export function ItemChip({
+  id,
+  count,
+  items
+}: {
+  id: string
+  count?: number
+  items: Items
+}): React.JSX.Element {
   const item = items.get(id)
   const money = count !== undefined ? formatMoney(id, count) : null
   return (
@@ -78,7 +86,7 @@ function ItemChip({ id, count, items }: { id: string; count?: number; items: Ite
 }
 
 /** Keys that open one lock: any one of them. */
-function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items }): React.JSX.Element {
+export function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items }): React.JSX.Element {
   return (
     <span className="key-choice">
       <KeyIcon />
@@ -93,7 +101,7 @@ function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items }): React
 }
 
 /** Tick an objective off, or count how many of it are done ("6 / 15"). */
-function ObjectiveTick({
+export function ObjectiveTick({
   quest,
   objective,
   value,
@@ -764,7 +772,7 @@ export default function QuestDetail({
           <p className="hint">
             From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
             and finishes: tick the steps off yourself. Steps like &ldquo;visit Customs 3 times&rdquo; count
-            your raids from the logs, and loyalty steps use the levels set in the Hideout tab.
+            your raids from the logs, and loyalty steps use the levels set in the Items to collect tab.
           </p>
         )}
       </section>

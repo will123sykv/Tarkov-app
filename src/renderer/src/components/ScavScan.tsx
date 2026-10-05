@@ -46,7 +46,7 @@ import { useBuyContext, useKeepList } from '../lib/useKeepList'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
 
-// The Hideout tab's screenshot scanner. New loot (a scav case haul, a container): it finds each item, reads
+// The Items to collect tab's screenshot scanner. New loot (a scav case haul, a container): it finds each item, reads
 // its name and count, says what to keep for the hideout and active quests and what to sell, and can add
 // what's kept to the hideout's counts. Everything I have (stash pages, cases): it counts what the
 // screenshots show and sets the hideout's counts to it. Everything it read can be corrected.

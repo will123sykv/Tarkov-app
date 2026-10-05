@@ -1294,7 +1294,7 @@ button.link {
   color: var(--muted);
 }
 
-/* Five views: keep the top bar on one line at the minimum window width. */
+/* Keep the top bar on one line at the minimum window width. */
 .view-tabs button,
 .segmented button,
 .topbar-actions .button,
@@ -1302,7 +1302,7 @@ button.link {
   white-space: nowrap;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1680px) {
   .topbar {
     gap: 16px;
   }
@@ -1313,6 +1313,25 @@ button.link {
 
   .view-tabs button {
     padding: 7px 9px;
+  }
+}
+
+/* Seven views: at the narrowest windows the refresh button is just its icon (its title says what). */
+@media (max-width: 1360px) {
+  .topbar {
+    gap: 12px;
+  }
+
+  .view-tabs {
+    gap: 0;
+  }
+
+  .view-tabs button {
+    padding: 7px 7px;
+  }
+
+  .refresh-label {
+    display: none;
   }
 }
 
@@ -1386,6 +1405,7 @@ button.link.active {
 
 .quests,
 .hideout,
+.todo,
 .maps,
 .raids {
   display: grid;
@@ -2116,6 +2136,16 @@ button.link.small {
   display: inline-block;
   margin: 1px 6px 1px 0;
   white-space: nowrap;
+}
+
+/* With only the hideout's or the quests' needs listed: what the other needs of the item too. */
+.also-needed {
+  color: var(--muted);
+}
+
+.also-needed.short {
+  color: var(--warn);
+  cursor: help;
 }
 
 .upgrades {
@@ -3264,4 +3294,255 @@ button.link.small {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* To do */
+
+.todo-maps {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  align-content: start;
+  gap: 12px;
+  padding: 12px 16px 24px;
+}
+
+.todo-map {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+/* The map to raid next spans the row, its quests side by side. */
+.todo-map.best {
+  grid-column: 1 / -1;
+  border-color: rgba(200, 178, 122, 0.7);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.todo-map header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.todo-map header > div {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-map header strong {
+  color: var(--accent-strong);
+  font-size: 14px;
+}
+
+.todo-map.best header strong {
+  font-size: 17px;
+}
+
+.todo-map.others {
+  grid-column: 1 / -1;
+}
+
+.todo-map.others header strong {
+  color: var(--text);
+}
+
+.todo-map header .muted {
+  font-size: 12px;
+}
+
+.todo-rank {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.todo-map.best .todo-rank {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.todo-quests,
+.todo-before,
+.todo-anywhere {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-map.best .todo-quests {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px 24px;
+}
+
+.todo-quest-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 5px;
+}
+
+.todo-quest-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.todo-quest-name .link {
+  font-weight: 600;
+  text-align: left;
+}
+
+.todo-quest-name .muted {
+  font-size: 12px;
+}
+
+.todo-portrait {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  object-fit: cover;
+  background: var(--panel-2);
+  border-radius: 3px;
+}
+
+.objectives.todo-steps {
+  gap: 5px;
+  padding-left: 2px;
+}
+
+.todo-icon {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  vertical-align: -2px;
+}
+
+.todo-icon.kind {
+  margin-right: 6px;
+  fill: var(--accent);
+}
+
+.todo-icon.key {
+  margin-left: 6px;
+  fill: var(--accent-strong);
+}
+
+.todo-icon.ok {
+  fill: var(--ok);
+}
+
+.todo-take {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.todo-take > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.todo-take-label {
+  flex: none;
+  width: 42px;
+  padding-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.todo-take-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  min-width: 0;
+}
+
+.todo-pickup {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.todo-before {
+  gap: 8px;
+  font-size: 13px;
+}
+
+.todo-before li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.todo-before li > .todo-icon {
+  flex: none;
+  margin-top: 3px;
+}
+
+.todo-before li > div {
+  min-width: 0;
+}
+
+.todo-before .muted {
+  font-size: 12px;
+}
+
+.todo-before .link,
+.todo-pickup .link,
+.todo-others .link {
+  text-align: left;
+}
+
+.todo-others {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-others li {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.todo-before .item-chip img {
+  width: 20px;
+  height: 20px;
+}
+
+.todo-anywhere {
+  font-size: 13px;
+}
+
+.todo-anywhere .todo-steps {
+  margin-top: 4px;
 }

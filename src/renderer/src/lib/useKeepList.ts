@@ -40,7 +40,7 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
 }
 
 /**
- * Items not to sell: what the hideout (in the Hideout tab's scope) and active quests still need,
+ * Items not to sell: what the hideout (in the Items to collect tab's scope) and active quests still need,
  * less what's put aside for them.
  */
 export function useKeepList(

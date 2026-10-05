@@ -10,9 +10,11 @@ prices, your PMC level and the game mode you play. It also has:
   reading the game's log files, with the main story's chapters, objectives you tick off as you go
   (and count, like 6/15 cigarettes handed over) or that the app ticks off itself where it can, each
   quest's keys, items, rewards and the wiki's guide and pictures of where to go;
-- **Hideout:** what your hideout's upgrades and your quests' hand-ins still need, with the items
-  you've put aside ticked off, which of those you could sell (and buy back later), and the items
-  not to sell (rare ones flagged) marked in the loot list;
+- **To do:** which map to raid next to move your active quests on, what to take, and what to hand
+  in, hand over or build before you go;
+- **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
+  just one of them), with the items you've put aside ticked off, which of those you could sell (and
+  buy back later), and the items not to sell (rare ones flagged) marked in the loot list;
 - **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
   extracts, transits and spawns;
 - **Raids:** your raid history and flea market sales, also from the logs.
@@ -115,10 +117,34 @@ closed, turn on **Keep running in the system tray when the window is closed** (i
 sidebar or Settings); **Start with Windows** starts it straight into the tray. Past patterns are no
 guarantee, and the flea listing fee is charged when you list, even if the item doesn't sell.
 
-### Hideout
+### To do
 
-The **Hideout** tab tracks your hideout per game mode. The game's logs don't record hideout
-upgrades, so set each station's level in the sidebar (the Stash starts at level 1).
+The **To do** tab says which map to raid next. It takes your active quests (from the game's logs,
+or set by hand in the Quests tab) and the objectives you haven't ticked off yet, and ranks the maps
+by how many of those quests a raid there moves on. A quest with nothing left to do in raid anywhere
+else counts twice and is marked **Finish here**: finishing quests is what opens up the next ones.
+
+- The map at the top, **Next raid**, and each one after it lists the quests and objectives to do
+  there, the **Keys** they need and what to **Bring** (markers, items to stash, quest items to
+  plant). Tick objectives off (or count them up) right there, and the ranking updates. **Show on
+  map** opens the map in the Maps tab with your quests on it; click a quest to open it in Quests.
+- **Also here, if you pick them up** names quests you haven't started yet that have objectives on
+  the same map, so you can take them from their trader first. They don't count towards the
+  ranking. Maps where only such quests have objectives are listed under **Other maps**.
+- **Before you raid:** active quests with every objective ticked off (hand them in), hand-overs you
+  already have the items for (from what you've put aside in Items to collect, or a quest item you've
+  found), and hideout upgrades with every item in hand.
+- **On any map:** objectives that can be done anywhere (say, kills on any map), and how many items
+  your quests still want found in raid, with a link to them in Items to collect.
+
+The game's logs only say when a quest starts and finishes, not its objectives, so the ranking is as
+good as your ticks.
+
+### Items to collect
+
+The **Items to collect** tab (called Hideout before 1.16.0) tracks your hideout and what your
+quests need handed over, per game mode. The game's logs don't record hideout upgrades, so set each
+station's level in the sidebar (the Stash starts at level 1).
 
 - **Items needed** totals every item your stations' next levels (or every level still to build)
   and your quests' hand-ins need, how many you've put aside (use **−**/**+**, type a number, or
@@ -126,6 +152,10 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
   some take any) and the station levels and quests each is for (click a quest to open it). Rare
   items come first; the money the upgrades cost is in the summary line. **Found in raid only**
   narrows the list to items that must be found in raid, showing how many of each.
+- **Hideout + quests**, **Hideout only** or **Quests only** above the list: just what the hideout
+  or just what your quests need, each counted on its own against what you've put aside. When the
+  other needs some of an item too, the row says how many (**+2 for quests**), in amber when what
+  you have isn't enough for both; point at it for the totals.
 - **Quest items:** under **Count items for**, choose **Active quests** (the default) or **Every
   quest left**, which adds quests you haven't started or unlocked yet (the Collector's items, for
   example). Quests that take any of several items are listed in the Quests tab's **Items needed**
@@ -158,7 +188,7 @@ upgrades, so set each station's level in the sidebar (the Stash starts at level 
   have fewer than 5 offers up while being worth ₽20,000 or more. Ones you can't buy yet at your
   level and trader loyalty get an amber **Can't buy yet** badge. Hover either for why; ones a
   trader sells you get neither.
-- **What to save right now:** tick **Can't buy or rare only** in the Hideout item list, or **Only
+- **What to save right now:** tick **Can't buy or rare only** in the Items to collect list, or **Only
   items to save (can't buy or rare)** in the Loot tab's filters, to see just the items you still
   need that you can't buy at your level and trader loyalty, or that are rare.
 
@@ -230,7 +260,7 @@ the game's install folder, or its `build` folder.
 - **Objectives ticked off for you:** the game's logs only say when a quest starts, finishes or
   fails, not its objectives, but some the app can tell by itself, marked **auto** (point at it to
   see why): "reach level N" from your PMC level, "reach loyalty level N with a trader" from the
-  levels set in the Hideout tab, objectives on another quest's progress, and story steps like
+  levels set in the Items to collect tab, objectives on another quest's progress, and story steps like
   "survive and extract from Customs or visit Customs 3 times", counted from your raids on that map
   in the logs since the chapter started (not as a scav). You can count further than the app did, but
   not below it.
@@ -336,7 +366,8 @@ npm run data:maps    # regenerate the bundled map projections from tarkov.dev
 
 ```
 src/shared/     Types, game modes, settings validation, item and container valuation,
-                flea trend analysis (fleaTrends.ts)
+                flea trend analysis (fleaTrends.ts), the item tracker (hideout.ts) and the
+                To do tab's map ranking (todo.ts)
 src/main/       Electron main process: settings, price fetching and caching, auto-updater,
                 container loot tables, tray (background.ts)
   pricing/      json.tarkov.dev, tarkov.dev GraphQL and tarkov-market clients, fallback chain,

@@ -127,7 +127,7 @@ export interface TarkovApi {
   chooseLogsFolder(): Promise<PublicSettings | null>
   onQuestProgress(listener: (update: { gameMode: GameMode; progress: QuestProgress }) => void): () => void
   onLogHistory(listener: (update: { gameMode: GameMode; history: LogHistory }) => void): () => void
-  /** Items put aside changed outside the Hideout tab, e.g. a quest the logs say was handed in. */
+  /** Items put aside changed outside the Items to collect tab, e.g. a quest the logs say was handed in. */
   onHideoutProgress(listener: (update: { gameMode: GameMode; hideout: HideoutProgress }) => void): () => void
   onLogStatus(listener: (status: LogWatcherStatus) => void): () => void
   getUpdaterStatus(): Promise<UpdaterStatus>

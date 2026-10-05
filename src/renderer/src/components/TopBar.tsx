@@ -6,8 +6,9 @@ import LevelInput from './LevelInput'
 const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
   { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
   { id: 'trends', label: 'Flea trends', subtitle: 'Best times to buy and sell' },
+  { id: 'todo', label: 'To do', subtitle: 'Which map to raid next for your quests' },
   { id: 'quests', label: 'Quests', subtitle: 'Quest progress from your game logs' },
-  { id: 'hideout', label: 'Hideout', subtitle: 'What your hideout still needs' },
+  { id: 'hideout', label: 'Items to collect', subtitle: 'What your hideout and quests still need' },
   { id: 'maps', label: 'Maps', subtitle: 'Quest objectives, extracts and spawns' },
   { id: 'raids', label: 'Raids', subtitle: 'Raids and flea sales from your logs' }
 ]
@@ -75,11 +76,16 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
       />
 
       <div className="topbar-actions">
-        <button className="button" onClick={() => void refreshPrices()} disabled={refreshing}>
+        <button
+          className="button"
+          title="Refresh prices"
+          onClick={() => void refreshPrices()}
+          disabled={refreshing}
+        >
           <span className={refreshing ? 'spin' : ''} aria-hidden>
             ⟳
           </span>
-          {refreshing ? 'Refreshing…' : 'Refresh prices'}
+          <span className="refresh-label">{refreshing ? 'Refreshing…' : 'Refresh prices'}</span>
         </button>
         <button className="button icon" onClick={() => setSettingsOpen(true)} title="Settings">
           ⚙
