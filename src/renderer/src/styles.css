@@ -3132,6 +3132,13 @@ button.link.small {
   color: var(--warn);
 }
 
+/* Reading keys: the keys about to be ticked. */
+.scan-changes-line {
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
 .scan-shots {
   display: flex;
   flex-wrap: wrap;

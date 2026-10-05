@@ -31,6 +31,7 @@ const api: TarkovApi = {
   getHideoutProgress: (gameMode) => ipcRenderer.invoke(IPC.hideoutProgress, gameMode),
   getKeys: (gameMode) => ipcRenderer.invoke(IPC.keysGet, gameMode),
   setKey: (gameMode, keyId, list, on) => ipcRenderer.invoke(IPC.keysSet, gameMode, keyId, list, on),
+  setOwnedKeys: (gameMode, keyIds) => ipcRenderer.invoke(IPC.keysSetOwned, gameMode, keyIds),
   setStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),
   setHideoutHave: (gameMode, itemId, count) =>

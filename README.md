@@ -262,6 +262,14 @@ game's logs don't say which keys you have, so tick them yourself.
 - **View map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
   links to the other maps it's on). **Add to To do** lists it under **Keys to get** in the To do
   tab. **Every key** lists all the game's keys, to tick ones no quest needs.
+- **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
+  your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
+  stash pages with loose keys); add them all with **Use latest screenshot**, **Open picture…**, paste
+  or drop. The app reads every item the way the Items to collect scanner does (on your PC) and lists
+  just the keys, marked **New** or **Ticked**; fix any it got wrong or add one it missed. **Update my
+  keys** makes the keys found your keys: ones you'd ticked that aren't in any screenshot are unticked
+  (it asks first), and **Undo** puts your old list back. The screenshots are shared with Items to
+  collect's scanner, so stash pages read there can tick your keys too.
 - **Keys you have** stop the To do tab from leaving out what they open. The key list comes from
   tarkov.dev, so keys a patch adds or removes follow with the next data refresh.
 

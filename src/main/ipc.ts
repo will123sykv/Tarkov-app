@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import { TREND_INTERVALS } from '../shared/settings'
+import { MAX_KEYS } from '../shared/keys'
 import { handOverItemOf, type ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
 import type { StoryPin } from '../shared/storyPlaces'
@@ -213,6 +214,13 @@ export function registerIpc(deps: {
     if (list !== 'owned' && list !== 'toDo') throw new Error('Invalid key list')
     if (typeof on !== 'boolean') throw new Error('Invalid key state')
     return player.setKey(requireGameMode(gameMode), requireId(keyId, 'item'), list, on)
+  })
+  ipcMain.handle(IPC.keysSetOwned, (_e, gameMode: unknown, keyIds: unknown) => {
+    if (!Array.isArray(keyIds) || keyIds.length > MAX_KEYS) throw new Error('Invalid keys')
+    return player.setOwnedKeys(
+      requireGameMode(gameMode),
+      keyIds.map((id) => requireId(id, 'item'))
+    )
   })
   ipcMain.handle(IPC.hideoutBuild, async (_e, gameMode: unknown, stationId: unknown, level: unknown) => {
     const mode = requireGameMode(gameMode)

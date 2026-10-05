@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
+import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { EMPTY_KEYS, keysNeeded, opens, type KeyNeed } from '../../../shared/keys'
 import { lockReasons, type QuestStatus } from '../../../shared/questProgress'
 import type { KeysSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { formatRub } from '../lib/format'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
+import { useItemLookup } from '../lib/useItemLookup'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import ScavScan from './ScavScan'
 
 // The Keys tab: the keys the player has (ticked by hand), the ones their quests still need, and how to
 // get each: buy it, a quest that hands it out, or where it spawns.
@@ -222,6 +225,8 @@ export default function KeysView({
   const selectQuest = useStore((s) => s.selectQuest)
   const updateSettings = useStore((s) => s.updateSettings)
   const { info, keyIds } = useKeyInfo(settings, priceState)
+  const items = useItemLookup(priceState)
+  const hideout = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const [search, setSearch] = useState('')
   const k = settings.keys
   const set = (patch: Partial<KeysSettings>): void => void updateSettings({ keys: { ...k, ...patch } })
@@ -312,8 +317,9 @@ export default function KeysView({
             ))}
           </div>
           <p className="hint">
-            Tick the keys you have (per game mode). <strong>Every key</strong> lists the rest too, to tick
-            keys no quest needs.
+            Tick the keys you have (per game mode), or read them all from screenshots of your key tool and
+            cases with <strong>Read from screenshots</strong>. <strong>Every key</strong> lists the rest too,
+            to tick keys no quest needs.
           </p>
         </section>
         <section>
@@ -346,40 +352,76 @@ export default function KeysView({
             </span>
           </div>
           <div className="summary-stats">
-            <input
-              className="search"
-              type="search"
-              placeholder="Search keys"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="segmented small" role="tablist">
+              <button
+                role="tab"
+                aria-selected={k.tab === 'list'}
+                className={k.tab === 'list' ? 'active' : ''}
+                onClick={() => set({ tab: 'list' })}
+              >
+                Keys
+              </button>
+              <button
+                role="tab"
+                aria-selected={k.tab === 'scan'}
+                className={k.tab === 'scan' ? 'active' : ''}
+                title="Tick the keys you have from screenshots of your key tool, cases and stash"
+                onClick={() => set({ tab: 'scan' })}
+              >
+                Read from screenshots
+              </button>
+            </div>
+            {k.tab === 'list' && (
+              <input
+                className="search"
+                type="search"
+                placeholder="Search keys"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            )}
           </div>
         </div>
-        <div className="key-lists">
-          <KeyTable title="Needed keys" rows={missing} {...rowProps} />
-          <KeyTable title="Keys you have" rows={neededHave} {...rowProps} />
-          <KeyTable
-            title="Other keys you have"
-            rows={otherOwned.map((id) => ({ keyIds: [id], uses: usesOf.get(id) ?? [] }))}
-            {...rowProps}
+        {k.tab === 'scan' ? (
+          <ScavScan
+            settings={settings}
+            priceState={priceState}
+            items={items}
+            progress={hideout}
+            allNeeds={[]}
+            variant="keys"
           />
-          {k.list === 'all' && (
+        ) : (
+          <div className="key-lists">
+            <KeyTable title="Needed keys" rows={missing} {...rowProps} />
+            <KeyTable title="Keys you have" rows={neededHave} {...rowProps} />
             <KeyTable
-              title="Every other key"
-              rows={everyOther.map((id) => ({ keyIds: [id], uses: [] }))}
+              title="Other keys you have"
+              rows={otherOwned.map((id) => ({ keyIds: [id], uses: usesOf.get(id) ?? [] }))}
               {...rowProps}
             />
-          )}
-          {dataset && !missing.length && !neededHave.length && !otherOwned.length && k.list === 'needed' && (
-            <div className="empty">
-              <p>
-                {term
-                  ? 'No key matches the search.'
-                  : 'None of these quests needs a key. Show every key to tick the ones you have.'}
-              </p>
-            </div>
-          )}
-        </div>
+            {k.list === 'all' && (
+              <KeyTable
+                title="Every other key"
+                rows={everyOther.map((id) => ({ keyIds: [id], uses: [] }))}
+                {...rowProps}
+              />
+            )}
+            {dataset &&
+              !missing.length &&
+              !neededHave.length &&
+              !otherOwned.length &&
+              k.list === 'needed' && (
+                <div className="empty">
+                  <p>
+                    {term
+                      ? 'No key matches the search.'
+                      : 'None of these quests needs a key. Show every key to tick the ones you have.'}
+                  </p>
+                </div>
+              )}
+          </div>
+        )}
       </main>
     </div>
   )

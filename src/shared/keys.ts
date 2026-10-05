@@ -37,6 +37,23 @@ export interface KeyNeed {
 
 const STATUS_ORDER: Partial<Record<QuestStatus, number>> = { active: 0, available: 1, locked: 2 }
 
+/**
+ * What reading the player's keys from screenshots changes: the keys found that aren't ticked yet, and
+ * the ticked ones the screenshots don't show (the screenshots are the whole list).
+ */
+export function keyScanChanges(
+  found: Iterable<string>,
+  owned: readonly string[]
+): { add: string[]; remove: string[]; unchanged: number } {
+  const seen = new Set(found)
+  const have = new Set(owned)
+  return {
+    add: [...seen].filter((id) => !have.has(id)),
+    remove: [...have].filter((id) => !seen.has(id)),
+    unchanged: [...seen].filter((id) => have.has(id)).length
+  }
+}
+
 /** Whether one of a lock's keys is owned. */
 export const opens = (keyIds: readonly string[], owned: ReadonlySet<string>): boolean =>
   keyIds.some((id) => owned.has(id))

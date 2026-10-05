@@ -17,6 +17,7 @@ import {
   type CountChange,
   type ScanAdvice
 } from '../../../shared/scavAdvice'
+import { EMPTY_KEYS, keyScanChanges } from '../../../shared/keys'
 import type { OcrJob } from '../../../shared/scanTypes'
 import type { LootItem, PriceState, PublicSettings } from '../../../shared/types'
 import type { ValuationContext } from '../../../shared/valuation'
@@ -43,16 +44,19 @@ import {
   type ScanTile
 } from '../lib/scavScan'
 import { useBuyContext, useKeepList } from '../lib/useKeepList'
+import { useKeyInfo } from '../lib/useKeyInfo'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
 
-// The Items to collect tab's screenshot scanner. New loot (a scav case haul, a container): it finds each item, reads
-// its name and count, says what to keep for the hideout and active quests and what to sell, and can add
-// what's kept to the hideout's counts. Everything I have (stash pages, cases): it counts what the
-// screenshots show and sets the hideout's counts to it. Everything it read can be corrected.
+// The screenshot scanner, in the Items to collect tab and the Keys tab. New loot (a scav case haul, a
+// container): it finds each item, reads its name and count, says what to keep for the hideout and active
+// quests and what to sell, and can add what's kept to the hideout's counts. Everything I have (stash
+// pages, cases): it counts what the screenshots show and sets the hideout's counts to it. Keys (the key
+// tool, cases, stash pages): the keys the screenshots show become the keys the player has. Everything it
+// read can be corrected.
 
 type Items = ReadonlyMap<string, LootItem>
-export type ScanMode = 'loot' | 'stash'
+export type ScanMode = 'loot' | 'stash' | 'keys'
 
 interface ScanRow {
   key: number
@@ -98,8 +102,14 @@ interface ScanState {
   busy: boolean
   error: string | null
   rows: ScanRow[]
-  /** The last change made to the hideout's counts, to undo it. */
-  applied: { mode: ScanMode; changes: CountChange[]; stored: Map<number, number> } | null
+  /** The last change made to the hideout's counts (or the keys the player has), to undo it. */
+  applied: {
+    mode: ScanMode
+    changes: CountChange[]
+    stored: Map<number, number>
+    /** The keys the player had before. */
+    keysBefore?: string[]
+  } | null
 }
 
 const EMPTY: Omit<ScanState, 'mode'> = {
@@ -224,10 +234,10 @@ async function readShot(
 
 /**
  * The grids to list: for new loot with more than one, the smaller (the container rather than the stash);
- * for everything the player has, all of them.
+ * for everything the player has (or their keys), all of them.
  */
 const defaultShown = (grids: GridScan[], mode: ScanMode): number[] =>
-  grids.length <= 1 || mode === 'stash'
+  grids.length <= 1 || mode !== 'loot'
     ? grids.map((_, i) => i)
     : [grids.reduce((best, g, i) => (g.tiles.length < grids[best].tiles.length ? i : best), 0)]
 
@@ -366,14 +376,19 @@ function repeatedRows(
 function ItemPicker({
   items,
   guesses,
+  prefer,
   onPick,
   onClose
 }: {
   items: Items
   guesses: string[]
+  /** Items to list first (keys, when reading keys). */
+  prefer?: (id: string) => boolean
   onPick: (id: string) => void
   onClose: () => void
 }): React.JSX.Element {
+  const first = (a: LootItem, b: LootItem): number =>
+    prefer ? Number(prefer(b.id)) - Number(prefer(a.id)) : 0
   const [term, setTerm] = useState('')
   const results = useMemo(() => {
     const t = term.trim().toLowerCase()
@@ -382,14 +397,20 @@ function ItemPicker({
       .filter((i) => i.name.toLowerCase().includes(t) || i.shortName.toLowerCase().includes(t))
       .sort(
         (a, b) =>
+          first(a, b) ||
           Number(b.shortName.toLowerCase() === t) - Number(a.shortName.toLowerCase() === t) ||
           Number(b.name.toLowerCase().startsWith(t)) - Number(a.name.toLowerCase().startsWith(t)) ||
           a.name.length - b.name.length
       )
       .slice(0, 8)
-  }, [items, term])
+  }, [items, term, prefer])
   const shown =
-    term.trim().length >= 2 ? results : guesses.map((id) => items.get(id)).filter((i): i is LootItem => !!i)
+    term.trim().length >= 2
+      ? results
+      : guesses
+          .map((id) => items.get(id))
+          .filter((i): i is LootItem => !!i)
+          .sort(first)
   return (
     <div className="item-picker" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <input
@@ -507,7 +528,8 @@ export default function ScavScan({
   priceState,
   items,
   progress,
-  allNeeds
+  allNeeds,
+  variant = 'items'
 }: {
   settings: PublicSettings
   priceState: PriceState | null
@@ -515,8 +537,19 @@ export default function ScavScan({
   progress: HideoutProgress
   /** What every unbuilt level and quest left still needs (the list counts are set against). */
   allNeeds: HideoutNeed[]
+  /** In the Items to collect tab (new loot, everything I have) or the Keys tab (your keys). */
+  variant?: 'items' | 'keys'
 }): React.JSX.Element {
   const state = useScan()
+  // The scan is shared between the tabs: each shows it in its own mode, keeping the screenshots.
+  const mode: ScanMode = variant === 'keys' ? 'keys' : state.mode === 'keys' ? 'stash' : state.mode
+  useEffect(() => {
+    if (useScan.getState().mode !== mode) setMode(mode)
+  }, [mode])
+  const { keyIds } = useKeyInfo(settings, priceState)
+  const isKey = (id: string | null): boolean => !!id && keyIds.has(id)
+  const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
+  const setOwnedKeys = useStore((s) => s.setOwnedKeys)
   const keepAll = useKeepList(settings, priceState)
   const buyCtx = useBuyContext(settings, priceState)
   const updateSettings = useStore((s) => s.updateSettings)
@@ -546,7 +579,7 @@ export default function ScavScan({
   const listRef = useRef(list)
   listRef.current = list
 
-  const { mode, shots } = state
+  const { shots } = state
   const ctx: ValuationContext = {
     playerLevel: settings.playerLevels[settings.gameMode],
     fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
@@ -569,9 +602,22 @@ export default function ScavScan({
     (r) => (r.shot === null || !!shotsById.get(r.shot)?.shown.includes(r.grid ?? -1)) && !isRepeat(r)
   )
   const advice = adviseScan(counted, items, keep, ctx)
+  const adviceOf = new Map(counted.map((r, i) => [r.key, advice[i]]))
   const totals = scanTotals(advice)
-  const toCheck = counted.filter((r) => r.confidence === 'low' || !r.itemId).length
-  const number = new Map(counted.map((r, i) => [r.key, i + 1]))
+  // Reading keys: only keys are listed (and rows it isn't sure of that could be one, and rows added by
+  // hand); the rest of the screenshot is left out.
+  const unsure = (r: ScanRow): boolean => r.confidence === 'low' || !r.itemId
+  const listed =
+    mode === 'keys'
+      ? counted.filter((r) => r.shot === null || isKey(r.itemId) || (unsure(r) && r.guesses.some(isKey)))
+      : counted
+  const otherItems = counted.length - listed.length
+  const toCheck = listed.filter(unsure).length
+  const number = new Map(listed.map((r, i) => [r.key, i + 1]))
+  const foundKeys =
+    mode === 'keys' ? ([...new Set(listed.map((r) => r.itemId).filter(isKey))] as string[]) : []
+  const keyChanges = mode === 'keys' ? keyScanChanges(foundKeys, inventory.owned) : null
+  const owned = new Set(inventory.owned)
   const noSizes = list.length > 0 && !list.some((i) => i.width && i.height)
   const needById = new Map(allNeeds.map((n) => [n.itemId, n]))
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
@@ -673,6 +719,24 @@ export default function ScavScan({
     setPicking(key)
   }
 
+  const updateKeys = async (): Promise<void> => {
+    if (!keyChanges || !(keyChanges.add.length || keyChanges.remove.length)) return
+    if (keyChanges.remove.length && !confirming) {
+      setConfirming(true)
+      return
+    }
+    setConfirming(false)
+    const before = inventory.owned
+    setSaving(true)
+    try {
+      await setOwnedKeys(foundKeys)
+      patch({ applied: { mode: 'keys', changes: [], stored: new Map(), keysBefore: before } })
+    } catch (err) {
+      patch({ error: `Couldn’t update your keys: ${err instanceof Error ? err.message : String(err)}` })
+    } finally {
+      setSaving(false)
+    }
+  }
   const save = async (counts: CountChange[], use: 'from' | 'to'): Promise<boolean> => {
     setSaving(true)
     try {
@@ -707,6 +771,16 @@ export default function ScavScan({
   }
   const undo = async (): Promise<void> => {
     const { applied } = useScan.getState()
+    if (applied?.keysBefore) {
+      setSaving(true)
+      try {
+        await setOwnedKeys(applied.keysBefore)
+        patch({ applied: null })
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
     if (!applied || !(await save(applied.changes, 'from'))) return
     patch({
       applied: null,
@@ -748,7 +822,7 @@ export default function ScavScan({
   const status = state.busy
     ? 'Reading the screenshot…'
     : shots.length
-      ? `${found} items found${shots.length > 1 ? ` in ${shots.length} screenshots` : ''}${
+      ? `${mode === 'keys' ? `${foundKeys.length} key${foundKeys.length === 1 ? '' : 's'} among ${found} items` : `${found} items found`}${shots.length > 1 ? ` in ${shots.length} screenshots` : ''}${
           active?.seconds != null && shots.length === 1 ? ` in ${active.seconds.toFixed(1)} s` : ''
         }${repeated ? `, ${repeated} repeated ones left out` : ''}${active?.region ? ' (part of the picture)' : ''}`
       : ''
@@ -756,26 +830,28 @@ export default function ScavScan({
   return (
     <div className={`scan ${dropping ? 'dropping' : ''}`}>
       <div className="scan-toolbar">
-        <div className="segmented small" role="radiogroup" aria-label="What the screenshots show">
-          {(
-            [
-              ['loot', 'New loot', 'A scav case haul or a container: what to keep, what to sell'],
-              ['stash', 'Everything I have', 'Your stash and cases: set the Have counts in Items needed']
-            ] as const
-          ).map(([id, text, title]) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={mode === id}
-              className={mode === id ? 'active' : ''}
-              title={title}
-              onClick={() => setMode(id)}
-              disabled={state.busy}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
+        {variant === 'items' && (
+          <div className="segmented small" role="radiogroup" aria-label="What the screenshots show">
+            {(
+              [
+                ['loot', 'New loot', 'A scav case haul or a container: what to keep, what to sell'],
+                ['stash', 'Everything I have', 'Your stash and cases: set the Have counts in Items needed']
+              ] as const
+            ).map(([id, text, title]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={mode === id}
+                className={mode === id ? 'active' : ''}
+                title={title}
+                onClick={() => setMode(id)}
+                disabled={state.busy}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="button primary" onClick={() => void useLatest(fresh)} disabled={state.busy}>
           {fresh ? 'Use latest screenshot' : 'Add latest screenshot'}
         </button>
@@ -848,7 +924,24 @@ export default function ScavScan({
       )}
       {!active ? (
         <div className="empty scan-empty">
-          {mode === 'loot' ? (
+          {mode === 'keys' ? (
+            <>
+              <p>
+                <strong>Tick your keys from screenshots</strong>
+              </p>
+              <p>
+                In game, open your key tool, keycard holder and any case you keep keys in, and take a
+                screenshot of each (and of stash pages with loose keys). Add them all here with{' '}
+                <em>Use latest screenshot</em>, open the pictures, paste (Ctrl+V) or drop them.
+              </p>
+              <p className="muted">
+                The app finds each key and reads its name (on your PC, nothing is uploaded). Then{' '}
+                <em>Update my keys</em> ticks the keys found in the Keys tab and unticks keys you&rsquo;d
+                ticked that aren&rsquo;t in any screenshot, so include every place you keep keys. Undo puts
+                your old list back.
+              </p>
+            </>
+          ) : mode === 'loot' ? (
             <>
               <p>
                 <strong>What to keep from your scav case</strong>
@@ -883,7 +976,7 @@ export default function ScavScan({
       ) : (
         <div className="scan-body">
           <div className="scan-shot">
-            {(shots.length > 1 || mode === 'stash') && (
+            {(shots.length > 1 || mode !== 'loot') && (
               <div className="scan-shots">
                 {shots.map((s, i) => (
                   <div key={s.id} className={`scan-thumb ${s.id === active.id ? 'active' : ''}`}>
@@ -972,18 +1065,22 @@ export default function ScavScan({
                 {state.rows.map((r) => {
                   if (r.shot !== active.id || !r.tile || r.grid === null) return null
                   const n = number.get(r.key)
-                  const a = n ? advice[n - 1] : null
+                  const a = adviceOf.get(r.key) ?? null
                   const kind = !n
                     ? 'off'
                     : r.confidence === 'low' || !r.itemId
                       ? 'check'
-                      : mode === 'stash'
-                        ? r.itemId && needById.has(r.itemId)
+                      : mode === 'keys'
+                        ? isKey(r.itemId)
                           ? 'keep'
-                          : 'sell'
-                        : a && a.keep > 0
-                          ? 'keep'
-                          : 'sell'
+                          : 'check'
+                        : mode === 'stash'
+                          ? r.itemId && needById.has(r.itemId)
+                            ? 'keep'
+                            : 'sell'
+                          : a && a.keep > 0
+                            ? 'keep'
+                            : 'sell'
                   const t = r.tile
                   return (
                     <g
@@ -1152,23 +1249,90 @@ export default function ScavScan({
                 </div>
               </div>
             )}
+            {keyChanges && (
+              <div className="scan-totals">
+                <div>
+                  <strong>
+                    Your keys from{' '}
+                    {shots.length === 1 ? 'this screenshot' : `these ${shots.length} screenshots`}
+                  </strong>
+                </div>
+                {keyChanges.add.length > 0 && (
+                  <div className="scan-changes-line">
+                    <span className="muted">To tick:</span> {keyChanges.add.map(name).sort().join(', ')}
+                  </div>
+                )}
+                {keyChanges.remove.length > 0 && (
+                  <div className="scan-zeroed">
+                    <span className="muted">Not in your screenshots, to untick:</span>{' '}
+                    {keyChanges.remove.map(name).sort().join(', ')}
+                  </div>
+                )}
+                {!keyChanges.add.length && !keyChanges.remove.length && (
+                  <div className="muted">
+                    {state.applied?.mode === 'keys' ? 'Keys updated ✓' : 'Your keys already match.'}
+                  </div>
+                )}
+                <div className="muted scan-note">
+                  {keyChanges.unchanged} already ticked · {otherItems} other item{otherItems === 1 ? '' : 's'}{' '}
+                  left out{toCheck ? ` · ${toCheck} to check` : ''}
+                </div>
+                <div className="scan-apply">
+                  {(keyChanges.add.length > 0 || keyChanges.remove.length > 0) &&
+                    (confirming ? (
+                      <>
+                        <span className="scan-warn">
+                          {keyChanges.remove.length} key{keyChanges.remove.length === 1 ? '' : 's'} will be
+                          unticked.
+                        </span>
+                        <button
+                          className="button primary small"
+                          onClick={() => void updateKeys()}
+                          disabled={saving}
+                        >
+                          Update anyway
+                        </button>
+                        <button className="button small" onClick={() => setConfirming(false)}>
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="button primary small"
+                        onClick={() => void updateKeys()}
+                        disabled={saving || state.busy}
+                      >
+                        Update my keys
+                      </button>
+                    ))}
+                  {state.applied?.mode === 'keys' && (
+                    <button className="button small" onClick={() => void undo()} disabled={saving}>
+                      Undo
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <table className="values-table scan-table">
               <thead>
                 <tr>
                   <th className="num">#</th>
-                  <th>Item</th>
-                  <th className="num">Count</th>
-                  <th>{mode === 'stash' ? 'Items needed' : 'Do'}</th>
-                  <th className="num">Worth</th>
+                  <th>{mode === 'keys' ? 'Key' : 'Item'}</th>
+                  {mode !== 'keys' && <th className="num">Count</th>}
+                  <th>{mode === 'keys' ? 'Your keys' : mode === 'stash' ? 'Items needed' : 'Do'}</th>
+                  {mode !== 'keys' && <th className="num">Worth</th>}
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {counted.map((r, i) => {
+                {listed.map((r, i) => {
                   const item = r.itemId ? items.get(r.itemId) : undefined
-                  const a = advice[i]
-                  const check = r.confidence === 'low' || !item
-                  const listed = mode === 'stash' && !!r.itemId && needById.has(r.itemId)
+                  const a = adviceOf.get(r.key)!
+                  const check = r.confidence === 'low' || !item || (mode === 'keys' && !isKey(r.itemId))
+                  const onList =
+                    mode === 'keys'
+                      ? isKey(r.itemId)
+                      : mode === 'stash' && !!r.itemId && needById.has(r.itemId)
                   return (
                     <tr
                       key={r.key}
@@ -1176,7 +1340,7 @@ export default function ScavScan({
                         if (el) rowRefs.current.set(r.key, el)
                         else rowRefs.current.delete(r.key)
                       }}
-                      className={`${check ? 'check' : (mode === 'stash' ? listed : a.keep) ? 'keep' : ''} ${
+                      className={`${check ? 'check' : (mode === 'loot' ? a.keep : onList) ? 'keep' : ''} ${
                         hover === r.key ? 'hover' : ''
                       }`}
                       onMouseEnter={() => setHover(r.key)}
@@ -1214,6 +1378,7 @@ export default function ScavScan({
                             <ItemPicker
                               items={items}
                               guesses={r.guesses}
+                              prefer={mode === 'keys' ? isKey : undefined}
                               onPick={(id) => {
                                 updateRow(r.key, { itemId: id, confidence: 'high' })
                                 setPicking(null)
@@ -1223,48 +1388,62 @@ export default function ScavScan({
                           )}
                         </span>
                       </td>
-                      <td className="num">
-                        <input
-                          className="scan-count"
-                          type="number"
-                          min={1}
-                          max={9999}
-                          value={r.count}
-                          aria-label="Count"
-                          onChange={(e) => {
-                            const n = Math.round(Number(e.target.value))
-                            if (n >= 1 && n <= 9999) updateRow(r.key, { count: n })
-                          }}
-                        />
-                      </td>
+                      {mode !== 'keys' && (
+                        <td className="num">
+                          <input
+                            className="scan-count"
+                            type="number"
+                            min={1}
+                            max={9999}
+                            value={r.count}
+                            aria-label="Count"
+                            onChange={(e) => {
+                              const n = Math.round(Number(e.target.value))
+                              if (n >= 1 && n <= 9999) updateRow(r.key, { count: n })
+                            }}
+                          />
+                        </td>
+                      )}
                       <td>
-                        {mode === 'stash' ? (
+                        {mode === 'keys' ? (
+                          !item ? (
+                            <span className="badge warn">Pick the key</span>
+                          ) : !isKey(r.itemId) ? (
+                            <span className="muted">Not a key: pick the key, or remove it</span>
+                          ) : owned.has(r.itemId!) ? (
+                            <span className="badge ok">Ticked</span>
+                          ) : (
+                            <span className="badge info">New</span>
+                          )
+                        ) : mode === 'stash' ? (
                           <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
                         ) : (
                           <Advice advice={a} item={item} buyLater={buyLater(r.itemId, item)} />
                         )}
                       </td>
-                      <td className="num">
-                        {mode === 'loot' && a.total > 0 ? (
-                          formatRub(a.total)
-                        ) : a.each > 0 ? (
-                          <span
-                            className="muted"
-                            title={
-                              mode === 'loot'
-                                ? 'What the ones you keep would sell for'
-                                : 'What they would sell for'
-                            }
-                          >
-                            {formatRub(a.each * (mode === 'loot' ? a.keep : r.count))}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                        {mode === 'loot' && a.sell > 1 && a.each > 0 && (
-                          <small>{formatRub(a.each)} each</small>
-                        )}
-                      </td>
+                      {mode !== 'keys' && (
+                        <td className="num">
+                          {mode === 'loot' && a.total > 0 ? (
+                            formatRub(a.total)
+                          ) : a.each > 0 ? (
+                            <span
+                              className="muted"
+                              title={
+                                mode === 'loot'
+                                  ? 'What the ones you keep would sell for'
+                                  : 'What they would sell for'
+                              }
+                            >
+                              {formatRub(a.each * (mode === 'loot' ? a.keep : r.count))}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                          {mode === 'loot' && a.sell > 1 && a.each > 0 && (
+                            <small>{formatRub(a.each)} each</small>
+                          )}
+                        </td>
+                      )}
                       <td>
                         <button className="button icon small" title="Remove" onClick={() => removeRow(r.key)}>
                           ×
@@ -1277,7 +1456,7 @@ export default function ScavScan({
             </table>
             {!state.busy && (
               <button className="button small scan-add" onClick={addRow}>
-                Add an item it missed
+                {mode === 'keys' ? 'Add a key it missed' : 'Add an item it missed'}
               </button>
             )}
           </div>

@@ -162,6 +162,8 @@ export interface KeysSettings {
   scope: 'active' | 'available' | 'all'
   /** The keys quests need, or every key (to tick the ones you have). */
   list: 'needed' | 'all'
+  /** The key list, or reading keys from screenshots (since 1.18.0). */
+  tab: 'list' | 'scan'
 }
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */

@@ -195,6 +195,17 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return next
     },
 
+    /** Replace the keys the player has (read from screenshots); ones to get that they now have go. */
+    async setOwnedKeys(mode: GameMode, keyIds: readonly string[]): Promise<KeyInventory> {
+      const d = await load()
+      const owned = [...new Set(keyIds)]
+      if (owned.length > MAX_KEYS) throw new Error('Too many keys')
+      const have = new Set(owned)
+      d.keys[mode] = { owned, toDo: d.keys[mode].toDo.filter((id) => !have.has(id)) }
+      await save()
+      return d.keys[mode]
+    },
+
     async pins(): Promise<StoryPins> {
       return (await load()).pins
     },

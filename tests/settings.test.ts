@@ -273,19 +273,21 @@ describe('sanitizeSettings', () => {
     const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
     expect(old.view).toBe('keys')
     expect(old.todo).toEqual({ keys: true })
-    expect(old.keys).toEqual({ scope: 'all', list: 'needed' })
+    expect(old.keys).toEqual({ scope: 'all', list: 'needed', tab: 'list' })
     expect(old.maps.showKeys).toBe(false)
     const chosen = sanitizeSettings({
       todo: { keys: false },
-      keys: { scope: 'available', list: 'all' },
+      keys: { scope: 'available', list: 'all', tab: 'scan' },
       maps: { showKeys: true }
     })
     expect(chosen.todo.keys).toBe(false)
-    expect(chosen.keys).toEqual({ scope: 'available', list: 'all' })
+    expect(chosen.keys).toEqual({ scope: 'available', list: 'all', tab: 'scan' })
     expect(chosen.maps.showKeys).toBe(true)
-    expect(sanitizeSettings({ todo: { keys: 0 }, keys: { scope: 'some', list: 'x' } })).toMatchObject({
+    expect(
+      sanitizeSettings({ todo: { keys: 0 }, keys: { scope: 'some', list: 'x', tab: 'y' } })
+    ).toMatchObject({
       todo: { keys: true },
-      keys: { scope: 'all', list: 'needed' }
+      keys: { scope: 'all', list: 'needed', tab: 'list' }
     })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope

@@ -48,6 +48,7 @@ export const IPC = {
   hideoutSetTrader: 'hideout:set-trader',
   keysGet: 'keys:get',
   keysSet: 'keys:set',
+  keysSetOwned: 'keys:set-owned',
   scanReadText: 'scan:read-text',
   scanGridImage: 'scan:grid-image',
   scanLatestScreenshot: 'scan:latest-screenshot',
@@ -119,6 +120,8 @@ export interface TarkovApi {
   getKeys(gameMode: GameMode): Promise<KeyInventory>
   /** Tick a key as owned (or wanted), or untick it. */
   setKey(gameMode: GameMode, keyId: string, list: keyof KeyInventory, on: boolean): Promise<KeyInventory>
+  /** Replace the keys the player has (e.g. read from screenshots). */
+  setOwnedKeys(gameMode: GameMode, keyIds: string[]): Promise<KeyInventory>
   /** Read labels cut out of a screenshot (OCR, offline). */
   readLabels(jobs: OcrJob[]): Promise<OcrResult[]>
   /** An item's tarkov.dev grid image (cached), for telling look-alikes apart. */

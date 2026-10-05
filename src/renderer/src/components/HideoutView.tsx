@@ -937,6 +937,7 @@ export default function HideoutView({
             items={items}
             progress={progress}
             allNeeds={allNeeds}
+            variant="items"
           />
         ) : h.tab === 'items' ? (
           <ItemsNeeded

@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import { createPlayerStore } from '../src/main/quests/playerStore'
-import { EMPTY_KEYS, keyRewards, keysNeeded, missingKeys, opens } from '../src/shared/keys'
+import { EMPTY_KEYS, keyRewards, keyScanChanges, keysNeeded, missingKeys, opens } from '../src/shared/keys'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import { tempDir } from './helpers'
@@ -125,6 +125,17 @@ describe('keyRewards', () => {
   })
 })
 
+describe('keyScanChanges', () => {
+  it('ticks what the screenshots show and unticks what they don’t, each key once', () => {
+    expect(keyScanChanges(['a', 'b', 'b', 'c'], ['c', 'd', 'e'])).toEqual({
+      add: ['a', 'b'],
+      remove: ['d', 'e'],
+      unchanged: 1
+    })
+    expect(keyScanChanges([], [])).toEqual({ add: [], remove: [], unchanged: 0 })
+  })
+})
+
 describe('the saved key lists', () => {
   it('keeps owned and wanted keys per game mode, and a key you get stops being one to get', async () => {
     const file = join(await tempDir(), 'player.json')
@@ -143,6 +154,23 @@ describe('the saved key lists', () => {
     const reopened = createPlayerStore({ file })
     expect(await reopened.keys('pvp')).toEqual({ owned: ['dorm'], toDo: ['cabin'] })
     expect(await reopened.keys('pve')).toEqual({ owned: ['cabin'], toDo: [] })
+  })
+
+  it('replaces the keys you have from screenshots, and keys you now have stop being ones to get', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const store = createPlayerStore({ file })
+    await store.setKey('pvp', 'old', 'owned', true)
+    await store.setKey('pvp', 'dorm', 'toDo', true)
+    await store.setKey('pvp', 'cabin', 'toDo', true)
+    expect(await store.setOwnedKeys('pvp', ['dorm', 'safe', 'dorm'])).toEqual({
+      owned: ['dorm', 'safe'],
+      toDo: ['cabin']
+    })
+    expect(await createPlayerStore({ file }).keys('pvp')).toEqual({
+      owned: ['dorm', 'safe'],
+      toDo: ['cabin']
+    })
+    expect(await store.keys('pve')).toEqual(EMPTY_KEYS)
   })
 
   it('reads files from before 1.17.0, and drops anything that isn’t a key id', async () => {

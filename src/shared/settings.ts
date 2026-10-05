@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items'
   },
   todo: { keys: true },
-  keys: { scope: 'all', list: 'needed' }
+  keys: { scope: 'all', list: 'needed', tab: 'list' }
 }
 
 const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'keys', 'maps', 'raids']
@@ -264,7 +264,8 @@ function sanitizeKeys(raw: unknown): KeysSettings {
   const r = isRecord(raw) ? raw : {}
   return {
     scope: r.scope === 'active' || r.scope === 'available' ? r.scope : 'all',
-    list: r.list === 'all' ? 'all' : 'needed'
+    list: r.list === 'all' ? 'all' : 'needed',
+    tab: r.tab === 'scan' ? 'scan' : 'list'
   }
 }
 

@@ -74,6 +74,8 @@ interface AppStore {
   setStationLevel(stationId: string, level: number): Promise<void>
   setHideoutHave(itemId: string, count: number): Promise<void>
   setKey(keyId: string, list: keyof KeyInventory, on: boolean): Promise<void>
+  /** Replace the keys the player has (read from screenshots). */
+  setOwnedKeys(keyIds: string[]): Promise<void>
   /** Open the Maps tab on a map with a key's locks and spawns on it (null: stop showing them). */
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   setHideoutHaveMany(counts: Record<string, number>): Promise<void>
@@ -362,6 +364,13 @@ export const useStore = create<AppStore>((set, get) => ({
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
     const keys = await window.api.setKey(gameMode, keyId, list, on)
+    set((s) => ({ keys: { ...s.keys, [gameMode]: keys } }))
+  },
+
+  async setOwnedKeys(keyIds) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const keys = await window.api.setOwnedKeys(gameMode, keyIds)
     set((s) => ({ keys: { ...s.keys, [gameMode]: keys } }))
   },
 
