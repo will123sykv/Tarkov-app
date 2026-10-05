@@ -64,3 +64,20 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
+
+  # Temporary: quests missing from tarkov.dev's task list, and what the wiki has (removed after use).
+  probe-missing-quests:
+    name: Probe missing quests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npx tsx scripts/probe-missing-quests.ts
