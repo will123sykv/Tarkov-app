@@ -153,8 +153,12 @@ export interface Settings {
 }
 
 export interface TodoSettings {
-  /** Leave out objectives behind a lock none of the player's keys open, or on a map they can't get onto. */
-  keys: boolean
+  /** Everything, or only what the player can do: not behind a key they don't have (since 1.19.0). */
+  show: 'all' | 'doable'
+  /** Kill and locate objectives, or only one kind (since 1.19.0). */
+  kinds: 'all' | 'kill' | 'locate'
+  /** Each quest in a few lines, or every objective to tick off (since 1.19.0). */
+  view: 'summary' | 'full'
 }
 
 export interface KeysSettings {

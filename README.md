@@ -126,10 +126,22 @@ or set by hand in the Quests tab) and the objectives you haven't ticked off yet,
 by how many of those quests a raid there moves on. A quest with nothing left to do in raid anywhere
 else counts twice and is marked **Finish here**: finishing quests is what opens up the next ones.
 
-- The map at the top, **Next raid**, and each one after it lists the quests and objectives to do
-  there, the **Keys** they need and what to **Bring** (markers, items to stash, quest items to
-  plant). Tick objectives off (or count them up) right there, and the ranking updates. **Show on
-  map** opens the map in the Maps tab with your quests on it; click a quest to open it in Quests.
+- The map at the top, **Next raid**, and each one after it shows the quests to do there, the
+  **Keys** they need and what to **Bring** (markers, items to stash, quest items to plant). **Show on
+  map** opens the map in the Maps tab with your quests on it.
+- **Summary** (the default) shows each quest in a few lines: up to three objectives, each kill with
+  its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
+  you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
+  what its items are worth now, experience and reputation). **Full** lists every objective to tick off
+  (or count up) right there, and the ranking updates as you do.
+- **Details ▶** (or a quest's name) opens the quest's full details beside the maps, as in the Quests
+  tab: status, what unlocks it and what it unlocks, every objective with its progress and **Show on
+  map**, the keys and items it takes, its rewards and the wiki's guide. **✕** goes back.
+- **Filters**, kept until you change them: **Show all** or **Only quests I can do** (leaves out
+  objectives behind a lock none of your keys open, and maps you can't get onto, like the Lab without
+  its access keycard), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
+  to, marking, finding, stashing, extracting). A quest with both kinds shows just the ones asked for,
+  and the maps are ranked by what's shown.
 - **Also here, if you pick them up** names quests you haven't started yet that have objectives on
   the same map, so you can take them from their trader first. They don't count towards the
   ranking. Maps where only such quests have objectives are listed under **Other maps**.
@@ -138,10 +150,9 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   found), and hideout upgrades with every item in hand.
 - **On any map:** objectives that can be done anywhere (say, kills on any map), and how many items
   your quests still want found in raid, with a link to them in Items to collect.
-- **Keys:** with **Leave out what I have no key for** ticked (the default), objectives behind a lock
-  none of your keys open, or on a map you can't get onto (the Lab without its access keycard), don't
-  count towards the ranking. They're still listed, with **Needs … (you don't have it)** and an **I
-  have it** link, and a quest with nothing else to do there is marked **Needs a key**. **Keys to
+- **Keys:** with **Show all**, objectives behind a lock none of your keys open are marked **Needs …
+  (you don't have it)**, and a quest with nothing else to do there is marked **Needs a key**; **Only
+  quests I can do** leaves them out (the summary line says how many quests that hides). **Keys to
   get** lists the keys that would open them up, with how to get each, plus any you added from the
   Keys tab.
 

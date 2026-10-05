@@ -12,6 +12,7 @@ import type {
   GameMode,
   HideoutSettings,
   KeysSettings,
+  TodoSettings,
   MapSettings,
   QuestSettings,
   QuestStatusFilter,
@@ -86,7 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
     scanSellBuyable: false,
     tab: 'items'
   },
-  todo: { keys: true },
+  todo: { show: 'all', kinds: 'all', view: 'summary' },
   keys: { scope: 'all', list: 'needed', tab: 'list' }
 }
 
@@ -255,8 +256,18 @@ export function sanitizeSettings(raw: unknown): Settings {
     quests: sanitizeQuests(r.quests),
     maps: sanitizeMaps(r.maps),
     hideout: sanitizeHideout(r.hideout),
-    todo: { keys: !isRecord(r.todo) || r.todo.keys !== false },
+    todo: sanitizeTodo(r.todo),
     keys: sanitizeKeys(r.keys)
+  }
+}
+
+// 1.17–1.18 kept a `keys` switch here; the filters replace it, starting from their defaults.
+function sanitizeTodo(raw: unknown): TodoSettings {
+  const r = isRecord(raw) ? raw : {}
+  return {
+    show: r.show === 'doable' ? 'doable' : 'all',
+    kinds: r.kinds === 'kill' || r.kinds === 'locate' ? r.kinds : 'all',
+    view: r.view === 'full' ? 'full' : 'summary'
   }
 }
 

@@ -5,7 +5,7 @@ import {
   mdiHandExtended,
   mdiKeyVariant
 } from '@mdi/js'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { DetectedProgress } from '../../../shared/objectiveDetection'
 import { EMPTY_HIDEOUT, stationLevel, upgradeStatus } from '../../../shared/hideout'
 import { EMPTY_KEYS, opens } from '../../../shared/keys'
@@ -14,25 +14,29 @@ import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../share
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
   objectiveMapIds,
+  questSummary,
   todoPlan,
   type KeyToGet,
   type MapGroup,
   type MapPlan,
   type TodoStep
 } from '../../../shared/todo'
-import type { HideoutSettings, PriceState, PublicSettings } from '../../../shared/types'
+import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/questPins'
 import type { Group } from '../lib/mapGroups'
 import { formatRub } from '../lib/format'
+import { formatMoney, formatStanding } from '../lib/questSummary'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
+import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 
 // The To do tab: which map to raid next to move your active quests on, what to take, and what can be
-// done before the raid (quests to hand in, items to hand over, upgrades to build).
+// done before the raid (quests to hand in, items to hand over, upgrades to build). Filters leave out
+// what's behind keys the player doesn't have, or one kind of objective; each quest shows as a summary
+// (or every objective to tick off), with its full details a click away.
 
 type Items = ReturnType<typeof useItemLookup>
 
@@ -127,7 +131,7 @@ function QuestLink({
   return (
     <span className="todo-quest-name">
       {trader?.imageLink && <img className="todo-portrait" src={trader.imageLink} alt="" />}
-      <button className="link" title="Open in the Quests tab" onClick={() => onOpen(quest.id)}>
+      <button className="link" title="See its details" onClick={() => onOpen(quest.id)}>
         {quest.name}
       </button>
       {trader && <span className="muted">{trader.name}</span>}
@@ -155,6 +159,121 @@ function QuestRef({
   )
 }
 
+/** What a quest gives: money, what its items are worth now, experience and the trader's reputation. */
+function rewardLine(quest: Quest, items: Items, trader: QuestTrader | undefined): string | null {
+  const parts: string[] = []
+  let worth = 0
+  for (const { itemId, count } of quest.rewards.items) {
+    const money = formatMoney(itemId, count)
+    if (money) parts.push(money)
+    else {
+      const item = items.get(itemId)
+      worth += Math.max(item?.fleaPrice ?? 0, item?.bestTrader?.price ?? 0) * count
+    }
+  }
+  if (worth > 0) parts.push(`items ≈ ${formatRub(worth)}`)
+  if (quest.experience > 0) parts.push(`${quest.experience.toLocaleString('en-US')} XP`)
+  const rep = quest.rewards.traderStanding.find((t) => t.traderId === quest.traderId)
+  if (rep && trader) parts.push(`${formatStanding(rep.standing)} ${trader.name}`)
+  return parts.length ? parts.join(' · ') : null
+}
+
+/** A quest in a few lines: what to do on this map and how far along, what's in the way, the reward. */
+function QuestCard({
+  quest,
+  plan,
+  objectives,
+  trader,
+  items,
+  otherMaps,
+  keyName,
+  onDetails
+}: {
+  quest: Quest
+  plan: MapPlan
+  objectives: ObjectiveProgress
+  trader: QuestTrader | undefined
+  items: Items
+  /** Other maps where it has objectives left. */
+  otherMaps: string[]
+  keyName: (keyId: string) => string
+  onDetails: (questId: string) => void
+}): React.JSX.Element {
+  const setKey = useStore((s) => s.setKey)
+  const steps = plan.steps.filter((s) => s.quest === quest)
+  const group = plan.group as Group
+  const { lines, more } = questSummary(quest, objectives, steps, group, [group.name])
+  const missing = [...new Map(steps.flatMap((s) => s.missing).map((k) => [k.join(), k])).values()]
+  const reward = rewardLine(quest, items, trader)
+  const blocked = plan.blocked.includes(quest)
+  return (
+    <li className={`todo-card ${blocked ? 'todo-blocked' : ''}`}>
+      <div className="todo-quest-head">
+        <span className="todo-quest-name">
+          {trader?.imageLink && <img className="todo-portrait" src={trader.imageLink} alt="" />}
+          <button className="link" title="See its details" onClick={() => onDetails(quest.id)}>
+            {quest.name}
+          </button>
+          {trader && <span className="muted">{trader.name}</span>}
+        </span>
+        {plan.finishes.includes(quest) && (
+          <span
+            className="badge ok"
+            title="Nothing else is left to do in raid for this quest: do these and hand it in"
+          >
+            Finish here
+          </span>
+        )}
+        {blocked && (
+          <span className="badge warn" title="Everything it has here is behind a key you don't have">
+            Needs a key
+          </span>
+        )}
+        <button className="link small todo-details" onClick={() => onDetails(quest.id)}>
+          Details ▶
+        </button>
+      </div>
+      <ul className="todo-lines">
+        {lines.map((l, i) => (
+          <li key={i}>
+            <span title={OBJECTIVE_KIND_LABEL[l.kind]}>
+              <Icon path={OBJECTIVE_ICONS[l.kind]} className="kind" />
+            </span>
+            <span className="todo-line-text">{l.text}</span>
+            {l.total > 1 && (
+              <span className={`todo-progress ${l.done >= l.total ? 'done' : ''}`}>
+                {l.done}/{l.total}
+              </span>
+            )}
+          </li>
+        ))}
+        {more > 0 && <li className="muted todo-more">+{plural(more, 'more objective')}</li>}
+      </ul>
+      {missing.map((keyIds) => (
+        <div key={keyIds.join()} className="todo-missing">
+          <Icon path={mdiAlertOutline} />
+          <span>
+            Needs {keyIds.map(keyName).join(' or ')} <span className="muted">(you don&rsquo;t have it)</span>{' '}
+            <button
+              className="link small"
+              title="Tick it as one of your keys (the Keys tab lists them all)"
+              onClick={() => void setKey(keyIds[0], 'owned', true)}
+            >
+              I have it
+            </button>
+          </span>
+        </div>
+      ))}
+      {otherMaps.length > 0 && <div className="muted todo-also">Also on {otherMaps.join(', ')}</div>}
+      {reward && (
+        <div className="todo-reward">
+          <span className="muted">Reward</span> {reward}
+        </div>
+      )}
+    </li>
+  )
+}
+
 /** What a raid on one map would get done, and what to take. */
 function MapCard({
   plan,
@@ -167,6 +286,9 @@ function MapCard({
   detected,
   owned,
   keyName,
+  view,
+  questMaps,
+  onDetails,
   onOpenQuest,
   onOpenMap
 }: {
@@ -178,19 +300,25 @@ function MapCard({
   mapsById: ReadonlyMap<string, GameMap>
   objectives: ObjectiveProgress
   detected: DetectedProgress
-  /** The player's keys, when the plan checks them. */
-  owned: ReadonlySet<string> | null
+  /** The player's keys. */
+  owned: ReadonlySet<string>
   keyName: (keyId: string) => string
+  view: TodoSettings['view']
+  /** The maps each quest has objectives on, for "also on". */
+  questMaps: ReadonlyMap<Quest, string[]>
+  onDetails: (questId: string) => void
   onOpenQuest: (questId: string) => void
   onOpenMap: (mapKey: string) => void
 }): React.JSX.Element {
+  const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
-  const doable = plan.steps.filter((s) => !s.missing.length).length
   const reason = [
     `Moves ${plural(plan.quests.length, 'active quest')} on`,
-    plural(doable, 'objective'),
+    plural(plan.steps.length, 'objective'),
     plan.finishes.length ? `finishes ${plan.finishes.length}` : null,
-    plan.blocked.length ? `${plan.blocked.length} more behind locks you have no key for` : null
+    plan.blocked.length
+      ? `${plan.blocked.length} need${plan.blocked.length === 1 ? 's' : ''} a key you don't have`
+      : null
   ]
     .filter(Boolean)
     .join(' · ')
@@ -214,12 +342,41 @@ function MapCard({
           </button>
         )}
       </header>
-      {plan.quests.length + plan.blocked.length > 0 && (
+      {plan.noAccess && (
+        <div className="todo-missing todo-access">
+          <Icon path={mdiAlertOutline} />
+          <span>
+            Needs {plan.noAccess.map(keyName).join(' or ')} to get in{' '}
+            <span className="muted">(you don&rsquo;t have it)</span>{' '}
+            <button className="link small" onClick={() => void setKey(plan.noAccess![0], 'owned', true)}>
+              I have it
+            </button>
+          </span>
+        </div>
+      )}
+      {view === 'summary' && plan.quests.length > 0 && (
+        <ul className="todo-quests todo-cards">
+          {plan.quests.map((quest) => (
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              plan={plan}
+              objectives={objectives}
+              trader={traderOf(quest)}
+              items={items}
+              otherMaps={(questMaps.get(quest) ?? []).filter((name) => name !== group.name)}
+              keyName={keyName}
+              onDetails={onDetails}
+            />
+          ))}
+        </ul>
+      )}
+      {view === 'full' && plan.quests.length > 0 && (
         <ul className="todo-quests">
-          {[...plan.quests, ...plan.blocked].map((quest) => (
+          {plan.quests.map((quest) => (
             <li key={quest.id} className={plan.blocked.includes(quest) ? 'todo-blocked' : ''}>
               <div className="todo-quest-head">
-                <QuestLink quest={quest} trader={traderOf(quest)} onOpen={onOpenQuest} />
+                <QuestLink quest={quest} trader={traderOf(quest)} onOpen={onDetails} />
                 {plan.finishes.includes(quest) && (
                   <span
                     className="badge ok"
@@ -229,10 +386,13 @@ function MapCard({
                   </span>
                 )}
                 {plan.blocked.includes(quest) && (
-                  <span className="badge warn" title="Doesn't count towards this map until you have the key">
+                  <span className="badge warn" title="Everything it has here is behind a key you don't have">
                     Needs a key
                   </span>
                 )}
+                <button className="link small todo-details" onClick={() => onDetails(quest.id)}>
+                  Details ▶
+                </button>
               </div>
               <ol className="objectives todo-steps">
                 {plan.steps
@@ -260,7 +420,7 @@ function MapCard({
               <span className="todo-take-label">Keys</span>
               <span className="todo-take-list">
                 {plan.keys.map((keyIds) => {
-                  const have = owned ? opens(keyIds, owned) : null
+                  const have = opens(keyIds, owned)
                   return (
                     <span
                       key={keyIds.join()}
@@ -345,8 +505,7 @@ function OtherMaps({
         <div>
           <strong>Other maps</strong>
           <span className="muted">
-            Nothing you can do there yet: active quests behind keys you don&rsquo;t have, or quests you could
-            pick up
+            Nothing active there (that the filters show), but quests you could pick up have objectives there
           </span>
         </div>
       </header>
@@ -480,7 +639,16 @@ export default function TodoView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState, rows, objectives, detected, mapsById } = useQuestRows(settings)
+  const {
+    questState,
+    rows,
+    objectives,
+    detected,
+    mapsById,
+    ctx: questCtx,
+    questsById
+  } = useQuestRows(settings)
+  const questProgress = useStore((s) => s.questProgress[settings.gameMode])
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -489,13 +657,21 @@ export default function TodoView({
   const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
   const { info, groups } = useKeyInfo(settings, priceState)
   const dataset = questState?.dataset ?? null
-  const checkKeys = settings.todo.keys
-  const owned = useMemo(() => (checkKeys ? new Set(inventory.owned) : null), [checkKeys, inventory.owned])
+  const t = settings.todo
+  const setTodo = (patch: Partial<TodoSettings>): void => void updateSettings({ todo: { ...t, ...patch } })
+  const [detail, setDetail] = useState<string | null>(null)
+  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
   const keyName = (keyId: string): string => info(keyId).name
 
   const plan = useMemo(
-    () => todoPlan(rows, objectives, (id) => groups.get(id), progress.have, owned),
-    [rows, objectives, groups, progress.have, owned]
+    () =>
+      todoPlan(rows, objectives, (id) => groups.get(id), {
+        have: progress.have,
+        owned,
+        hideBlocked: t.show === 'doable',
+        kinds: t.kinds
+      }),
+    [rows, objectives, groups, progress.have, owned, t.show, t.kinds]
   )
   // Keys to get: the ones holding up active quests, then the ones added from the Keys tab.
   const ownedAll = new Set(inventory.owned)
@@ -534,15 +710,16 @@ export default function TodoView({
   const ranked = plan.maps.filter((p) => p.quests.length > 0)
   const keysCount = plan.keysToGet.length + addedKeys.length
   const others = plan.maps.filter((p) => p.quests.length === 0)
-  const raidSteps = new Set(
-    ranked.flatMap((p) =>
-      p.steps.filter((s) => !s.missing.length).map((s) => `${s.quest.id}:${s.objective.id}`)
-    )
-  ).size
+  const raidSteps = new Set(ranked.flatMap((p) => p.steps.map((s) => `${s.quest.id}:${s.objective.id}`))).size
+  // The maps each quest has objectives on (as shown), for "also on".
+  const questMaps = new Map<Quest, string[]>()
+  for (const p of ranked)
+    for (const q of p.quests) questMaps.set(q, [...(questMaps.get(q) ?? []), p.group.name])
+  const detailRow = detail ? (rows.find((r) => r.quest.id === detail) ?? null) : null
   const beforeCount = plan.turnIn.length + plan.handOvers.length + buildable.length
 
   return (
-    <div className="todo">
+    <div className={`todo ${detailRow && dataset ? 'with-detail' : ''}`}>
       <aside className="sidebar">
         <section>
           <h2>Before you raid</h2>
@@ -604,11 +781,7 @@ export default function TodoView({
         <section>
           <h2>Keys to get</h2>
           {keysCount === 0 ? (
-            <p className="hint">
-              {checkKeys
-                ? 'None: you have a key for every lock your active quests need opened.'
-                : 'Keys aren’t checked: tick the box below to leave out what you have no key for.'}
-            </p>
+            <p className="hint">None: you have a key for every lock your active quests need opened.</p>
           ) : (
             <ul className="todo-before">
               {plan.keysToGet.map((k) => (
@@ -627,17 +800,9 @@ export default function TodoView({
               ))}
             </ul>
           )}
-          <label className="check todo-check">
-            <input
-              type="checkbox"
-              checked={checkKeys}
-              onChange={(e) => void updateSettings({ todo: { ...settings.todo, keys: e.target.checked } })}
-            />
-            Leave out what I have no key for
-          </label>
           <p className="hint">
             Objectives behind a lock none of your keys open (tick yours in the Keys tab), or on a map you
-            can&rsquo;t get onto, don&rsquo;t count towards which map to raid.
+            can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> leaves them out.
           </p>
         </section>
         <section>
@@ -648,7 +813,7 @@ export default function TodoView({
             <ul className="todo-anywhere">
               {plan.anyMap.map((s) => (
                 <li key={`${s.quest.id}:${s.objective.id}`}>
-                  <QuestLink quest={s.quest} trader={traderOf(s.quest)} onOpen={openQuest} />
+                  <QuestLink quest={s.quest} trader={traderOf(s.quest)} onOpen={setDetail} />
                   <ol className="objectives todo-steps">
                     <Step
                       step={s}
@@ -676,9 +841,9 @@ export default function TodoView({
         <section>
           <h2>How maps are ranked</h2>
           <p className="hint">
-            By how many of your active quests a raid there moves on. A quest with nothing left to do in raid
-            anywhere else counts twice: finishing it opens up the next ones. Quests you haven&rsquo;t picked
-            up yet are listed, but don&rsquo;t count.
+            By how many of your active quests a raid there moves on (of the ones the filters show). A quest
+            with nothing left to do in raid anywhere else counts twice: finishing it opens up the next ones.
+            Quests you haven&rsquo;t picked up yet are listed, but don&rsquo;t count.
           </p>
           <p className="hint">
             Tick objectives off here or in the Quests tab as you do them: the game&rsquo;s logs only say when
@@ -697,11 +862,78 @@ export default function TodoView({
                   : 'Loading quests…'
                 : plan.active === 0
                   ? 'No active quests: start them in the Quests tab, or let the game’s logs say.'
-                  : `${plural(plan.active, 'active quest')} · ${plural(raidSteps, 'objective')} left in raid on ${plural(ranked.length, 'map')}` +
+                  : `${plural(plan.active, 'active quest')} · ${plural(raidSteps, t.kinds === 'kill' ? 'kill objective' : t.kinds === 'locate' ? 'locate objective' : 'objective')} left in raid on ${plural(ranked.length, 'map')}` +
                     (plan.anyMap.length ? ` · ${plan.anyMap.length} on any map` : '') +
+                    (plan.hidden
+                      ? ` · ${plural(plan.hidden, 'quest')} with objectives hidden behind keys you don’t have`
+                      : '') +
                     (keysCount ? ` · ${plural(keysCount, 'key')} to get` : '') +
                     (beforeCount ? ` · ${beforeCount} to do before you raid` : '')}
             </span>
+          </div>
+          <div className="summary-stats todo-filters">
+            <div className="segmented small" role="radiogroup" aria-label="Which quests">
+              {(
+                [
+                  ['all', 'Show all', 'Every objective, with the ones behind keys you don’t have marked'],
+                  [
+                    'doable',
+                    'Only quests I can do',
+                    'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
+                  ]
+                ] as const
+              ).map(([id, text, title]) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={t.show === id}
+                  className={t.show === id ? 'active' : ''}
+                  title={title}
+                  onClick={() => setTodo({ show: id })}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+            <div className="segmented small" role="radiogroup" aria-label="Which objectives">
+              {(
+                [
+                  ['all', 'Both', 'Kill and locate objectives'],
+                  ['kill', 'Kill', 'Only objectives to eliminate enemies'],
+                  ['locate', 'Locate', 'Only objectives to go to, mark, find, stash or extract']
+                ] as const
+              ).map(([id, text, title]) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={t.kinds === id}
+                  className={t.kinds === id ? 'active' : ''}
+                  title={title}
+                  onClick={() => setTodo({ kinds: id })}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+            <div className="segmented small" role="radiogroup" aria-label="How to show quests">
+              {(
+                [
+                  ['summary', 'Summary', 'Each quest in a few lines'],
+                  ['full', 'Full', 'Every objective, to tick off as you go']
+                ] as const
+              ).map(([id, text, title]) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={t.view === id}
+                  className={t.view === id ? 'active' : ''}
+                  title={title}
+                  onClick={() => setTodo({ view: id })}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {dataset && ranked.length === 0 ? (
@@ -709,12 +941,16 @@ export default function TodoView({
             <p>
               {plan.active === 0
                 ? 'Start some quests and this says which map to raid next.'
-                : others.some((p) => p.blocked.length)
-                  ? 'Everything your active quests have left on a map is behind a key you don’t have.'
-                  : 'None of your active quests has anything left to do on a particular map.'}
+                : plan.hidden
+                  ? 'Everything your active quests have left on a map (that the filters show) is behind a key you don’t have.'
+                  : t.kinds !== 'all'
+                    ? `None of your active quests has ${t.kinds} objectives left on a particular map.`
+                    : 'None of your active quests has anything left to do on a particular map.'}
             </p>
-            {others.some((p) => p.blocked.length) ? (
-              <p className="hint">The keys are listed under Keys to get.</p>
+            {plan.hidden ? (
+              <p className="hint">
+                The keys are listed under Keys to get; Show all lists those objectives too.
+              </p>
             ) : (
               plan.maps.length > 0 && (
                 <p className="hint">
@@ -738,6 +974,9 @@ export default function TodoView({
                 detected={detected}
                 owned={owned}
                 keyName={keyName}
+                view={t.view}
+                questMaps={questMaps}
+                onDetails={setDetail}
                 onOpenQuest={openQuest}
                 onOpenMap={openMap}
               />
@@ -748,6 +987,21 @@ export default function TodoView({
           </div>
         )}
       </main>
+      {detailRow && dataset && (
+        <QuestDetail
+          row={detailRow}
+          progress={questProgress ?? {}}
+          objectives={objectives}
+          detected={detected}
+          ctx={questCtx}
+          questsById={questsById}
+          mapsById={mapsById}
+          traders={dataset.traders}
+          priceState={priceState}
+          onOpenInQuests={() => openQuest(detailRow.quest.id)}
+          onClose={() => setDetail(null)}
+        />
+      )}
     </div>
   )
 }

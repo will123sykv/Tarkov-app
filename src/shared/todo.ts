@@ -28,6 +28,36 @@ const OFF_RAID = new Set([
 /** Objectives that use up an item in raid: you bring it with you. */
 const BRING = new Set(['mark', 'plantItem', 'useItem'])
 
+export type ObjectiveKind = 'visit' | 'pickup' | 'stash' | 'mark' | 'kill' | 'extract' | 'other'
+
+/** What an objective has you do, for its icon and summary. */
+export function objectiveKind(objective: Pick<QuestObjective, 'type'>): ObjectiveKind {
+  switch (objective.type) {
+    case 'visit':
+      return 'visit'
+    case 'findQuestItem':
+    case 'findItem':
+      return 'pickup'
+    case 'plantItem':
+    case 'plantQuestItem':
+      return 'stash'
+    case 'mark':
+      return 'mark'
+    case 'shoot':
+      return 'kill'
+    case 'extract':
+      return 'extract'
+    default:
+      return 'other'
+  }
+}
+
+/** Kill objectives (eliminate enemies), and locate ones (go to, mark, find, stash, extract…). */
+export type ObjectiveCategory = 'kill' | 'locate'
+
+export const objectiveCategory = (objective: Pick<QuestObjective, 'type'>): ObjectiveCategory =>
+  objective.type === 'shoot' ? 'kill' : 'locate'
+
 /** Every map an objective names: its own list, its zones' and where its quest item can be. */
 export function objectiveMapIds(objective: Pick<QuestObjective, 'maps' | 'zones' | 'locations'>): string[] {
   return [
@@ -75,7 +105,10 @@ export interface MapPlan {
   finishes: Quest[]
   /** Quests not started yet that have objectives here, to pick up from their traders first. */
   available: Quest[]
-  /** Active quests with objectives here, but only behind locks (or a way in) the player has no key for. */
+  /**
+   * Quests here whose objectives here are all behind locks (or a way in) the player has no key for. They
+   * count only when blocked objectives are shown; with them hidden, there are none.
+   */
   blocked: Quest[]
   /** The items needed to get onto the map, when the player has none of them. */
   noAccess: string[] | null
@@ -112,6 +145,19 @@ export interface TodoPlan {
   keysToGet: KeyToGet[]
   /** How many quests are active. */
   active: number
+  /** Active quests with objectives left out because they're behind keys the player doesn't have. */
+  hidden: number
+}
+
+export interface TodoOptions {
+  /** What's put aside, for hand-overs and items to find. */
+  have?: Readonly<Record<string, number>>
+  /** The player's keys, to tell which objectives are behind a lock they can't open; null: not checked. */
+  owned?: ReadonlySet<string> | null
+  /** Leave out objectives behind a lock the player can't open, or on a map they can't get onto. */
+  hideBlocked?: boolean
+  /** Only kill objectives, or only locate ones (a quest with both shows just those). */
+  kinds?: 'all' | ObjectiveCategory
 }
 
 /** A lock (or a map's way in) holding up active quests. */
@@ -126,23 +172,20 @@ export interface KeyToGet {
 }
 
 const score = (plan: MapPlan): number => plan.quests.length + plan.finishes.length
-/** Steps that can be done there with the player's keys. */
-const doable = (plan: MapPlan): number =>
-  plan.noAccess ? 0 : plan.steps.filter((s) => !s.missing.length).length
 
 /**
  * Where to raid next for the active quests, and what can be done without a raid. `groupOf` says which
- * map (group) a map id belongs to; `have` is what's put aside, for hand-overs and items to find. With
- * `owned` (the player's keys), objectives behind a lock none of them opens, or on a map they can't get
- * onto, don't count.
+ * map (group) a map id belongs to. With `owned` (the player's keys), objectives behind a lock none of them
+ * opens, or on a map they can't get onto, are flagged (and with `hideBlocked`, left out).
  */
 export function todoPlan(
   rows: readonly { quest: Quest; status: QuestStatus }[],
   objectives: ObjectiveProgress | undefined,
   groupOf: (mapId: string) => MapGroup | undefined,
-  have: Readonly<Record<string, number>> = {},
-  owned: ReadonlySet<string> | null = null
+  { have = {}, owned = null, hideBlocked = false, kinds = 'all' }: TodoOptions = {}
 ): TodoPlan {
+  const wanted = (o: QuestObjective): boolean => kinds === 'all' || objectiveCategory(o) === kinds
+  const hidden = new Set<Quest>()
   const plans = new Map<string, MapPlan>()
   const plan = (group: MapGroup): MapPlan => {
     let p = plans.get(group.key)
@@ -187,7 +230,8 @@ export function todoPlan(
     turnIn: [],
     handOvers: [],
     keysToGet: [],
-    active: 0
+    active: 0,
+    hidden: 0
   }
 
   for (const { quest, status } of rows) {
@@ -201,7 +245,11 @@ export function todoPlan(
         missing: owned ? missingKeys(o, owned) : []
       }))
       .filter((s) => s.left > 0)
-    const raid = open.filter((s) => inRaid(s.objective)).map((s) => ({ ...s, groups: groupsOf(s.objective) }))
+    // Every objective left in raid (for whether a quest can be finished on a map), and the kind asked for.
+    const raidAll = open
+      .filter((s) => inRaid(s.objective))
+      .map((s) => ({ ...s, groups: groupsOf(s.objective) }))
+    const raid = raidAll.filter((s) => wanted(s.objective))
 
     if (status === 'available') {
       // Story chapters start by themselves: only quests a trader hands out are picked up.
@@ -231,11 +279,13 @@ export function todoPlan(
     }
 
     const onMaps = raid.filter((s) => s.groups.length)
+    const onMapsAll = raidAll.filter((s) => s.groups.length)
     for (const step of raid) {
       if (step.groups.length) continue
       if (step.objective.type !== 'findItem') {
-        result.anyMap.push(step)
         for (const keyIds of step.missing) needKey(keyIds, quest, [], false)
+        if (hideBlocked && step.missing.length) hidden.add(quest)
+        else result.anyMap.push(step)
       } else {
         const single = step.objective.items.length === 1 ? step.objective.items[0] : null
         if (!single || (have[single] ?? 0) < step.left) result.finds.push(step)
@@ -244,19 +294,23 @@ export function todoPlan(
     const touched = new Map(onMaps.flatMap((s) => s.groups).map((g) => [g.key, g]))
     for (const group of touched.values()) {
       const p = plan(group)
-      const here = onMaps.filter((s) => s.groups.some((g) => g.key === group.key))
-      p.steps.push(...here.map(({ groups: _, ...s }) => s))
+      const inGroup = (st: { groups: MapGroup[] }): boolean => st.groups.some((g) => g.key === group.key)
+      const all = onMaps.filter(inGroup)
       // What can be done here with the player's keys: not behind a lock they can't open, on a map they
       // can get onto.
-      const ready = p.noAccess ? [] : here.filter((s) => !s.missing.length)
-      if (!ready.length) p.blocked.push(quest)
-      else {
-        p.quests.push(quest)
-        if (here.length === onMaps.length && ready.length === here.length) p.finishes.push(quest)
-      }
+      const canDo = (st: TodoStep): boolean => !p.noAccess && !st.missing.length
       if (p.noAccess) needKey(p.noAccess, quest, group.mapIds.slice(0, 1), true)
-      for (const { objective, missing } of here)
+      for (const { objective, missing } of all)
         for (const keyIds of missing) needKey(keyIds, quest, objective.maps, false)
+      const here = hideBlocked ? all.filter(canDo) : all
+      if (here.length < all.length) hidden.add(quest)
+      if (!here.length) continue
+      p.steps.push(...here.map(({ groups: _, ...st }) => st))
+      p.quests.push(quest)
+      if (!here.some(canDo)) p.blocked.push(quest)
+      // Finished here: nothing left in raid anywhere else (of any kind), and nothing in the way.
+      const allHere = onMapsAll.filter(inGroup)
+      if (allHere.length === onMapsAll.length && allHere.every(canDo)) p.finishes.push(quest)
       for (const { objective, left } of here) {
         for (const keyIds of objective.requiredKeys)
           if (keyIds.length && !p.keys.some((k) => k.join() === keyIds.join())) p.keys.push(keyIds)
@@ -289,16 +343,92 @@ export function todoPlan(
     p.available.sort((a, b) => a.name.localeCompare(b.name))
     p.blocked.sort((a, b) => a.name.localeCompare(b.name))
   }
+  result.hidden = hidden.size
   // The keys holding up the most quests first.
   result.keysToGet = [...toGet.values()].sort(
     (a, b) => b.quests.length - a.quests.length || Number(b.access) - Number(a.access)
   )
-  result.maps = [...plans.values()].sort(
-    (a, b) =>
-      score(b) - score(a) ||
-      doable(b) - doable(a) ||
-      b.available.length - a.available.length ||
-      a.group.name.localeCompare(b.group.name)
-  )
+  // Maps where everything was left out (behind keys the player doesn't have) aren't listed.
+  result.maps = [...plans.values()]
+    .filter((p) => p.quests.length || p.available.length)
+    .sort(
+      (a, b) =>
+        score(b) - score(a) ||
+        b.steps.length - a.steps.length ||
+        b.available.length - a.available.length ||
+        a.group.name.localeCompare(b.group.name)
+    )
   return result
+}
+
+/** A line of a quest's summary: one kill objective, or the objectives of one kind (with how many done). */
+export interface SummaryLine {
+  kind: ObjectiveKind
+  text: string
+  done: number
+  total: number
+}
+
+const KIND_PHRASE: Partial<Record<ObjectiveKind, (n: number) => string>> = {
+  visit: (n) => `Visit ${n} places`,
+  mark: (n) => `Mark ${n} spots`,
+  pickup: (n) => `Find ${n} items`,
+  stash: (n) => `Stash ${n} items`,
+  extract: (n) => `Extract ${n} times`,
+  other: (n) => `${n} objectives`
+}
+
+const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** An objective's text without the map it's on (the card already says), e.g. "Eliminate 5 Scavs". */
+export function shortObjective(text: string, mapNames: readonly string[]): string {
+  if (!mapNames.length) return text
+  const names = mapNames.map(escape).join('|')
+  return text.replace(new RegExp(`\\s+(on|in|at) (the )?(${names})( territory| location)?\\.?$`, 'i'), '')
+}
+
+/**
+ * A quest's objectives on one map, in a few lines: each kill objective with its count, and the rest by
+ * kind ("Mark 3 spots", 1 of 3 done), in the quest's order. `steps` are the ones left there (and shown);
+ * the summary's other objectives of those kinds on the map count towards how many are done.
+ */
+export function questSummary(
+  quest: Quest,
+  objectives: ObjectiveProgress | undefined,
+  steps: readonly TodoStep[],
+  group: MapGroup | null,
+  mapNames: readonly string[],
+  max = 3
+): { lines: SummaryLine[]; more: number } {
+  const lines: SummaryLine[] = []
+  const kinds = new Set<ObjectiveKind>()
+  const onMap = (o: QuestObjective): boolean =>
+    !group || objectiveMapIds(o).some((id) => group.mapIds.includes(id))
+  const shown = new Set(steps.map((st) => st.objective))
+  for (const objective of quest.objectives) {
+    if (!shown.has(objective)) continue
+    const kind = objectiveKind(objective)
+    const value = objectiveValue(objective, quest.id, objectives)
+    const target = objectiveTarget(objective)
+    if (kind === 'kill') {
+      lines.push({ kind, text: shortObjective(objective.description, mapNames), done: value, total: target })
+      continue
+    }
+    if (kinds.has(kind)) continue
+    kinds.add(kind)
+    // The quest's objectives of this kind here, done ones included.
+    const same = quest.objectives.filter(
+      (o) => !o.optional && objectiveKind(o) === kind && inRaid(o) && onMap(o)
+    )
+    if (same.length <= 1)
+      lines.push({ kind, text: shortObjective(objective.description, mapNames), done: value, total: target })
+    else
+      lines.push({
+        kind,
+        text: KIND_PHRASE[kind]?.(same.length) ?? `${same.length} objectives`,
+        done: same.filter((o) => objectiveValue(o, quest.id, objectives) >= objectiveTarget(o)).length,
+        total: same.length
+      })
+  }
+  return { lines: lines.slice(0, max), more: Math.max(0, lines.length - max) }
 }

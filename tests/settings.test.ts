@@ -269,29 +269,40 @@ describe('sanitizeSettings', () => {
   })
 
   it('keeps the key options (since 1.17.0)', () => {
-    // Settings saved before 1.17.0: keys checked in To do, every quest's keys listed, no map layer.
+    // Settings saved before 1.17.0: every quest's keys listed, no map layer.
     const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
     expect(old.view).toBe('keys')
-    expect(old.todo).toEqual({ keys: true })
     expect(old.keys).toEqual({ scope: 'all', list: 'needed', tab: 'list' })
     expect(old.maps.showKeys).toBe(false)
     const chosen = sanitizeSettings({
-      todo: { keys: false },
       keys: { scope: 'available', list: 'all', tab: 'scan' },
       maps: { showKeys: true }
     })
-    expect(chosen.todo.keys).toBe(false)
     expect(chosen.keys).toEqual({ scope: 'available', list: 'all', tab: 'scan' })
     expect(chosen.maps.showKeys).toBe(true)
-    expect(
-      sanitizeSettings({ todo: { keys: 0 }, keys: { scope: 'some', list: 'x', tab: 'y' } })
-    ).toMatchObject({
-      todo: { keys: true },
-      keys: { scope: 'all', list: 'needed', tab: 'list' }
+    expect(sanitizeSettings({ keys: { scope: 'some', list: 'x', tab: 'y' } }).keys).toEqual({
+      scope: 'all',
+      list: 'needed',
+      tab: 'list'
     })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope
     ).toBe('active')
+  })
+
+  it('keeps the To do filters and view (since 1.19.0)', () => {
+    expect(DEFAULT_SETTINGS.todo).toEqual({ show: 'all', kinds: 'all', view: 'summary' })
+    // 1.17–1.18's key switch gives way to the filters' defaults.
+    expect(sanitizeSettings({ todo: { keys: true } }).todo).toEqual(DEFAULT_SETTINGS.todo)
+    const chosen = { show: 'doable', kinds: 'kill', view: 'full' } as const
+    expect(sanitizeSettings({ todo: chosen }).todo).toEqual(chosen)
+    expect(sanitizeSettings({ todo: { kinds: 'locate' } }).todo.kinds).toBe('locate')
+    expect(sanitizeSettings({ todo: { show: 'some', kinds: 'loot', view: 1 } }).todo).toEqual(
+      DEFAULT_SETTINGS.todo
+    )
+    expect(
+      mergeSettings(DEFAULT_SETTINGS, { todo: { ...DEFAULT_SETTINGS.todo, show: 'doable' } }).todo.show
+    ).toBe('doable')
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

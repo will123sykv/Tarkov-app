@@ -544,6 +544,7 @@ input:focus {
 .summary-title strong {
   font-size: 15px;
   color: var(--accent-strong);
+  white-space: nowrap;
 }
 
 .summary-stats {
@@ -3772,4 +3773,106 @@ button.link.small {
 
 .key-focus .link.small {
   justify-self: start;
+}
+
+/* To do: filters, quest summaries and the details panel */
+
+.todo.with-detail {
+  grid-template-columns: 270px minmax(0, 1fr) 400px;
+}
+
+.todo-filters {
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+
+.todo-cards {
+  gap: 8px;
+}
+
+.todo-map.best .todo-cards {
+  gap: 8px 16px;
+}
+
+.todo-card {
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.todo-card.todo-blocked {
+  border-color: rgba(217, 164, 65, 0.45);
+}
+
+.todo-details {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.todo-lines {
+  display: grid;
+  gap: 3px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.todo-lines li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.todo-lines .todo-icon.kind {
+  margin-right: 0;
+  vertical-align: -2px;
+}
+
+.todo-line-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-progress {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(106, 159, 212, 0.14);
+  color: var(--info);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.todo-progress.done {
+  background: rgba(127, 176, 105, 0.14);
+  color: var(--ok);
+}
+
+.todo-more {
+  padding-left: 20px;
+  font-size: 12px;
+}
+
+.todo-card .todo-missing {
+  margin-left: 0;
+}
+
+.todo-access {
+  margin: 0;
+}
+
+.todo-also,
+.todo-reward {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.todo-reward {
+  color: var(--accent-strong);
+}
+
+.todo-reward .muted {
+  margin-right: 4px;
 }

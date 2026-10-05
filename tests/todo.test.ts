@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
-import { inRaid, objectiveMapIds, todoPlan, type MapGroup } from '../src/shared/todo'
+import {
+  inRaid,
+  objectiveCategory,
+  objectiveMapIds,
+  questSummary,
+  shortObjective,
+  todoPlan,
+  type MapGroup
+} from '../src/shared/todo'
 
 const CUSTOMS = 'customs-id'
 const WOODS = 'woods-id'
@@ -130,7 +138,7 @@ describe('todoPlan', () => {
       objective('find2', 'findItem', { maps: [], items: ['bolts'], count: 2 }),
       objective('give', 'giveItem', { maps: [], items: ['salewa'], count: 3 })
     ])
-    const plan = todoPlan([row(q)], {}, groupOf, { salewa: 3, bolts: 1 })
+    const plan = todoPlan([row(q)], {}, groupOf, { have: { salewa: 3, bolts: 1 } })
     expect(plan.maps).toEqual([])
     expect(plan.anyMap.map((s) => s.objective.id)).toEqual(['kills'])
     expect(plan.finds.map((s) => s.objective.id)).toEqual(['find2'])
@@ -201,7 +209,7 @@ describe('todoPlan', () => {
     expect(customs.questItems).toEqual([{ name: 'Flash drive', questId: '1' }])
   })
 
-  it('with your keys, leaves out objectives behind a lock you can’t open and says which keys to get', () => {
+  it('with your keys, flags or leaves out objectives behind a lock you can’t open, and says which keys to get', () => {
     const locked = quest('locked', [objective('a', 'visit', { requiredKeys: [['dorm', 'dormCopy']] })])
     const half = quest('half', [
       objective('a', 'visit'),
@@ -212,33 +220,121 @@ describe('todoPlan', () => {
     // Without keys checked, Customs moves both Customs quests on.
     expect(names(todoPlan(rows, {}, groupOf).maps[0].quests)).toEqual(['half', 'locked'])
 
-    const plan = todoPlan(rows, {}, groupOf, {}, new Set())
+    // Show all: everything counts, with what's missing flagged.
+    const all = todoPlan(rows, {}, groupOf, { owned: new Set() })
+    const customsAll = all.maps.find((p) => p.group.name === 'Customs')!
+    expect(names(customsAll.quests)).toEqual(['half', 'locked'])
+    expect(names(customsAll.blocked)).toEqual(['locked'])
+    expect(customsAll.finishes).toEqual([])
+    expect(customsAll.steps.find((s) => s.quest === locked)!.missing).toEqual([['dorm', 'dormCopy']])
+    expect(all.hidden).toBe(0)
+    expect(all.maps.map((p) => p.group.name)).toEqual(['Customs', 'Woods'])
+
+    // Only what you can do: "locked" goes, "half" keeps the objective you can do (but can't be finished).
+    const plan = todoPlan(rows, {}, groupOf, { owned: new Set(), hideBlocked: true })
     const customs = plan.maps.find((p) => p.group.name === 'Customs')!
-    // "half" still moves on (one objective is open) but can't be finished there; "locked" can't at all.
     expect(names(customs.quests)).toEqual(['half'])
+    expect(customs.steps.map((s) => s.objective.id)).toEqual(['a'])
     expect(customs.finishes).toEqual([])
-    expect(names(customs.blocked)).toEqual(['locked'])
-    expect(customs.steps.find((s) => s.quest === locked)!.missing).toEqual([['dorm', 'dormCopy']])
+    expect(customs.blocked).toEqual([])
+    expect(plan.hidden).toBe(2)
     // Woods (1 quest, finished there: 2) now beats Customs (1 quest: 1).
     expect(plan.maps.map((p) => p.group.name)).toEqual(['Woods', 'Customs'])
-    expect(plan.keysToGet.map((k) => [k.keyIds, names(k.quests), k.mapIds, k.access])).toEqual([
-      [['dorm', 'dormCopy'], ['locked', 'half'], [CUSTOMS], false]
-    ])
+    // The keys are listed either way.
+    for (const p of [all, plan])
+      expect(p.keysToGet.map((k) => [k.keyIds, names(k.quests), k.mapIds, k.access])).toEqual([
+        [['dorm', 'dormCopy'], ['locked', 'half'], [CUSTOMS], false]
+      ])
 
     // Either copy of the key opens it.
-    const withKey = todoPlan(rows, {}, groupOf, {}, new Set(['dormCopy']))
+    const withKey = todoPlan(rows, {}, groupOf, { owned: new Set(['dormCopy']), hideBlocked: true })
     expect(names(withKey.maps[0].quests)).toEqual(['half', 'locked'])
     expect(withKey.keysToGet).toEqual([])
+    expect(withKey.hidden).toBe(0)
   })
 
-  it('counts nothing on a map you can’t get onto without its access item', () => {
+  it('flags, or leaves out, a map you can’t get onto without its access item', () => {
     const lab: MapGroup = { key: 'lab', name: 'The Lab', mapIds: ['lab-id'], accessKeys: ['labCard'] }
     const groups = (id: string): MapGroup | undefined => (id === 'lab-id' ? lab : groupOf(id))
     const q = quest('q', [objective('a', 'visit', { maps: ['lab-id'] })])
-    const plan = todoPlan([row(q)], {}, groups, {}, new Set())
-    expect(plan.maps[0]).toMatchObject({ noAccess: ['labCard'], quests: [] })
-    expect(names(plan.maps[0].blocked)).toEqual(['q'])
-    expect(plan.keysToGet.map((k) => [k.keyIds, k.access])).toEqual([[['labCard'], true]])
-    expect(todoPlan([row(q)], {}, groups, {}, new Set(['labCard'])).maps[0].noAccess).toBeNull()
+    const all = todoPlan([row(q)], {}, groups, { owned: new Set() })
+    expect(all.maps[0]).toMatchObject({ noAccess: ['labCard'] })
+    expect(names(all.maps[0].quests)).toEqual(['q'])
+    expect(names(all.maps[0].blocked)).toEqual(['q'])
+    expect(all.keysToGet.map((k) => [k.keyIds, k.access])).toEqual([[['labCard'], true]])
+    const doable = todoPlan([row(q)], {}, groups, { owned: new Set(), hideBlocked: true })
+    expect(doable.maps).toEqual([])
+    expect(doable.hidden).toBe(1)
+    expect(doable.keysToGet.map((k) => k.keyIds)).toEqual([['labCard']])
+    expect(todoPlan([row(q)], {}, groups, { owned: new Set(['labCard']) }).maps[0].noAccess).toBeNull()
+  })
+
+  it('shows only kill or only locate objectives, a quest with both keeping just those', () => {
+    expect(objectiveCategory({ type: 'shoot' })).toBe('kill')
+    expect(
+      ['visit', 'mark', 'findQuestItem', 'plantItem', 'extract'].map((type) => objectiveCategory({ type }))
+    ).toEqual(['locate', 'locate', 'locate', 'locate', 'locate'])
+    const mixed = quest('mixed', [
+      objective('mark', 'mark'),
+      objective('kills', 'shoot', { count: 5 }),
+      objective('far', 'visit', { maps: [WOODS] })
+    ])
+    const killer = quest('killer', [objective('kills', 'shoot', { maps: [WOODS] })])
+    const finder = quest('finder', [objective('a', 'visit')])
+    const pickUp = quest('pickUp', [objective('a', 'shoot', { maps: [WOODS] })])
+    const rows = [row(mixed), row(killer), row(finder), row(pickUp, 'available')]
+    const kill = todoPlan(rows, {}, groupOf, { kinds: 'kill' })
+    expect(kill.maps.map((p) => [p.group.name, names(p.quests), p.steps.map((s) => s.objective.id)])).toEqual(
+      [
+        ['Woods', ['killer'], ['kills']],
+        ['Customs', ['mixed'], ['kills']]
+      ]
+    )
+    // "mixed" still has a spot to visit on Woods, so it isn't finished on Customs.
+    expect(kill.maps[1].finishes).toEqual([])
+    expect(names(kill.maps[0].available)).toEqual(['pickUp'])
+    const locate = todoPlan(rows, {}, groupOf, { kinds: 'locate' })
+    expect(
+      locate.maps.map((p) => [p.group.name, names(p.quests), p.steps.map((s) => s.objective.id)])
+    ).toEqual([
+      ['Customs', ['finder', 'mixed'], ['mark', 'a']],
+      ['Woods', ['mixed'], ['far']]
+    ])
+    expect(locate.maps[1].available).toEqual([])
+  })
+})
+
+describe('quest summaries', () => {
+  it('drops the map from an objective’s text', () => {
+    expect(shortObjective('Eliminate 5 Scavs on Customs', ['Customs'])).toBe('Eliminate 5 Scavs')
+    expect(shortObjective('Locate the bunker on the Customs territory.', ['Customs'])).toBe(
+      'Locate the bunker'
+    )
+    expect(shortObjective('Eliminate 5 Scavs on Woods', ['Customs'])).toBe('Eliminate 5 Scavs on Woods')
+  })
+
+  it('lists kills with their counts and the rest by kind, done ones included, a few lines at most', () => {
+    const q = quest('q', [
+      objective('m1', 'mark', { description: 'Mark the first fuel tank on Customs' }),
+      objective('m2', 'mark'),
+      objective('m3', 'mark'),
+      objective('k', 'shoot', { description: 'Eliminate 5 Scavs on Customs', count: 5 }),
+      objective('v', 'visit', { description: 'Locate the hideout on Customs' }),
+      objective('woods', 'mark', { maps: [WOODS] }),
+      objective('g', 'giveItem', { maps: [], items: ['x'] })
+    ])
+    const progress = { q: { m1: 1, k: 2 } }
+    const plan = todoPlan([row(q)], progress, groupOf)
+    const customs = plan.maps.find((p) => p.group.name === 'Customs')!
+    const summary = questSummary(q, progress, customs.steps, customs.group, ['Customs'])
+    expect(summary).toEqual({
+      lines: [
+        { kind: 'mark', text: 'Mark 3 spots', done: 1, total: 3 },
+        { kind: 'kill', text: 'Eliminate 5 Scavs', done: 2, total: 5 },
+        { kind: 'visit', text: 'Locate the hideout', done: 0, total: 1 }
+      ],
+      more: 0
+    })
+    expect(questSummary(q, progress, customs.steps, customs.group, ['Customs'], 2).more).toBe(1)
   })
 })

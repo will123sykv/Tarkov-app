@@ -11,6 +11,7 @@ import {
   mdiSkull
 } from '@mdi/js'
 import type { QuestStatus } from '../../../shared/questProgress'
+import { objectiveKind, type ObjectiveKind } from '../../../shared/todo'
 import type { Quest, QuestObjective, QuestTrader, QuestZone, Vec3 } from '../../../shared/questTypes'
 
 // Quest objectives on a map as labelled pins: one per spot a quest sends you to, named with the
@@ -26,28 +27,7 @@ export interface ObjectiveMarker {
   spots: Vec3[]
 }
 
-export type ObjectiveKind = 'visit' | 'pickup' | 'stash' | 'mark' | 'kill' | 'extract' | 'other'
-
-export function objectiveKind(objective: Pick<QuestObjective, 'type'>): ObjectiveKind {
-  switch (objective.type) {
-    case 'visit':
-      return 'visit'
-    case 'findQuestItem':
-    case 'findItem':
-      return 'pickup'
-    case 'plantItem':
-    case 'plantQuestItem':
-      return 'stash'
-    case 'mark':
-      return 'mark'
-    case 'shoot':
-      return 'kill'
-    case 'extract':
-      return 'extract'
-    default:
-      return 'other'
-  }
-}
+export { objectiveKind, type ObjectiveKind }
 
 export const OBJECTIVE_ICONS: Record<ObjectiveKind, string> = {
   visit: mdiFlag,

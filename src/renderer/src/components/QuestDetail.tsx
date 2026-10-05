@@ -45,6 +45,8 @@ interface Props {
   detected: DetectedProgress
   /** Shown on the maps view: a link to the quest in the quests view. */
   onOpenInQuests?: () => void
+  /** Closing the panel (by default, the quest stops being the selected one). */
+  onClose?: () => void
 }
 
 type Items = ReturnType<typeof useItemLookup>
@@ -611,7 +613,8 @@ export default function QuestDetail({
   priceState,
   objectives,
   detected,
-  onOpenInQuests
+  onOpenInQuests,
+  onClose
 }: Props): React.JSX.Element {
   const { quest, status } = row
   const setQuestStatus = useStore((s) => s.setQuestStatus)
@@ -653,7 +656,11 @@ export default function QuestDetail({
             </button>
           )}
         </div>
-        <button className="button icon" onClick={() => selectQuest(null)} aria-label="Close details">
+        <button
+          className="button icon"
+          onClick={() => (onClose ? onClose() : selectQuest(null))}
+          aria-label="Close details"
+        >
           ✕
         </button>
       </header>
