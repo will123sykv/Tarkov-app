@@ -1,4 +1,5 @@
 import type { HideoutProgress } from './hideout'
+import type { KeyInventory } from './keys'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
 import type { StoryPin, StoryPins } from './storyPlaces'
@@ -45,6 +46,8 @@ export const IPC = {
   hideoutSetHaveMany: 'hideout:set-have-many',
   hideoutBuild: 'hideout:build',
   hideoutSetTrader: 'hideout:set-trader',
+  keysGet: 'keys:get',
+  keysSet: 'keys:set',
   scanReadText: 'scan:read-text',
   scanGridImage: 'scan:grid-image',
   scanLatestScreenshot: 'scan:latest-screenshot',
@@ -112,6 +115,10 @@ export interface TarkovApi {
   setTraderLevel(gameMode: GameMode, traderId: string, level: number): Promise<HideoutProgress>
   /** Build a station's level: set it and use up the items put aside for it. */
   buildStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
+  /** The keys the player has, and ones they want to get (per game mode). */
+  getKeys(gameMode: GameMode): Promise<KeyInventory>
+  /** Tick a key as owned (or wanted), or untick it. */
+  setKey(gameMode: GameMode, keyId: string, list: keyof KeyInventory, on: boolean): Promise<KeyInventory>
   /** Read labels cut out of a screenshot (OCR, offline). */
   readLabels(jobs: OcrJob[]): Promise<OcrResult[]>
   /** An item's tarkov.dev grid image (cached), for telling look-alikes apart. */

@@ -1,4 +1,5 @@
 import { EMPTY_HIDEOUT, type HideoutProgress } from '../../shared/hideout'
+import { EMPTY_KEYS, MAX_KEYS, type KeyInventory } from '../../shared/keys'
 import type { FleaRecord, LogHistory, RaidRecord } from '../../shared/logTypes'
 import {
   applyQuestEvent,
@@ -30,6 +31,8 @@ interface Saved {
   objectives: Record<GameMode, ObjectiveProgress>
   /** The player's own pins on story steps, the same in every mode. Since 1.12.0. */
   pins: StoryPins
+  /** Keys the player has, and ones they want to get. Since 1.17.0. */
+  keys: Record<GameMode, KeyInventory>
 }
 
 /** Item counts are whole and at least 0; a count of 0 isn't kept. */
@@ -49,8 +52,15 @@ const empty = (): Saved => ({
   },
   hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT },
   objectives: { pvp: {}, pve: {}, season: {} },
-  pins: {}
+  pins: {},
+  keys: { pvp: EMPTY_KEYS, pve: EMPTY_KEYS, season: EMPTY_KEYS }
 })
+
+/** A saved key list: ids only, each once (files from before 1.17.0 have none). */
+const keyList = (raw: unknown): string[] =>
+  Array.isArray(raw)
+    ? [...new Set(raw.filter((id): id is string => typeof id === 'string'))].slice(0, MAX_KEYS)
+    : []
 
 /** `progress` with one item's count put aside set (0 or less clears it), noting when. */
 function withHave(progress: HideoutProgress, itemId: string, count: number, at: number): HideoutProgress {
@@ -103,7 +113,13 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
               })
             ) as Saved['hideout'],
             objectives: { ...base.objectives, ...raw.objectives },
-            pins: raw.pins ?? {}
+            pins: raw.pins ?? {},
+            keys: Object.fromEntries(
+              MODES.map((mode) => [
+                mode,
+                { owned: keyList(raw.keys?.[mode]?.owned), toDo: keyList(raw.keys?.[mode]?.toDo) }
+              ])
+            ) as Saved['keys']
           }
         : base
     return data
@@ -154,6 +170,29 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       }
       await save()
       return d.objectives[mode]
+    },
+
+    async keys(mode: GameMode): Promise<KeyInventory> {
+      return (await load()).keys[mode]
+    },
+
+    /** Mark a key as owned (or wanted, for the To do tab), or not. */
+    async setKey(
+      mode: GameMode,
+      keyId: string,
+      list: keyof KeyInventory,
+      on: boolean
+    ): Promise<KeyInventory> {
+      const d = await load()
+      const current = d.keys[mode]
+      const without = current[list].filter((id) => id !== keyId)
+      if (on && without.length >= MAX_KEYS) throw new Error('Too many keys')
+      const next = { ...current, [list]: on ? [...without, keyId] : without }
+      // A key the player has is no longer one to get.
+      if (list === 'owned' && on) next.toDo = next.toDo.filter((id) => id !== keyId)
+      d.keys[mode] = next
+      await save()
+      return next
     },
 
     async pins(): Promise<StoryPins> {

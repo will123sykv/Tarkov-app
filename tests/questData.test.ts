@@ -208,7 +208,23 @@ describe('normalizeQuestData', () => {
         },
         { position: { x: 24, y: 3, z: -90 }, zone: 'ZoneCustoms', bosses: [] }
       ],
-      snipers: [{ x: 195, y: 2, z: -171 }]
+      snipers: [{ x: 195, y: 2, z: -171 }],
+      // Locks with a key and a position; loose loot spots where a key (from a lock, a quest or a map's
+      // entry) can spawn, with how many items can spawn there in all.
+      locks: [
+        { keyId: KEY.dorm303, kind: 'door', position: { x: 180, y: 6, z: 140 } },
+        { keyId: KEY.cabin, kind: 'trunk', position: { x: -20, y: 1, z: 30 } }
+      ],
+      keySpawns: [
+        { position: { x: 170, y: 6, z: 141 }, keyIds: [KEY.dorm303], items: 1 },
+        { position: { x: 10, y: 1, z: 10 }, keyIds: [KEY.cabin, KEY.unknown], items: 3 }
+      ],
+      access: { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] }
+    })
+    expect(data.maps.find((m) => m.id === WOODS)).toMatchObject({
+      locks: [],
+      keySpawns: [],
+      access: { minPlayerLevel: null, maxPlayerLevel: 20, keyIds: [KEY.labs] }
     })
     expect(data.traders).toEqual([
       {
@@ -313,6 +329,23 @@ describe('createQuestDataService', () => {
     const customs = offline.dataset!.maps.find((m) => m.id === CUSTOMS)!
     expect(customs).toMatchObject({ bossSpawns: [], snipers: [] })
     expect(customs.extracts.every((e) => e.transferItem === null)).toBe(true)
+  })
+
+  it('upgrades a 1.16 cache without locks, key spawns or map access, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 5)
+    const old = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    const maps = old.maps.map(({ locks: _, keySpawns: __, access: ___, ...m }) => m)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify({ ...old, maps }))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0 } })
+    expect(offline.dataset!.maps[0]).toMatchObject({
+      locks: [],
+      keySpawns: [],
+      access: { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] }
+    })
   })
 
   it('reuses fresh data and shares one request between callers', async () => {

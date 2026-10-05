@@ -1,14 +1,30 @@
-import { mdiCheckCircleOutline, mdiHammerWrench, mdiHandExtended, mdiKeyVariant } from '@mdi/js'
+import {
+  mdiAlertOutline,
+  mdiCheckCircleOutline,
+  mdiHammerWrench,
+  mdiHandExtended,
+  mdiKeyVariant
+} from '@mdi/js'
 import { useMemo } from 'react'
 import type { DetectedProgress } from '../../../shared/objectiveDetection'
 import { EMPTY_HIDEOUT, stationLevel, upgradeStatus } from '../../../shared/hideout'
+import { EMPTY_KEYS, opens } from '../../../shared/keys'
 import { objectiveValue, type ObjectiveProgress } from '../../../shared/questProgress'
 import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
-import { objectiveMapIds, todoPlan, type MapGroup, type MapPlan, type TodoStep } from '../../../shared/todo'
+import {
+  objectiveMapIds,
+  todoPlan,
+  type KeyToGet,
+  type MapGroup,
+  type MapPlan,
+  type TodoStep
+} from '../../../shared/todo'
 import type { HideoutSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/questPins'
-import { configFor } from '../lib/questUi'
+import type { Group } from '../lib/mapGroups'
+import { formatRub } from '../lib/format'
+import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
@@ -19,33 +35,6 @@ import { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 // done before the raid (quests to hand in, items to hand over, upgrades to build).
 
 type Items = ReturnType<typeof useItemLookup>
-
-/** A map group, and whether the Maps tab can show it. */
-interface Group extends MapGroup {
-  /** The Maps tab's key for it, or null when there's no map to show. */
-  mapKey: string | null
-}
-
-/** Maps by id, with alternate versions (Night Factory) under their main map, which comes first. */
-function mapGroups(maps: readonly GameMap[]): Map<string, Group> {
-  const byKey = new Map<string, Group>()
-  const byId = new Map<string, Group>()
-  for (const map of maps) {
-    const config = configFor(map)
-    const key = config?.key ?? map.normalizedName
-    let group = byKey.get(key)
-    if (!group) {
-      group = { key, name: map.name, mapIds: [], mapKey: config?.key ?? null }
-      byKey.set(key, group)
-    }
-    if (map.normalizedName === key) {
-      group.name = map.name
-      group.mapIds.unshift(map.id)
-    } else group.mapIds.push(map.id)
-    byId.set(map.id, group)
-  }
-  return byId
-}
 
 const Icon = ({ path, className }: { path: string; className?: string }): React.JSX.Element => (
   <svg className={`todo-icon ${className ?? ''}`} viewBox="0 0 24 24" aria-hidden>
@@ -61,15 +50,18 @@ function Step({
   group,
   mapsById,
   objectives,
-  detected
+  detected,
+  keyName
 }: {
   step: TodoStep
   group: MapGroup | null
   mapsById: ReadonlyMap<string, GameMap>
   objectives: ObjectiveProgress
   detected: DetectedProgress
+  keyName: (keyId: string) => string
 }): React.JSX.Element {
-  const { quest, objective } = step
+  const setKey = useStore((s) => s.setKey)
+  const { quest, objective, missing } = step
   const kind = objectiveKind(objective)
   // Only on an alternate version of the map (say, Night Factory): name it.
   const here = group ? objectiveMapIds(objective).filter((id) => group.mapIds.includes(id)) : []
@@ -78,7 +70,7 @@ function Step({
       ? here.map((id) => mapsById.get(id)?.name ?? 'another version').join(' or ')
       : null
   return (
-    <li className="objective">
+    <li className={`objective ${missing.length ? 'todo-locked' : ''}`}>
       <div className="objective-head">
         <ObjectiveTick
           quest={quest}
@@ -96,13 +88,28 @@ function Step({
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
           )}
-          {objective.requiredKeys.length > 0 && (
-            <span title="Needs a key (listed below)">
+          {objective.requiredKeys.length > 0 && !missing.length && (
+            <span title="Needs a key you have">
               <Icon path={mdiKeyVariant} className="key" />
             </span>
           )}
         </span>
       </div>
+      {missing.map((keyIds) => (
+        <div key={keyIds.join()} className="todo-missing">
+          <Icon path={mdiAlertOutline} />
+          <span>
+            Needs {keyIds.map(keyName).join(' or ')} <span className="muted">(you don&rsquo;t have it)</span>{' '}
+            <button
+              className="link small"
+              title="Tick it as one of your keys (the Keys tab lists them all)"
+              onClick={() => void setKey(keyIds[0], 'owned', true)}
+            >
+              I have it
+            </button>
+          </span>
+        </div>
+      ))}
     </li>
   )
 }
@@ -158,6 +165,8 @@ function MapCard({
   mapsById,
   objectives,
   detected,
+  owned,
+  keyName,
   onOpenQuest,
   onOpenMap
 }: {
@@ -169,14 +178,19 @@ function MapCard({
   mapsById: ReadonlyMap<string, GameMap>
   objectives: ObjectiveProgress
   detected: DetectedProgress
+  /** The player's keys, when the plan checks them. */
+  owned: ReadonlySet<string> | null
+  keyName: (keyId: string) => string
   onOpenQuest: (questId: string) => void
   onOpenMap: (mapKey: string) => void
 }): React.JSX.Element {
   const group = plan.group as Group
+  const doable = plan.steps.filter((s) => !s.missing.length).length
   const reason = [
     `Moves ${plural(plan.quests.length, 'active quest')} on`,
-    plural(plan.steps.length, 'objective'),
-    plan.finishes.length ? `finishes ${plan.finishes.length}` : null
+    plural(doable, 'objective'),
+    plan.finishes.length ? `finishes ${plan.finishes.length}` : null,
+    plan.blocked.length ? `${plan.blocked.length} more behind locks you have no key for` : null
   ]
     .filter(Boolean)
     .join(' · ')
@@ -200,10 +214,10 @@ function MapCard({
           </button>
         )}
       </header>
-      {plan.quests.length > 0 && (
+      {plan.quests.length + plan.blocked.length > 0 && (
         <ul className="todo-quests">
-          {plan.quests.map((quest) => (
-            <li key={quest.id}>
+          {[...plan.quests, ...plan.blocked].map((quest) => (
+            <li key={quest.id} className={plan.blocked.includes(quest) ? 'todo-blocked' : ''}>
               <div className="todo-quest-head">
                 <QuestLink quest={quest} trader={traderOf(quest)} onOpen={onOpenQuest} />
                 {plan.finishes.includes(quest) && (
@@ -212,6 +226,11 @@ function MapCard({
                     title="Nothing else is left to do in raid for this quest: do these and hand it in"
                   >
                     Finish here
+                  </span>
+                )}
+                {plan.blocked.includes(quest) && (
+                  <span className="badge warn" title="Doesn't count towards this map until you have the key">
+                    Needs a key
                   </span>
                 )}
               </div>
@@ -226,6 +245,7 @@ function MapCard({
                       mapsById={mapsById}
                       objectives={objectives}
                       detected={detected}
+                      keyName={keyName}
                     />
                   ))}
               </ol>
@@ -239,9 +259,19 @@ function MapCard({
             <div>
               <span className="todo-take-label">Keys</span>
               <span className="todo-take-list">
-                {plan.keys.map((keyIds) => (
-                  <KeyChoice key={keyIds.join()} keyIds={keyIds} items={items} />
-                ))}
+                {plan.keys.map((keyIds) => {
+                  const have = owned ? opens(keyIds, owned) : null
+                  return (
+                    <span
+                      key={keyIds.join()}
+                      className={have === false ? 'todo-key-missing' : ''}
+                      title={have === false ? "You don't have it" : have ? 'You have it' : undefined}
+                    >
+                      <KeyChoice keyIds={keyIds} items={items} />
+                      {have && <span className="todo-key-have"> ✓</span>}
+                    </span>
+                  )
+                })}
               </span>
             </div>
           )}
@@ -294,13 +324,18 @@ function QuestList({
   )
 }
 
-/** Maps with nothing active, where quests not picked up yet have objectives. */
+/**
+ * Maps with nothing that can be done there now: active quests behind locks (or a way in) the player has
+ * no key for, and quests not picked up yet.
+ */
 function OtherMaps({
   plans,
+  keyName,
   onOpenQuest,
   onOpenMap
 }: {
   plans: MapPlan[]
+  keyName: (keyId: string) => string
   onOpenQuest: (questId: string) => void
   onOpenMap: (mapKey: string) => void
 }): React.JSX.Element {
@@ -310,7 +345,8 @@ function OtherMaps({
         <div>
           <strong>Other maps</strong>
           <span className="muted">
-            Nothing active there, but quests you could pick up have objectives there
+            Nothing you can do there yet: active quests behind keys you don&rsquo;t have, or quests you could
+            pick up
           </span>
         </div>
       </header>
@@ -321,7 +357,26 @@ function OtherMaps({
             <li key={group.key}>
               <strong>{group.name}</strong>
               <span>
-                <QuestList quests={p.available} onOpen={onOpenQuest} />
+                {p.noAccess && (
+                  <span className="todo-key-missing">
+                    Needs {p.noAccess.map(keyName).join(' or ')} to get in.{' '}
+                  </span>
+                )}
+                {p.blocked.length > 0 && (
+                  <span>
+                    <span className="muted">
+                      {p.noAccess ? 'Then: ' : 'Behind locks you have no key for: '}
+                    </span>
+                    <QuestList quests={p.blocked} onOpen={onOpenQuest} />
+                    {p.available.length > 0 && '. '}
+                  </span>
+                )}
+                {p.available.length > 0 && (
+                  <span>
+                    {p.blocked.length > 0 && <span className="muted">To pick up: </span>}
+                    <QuestList quests={p.available} onOpen={onOpenQuest} />
+                  </span>
+                )}
               </span>
               {group.mapKey && (
                 <button className="link small" onClick={() => onOpenMap(group.mapKey!)}>
@@ -333,6 +388,88 @@ function OtherMaps({
         })}
       </ul>
     </article>
+  )
+}
+
+/** A key that would open up active quests (or one added from the Keys tab), and how to get it. */
+function KeyToGetRow({
+  keyIds,
+  quests,
+  access,
+  added,
+  info,
+  onOpenQuest
+}: Partial<Pick<KeyToGet, 'quests' | 'access'>> & {
+  keyIds: string[]
+  /** Added from the Keys tab. */
+  added: boolean
+  info: (keyId: string) => KeyInfo
+  onOpenQuest: (questId: string) => void
+}): React.JSX.Element {
+  const setKey = useStore((s) => s.setKey)
+  const showKeyOnMap = useStore((s) => s.showKeyOnMap)
+  const keys = keyIds.map(info)
+  const first = keys[0]
+  const best = keys.flatMap((k) => k.buy?.options.slice(0, 1) ?? []).sort((a, b) => a.price - b.price)[0]
+  const locked = keys.flatMap((k) => k.buy?.locked ?? [])[0]
+  const reward = keys.flatMap((k) => k.rewards)[0]
+  const spawns = keys.flatMap((k) => k.spawns)
+  const mapKey =
+    first.locks.find((l) => l.group.mapKey)?.group.mapKey ?? spawns.find((s) => s.group.mapKey)?.group.mapKey
+  return (
+    <li>
+      <Icon path={mdiKeyVariant} className="key" />
+      <div>
+        <strong>{keys.map((k) => k.name).join(' or ')}</strong>
+        <div className="muted">
+          {quests?.length ? (
+            <>
+              {access ? 'Gets you in for ' : 'For '}
+              <QuestList quests={quests} onOpen={onOpenQuest} />
+            </>
+          ) : added ? (
+            'Added from the Keys tab'
+          ) : null}
+        </div>
+        <div className="todo-key-get">
+          {best ? (
+            <span>
+              Buy {formatRub(best.price)} <span className="muted">{best.label}</span>
+            </span>
+          ) : locked ? (
+            <span className="key-locked">Can&rsquo;t buy yet: {locked}</span>
+          ) : null}
+          {reward && (
+            <span>
+              {reward.onStart ? 'Given with ' : 'Reward from '}
+              <button className="link" onClick={() => onOpenQuest(reward.quest.id)}>
+                {reward.quest.name}
+              </button>
+            </span>
+          )}
+          {spawns.length > 0 && (
+            <span className="muted">
+              Spawns on {[...new Set(spawns.map((s) => s.group.name))].join(', ')}
+            </span>
+          )}
+        </div>
+        <div className="todo-key-actions">
+          <button className="link small" onClick={() => void setKey(first.id, 'owned', true)}>
+            I have it
+          </button>
+          {mapKey && (
+            <button className="link small" onClick={() => void showKeyOnMap(first.id, mapKey)}>
+              View map
+            </button>
+          )}
+          {added && (
+            <button className="link small" onClick={() => void setKey(first.id, 'toDo', false)}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
   )
 }
 
@@ -349,13 +486,21 @@ export default function TodoView({
   const selectQuest = useStore((s) => s.selectQuest)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
+  const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
+  const { info, groups } = useKeyInfo(settings, priceState)
   const dataset = questState?.dataset ?? null
+  const checkKeys = settings.todo.keys
+  const owned = useMemo(() => (checkKeys ? new Set(inventory.owned) : null), [checkKeys, inventory.owned])
+  const keyName = (keyId: string): string => info(keyId).name
 
-  const groups = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
   const plan = useMemo(
-    () => todoPlan(rows, objectives, (id) => groups.get(id), progress.have),
-    [rows, objectives, groups, progress.have]
+    () => todoPlan(rows, objectives, (id) => groups.get(id), progress.have, owned),
+    [rows, objectives, groups, progress.have, owned]
   )
+  // Keys to get: the ones holding up active quests, then the ones added from the Keys tab.
+  const ownedAll = new Set(inventory.owned)
+  const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
+  const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !ownedAll.has(id))
   const traders = useMemo(() => new Map((dataset?.traders ?? []).map((t) => [t.id, t])), [dataset])
   const traderOf = (quest: Quest): QuestTrader | undefined =>
     quest.story ? STORY_TRADER : traders.get(quest.traderId)
@@ -387,8 +532,13 @@ export default function TodoView({
     void updateSettings({ view: 'hideout', hideout: { ...settings.hideout, ...patch } })
 
   const ranked = plan.maps.filter((p) => p.quests.length > 0)
+  const keysCount = plan.keysToGet.length + addedKeys.length
   const others = plan.maps.filter((p) => p.quests.length === 0)
-  const raidSteps = new Set(ranked.flatMap((p) => p.steps.map((s) => `${s.quest.id}:${s.objective.id}`))).size
+  const raidSteps = new Set(
+    ranked.flatMap((p) =>
+      p.steps.filter((s) => !s.missing.length).map((s) => `${s.quest.id}:${s.objective.id}`)
+    )
+  ).size
   const beforeCount = plan.turnIn.length + plan.handOvers.length + buildable.length
 
   return (
@@ -452,6 +602,45 @@ export default function TodoView({
           </p>
         </section>
         <section>
+          <h2>Keys to get</h2>
+          {keysCount === 0 ? (
+            <p className="hint">
+              {checkKeys
+                ? 'None: you have a key for every lock your active quests need opened.'
+                : 'Keys aren’t checked: tick the box below to leave out what you have no key for.'}
+            </p>
+          ) : (
+            <ul className="todo-before">
+              {plan.keysToGet.map((k) => (
+                <KeyToGetRow
+                  key={k.keyIds.join()}
+                  keyIds={k.keyIds}
+                  quests={k.quests}
+                  access={k.access}
+                  added={false}
+                  info={info}
+                  onOpenQuest={openQuest}
+                />
+              ))}
+              {addedKeys.map((id) => (
+                <KeyToGetRow key={id} keyIds={[id]} added info={info} onOpenQuest={openQuest} />
+              ))}
+            </ul>
+          )}
+          <label className="check todo-check">
+            <input
+              type="checkbox"
+              checked={checkKeys}
+              onChange={(e) => void updateSettings({ todo: { ...settings.todo, keys: e.target.checked } })}
+            />
+            Leave out what I have no key for
+          </label>
+          <p className="hint">
+            Objectives behind a lock none of your keys open (tick yours in the Keys tab), or on a map you
+            can&rsquo;t get onto, don&rsquo;t count towards which map to raid.
+          </p>
+        </section>
+        <section>
           <h2>On any map</h2>
           {plan.anyMap.length === 0 ? (
             <p className="hint">None of your active quests has anything to do that isn&rsquo;t on a map.</p>
@@ -467,6 +656,7 @@ export default function TodoView({
                       mapsById={mapsById}
                       objectives={objectives}
                       detected={detected}
+                      keyName={keyName}
                     />
                   </ol>
                 </li>
@@ -509,6 +699,7 @@ export default function TodoView({
                   ? 'No active quests: start them in the Quests tab, or let the game’s logs say.'
                   : `${plural(plan.active, 'active quest')} · ${plural(raidSteps, 'objective')} left in raid on ${plural(ranked.length, 'map')}` +
                     (plan.anyMap.length ? ` · ${plan.anyMap.length} on any map` : '') +
+                    (keysCount ? ` · ${plural(keysCount, 'key')} to get` : '') +
                     (beforeCount ? ` · ${beforeCount} to do before you raid` : '')}
             </span>
           </div>
@@ -518,12 +709,18 @@ export default function TodoView({
             <p>
               {plan.active === 0
                 ? 'Start some quests and this says which map to raid next.'
-                : 'None of your active quests has anything left to do on a particular map.'}
+                : others.some((p) => p.blocked.length)
+                  ? 'Everything your active quests have left on a map is behind a key you don’t have.'
+                  : 'None of your active quests has anything left to do on a particular map.'}
             </p>
-            {plan.maps.length > 0 && (
-              <p className="hint">
-                Quests you could pick up have objectives on {plan.maps.map((p) => p.group.name).join(', ')}.
-              </p>
+            {others.some((p) => p.blocked.length) ? (
+              <p className="hint">The keys are listed under Keys to get.</p>
+            ) : (
+              plan.maps.length > 0 && (
+                <p className="hint">
+                  Quests you could pick up have objectives on {plan.maps.map((p) => p.group.name).join(', ')}.
+                </p>
+              )
             )}
           </div>
         ) : (
@@ -539,11 +736,15 @@ export default function TodoView({
                 mapsById={mapsById}
                 objectives={objectives}
                 detected={detected}
+                owned={owned}
+                keyName={keyName}
                 onOpenQuest={openQuest}
                 onOpenMap={openMap}
               />
             ))}
-            {others.length > 0 && <OtherMaps plans={others} onOpenQuest={openQuest} onOpenMap={openMap} />}
+            {others.length > 0 && (
+              <OtherMaps plans={others} keyName={keyName} onOpenQuest={openQuest} onOpenMap={openMap} />
+            )}
           </div>
         )}
       </main>

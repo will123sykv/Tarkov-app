@@ -29,6 +29,8 @@ const api: TarkovApi = {
   getStoryPins: () => ipcRenderer.invoke(IPC.questsPins),
   setStoryPin: (questId, objectiveId, pin) => ipcRenderer.invoke(IPC.questsSetPin, questId, objectiveId, pin),
   getHideoutProgress: (gameMode) => ipcRenderer.invoke(IPC.hideoutProgress, gameMode),
+  getKeys: (gameMode) => ipcRenderer.invoke(IPC.keysGet, gameMode),
+  setKey: (gameMode, keyId, list, on) => ipcRenderer.invoke(IPC.keysSet, gameMode, keyId, list, on),
   setStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),
   setHideoutHave: (gameMode, itemId, count) =>

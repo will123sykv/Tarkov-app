@@ -10,7 +10,10 @@ export const WORKBENCH = '5d484fda654e7600681d9315'
 export const KEY = {
   unknown: '593962ca86f774068014d9af',
   dorm303: '593aa4be86f77457f56379f8',
-  dorm303copy: '5913611c86f77479e0084092'
+  dorm303copy: '5913611c86f77479e0084092',
+  /** Only a lock names it. */
+  cabin: '5d80c88d86f77440556dbf07',
+  labs: '5c94bbff86f7747ee735c08f'
 }
 export const ROUBLES = '5449016a4bdc2d6f028b456f'
 export const STASH = '5d484fc0654e76006657e0ab'
@@ -288,9 +291,41 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             spawnLocations: [{ spawnKey: 'ZoneDormitory', chance: 1 }]
           }
         ],
-        lootContainers: [{ huge: true }]
+        lootContainers: [{ huge: true }],
+        // Locks, and loose loot spots: only those where a known key can spawn are kept.
+        locks: [
+          {
+            id: 'l1',
+            lockType: 'door',
+            key: KEY.dorm303,
+            needsPower: false,
+            position: { x: 180, y: 6, z: 140 }
+          },
+          { id: 'l2', lockType: 'trunk', key: { id: KEY.cabin }, position: { x: -20, y: 1, z: 30 } },
+          { id: 'l3', lockType: 'door', key: null, position: { x: 1, y: 1, z: 1 } },
+          { id: 'l4', lockType: 'door', key: KEY.cabin }
+        ],
+        lootLoose: [
+          { position: { x: 170, y: 6, z: 141 }, items: [KEY.dorm303] },
+          { position: { x: 10, y: 1, z: 10 }, items: ['5449016a4bdc2d6f028b456f', KEY.cabin, KEY.unknown] },
+          { position: { x: 11, y: 1, z: 11 }, items: ['5449016a4bdc2d6f028b456f'] }
+        ],
+        minPlayerLevel: 0,
+        maxPlayerLevel: 100,
+        accessKeys: []
       },
-      { id: WOODS, name: `${WOODS} Name`, normalizedName: 'woods', nameId: 'Woods', extracts: [], spawns: [] }
+      {
+        id: WOODS,
+        name: `${WOODS} Name`,
+        normalizedName: 'woods',
+        nameId: 'Woods',
+        extracts: [],
+        spawns: [],
+        // Ground Zero style level cap, and an item to get in (the Lab's keycard).
+        minPlayerLevel: 0,
+        maxPlayerLevel: 20,
+        accessKeys: [KEY.labs]
+      }
     ],
     mobs: [
       { id: 'bossBully', name: 'bossBully', normalizedName: 'reshala' },

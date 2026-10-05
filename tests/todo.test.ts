@@ -200,4 +200,45 @@ describe('todoPlan', () => {
     expect(customs.bring).toEqual([{ itemId: 'marker', count: 3 }])
     expect(customs.questItems).toEqual([{ name: 'Flash drive', questId: '1' }])
   })
+
+  it('with your keys, leaves out objectives behind a lock you can’t open and says which keys to get', () => {
+    const locked = quest('locked', [objective('a', 'visit', { requiredKeys: [['dorm', 'dormCopy']] })])
+    const half = quest('half', [
+      objective('a', 'visit'),
+      objective('b', 'findQuestItem', { requiredKeys: [['dorm', 'dormCopy']] })
+    ])
+    const open = quest('open', [objective('a', 'visit', { maps: [WOODS] })])
+    const rows = [row(locked), row(half), row(open)]
+    // Without keys checked, Customs moves both Customs quests on.
+    expect(names(todoPlan(rows, {}, groupOf).maps[0].quests)).toEqual(['half', 'locked'])
+
+    const plan = todoPlan(rows, {}, groupOf, {}, new Set())
+    const customs = plan.maps.find((p) => p.group.name === 'Customs')!
+    // "half" still moves on (one objective is open) but can't be finished there; "locked" can't at all.
+    expect(names(customs.quests)).toEqual(['half'])
+    expect(customs.finishes).toEqual([])
+    expect(names(customs.blocked)).toEqual(['locked'])
+    expect(customs.steps.find((s) => s.quest === locked)!.missing).toEqual([['dorm', 'dormCopy']])
+    // Woods (1 quest, finished there: 2) now beats Customs (1 quest: 1).
+    expect(plan.maps.map((p) => p.group.name)).toEqual(['Woods', 'Customs'])
+    expect(plan.keysToGet.map((k) => [k.keyIds, names(k.quests), k.mapIds, k.access])).toEqual([
+      [['dorm', 'dormCopy'], ['locked', 'half'], [CUSTOMS], false]
+    ])
+
+    // Either copy of the key opens it.
+    const withKey = todoPlan(rows, {}, groupOf, {}, new Set(['dormCopy']))
+    expect(names(withKey.maps[0].quests)).toEqual(['half', 'locked'])
+    expect(withKey.keysToGet).toEqual([])
+  })
+
+  it('counts nothing on a map you can’t get onto without its access item', () => {
+    const lab: MapGroup = { key: 'lab', name: 'The Lab', mapIds: ['lab-id'], accessKeys: ['labCard'] }
+    const groups = (id: string): MapGroup | undefined => (id === 'lab-id' ? lab : groupOf(id))
+    const q = quest('q', [objective('a', 'visit', { maps: ['lab-id'] })])
+    const plan = todoPlan([row(q)], {}, groups, {}, new Set())
+    expect(plan.maps[0]).toMatchObject({ noAccess: ['labCard'], quests: [] })
+    expect(names(plan.maps[0].blocked)).toEqual(['q'])
+    expect(plan.keysToGet.map((k) => [k.keyIds, k.access])).toEqual([[['labCard'], true]])
+    expect(todoPlan([row(q)], {}, groups, {}, new Set(['labCard'])).maps[0].noAccess).toBeNull()
+  })
 })

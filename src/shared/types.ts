@@ -146,10 +146,26 @@ export interface Settings {
   quests: QuestSettings
   maps: MapSettings
   hideout: HideoutSettings
+  /** Since 1.17.0. */
+  todo: TodoSettings
+  /** Since 1.17.0. */
+  keys: KeysSettings
+}
+
+export interface TodoSettings {
+  /** Leave out objectives behind a lock none of the player's keys open, or on a map they can't get onto. */
+  keys: boolean
+}
+
+export interface KeysSettings {
+  /** Keys for active quests, also ones you could start, or every quest left. */
+  scope: 'active' | 'available' | 'all'
+  /** The keys quests need, or every key (to tick the ones you have). */
+  list: 'needed' | 'all'
 }
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */
-export type AppView = 'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'maps' | 'raids'
+export type AppView = 'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'keys' | 'maps' | 'raids'
 
 export interface HideoutSettings {
   /** Count what each station's next level needs, or every level still to build. */
@@ -199,6 +215,8 @@ export interface MapSettings {
   showLabels: boolean
   showBosses: boolean
   showSnipers: boolean
+  /** Locks of the keys quests need, and where the ones the player doesn't have spawn (since 1.17.0). */
+  showKeys: boolean
   /** Whose extracts to show; co-op extracts show for both. */
   faction: 'pmc' | 'scav'
   /** A community 2D map where there is one, or tarkov.dev's interactive map. */

@@ -1,4 +1,13 @@
-import { mdiCar, mdiCrosshairsGps, mdiFlare, mdiHandshake, mdiRun, mdiScriptText, mdiSkull } from '@mdi/js'
+import {
+  mdiCar,
+  mdiCrosshairsGps,
+  mdiFlare,
+  mdiHandshake,
+  mdiLock,
+  mdiRun,
+  mdiScriptText,
+  mdiSkull
+} from '@mdi/js'
 import type { BossSpawn, MapExtract, MapLabel } from '../../../shared/questTypes'
 import type { Anchor } from './posterMap'
 
@@ -104,3 +113,4 @@ const PIN_ICONS: Record<PinKind, string[]> = {
 export const pinIcons = (kind: PinKind): string[] => PIN_ICONS[kind]
 export const BOSS_ICON = mdiSkull
 export const SNIPER_ICON = mdiCrosshairsGps
+export const LOCK_ICON = mdiLock

@@ -298,6 +298,20 @@ async function smokeQuests(dataMode: DataMode): Promise<void> {
   )
   if (unmatched.length)
     console.log(`[quests ${dataMode}] map projections with no matching map: ${unmatched.join(', ')}`)
+  // The Keys tab: locks and the keys that open them, loose spots keys spawn at, and who can enter.
+  const locks = data.maps.reduce((n, m) => n + m.locks.length, 0)
+  const keySpawns = data.maps.reduce((n, m) => n + m.keySpawns.length, 0)
+  console.log(
+    `[keys ${dataMode}] ${locks} locks with a key · ${keySpawns} loose loot spots with a key · entry items: ` +
+      data.maps
+        .filter((m) => m.access.keyIds.length || m.access.maxPlayerLevel)
+        .map(
+          (m) =>
+            `${m.name} (${m.access.keyIds.length} items${m.access.maxPlayerLevel ? `, up to level ${m.access.maxPlayerLevel}` : ''})`
+        )
+        .join(', ')
+  )
+  check(locks > 100 && keySpawns > 50, 'locks or key spawns are missing from the map data')
   check(unmatched.length <= 2, 'several bundled map projections no longer match a map (npm run data:maps)')
 
   const rewards = data.quests.map((q) => q.rewards)

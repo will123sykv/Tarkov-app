@@ -150,6 +150,37 @@ export interface GameMap {
   bossSpawns: BossSpawn[]
   /** Where sniper scavs sit, one point per sniper zone. */
   snipers: Vec3[]
+  /** Locked doors and trunks, with the key that opens each. Since 1.17.0. */
+  locks: MapLock[]
+  /** Loose loot spots where keys can spawn. Since 1.17.0. */
+  keySpawns: KeySpawn[]
+  /** Who can raid it: player levels, and items needed to get in. Since 1.17.0. */
+  access: MapAccess
+}
+
+/** A locked door or trunk, and the key that opens it. */
+export interface MapLock {
+  keyId: string
+  /** 'door' or 'trunk' (a car boot, a safe…). */
+  kind: string
+  position: Vec3
+}
+
+/** A loose loot spot where a key can spawn. */
+export interface KeySpawn {
+  position: Vec3
+  /** The keys that can spawn there. */
+  keyIds: string[]
+  /** How many different items can spawn there in all (1: only that key). */
+  items: number
+}
+
+export interface MapAccess {
+  /** The player levels that can enter (null: any). */
+  minPlayerLevel: number | null
+  maxPlayerLevel: number | null
+  /** Items needed to get in (any one of them, used up or not), e.g. the Labs access keycard. */
+  keyIds: string[]
 }
 
 export interface QuestTrader {

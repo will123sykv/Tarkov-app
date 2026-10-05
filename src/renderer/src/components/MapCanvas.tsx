@@ -14,6 +14,14 @@ import {
 import { badgeElement, pinElement, placeElement, questPinElement } from '../lib/mapPins'
 import { questPins, type ObjectiveMarker, type QuestPin } from '../lib/questPins'
 
+/** Locks and key spawn spots to draw: one key's (focused), or those of the keys quests need. */
+export interface KeyMarks {
+  locks: { position: Vec3; kind: string; name: string; focused: boolean; have: boolean }[]
+  spawns: { position: Vec3; names: string[]; items: number; focused: boolean }[]
+  /** The key shown from the Keys tab: the map centres on its marks. */
+  focusKey: string | null
+}
+
 export interface MapLayers {
   extracts: boolean
   transits: boolean
@@ -38,6 +46,7 @@ interface Props {
   /** Its pins stand out and the others fade. */
   selectedQuest: string | null
   onSelectQuest: (questId: string) => void
+  keyMarks?: KeyMarks | null
   /** Waiting for a click on where a story step is; `onPlace` gets the spot in the game. */
   placing?: boolean
   onPlace?: (position: Vec3) => void
@@ -107,6 +116,7 @@ export default function MapCanvas({
   focus,
   selectedQuest,
   onSelectQuest,
+  keyMarks = null,
   placing = false,
   onPlace,
   onCancelPlace
@@ -117,6 +127,7 @@ export default function MapCanvas({
   const markersRef = useRef(new Map<string, L.Layer[]>())
   const [baseError, setBaseError] = useState<string | null>(null)
   const handledFocus = useRef<Props['focus']>(null)
+  const handledKey = useRef<string | null>(null)
 
   // The map itself and its base image; rebuilt when switching maps.
   useEffect(() => {
@@ -226,6 +237,37 @@ export default function MapCanvas({
           .addTo(overlay)
       }
     }
+    if (keyMarks) {
+      for (const l of keyMarks.locks.filter((l) => shown(l.position))) {
+        const what = l.kind === 'trunk' ? 'Locked container' : 'Locked door'
+        add(
+          l.focused ? 'key:focus' : 'key:other',
+          htmlMarker(at(l.position), badgeElement('lock', l.focused ? 'focused' : l.have ? 'have' : ''), {
+            riseOnHover: true,
+            zIndexOffset: l.focused ? 500 : 0
+          }).bindTooltip(
+            label(what, [`Opens with the ${l.name}`, l.have ? 'You have the key' : "You don't have the key"]),
+            { direction: 'top', offset: [0, -14] }
+          )
+        )
+      }
+      for (const sp of keyMarks.spawns.filter((sp) => shown(sp.position))) {
+        add(
+          sp.focused ? 'key:focus' : 'key:other',
+          htmlMarker(at(sp.position), badgeElement('key', sp.focused ? 'focused' : ''), {
+            riseOnHover: true,
+            zIndexOffset: sp.focused ? 400 : 0
+          }).bindTooltip(
+            label(`${sp.names.join(', ')} can spawn here`, [
+              sp.items <= sp.names.length
+                ? 'A spot only keys spawn at'
+                : `Loose loot: one of ${sp.items} items that can spawn here`
+            ]),
+            { direction: 'top', offset: [0, -14] }
+          )
+        )
+      }
+    }
     const color = (status: string): string =>
       status === 'active' ? MARKER_COLORS.quest : MARKER_COLORS.questOther
     const fade = (questId: string): boolean => selectedQuest !== null && questId !== selectedQuest
@@ -271,7 +313,18 @@ export default function MapCanvas({
       for (const o of pin.objectives) add(`${pin.quest.id}:${o.id}`, marker)
     }
     markersRef.current = markers
-  }, [projection, maps, labels, objectives, layers, faction, itemName, selectedQuest, onSelectQuest])
+  }, [
+    projection,
+    maps,
+    labels,
+    objectives,
+    layers,
+    faction,
+    itemName,
+    selectedQuest,
+    onSelectQuest,
+    keyMarks
+  ])
 
   // Placing a pin: the next click on the map is where it goes; Esc cancels.
   useEffect(() => {
@@ -289,6 +342,20 @@ export default function MapCanvas({
       window.removeEventListener('keydown', key)
     }
   }, [placing, onPlace, onCancelPlace, projection])
+
+  // Centre on a key's locks and spawns (from the Keys tab's "View map").
+  useEffect(() => {
+    const map = mapRef.current
+    const focusKey = keyMarks?.focusKey ?? null
+    const id = focusKey ? `${focusKey}@${maps.map((m) => m.id).join()}` : null
+    if (!map || !id || handledKey.current === id) return
+    const points = (markersRef.current.get('key:focus') ?? []).flatMap((l) =>
+      l instanceof L.Marker ? [l.getLatLng()] : []
+    )
+    if (!points.length) return
+    handledKey.current = id
+    map.flyToBounds(L.latLngBounds(points).pad(0.4), { maxZoom: projection.focusZoom, duration: 0.6 })
+  }, [keyMarks, maps, projection])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {

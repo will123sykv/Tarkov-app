@@ -1,5 +1,5 @@
 import type { MapLabel } from '../../../shared/questTypes'
-import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from './mapMarkers'
+import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from './mapMarkers'
 import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type QuestPin } from './questPins'
 
 // The map's HTML markers (see mapMarkers.ts for what they show).
@@ -98,10 +98,13 @@ export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | nu
 }
 
 /** A round badge with a tail (boss) or a target (sniper), pointing at the spot. */
-export function badgeElement(kind: 'boss' | 'sniper'): HTMLElement {
+const BADGE_ICONS = { boss: BOSS_ICON, sniper: SNIPER_ICON, lock: LOCK_ICON, key: KEY_ICON }
+
+/** A round badge: a boss spawn, a sniper, a locked door or trunk, or where a key can spawn. */
+export function badgeElement(kind: keyof typeof BADGE_ICONS, extra = ''): HTMLElement {
   const badge = document.createElement('div')
-  badge.className = `map-badge ${kind}`
-  badge.append(iconSvg(kind === 'boss' ? BOSS_ICON : SNIPER_ICON))
+  badge.className = `map-badge ${kind} ${extra}`.trim()
+  badge.append(iconSvg(BADGE_ICONS[kind]))
   return badge
 }
 

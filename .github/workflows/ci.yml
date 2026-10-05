@@ -64,20 +64,3 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
-
-  # Temporary: what tarkov.dev's map data says about keys, their locks and spawns (removed after use).
-  probe-keys:
-    name: Probe tarkov.dev keys
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npx tsx scripts/probe-keys.ts

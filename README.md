@@ -15,8 +15,10 @@ prices, your PMC level and the game mode you play. It also has:
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
   buy back later), and the items not to sell (rare ones flagged) marked in the loot list;
+- **Keys:** the keys you have (ticked by hand) and the ones your quests still need, with how to get
+  each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
 - **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
-  extracts, transits and spawns;
+  extracts, transits, spawns, and the locks and spawn spots of the keys you need;
 - **Raids:** your raid history and flea market sales, also from the logs.
 
 ## Download
@@ -136,9 +138,15 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   found), and hideout upgrades with every item in hand.
 - **On any map:** objectives that can be done anywhere (say, kills on any map), and how many items
   your quests still want found in raid, with a link to them in Items to collect.
+- **Keys:** with **Leave out what I have no key for** ticked (the default), objectives behind a lock
+  none of your keys open, or on a map you can't get onto (the Lab without its access keycard), don't
+  count towards the ranking. They're still listed, with **Needs … (you don't have it)** and an **I
+  have it** link, and a quest with nothing else to do there is marked **Needs a key**. **Keys to
+  get** lists the keys that would open them up, with how to get each, plus any you added from the
+  Keys tab.
 
 The game's logs only say when a quest starts and finishes, not its objectives, so the ranking is as
-good as your ticks.
+good as your ticks (and your keys ticked in the Keys tab).
 
 ### Items to collect
 
@@ -236,7 +244,26 @@ container), new loot lists the smaller one and lets you tick the others (everyth
 them all); **Scan part of it** lets you drag a box around the window you want. Calibrated on 1080p
 screenshots; other resolutions and UI scales are scaled to match.
 
-### Quests, maps and raids
+### Keys
+
+The **Keys** tab lists the keys your quests still need and the ones you have, per game mode. The
+game's logs don't say which keys you have, so tick them yourself.
+
+- **Needed keys** come from the quests: every objective not yet done that has a lock to open, and
+  tarkov.dev's list of each quest's keys. Choose whose: **Active quests**, **+ available** (quests
+  you could start) or **Every quest left**. Each key says which quests need it and their status;
+  quests you can't start yet say why (**Needs level 25**, a trader's loyalty level or another
+  quest). A lock that takes any of several keys is one row.
+- **How to get it:** the cheapest way to buy it now at your level and trader loyalty, or **Can't buy
+  yet** with what's in the way (the flea's level for that key, a loyalty level, a quest); a quest
+  that gives it as a reward or when you accept it; and the maps where it can spawn as loose loot
+  (how many spots, and whether one only ever has keys). Keys also spawn in containers, which the
+  data doesn't list, and it doesn't say how likely a key is at a spot.
+- **View map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
+  links to the other maps it's on). **Add to To do** lists it under **Keys to get** in the To do
+  tab. **Every key** lists all the game's keys, to tick ones no quest needs.
+- **Keys you have** stop the To do tab from leaving out what they open. The key list comes from
+  tarkov.dev, so keys a patch adds or removes follow with the next data refresh.
 
 The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing
 is uploaded. It finds the game's `Logs` folder by itself (launcher and Steam installs); if it
@@ -290,6 +317,10 @@ the game's install folder, or its `build` folder.
   Zero underground, the Shoreline resort's floors, Reserve's bunkers, Interchange's mall), and a
   switch goes back to tarkov.dev's map; The Lab uses tarkov.dev's interactive map. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards.
+- **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
+  container they open (green when you have the key) and the loose loot spots where the ones you
+  don't have can spawn. A key opened from the Keys tab's **View map** is highlighted, with how many
+  locks and spots it has on this map.
 - **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
   out, and the wiki describes places in words), so the app works out which map each step is on from
   the step and its part of the wiki's guide, and lists the unfinished ones under **Story steps
@@ -339,7 +370,7 @@ offline cache.
 ### Where data is stored
 
 Settings, the encrypted API key, the price and quest caches, the flea price recordings (`trends\`,
-about 1 MB a day), your quest progress, raid history, hideout and pins on story steps (`player.json`), where the app got to in the
+about 1 MB a day), your quest progress, raid history, hideout, keys and pins on story steps (`player.json`), where the app got to in the
 game's logs (`logs\`), quest guides from the wiki (`cache\quest-guides\`) and downloaded map
 images and item pictures (`map-cache\`) live in
 `%APPDATA%\Tarkov Loot Optimiser`. Delete that folder to reset the app.
@@ -366,8 +397,8 @@ npm run data:maps    # regenerate the bundled map projections from tarkov.dev
 
 ```
 src/shared/     Types, game modes, settings validation, item and container valuation,
-                flea trend analysis (fleaTrends.ts), the item tracker (hideout.ts) and the
-                To do tab's map ranking (todo.ts)
+                flea trend analysis (fleaTrends.ts), the item tracker (hideout.ts), the
+                To do tab's map ranking (todo.ts) and the key tracker (keys.ts)
 src/main/       Electron main process: settings, price fetching and caching, auto-updater,
                 container loot tables, tray (background.ts)
   pricing/      json.tarkov.dev, tarkov.dev GraphQL and tarkov-market clients, fallback chain,

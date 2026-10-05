@@ -9,6 +9,7 @@ const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
   { id: 'todo', label: 'To do', subtitle: 'Which map to raid next for your quests' },
   { id: 'quests', label: 'Quests', subtitle: 'Quest progress from your game logs' },
   { id: 'hideout', label: 'Items to collect', subtitle: 'What your hideout and quests still need' },
+  { id: 'keys', label: 'Keys', subtitle: 'Your keys and the ones quests need' },
   { id: 'maps', label: 'Maps', subtitle: 'Quest objectives, extracts and spawns' },
   { id: 'raids', label: 'Raids', subtitle: 'Raids and flea sales from your logs' }
 ]

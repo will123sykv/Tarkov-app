@@ -268,6 +268,30 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ view: 'todo' }).view).toBe('todo')
   })
 
+  it('keeps the key options (since 1.17.0)', () => {
+    // Settings saved before 1.17.0: keys checked in To do, every quest's keys listed, no map layer.
+    const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
+    expect(old.view).toBe('keys')
+    expect(old.todo).toEqual({ keys: true })
+    expect(old.keys).toEqual({ scope: 'all', list: 'needed' })
+    expect(old.maps.showKeys).toBe(false)
+    const chosen = sanitizeSettings({
+      todo: { keys: false },
+      keys: { scope: 'available', list: 'all' },
+      maps: { showKeys: true }
+    })
+    expect(chosen.todo.keys).toBe(false)
+    expect(chosen.keys).toEqual({ scope: 'available', list: 'all' })
+    expect(chosen.maps.showKeys).toBe(true)
+    expect(sanitizeSettings({ todo: { keys: 0 }, keys: { scope: 'some', list: 'x' } })).toMatchObject({
+      todo: { keys: true },
+      keys: { scope: 'all', list: 'needed' }
+    })
+    expect(
+      mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope
+    ).toBe('active')
+  })
+
   it('keeps the Loot tab’s "only items to save" filter', () => {
     expect(DEFAULT_SETTINGS.keepOnly).toBe(false)
     expect(sanitizeSettings({ keepOnly: true }).keepOnly).toBe(true)

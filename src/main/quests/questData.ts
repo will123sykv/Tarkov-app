@@ -4,7 +4,10 @@ import type {
   GameMap,
   HideoutLevel,
   HideoutStation,
+  KeySpawn,
+  MapAccess,
   MapExtract,
+  MapLock,
   Quest,
   QuestDataset,
   QuestDataState,
@@ -191,6 +194,17 @@ function translated(t: Translate, key: string | null): string | null {
 /** Skill ids as the game names them: `StressResistance` → `Stress Resistance`. */
 const skillName = (id: string): string =>
   id === 'TroubleShooting' ? 'Troubleshooting' : id.replace(/([a-z])([A-Z])/g, '$1 $2')
+
+/** Who can enter a map. tarkov.dev writes 0 and 100 (or 99) for no limit. */
+function mapAccess(raw: Raw): MapAccess {
+  const min = num(raw.minPlayerLevel)
+  const max = num(raw.maxPlayerLevel)
+  return {
+    minPlayerLevel: min && min > 1 ? min : null,
+    maxPlayerLevel: max && max < 99 ? max : null,
+    keyIds: ids(raw.accessKeys)
+  }
+}
 
 function neededKeys(value: unknown): Quest['neededKeys'] {
   return arr(value)
@@ -432,8 +446,19 @@ export function normalizeQuestData(
   }
 
   const mobs = mobNames(input.maps.mobs, tm)
+  // Keys: what opens a lock, lets you onto a map, or a quest asks for. Loose loot spots are only kept
+  // where one of these can spawn.
+  const rawMaps = values(input.maps.maps as Collection<Raw>)
+  const keyIds = new Set([
+    ...rawMaps.flatMap((raw) => [...arr(raw.locks).map((l) => idOf(rec(l).key)), ...ids(raw.accessKeys)]),
+    ...quests.flatMap((q) => [
+      ...q.objectives.flatMap((o) => o.requiredKeys.flat()),
+      ...q.neededKeys.flatMap((k) => k.keyIds)
+    ])
+  ])
+  keyIds.delete(null)
   const maps: GameMap[] = []
-  for (const raw of values(input.maps.maps as Collection<Raw>)) {
+  for (const raw of rawMaps) {
     const id = str(raw.id)
     if (!id) continue
     const extracts: MapExtract[] = []
@@ -469,7 +494,23 @@ export function normalizeQuestData(
           position: vec(tr.position)
         }))
         .filter((tr): tr is GameMap['transits'][number] => tr.position !== null),
-      ...bossesAndSnipers(raw, mobs)
+      ...bossesAndSnipers(raw, mobs),
+      locks: arr(raw.locks)
+        .map((l) => rec(l))
+        .map((l) => ({ keyId: idOf(l.key), kind: str(l.lockType) ?? 'door', position: vec(l.position) }))
+        .filter((l): l is MapLock => l.keyId !== null && l.position !== null),
+      keySpawns: arr(raw.lootLoose)
+        .map((spot) => rec(spot))
+        .map((spot) => {
+          const items = ids(spot.items)
+          return {
+            position: vec(spot.position),
+            keyIds: items.filter((i) => keyIds.has(i)),
+            items: items.length
+          }
+        })
+        .filter((spot): spot is KeySpawn => spot.position !== null && spot.keyIds.length > 0),
+      access: mapAccess(raw)
     })
   }
 
@@ -549,7 +590,8 @@ export async function fetchQuestData(
 /**
  * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
  * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures; 1.8.0: the
- * hideout; 1.11.0: story chapters; 1.12.0: what objectives check, and the story steps' maps): fill in
+ * hideout; 1.11.0: story chapters; 1.12.0: what objectives check, and the story steps' maps; 1.17.0:
+ * locks, key spawns and map access): fill in
  * defaults so they still work offline, and date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
@@ -592,6 +634,18 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
       traders: result.traders.map((t) => ({ ...t, imageLink: t.imageLink ?? null }))
     }
   if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
+  // 1.17.0: locks, key spawns and who can enter each map.
+  if (result.maps.some((m) => !m.locks))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      maps: result.maps.map((m) => ({
+        ...m,
+        locks: m.locks ?? [],
+        keySpawns: m.keySpawns ?? [],
+        access: m.access ?? { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] }
+      }))
+    }
   if (!result.storyChapters) result = { ...result, fetchedAt: 0, storyChapters: [] }
   // 1.12.0: objectives' level and quest-status checks, and the maps story steps are on.
   if (result.quests.some((q) => q.objectives.some((o) => o.playerLevel === undefined)))

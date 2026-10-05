@@ -208,6 +208,12 @@ export function registerIpc(deps: {
     if (n < 1) throw new Error('Invalid loyalty level')
     return player.setTraderLevel(requireGameMode(gameMode), requireId(traderId, 'trader'), n)
   })
+  ipcMain.handle(IPC.keysGet, (_e, gameMode: unknown) => player.keys(requireGameMode(gameMode)))
+  ipcMain.handle(IPC.keysSet, (_e, gameMode: unknown, keyId: unknown, list: unknown, on: unknown) => {
+    if (list !== 'owned' && list !== 'toDo') throw new Error('Invalid key list')
+    if (typeof on !== 'boolean') throw new Error('Invalid key state')
+    return player.setKey(requireGameMode(gameMode), requireId(keyId, 'item'), list, on)
+  })
   ipcMain.handle(IPC.hideoutBuild, async (_e, gameMode: unknown, stationId: unknown, level: unknown) => {
     const mode = requireGameMode(gameMode)
     const id = requireId(stationId, 'station')

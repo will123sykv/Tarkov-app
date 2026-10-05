@@ -7,6 +7,7 @@ import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
 import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
+import KeysView from './components/KeysView'
 import { useKeepList } from './lib/useKeepList'
 import MapsView from './components/MapsView'
 import QuestsView from './components/QuestsView'
@@ -118,6 +119,8 @@ export default function App(): React.JSX.Element {
         <QuestsView settings={settings} priceState={priceState} />
       ) : view === 'hideout' ? (
         <HideoutView settings={settings} priceState={priceState} />
+      ) : view === 'keys' ? (
+        <KeysView settings={settings} priceState={priceState} />
       ) : view === 'maps' ? (
         <MapsView settings={settings} priceState={priceState} />
       ) : view === 'raids' ? (

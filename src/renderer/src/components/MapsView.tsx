@@ -1,17 +1,18 @@
 import { useCallback, useMemo } from 'react'
+import { EMPTY_KEYS, keysNeeded } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { interactiveProjection, posterProjection } from '../lib/mapProjection'
-import { BOSS_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
+import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
 import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type ObjectiveMarker } from '../lib/questPins'
 import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import MapCanvas, { MARKER_COLORS, type MapLayers } from './MapCanvas'
+import MapCanvas, { MARKER_COLORS, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 
 const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
@@ -53,11 +54,13 @@ function PinLegend({ kind, children }: { kind: PinKind; children: React.ReactNod
   )
 }
 
-function BadgeLegend({ kind, children }: { kind: 'boss' | 'sniper'; children: React.ReactNode }) {
+const BADGE_ICON = { boss: BOSS_ICON, sniper: SNIPER_ICON, lock: LOCK_ICON, key: KEY_ICON }
+
+function BadgeLegend({ kind, children }: { kind: keyof typeof BADGE_ICON; children: React.ReactNode }) {
   return (
     <li>
       <span className={`legend-badge map-badge ${kind}`} aria-hidden>
-        <Icon path={kind === 'boss' ? BOSS_ICON : SNIPER_ICON} />
+        <Icon path={BADGE_ICON[kind]} />
       </span>
       {children}
     </li>
@@ -202,6 +205,9 @@ export default function MapsView({
   const placing = useStore((s) => s.placing)
   const setPlacing = useStore((s) => s.setPlacing)
   const setStoryPin = useStore((s) => s.setStoryPin)
+  const keyFocus = useStore((s) => s.keyFocus)
+  const showKeyOnMap = useStore((s) => s.showKeyOnMap)
+  const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
   const m = settings.maps
   const set = (patch: Partial<MapSettings>): void => void updateSettings({ maps: { ...m, ...patch } })
   const dataset = questState?.dataset ?? null
@@ -304,6 +310,75 @@ export default function MapsView({
     },
     [placing, rows, mapIds, maps, setPlacing, setStoryPin]
   )
+
+  // Locks and key spawns: the key looked at from the Keys tab, and (when asked) the keys quests need.
+  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
+  const neededKeys = useMemo(
+    () =>
+      m.showKeys
+        ? new Set(keysNeeded(rows, done, new Set(['active', 'available'])).flatMap((n) => n.keyIds))
+        : new Set<string>(),
+    [m.showKeys, rows, done]
+  )
+  const keyMarks = useMemo<KeyMarks | null>(() => {
+    if (!keyFocus && !m.showKeys) return null
+    const locks: KeyMarks['locks'] = []
+    const spawns: KeyMarks['spawns'] = []
+    // Alternate versions of a map repeat its locks and spots.
+    const seen = new Set<string>()
+    const once = (kind: string, p: Vec3): boolean => {
+      const id = `${kind}@${Math.round(p.x)},${Math.round(p.y)},${Math.round(p.z)}`
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    }
+    for (const map of maps) {
+      for (const l of map.locks ?? []) {
+        const focused = l.keyId === keyFocus
+        if ((focused || neededKeys.has(l.keyId)) && once(l.keyId, l.position))
+          locks.push({
+            position: l.position,
+            kind: l.kind,
+            name: itemName(l.keyId) ?? 'key',
+            focused,
+            have: owned.has(l.keyId)
+          })
+      }
+      for (const spot of map.keySpawns ?? []) {
+        const focused = keyFocus !== null && spot.keyIds.includes(keyFocus)
+        const wanted = spot.keyIds.filter((id) => neededKeys.has(id) && !owned.has(id))
+        if ((focused || wanted.length) && once('spawn', spot.position))
+          spawns.push({
+            position: spot.position,
+            names: (focused ? [keyFocus] : wanted).map((id) => itemName(id) ?? 'A key'),
+            items: spot.items,
+            focused
+          })
+      }
+    }
+    return { locks, spawns, focusKey: keyFocus }
+  }, [keyFocus, m.showKeys, maps, neededKeys, owned, itemName])
+  // Where else the key looked at has locks or spawns, to switch to.
+  const focusElsewhere = useMemo(() => {
+    if (!keyFocus) return []
+    const result: { key: string; name: string }[] = []
+    for (const map of dataset?.maps ?? []) {
+      const config = configFor(map)
+      if (!config || config.key === m.mapKey || result.some((r) => r.key === config.key)) continue
+      const here =
+        (map.locks ?? []).some((l) => l.keyId === keyFocus) ||
+        (map.keySpawns ?? []).some((sp) => sp.keyIds.includes(keyFocus))
+      if (here)
+        result.push({ key: config.key, name: choices.find((c) => c.key === config.key)?.name ?? map.name })
+    }
+    return result
+  }, [keyFocus, dataset, m.mapKey, choices])
+  const focusHere = keyMarks
+    ? {
+        locks: keyMarks.locks.filter((l) => l.focused).length,
+        spawns: keyMarks.spawns.filter((sp) => sp.focused).length
+      }
+    : null
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
@@ -431,6 +506,60 @@ export default function MapsView({
             <Legend color={MARKER_COLORS.spawn}>PMC spawn</Legend>
           </ul>
         </section>
+        <section>
+          <h2>Keys</h2>
+          {keyFocus && focusHere && (
+            <div className="key-focus">
+              <strong>{itemName(keyFocus) ?? 'Key'}</strong>
+              <span className="muted">
+                {focusHere.locks || focusHere.spawns
+                  ? [
+                      focusHere.locks
+                        ? `${focusHere.locks} lock${focusHere.locks === 1 ? '' : 's'} it opens`
+                        : null,
+                      focusHere.spawns
+                        ? `${focusHere.spawns} spot${focusHere.spawns === 1 ? '' : 's'} it can spawn at`
+                        : null
+                    ]
+                      .filter(Boolean)
+                      .join(' and ') + ' on this map'
+                  : 'Nothing for it on this map'}
+              </span>
+              {focusElsewhere.length > 0 && (
+                <span className="muted">
+                  Also on{' '}
+                  {focusElsewhere.map((c, i) => (
+                    <span key={c.key}>
+                      {i > 0 && ', '}
+                      <button className="link" onClick={() => set({ mapKey: c.key })}>
+                        {c.name}
+                      </button>
+                    </span>
+                  ))}
+                </span>
+              )}
+              <button className="link small" onClick={() => void showKeyOnMap(null)}>
+                Stop showing it
+              </button>
+            </div>
+          )}
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={m.showKeys}
+              onChange={(e) => set({ showKeys: e.target.checked })}
+            />
+            Locks for keys your quests need
+          </label>
+          <ul className="legend">
+            <BadgeLegend kind="lock">Locked door or container (green: you have the key)</BadgeLegend>
+            <BadgeLegend kind="key">Where a key you don&rsquo;t have can spawn</BadgeLegend>
+          </ul>
+          <p className="hint">
+            Spawn spots are loose loot: tarkov.dev doesn&rsquo;t say how likely a key is there, and keys also
+            turn up in containers. Tick the keys you have in the Keys tab.
+          </p>
+        </section>
         <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
         <section>
           <h2>On this map</h2>
@@ -518,6 +647,7 @@ export default function MapsView({
             focus={focus}
             selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
+            keyMarks={keyMarks}
             placing={placing !== null}
             onPlace={onPlace}
             onCancelPlace={cancelPlace}

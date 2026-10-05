@@ -11,6 +11,7 @@ import type {
   AppView,
   GameMode,
   HideoutSettings,
+  KeysSettings,
   MapSettings,
   QuestSettings,
   QuestStatusFilter,
@@ -70,6 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
     showLabels: true,
     showBosses: true,
     showSnipers: true,
+    showKeys: false,
     faction: 'pmc',
     style: '2d'
   },
@@ -83,10 +85,12 @@ export const DEFAULT_SETTINGS: Settings = {
     sellOnly: false,
     scanSellBuyable: false,
     tab: 'items'
-  }
+  },
+  todo: { keys: true },
+  keys: { scope: 'all', list: 'needed' }
 }
 
-const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'maps', 'raids']
+const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'keys', 'maps', 'raids']
 const QUEST_STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'completed', 'failed']
 
 function sanitizeQuests(raw: unknown): QuestSettings {
@@ -117,6 +121,7 @@ function sanitizeMaps(raw: unknown): MapSettings {
     showLabels: typeof r.showLabels === 'boolean' ? r.showLabels : d.showLabels,
     showBosses: typeof r.showBosses === 'boolean' ? r.showBosses : d.showBosses,
     showSnipers: typeof r.showSnipers === 'boolean' ? r.showSnipers : d.showSnipers,
+    showKeys: r.showKeys === true,
     faction: r.faction === 'scav' ? 'scav' : 'pmc',
     // 1.5 called the 2D maps 're3mr', when Re3MR drew all of them.
     style: r.style === 'tarkov-dev' ? 'tarkov-dev' : '2d'
@@ -249,7 +254,17 @@ export function sanitizeSettings(raw: unknown): Settings {
       typeof r.gameLogsDir === 'string' && r.gameLogsDir.length <= 1024 ? r.gameLogsDir || null : null,
     quests: sanitizeQuests(r.quests),
     maps: sanitizeMaps(r.maps),
-    hideout: sanitizeHideout(r.hideout)
+    hideout: sanitizeHideout(r.hideout),
+    todo: { keys: !isRecord(r.todo) || r.todo.keys !== false },
+    keys: sanitizeKeys(r.keys)
+  }
+}
+
+function sanitizeKeys(raw: unknown): KeysSettings {
+  const r = isRecord(raw) ? raw : {}
+  return {
+    scope: r.scope === 'active' || r.scope === 'available' ? r.scope : 'all',
+    list: r.list === 'all' ? 'all' : 'needed'
   }
 }
 
@@ -263,6 +278,8 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     trends: { ...current.trends, ...patch.trends },
     quests: { ...current.quests, ...patch.quests },
     maps: { ...current.maps, ...patch.maps },
-    hideout: { ...current.hideout, ...patch.hideout }
+    hideout: { ...current.hideout, ...patch.hideout },
+    todo: { ...current.todo, ...patch.todo },
+    keys: { ...current.keys, ...patch.keys }
   })
 }

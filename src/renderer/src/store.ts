@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
 import type { HideoutProgress } from '../../shared/hideout'
+import type { KeyInventory } from '../../shared/keys'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
 import type { QuestDataState } from '../../shared/questTypes'
@@ -38,6 +39,10 @@ interface AppStore {
   questProgress: Partial<Record<GameMode, QuestProgress>>
   objectiveProgress: Partial<Record<GameMode, ObjectiveProgress>>
   hideoutProgress: Partial<Record<GameMode, HideoutProgress>>
+  /** Keys the player has and wants to get, per game mode. */
+  keys: Partial<Record<GameMode, KeyInventory>>
+  /** A key to show the locks and spawns of on the Maps tab. */
+  keyFocus: string | null
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
   selectedQuest: string | null
@@ -68,6 +73,9 @@ interface AppStore {
   markQuestsUpTo(questId: string): Promise<void>
   setStationLevel(stationId: string, level: number): Promise<void>
   setHideoutHave(itemId: string, count: number): Promise<void>
+  setKey(keyId: string, list: keyof KeyInventory, on: boolean): Promise<void>
+  /** Open the Maps tab on a map with a key's locks and spawns on it (null: stop showing them). */
+  showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   setHideoutHaveMany(counts: Record<string, number>): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
   setTraderLevel(traderId: string, level: number): Promise<void>
@@ -124,6 +132,8 @@ export const useStore = create<AppStore>((set, get) => ({
   questProgress: {},
   objectiveProgress: {},
   hideoutProgress: {},
+  keys: {},
+  keyFocus: null,
   logHistory: {},
   logStatus: null,
   selectedQuest: null,
@@ -297,15 +307,17 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history, hideout, objectives, storyPins] = await Promise.all([
+    const [progress, history, hideout, objectives, storyPins, keys] = await Promise.all([
       window.api.getQuestProgress(gameMode),
       window.api.getLogHistory(gameMode),
       window.api.getHideoutProgress(gameMode),
       window.api.getObjectiveProgress(gameMode),
-      window.api.getStoryPins()
+      window.api.getStoryPins(),
+      window.api.getKeys(gameMode)
     ])
     set((s) => ({
       storyPins,
+      keys: { ...s.keys, [gameMode]: keys },
       questProgress: { ...s.questProgress, [gameMode]: progress },
       objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives },
       logHistory: { ...s.logHistory, [gameMode]: history },
@@ -344,6 +356,20 @@ export const useStore = create<AppStore>((set, get) => ({
     if (!gameMode) return
     const hideout = await window.api.setStationLevel(gameMode, stationId, level)
     set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+  },
+
+  async setKey(keyId, list, on) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const keys = await window.api.setKey(gameMode, keyId, list, on)
+    set((s) => ({ keys: { ...s.keys, [gameMode]: keys } }))
+  },
+
+  async showKeyOnMap(keyId, mapKey) {
+    const settings = get().settings
+    if (!settings) return
+    set({ keyFocus: keyId })
+    if (keyId && mapKey) await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
   },
 
   async setHideoutHave(itemId, count) {
