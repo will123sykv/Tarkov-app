@@ -89,13 +89,13 @@ async function main(): Promise<void> {
   console.log('hideout FIR item kinds:', firNeeded.size)
   const crafted = new Map<string, Raw[]>()
   for (const c of crafts)
-    for (const r of list(c.rewardItems)) {
-      const id = idOf(r.item)
+    for (const r of [c.productItem as Raw]) {
+      const id = idOf(r?.item)
       if (id) crafted.set(id, [...(crafted.get(id) ?? []), c])
     }
   const firCraftable = [...firNeeded].filter((id) => crafted.has(id))
   console.log('of those, craftable:', firCraftable.length)
-  for (const id of firCraftable.slice(0, 8)) {
+  for (const id of firCraftable.slice(0, 30)) {
     const c = crafted.get(id)![0]
     console.log(
       `  ${name(id)}: ${stationName.get(idOf(c.station) ?? '') ?? c.station} ${c.level}, ${c.duration}s, needs`,
@@ -117,6 +117,32 @@ async function main(): Promise<void> {
   )
   console.log('a craft mentioning tool:', JSON.stringify(tooled)?.slice(0, 1500))
 
+  const tasks = list(await get('regular/tasks'))
+  const questFir = new Set<string>()
+  for (const t of tasks)
+    for (const o of list(t.objectives))
+      if ((o.type === 'giveItem' || o.type === 'plantItem') && o.foundInRaid)
+        for (const i of list(o.items)) questFir.add(idOf(i) ?? '')
+  const questCraftable = [...questFir].filter((id) => crafted.has(id))
+  console.log(
+    'quest FIR hand-over kinds:',
+    questFir.size,
+    'craftable:',
+    questCraftable.length,
+    questCraftable.slice(0, 30).map(name).join('; ')
+  )
+  console.log(
+    'gameEditions non-empty:',
+    crafts
+      .filter((c) => list(c.gameEditions).length)
+      .map((c) => JSON.stringify(c.gameEditions))
+      .slice(0, 5)
+  )
+  console.log(
+    'functional sample:',
+    JSON.stringify(crafts.find((c) => JSON.stringify(c).includes('functional'))).slice(0, 800)
+  )
+  console.log('items crafted by several crafts:', [...crafted].filter(([, cs]) => cs.length > 1).length)
   const pve = list(await get('pve/crafts'))
   console.log('pve crafts:', pve.length)
 }

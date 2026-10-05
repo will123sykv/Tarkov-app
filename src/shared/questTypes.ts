@@ -213,6 +213,23 @@ export interface HideoutStation {
   levels: HideoutLevel[]
 }
 
+/** Something a hideout station makes. What it makes counts as found in raid. */
+export interface HideoutCraft {
+  id: string
+  stationId: string
+  /** The station level it takes. */
+  level: number
+  /** Seconds. */
+  duration: number
+  /** Used up (bought ones do). */
+  inputs: { itemId: string; count: number }[]
+  /** Needed, but not used up. */
+  tools: string[]
+  outputs: { itemId: string; count: number }[]
+  /** A quest to finish before it can be made. */
+  questId: string | null
+}
+
 /** One step of a story chapter, as the wiki lists it. */
 export interface StoryObjective {
   /** The step's text, slugged (`#2`… on repeats), so progress survives the list being refreshed. */
@@ -260,6 +277,8 @@ export interface QuestDataset {
   traders: QuestTrader[]
   /** Hideout stations (empty when tarkov.dev's hideout data couldn't be fetched). */
   stations: HideoutStation[]
+  /** What the stations can make (empty when it couldn't be fetched). Since 1.21.0. */
+  crafts: HideoutCraft[]
   /**
    * Names of quests tarkov.dev leaves out of its quest list (story chapters, new or event quests),
    * by id, so ones the logs mention can still be named.
