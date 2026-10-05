@@ -203,12 +203,21 @@ station's level in the sidebar (the Stash starts at level 1).
   cheapest place for each) plus the upgrade's own money cost, and is marked **Ready** (everything
   in hand), **Can buy the rest**, **Waiting on a requirement** (another station or a trader's
   loyalty level) or neither (something you can't buy yet). Ready ones come first, then the ones you
-  can buy the rest for, cheapest first.
-- **Buy** shows the cheapest way to buy one now at your PMC level and trader loyalty: the flea
-  (once it's open to you: level 15, or later for some items) or a trader's offer (at your loyalty
-  level, and after the quest that unlocks it, if any), or **Can't buy yet** with what would open
-  it up. Set your loyalty with the traders who sell what the hideout needs under **Trader
-  loyalty** in the sidebar (per game mode; unset is LL1).
+  can buy the rest for, cheapest first. Parts that must be found in raid aren't priced: they say
+  how many to find in raid, or the craft that makes them, and keep the card from **Can buy the
+  rest**.
+- **Buy or craft** shows the cheapest way to get one now. Items you buy never count as found in
+  raid, so for ones that must be found in raid there's no price: it says **Craft** when one of your
+  hideout's stations makes it (crafted items count as found in raid), with what buying what the
+  craft uses up costs per item (tools aren't used up), the station and how long it takes;
+  otherwise **Find in raid**, with **or craft at Workbench 3** (say) when a craft needs a higher
+  station level or a quest first. Hover it for every craft that makes it. When only some copies
+  must be found in raid, the rest are priced (**for 3 of 5**). The rest of the time it's the
+  cheapest way to buy one at your PMC level and trader loyalty: the flea (once it's open to you:
+  level 15, or later for some items) or a trader's offer (at your loyalty level, and after the
+  quest that unlocks it, if any), or **Can't buy yet** with what would open it up. Set your
+  loyalty with the traders who sell what the hideout needs under **Trader loyalty** in the sidebar
+  (per game mode; unset is LL1). The Quests tab's **Items needed** has the same column.
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
   sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
@@ -217,7 +226,8 @@ station's level in the sidebar (the Stash starts at level 1).
   trader sells you get neither.
 - **What to save right now:** tick **Can't buy or rare only** in the Items to collect list, or **Only
   items to save (can't buy or rare)** in the Loot tab's filters, to see just the items you still
-  need that you can't buy at your level and trader loyalty, or that are rare.
+  need that you can't buy at your level and trader loyalty, that must be found in raid, or that
+  are rare.
 
 #### Screenshots: what to keep and sell, and counting what you have
 

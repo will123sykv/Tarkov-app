@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import type {
   BossSpawn,
   GameMap,
+  HideoutCraft,
   HideoutLevel,
   HideoutStation,
   KeySpawn,
@@ -41,6 +42,8 @@ export interface QuestDataInput {
   /** Optional: names the stations of crafts that quests unlock. */
   hideout?: Raw
   hideoutLang?: Dict
+  /** Optional: what the stations make. */
+  crafts?: unknown
 }
 
 const arr = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
@@ -273,6 +276,41 @@ export function hideoutStations(hideout: Raw, lang: Dict): HideoutStation[] {
     })
   }
   return result.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** What the hideout's stations make, from tarkov.dev's `crafts` file. */
+export function hideoutCrafts(crafts: unknown): HideoutCraft[] {
+  const result: HideoutCraft[] = []
+  const counted = (value: unknown): { itemId: string; count: number } | null => {
+    const r = rec(value)
+    const itemId = idOf(r.item)
+    return itemId ? { itemId, count: num(r.count) ?? num(r.quantity) ?? 1 } : null
+  }
+  for (const raw of values(crafts as Collection<Raw>)) {
+    const c = rec(raw)
+    const id = str(c.id)
+    const stationId = idOf(c.station)
+    // One product per craft (`productItem`); a list (`rewardItems`, as in tarkov.dev's API) works too.
+    const outputs = [c.productItem, ...arr(c.rewardItems)]
+      .map(counted)
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+    if (!id || !stationId || !outputs.length) continue
+    const required = arr(c.requiredItems).map((r) => ({
+      part: counted(r),
+      tool: rec(rec(r).attributes).tool === true
+    }))
+    result.push({
+      id,
+      stationId,
+      level: num(c.level) ?? 1,
+      duration: num(c.duration) ?? 0,
+      inputs: required.filter((r) => !r.tool && r.part).map((r) => r.part!),
+      tools: required.filter((r) => r.tool && r.part).map((r) => r.part!.itemId),
+      outputs,
+      questId: idOf(c.taskUnlock)
+    })
+  }
+  return result
 }
 
 function prettify(slug: string): string {
@@ -550,6 +588,7 @@ export function normalizeQuestData(
     maps,
     traders,
     stations: hideoutStations(input.hideout ?? {}, input.hideoutLang ?? {}),
+    crafts: hideoutCrafts(input.crafts ?? []),
     otherQuestNames,
     // Filled in from the wiki by fetchQuestData.
     storyChapters: []
@@ -561,21 +600,23 @@ export async function fetchQuestData(
   dataMode: DataMode,
   now: number
 ): Promise<QuestDataset> {
-  // Hideout station names only label rewards: do without them rather than fail.
+  // The hideout and its crafts aren't what quests need: do without them rather than fail.
   const optional = <T>(file: string): Promise<T | undefined> =>
     fetchJsonData<T>(fetchFn, dataMode, file).catch(() => undefined)
-  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang] = await Promise.all([
-    fetchJsonData<Raw>(fetchFn, dataMode, 'tasks'),
-    fetchJsonData<Dict>(fetchFn, dataMode, 'tasks_en'),
-    fetchJsonData<Raw>(fetchFn, dataMode, 'maps'),
-    fetchJsonData<Dict>(fetchFn, dataMode, 'maps_en'),
-    fetchJsonData<Raw>(fetchFn, dataMode, 'traders'),
-    fetchJsonData<Dict>(fetchFn, dataMode, 'traders_en'),
-    optional<Raw>('hideout'),
-    optional<Dict>('hideout_en')
-  ])
+  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts] =
+    await Promise.all([
+      fetchJsonData<Raw>(fetchFn, dataMode, 'tasks'),
+      fetchJsonData<Dict>(fetchFn, dataMode, 'tasks_en'),
+      fetchJsonData<Raw>(fetchFn, dataMode, 'maps'),
+      fetchJsonData<Dict>(fetchFn, dataMode, 'maps_en'),
+      fetchJsonData<Raw>(fetchFn, dataMode, 'traders'),
+      fetchJsonData<Dict>(fetchFn, dataMode, 'traders_en'),
+      optional<Raw>('hideout'),
+      optional<Dict>('hideout_en'),
+      optional<unknown>('crafts')
+    ])
   const dataset = normalizeQuestData(
-    { tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang },
+    { tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts },
     dataMode,
     now
   )
@@ -591,7 +632,7 @@ export async function fetchQuestData(
  * Older caches lack what later versions added (1.5.0: trader requirements and the other quests'
  * names; 1.6.0: bosses, snipers and extract costs; 1.7.0: keys, rewards and pictures; 1.8.0: the
  * hideout; 1.11.0: story chapters; 1.12.0: what objectives check, and the story steps' maps; 1.17.0:
- * locks, key spawns and map access): fill in
+ * locks, key spawns and map access; 1.21.0: crafts): fill in
  * defaults so they still work offline, and date them so they're refetched straight away.
  */
 function upgradeCache(cached: QuestDataset): QuestDataset {
@@ -634,6 +675,8 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
       traders: result.traders.map((t) => ({ ...t, imageLink: t.imageLink ?? null }))
     }
   if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
+  // 1.21.0: what the hideout's stations make.
+  if (!result.crafts) result = { ...result, fetchedAt: 0, crafts: [] }
   // 1.17.0: locks, key spawns and who can enter each map.
   if (result.maps.some((m) => !m.locks))
     result = {

@@ -7,15 +7,18 @@ import {
   RARE_MAX_OFFERS,
   RARE_MIN_PRICE,
   RARE_SCARCE_MIN_PRICE,
-  buyOptions,
+  canCraft,
+  howToGet,
   scarcity,
   sellAdvice,
   stationLevel,
   unneededHave,
   UPGRADE_ORDER,
   upgradeStatus,
+  type UpgradePart,
   type UpgradeStatus,
   type BuyContext,
+  type CraftContext,
   type Scarcity,
   type SellAdvice,
   type HideoutNeed,
@@ -24,12 +27,13 @@ import {
 import { neededItems } from '../../../shared/questProgress'
 import type { HideoutLevel, HideoutStation, QuestTrader } from '../../../shared/questTypes'
 import type { HideoutSettings, LootItem, PriceState, PublicSettings } from '../../../shared/types'
-import { formatRub } from '../lib/format'
+import { formatDuration, formatRub } from '../lib/format'
 import { formatMoney } from '../lib/questSummary'
 import { useItemLookup } from '../lib/useItemLookup'
-import { useBuyContext } from '../lib/useKeepList'
+import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import { craftText, GetCell } from './GetCell'
 import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
 
@@ -50,8 +54,9 @@ function StationIcon({ station }: { station: HideoutStation }): React.JSX.Elemen
   )
 }
 
-/** Rare first, then what can't be bought yet. */
-const SCARCE_ORDER = (s: Scarcity | null): number => (s?.kind === 'rare' ? 2 : s ? 1 : 0)
+/** Rare first, then what can't be bought: not yet, or because it must be found in raid. */
+const SCARCE_ORDER = (s: Scarcity | null, find: number): number =>
+  s?.kind === 'rare' ? 2 : s || find ? 1 : 0
 
 /** − count + for how many of an item the player has put aside. */
 function HaveCounter({
@@ -98,26 +103,6 @@ function HaveCounter({
       )}
     </span>
   )
-}
-
-/** The cheapest way to buy one now, or what's in the way. */
-function BuyCell({ buy }: { buy: ReturnType<typeof buyOptions> | null }): React.JSX.Element {
-  const best = buy?.options[0]
-  if (best)
-    return (
-      <span title={buy.options.map((o) => `${o.label}: ${formatRub(o.price)}`).join('\n')}>
-        {formatRub(best.price)}
-        <small>{best.label}</small>
-      </span>
-    )
-  if (buy?.locked.length)
-    return (
-      <span className="muted locked-buy" title={`Opens up with: ${buy.locked.join(', ')}`}>
-        Can&rsquo;t buy yet
-        <small>{buy.locked[0]}</small>
-      </span>
-    )
-  return <span className="muted">—</span>
 }
 
 /** What selling some of an item would get, and buying them back would cost. */
@@ -200,6 +185,7 @@ function ItemsNeeded({
   keepOnly,
   sellOnly,
   ctx,
+  cc,
   onOpenQuest
 }: {
   needs: HideoutNeed[]
@@ -218,6 +204,7 @@ function ItemsNeeded({
   /** Only what could be sold: extras, or what can be bought back now. */
   sellOnly: boolean
   ctx: BuyContext
+  cc: CraftContext
   onOpenQuest: (questId: string) => void
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
@@ -234,21 +221,22 @@ function ItemsNeeded({
             need: n,
             item,
             scarce: item ? scarcity(item, ctx) : null,
-            buy: item ? buyOptions(item, ctx) : null,
+            get: howToGet(n, cc, ctx),
             sell: sellAdvice(everything.get(n.itemId) ?? n, item, ctx)
           }
         })
-        .filter((r) => !keepOnly || (r.need.missing > 0 && r.scarce !== null))
+        // To save: what can't be bought back, including copies that must be found in raid.
+        .filter((r) => !keepOnly || (r.need.missing > 0 && (r.scarce !== null || r.get.find > 0)))
         .filter((r) => !sellOnly || r.sell !== null)
         .sort(
           (a, b) =>
             Number(a.need.needed === 0) - Number(b.need.needed === 0) ||
-            (b.need.missing > 0 ? SCARCE_ORDER(b.scarce) : 0) -
-              (a.need.missing > 0 ? SCARCE_ORDER(a.scarce) : 0) ||
+            (b.need.missing > 0 ? SCARCE_ORDER(b.scarce, b.get.find) : 0) -
+              (a.need.missing > 0 ? SCARCE_ORDER(a.scarce, a.get.find) : 0) ||
             b.need.missing - a.need.missing ||
             (a.item?.name ?? '').localeCompare(b.item?.name ?? '')
         ),
-    [needs, everything, items, hideDone, firOnly, keepOnly, sellOnly, ctx]
+    [needs, everything, items, hideDone, firOnly, keepOnly, sellOnly, ctx, cc]
   )
   if (!rows.length)
     return (
@@ -277,15 +265,32 @@ function ItemsNeeded({
               {firOnly ? 'Found in raid' : 'Needed'}
             </th>
             <th className="num">Missing</th>
-            <th className="num" title="The cheapest way to buy one now, at your level and trader loyalty">
-              Buy
+            <th
+              className="num"
+              title={
+                'The cheapest way to get one now, at your level, trader loyalty and hideout: buy it or, when it ' +
+                'must be found in raid (bought items never are), craft it (crafted ones are) or find it'
+              }
+            >
+              Buy or craft
             </th>
             <th>For</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ need, item, scarce, buy, sell }) => (
-            <tr key={need.itemId} className={need.missing === 0 ? 'done' : (scarce?.kind ?? '')}>
+          {rows.map(({ need, item, scarce, get, sell }) => (
+            <tr
+              key={need.itemId}
+              className={
+                need.missing === 0
+                  ? 'done'
+                  : get.buyCount > 0 && scarce
+                    ? scarce.kind
+                    : get.find > 0
+                      ? 'locked'
+                      : ''
+              }
+            >
               <td className="item-cell">
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span>
@@ -302,7 +307,8 @@ function ItemsNeeded({
                       {need.firNeeded < need.needed ? `${need.firNeeded} found in raid` : 'found in raid'}
                     </span>
                   )}
-                  {scarce && need.missing > 0 && <ScarceBadge scarce={scarce} />}
+                  {/* Whether it can be bought only matters for copies that needn't be found in raid. */}
+                  {scarce && need.missing > 0 && get.buyCount > 0 && <ScarceBadge scarce={scarce} />}
                   {sell && (
                     <span className="badge ok rare-badge" title={sellTitle(sell)}>
                       Sell {sell.count}
@@ -329,7 +335,7 @@ function ItemsNeeded({
               </td>
               <td className={`num ${need.missing ? '' : 'muted'}`}>{need.missing || '✓'}</td>
               <td className="num">
-                <BuyCell buy={buy} />
+                <GetCell get={get} items={items} />
               </td>
               <td className="uses">
                 {need.uses
@@ -365,18 +371,30 @@ function ItemsNeeded({
   )
 }
 
-const formatDuration = (seconds: number): string => {
-  if (seconds <= 0) return 'Instant'
-  const h = Math.floor(seconds / 3600)
-  const m = Math.round((seconds % 3600) / 60)
-  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`
-}
-
 const UPGRADE_BADGE: Record<UpgradeStatus['state'], { className: string; text: string } | null> = {
   ready: { className: 'ok', text: 'Ready' },
   buyable: { className: 'info', text: 'Can buy the rest' },
   blocked: { className: 'warn', text: 'Waiting on a requirement' },
   short: null
+}
+
+/** A part that must be found in raid: a craft you can do now, or finding it (and the crafts to work towards). */
+function PartCraft({ part, items }: { part: UpgradePart; items: Items }): React.JSX.Element {
+  const best = part.crafts[0]
+  const ready = best !== undefined && canCraft(best)
+  const title = [
+    'Bought items never count as found in raid; crafted ones do.',
+    ...part.crafts.map((o) => `• ${craftText(o, items)}`)
+  ].join('\n')
+  return (
+    <small className={ready ? 'get-craft' : ''} title={title}>
+      {ready
+        ? `${part.find} × craft at ${best.stationName} ${best.craft.level}` +
+          (best.costEach !== null ? ` · ≈ ${formatRub(best.costEach)} each` : '')
+        : `${part.find} to find in raid` +
+          (best ? ` · or craft at ${best.stationName} ${best.craft.level}` : '')}
+    </small>
+  )
 }
 
 /** What a station's next level takes, what buying the rest would cost, and a button to mark it built. */
@@ -402,7 +420,8 @@ function UpgradeCard({
   const build = useStore((s) => s.buildStationLevel)
   const badge = UPGRADE_BADGE[status.state]
   const missing = status.parts.filter((p) => p.missing > 0)
-  const buyable = missing.filter((p) => p.best)
+  // What can be bought: parts that needn't be found in raid (bought ones never are).
+  const buyable = missing.filter((p) => p.best && p.missing > p.find)
   const traderName = (id: string): string => traders.find((t) => t.id === id)?.name ?? 'A trader'
   const waiting = [
     ...status.unmetStations.map(
@@ -431,7 +450,8 @@ function UpgradeCard({
             {buyable.length > 0 && (
               <>
                 <strong>≈ {formatRub(status.partsCost)}</strong> to buy{' '}
-                {buyable.length === missing.length ? 'the rest' : 'what you can'} ({buyable.length} item
+                {buyable.length === missing.length && !status.toFind ? 'the rest' : 'what you can'} (
+                {buyable.length} item
                 {buyable.length === 1 ? '' : 's'})
               </>
             )}
@@ -439,6 +459,12 @@ function UpgradeCard({
               <span className="muted">
                 {buyable.length > 0 ? ' · ' : ''}
                 {status.unbuyable} item{status.unbuyable === 1 ? '' : 's'} you can&rsquo;t buy yet
+              </span>
+            )}
+            {status.toFind > 0 && (
+              <span className="muted" title="Bought items never count as found in raid; crafted ones do">
+                {buyable.length > 0 || status.unbuyable > 0 ? ' · ' : ''}
+                {status.toFind} to find in raid or craft
               </span>
             )}
           </span>
@@ -463,7 +489,8 @@ function UpgradeCard({
           {status.parts.map((p) => {
             const item = items.get(p.itemId)
             const fir = level.items.find((i) => i.itemId === p.itemId)?.foundInRaid
-            const scarce = item && p.missing ? scarcity(item, ctx) : null
+            // Whether it can be bought only matters when it needn't be found in raid.
+            const scarce = item && p.missing > p.find ? scarcity(item, ctx) : null
             return (
               <li key={p.itemId} className={p.missing ? '' : 'done'}>
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
@@ -471,14 +498,18 @@ function UpgradeCard({
                   {item?.name ?? 'Unknown item'}
                   {fir && <span className="tag fir">FIR</span>}
                   {scarce && <ScarceBadge scarce={scarce} />}
-                  {p.missing > 0 && (
-                    <small className={p.best ? '' : 'muted'}>
-                      {p.best
-                        ? `${p.missing} × ${formatRub(p.best.price)} · ${p.best.label}`
-                        : p.locked.length
-                          ? `Can’t buy yet: ${p.locked.join(', ')}`
-                          : 'Nobody sells it'}
-                    </small>
+                  {p.find > 0 ? (
+                    <PartCraft part={p} items={items} />
+                  ) : (
+                    p.missing > 0 && (
+                      <small className={p.best ? '' : 'muted'}>
+                        {p.best
+                          ? `${p.missing} × ${formatRub(p.best.price)} · ${p.best.label}`
+                          : p.locked.length
+                            ? `Can’t buy yet: ${p.locked.join(', ')}`
+                            : 'Nobody sells it'}
+                      </small>
+                    )
                   )}
                 </span>
                 <span className="num">
@@ -538,6 +569,7 @@ export default function HideoutView({
   const updateSettings = useStore((s) => s.updateSettings)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
+  const cc = useCraftContext(settings, priceState)
   const setTraderLevel = useStore((s) => s.setTraderLevel)
   const [search, setSearch] = useState('')
   const h = settings.hideout
@@ -629,7 +661,7 @@ export default function HideoutView({
       return { station, next: station.levels.find((l) => l.level === current + 1) }
     })
     .filter((u): u is { station: HideoutStation; next: HideoutLevel } => u.next !== undefined)
-    .map((u) => ({ ...u, status: upgradeStatus(u.next, progress, ctx, items, stationsById) }))
+    .map((u) => ({ ...u, status: upgradeStatus(u.next, progress, ctx, items, stationsById, cc.crafts) }))
     // Ready first, then what can be bought (cheapest first), then the rest.
     .sort(
       (a, b) =>
@@ -892,7 +924,7 @@ export default function HideoutView({
                 </label>
                 <label
                   className="check fir-filter"
-                  title="Items still missing that you can't buy at your level and trader loyalty, or that are rare: save these, don't sell them"
+                  title="Items still missing that you can't buy at your level and trader loyalty, that must be found in raid (bought ones never are), or that are rare: save these, don't sell them"
                 >
                   <input
                     type="checkbox"
@@ -951,6 +983,7 @@ export default function HideoutView({
             keepOnly={h.keepOnly}
             sellOnly={h.sellOnly}
             ctx={ctx}
+            cc={cc}
             onOpenQuest={openQuest}
           />
         ) : (

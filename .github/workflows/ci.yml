@@ -64,20 +64,3 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run smoke:api
-
-  # Temporary: the shape of tarkov.dev's hideout crafts (removed after use).
-  probe-crafts:
-    name: Probe tarkov.dev crafts
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npx tsx scripts/probe-crafts.ts

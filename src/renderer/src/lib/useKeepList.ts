@@ -5,6 +5,7 @@ import {
   hideoutNeeds,
   keepList,
   type BuyContext,
+  type CraftContext,
   type KeepInfo
 } from '../../../shared/hideout'
 import { neededItems } from '../../../shared/questProgress'
@@ -36,6 +37,24 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
       questNames: new Map((quests ?? []).map((q) => [q.id, q.name]))
     }),
     [playerLevel, fleaMinLevel, traders, progress, quests]
+  )
+}
+
+/** What the hideout's stations make, how far they're built, and prices: for crafting found-in-raid items. */
+export function useCraftContext(current: PublicSettings | null, priceState: PriceState | null): CraftContext {
+  const settings = current ?? DEFAULT_SETTINGS
+  const { questState } = useQuestRows(current)
+  const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
+  const items = useItemLookup(priceState)
+  const dataset = questState?.dataset
+  return useMemo(
+    () => ({
+      crafts: dataset?.crafts ?? [],
+      stations: new Map((dataset?.stations ?? []).map((s) => [s.id, s])),
+      progress,
+      items
+    }),
+    [dataset, progress, items]
   )
 }
 

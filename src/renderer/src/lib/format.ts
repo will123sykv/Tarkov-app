@@ -65,3 +65,11 @@ export function formatDataMonth(month: string): string {
     timeZone: 'UTC'
   })
 }
+
+/** 7200 → "2 h", 4500 → "1 h 15 min", 0 → "Instant". */
+export function formatDuration(seconds: number): string {
+  if (seconds <= 0) return 'Instant'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`
+}

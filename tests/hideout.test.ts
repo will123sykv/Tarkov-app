@@ -2,9 +2,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buyOptions,
+  craftOptions,
   EMPTY_HIDEOUT,
   handOversLeft,
   hideoutNeeds,
+  howToGet,
   keepList,
   keepOnlyHardToReplace,
   scarcity,
@@ -19,7 +21,7 @@ import { normalizeQuestData } from '../src/main/quests/questData'
 import { neededItems, setObjective } from '../src/shared/questProgress'
 import { Q, RAW_QUEST_DATA } from './questFixtures'
 import { createPlayerStore } from '../src/main/quests/playerStore'
-import type { HideoutLevel, HideoutStation } from '../src/shared/questTypes'
+import type { HideoutCraft, HideoutLevel, HideoutStation } from '../src/shared/questTypes'
 import type { LootItem } from '../src/shared/types'
 import { tempDir } from './helpers'
 import { writeFile } from 'node:fs/promises'
@@ -40,6 +42,22 @@ const station = (id: string, name: string, levels: HideoutLevel[]): HideoutStati
   normalizedName: name.toLowerCase(),
   imageLink: null,
   levels
+})
+const craft = (
+  id: string,
+  stationId: string,
+  level: number,
+  inputs: [string, number][],
+  outputs: [string, number][]
+): HideoutCraft => ({
+  id,
+  stationId,
+  level,
+  duration: 3600,
+  inputs: inputs.map(([itemId, count]) => ({ itemId, count })),
+  tools: [],
+  outputs: outputs.map(([itemId, count]) => ({ itemId, count })),
+  questId: null
 })
 
 const STASH = station('stash', 'Stash', [level(1, []), level(2, [[ROUBLES, 2_000_000]]), level(3, [])])
@@ -399,6 +417,92 @@ describe('upgradeStatus', () => {
       state: 'short',
       unbuyable: 2,
       partsCost: 40_000
+    })
+  })
+
+  it('never prices parts that must be found in raid: they’re found, or crafted', () => {
+    const fir = level(3, [
+      ['bolts', 2, true],
+      ['screws', 2]
+    ])
+    const crafts = [craft('c', 'gen', 1, [['screws', 3]], [['bolts', 1]])]
+    const status = upgradeStatus(fir, progress({ bolts: 1 }), ctx(), items, stations, crafts)
+    // The bolt left to get isn't bought: only the screws are priced.
+    expect(status).toMatchObject({ state: 'short', unbuyable: 0, toFind: 1, partsCost: 18_000 })
+    expect(status.parts.map((p) => [p.itemId, p.missing, p.find, p.best?.label ?? null])).toEqual([
+      ['bolts', 1, 1, null],
+      ['screws', 2, 0, 'Flea']
+    ])
+    expect(status.parts[0].crafts.map((c) => [c.stationName, c.costEach])).toEqual([['Generator', 27_000]])
+    // With the bolts in hand, the rest can be bought.
+    expect(upgradeStatus(fir, progress({ bolts: 2 }), ctx(), items, stations).state).toBe('buyable')
+  })
+
+  describe('crafts', () => {
+    const WB = station('wb', 'Workbench', [level(1, []), level(2, []), level(3, [])])
+    const both = new Map([
+      ['gen', GEN],
+      ['wb', WB]
+    ])
+    const crafts = [
+      // Workbench 2: two bolts and a screw (the drill is a tool, not used up).
+      {
+        ...craft(
+          'a',
+          'wb',
+          2,
+          [
+            ['bolts', 2],
+            ['screws', 1]
+          ],
+          [['ledx', 1]]
+        ),
+        tools: ['drill']
+      },
+      // Generator 1, once "Quest One" is done: a drill makes two.
+      { ...craft('b', 'gen', 1, [['drill', 1]], [['ledx', 2]]), questId: 'q1' },
+      // Generator 1: out of something nobody sells.
+      craft('c', 'gen', 1, [['unknown', 1]], [['ledx', 1]]),
+      craft('d', 'gen', 1, [['bolts', 1]], [['screws', 4]])
+    ]
+    const cc = { crafts, stations: both, progress: progress({}, { gen: 2, wb: 1 }), items }
+    const named = (extra: Partial<BuyContext> = {}) =>
+      ctx({ questNames: new Map([['q1', 'Quest One']]), ...extra })
+
+    it('lists the crafts that make an item, ones you can do now first, then the cheapest', () => {
+      const options = craftOptions('ledx', cc, named())
+      expect(
+        options.map((o) => [o.craft.id, o.stationReady, o.questDone, o.questName, o.makes, o.costEach])
+      ).toEqual([
+        ['c', true, true, null, 1, null],
+        ['b', true, false, 'Quest One', 2, 20_000],
+        ['a', false, true, null, 1, 2 * 24_000 + 9_000]
+      ])
+      expect(options[2]).toMatchObject({ stationName: 'Workbench', stationLevel: 1 })
+      // With the quest done, the cheap one comes first.
+      expect(
+        craftOptions('ledx', cc, named({ completedQuests: new Set(['q1']) })).map((o) => o.craft.id)
+      ).toEqual(['b', 'c', 'a'])
+      expect(craftOptions('drill', cc, named())).toEqual([])
+    })
+
+    it('says how to get what’s missing: buy what needn’t be found in raid, find or craft the rest', () => {
+      const get = (itemId: string, needed: number, firNeeded: number, missing: number) =>
+        howToGet({ itemId, needed, firNeeded, missing }, cc, named())
+      const ledx = get('ledx', 3, 2, 3)
+      expect([ledx.find, ledx.buyCount, ledx.buy?.options, ledx.crafts.length]).toEqual([2, 1, [], 3])
+      // Copies put aside are taken to be ones that needn't be found in raid.
+      expect(get('bolts', 5, 5, 2)).toEqual({ find: 2, buyCount: 0, buy: null, crafts: [] })
+      const screws = get('screws', 4, 1, 4)
+      expect([
+        screws.find,
+        screws.buyCount,
+        screws.buy?.options[0]?.price,
+        screws.crafts[0]?.craft.id
+      ]).toEqual([1, 3, 9_000, 'd'])
+      // Nothing missing: how all of them would be got; nothing needed: what buying one back costs.
+      expect(get('screws', 4, 0, 0)).toMatchObject({ find: 0, buyCount: 4, crafts: [] })
+      expect(get('screws', 0, 0, 0).buy?.options[0]?.label).toBe('Flea')
     })
   })
 })

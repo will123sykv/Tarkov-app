@@ -13,6 +13,7 @@ import {
   Q,
   RAW_QUEST_DATA,
   ROUBLES,
+  SCREWDRIVER,
   STASH,
   STORY_ID,
   THERAPIST,
@@ -170,6 +171,35 @@ describe('normalizeQuestData', () => {
     ])
   })
 
+  it('keeps what the hideout makes: what each craft uses up, its tools, product and quest', () => {
+    expect(data.crafts).toEqual([
+      {
+        id: 'craft-ledx',
+        stationId: WORKBENCH,
+        level: 2,
+        duration: 7200,
+        inputs: [
+          { itemId: BOLTS, count: 4 },
+          { itemId: ROUBLES, count: 5000 }
+        ],
+        tools: [SCREWDRIVER],
+        outputs: [{ itemId: LEDX, count: 1 }],
+        questId: Q.checking
+      },
+      {
+        id: 'craft-bolts',
+        stationId: WORKBENCH,
+        level: 1,
+        duration: 1800,
+        // A working item it takes is used up.
+        inputs: [{ itemId: SCREWDRIVER, count: 1 }],
+        tools: [],
+        outputs: [{ itemId: BOLTS, count: 3 }],
+        questId: null
+      }
+    ])
+  })
+
   it('keeps only what the maps view draws: extracts, player spawns, transits, bosses and snipers', () => {
     const customs = data.maps.find((m) => m.id === CUSTOMS)!
     expect(customs).toEqual({
@@ -258,7 +288,8 @@ describe('createQuestDataService', () => {
     traders: RAW_QUEST_DATA.traders,
     traders_en: RAW_QUEST_DATA.tradersLang,
     hideout: RAW_QUEST_DATA.hideout,
-    hideout_en: RAW_QUEST_DATA.hideoutLang
+    hideout_en: RAW_QUEST_DATA.hideoutLang,
+    crafts: RAW_QUEST_DATA.crafts
   }
   const serve = (fail = false) =>
     mockFetch({
@@ -353,10 +384,10 @@ describe('createQuestDataService', () => {
     const service = createQuestDataService({ fetchFn, cacheDir: join(await tempDir(), 'c'), now: () => 5 })
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
-    // Eight tarkov.dev files and the wiki's list of story chapters.
-    expect(fetchFn).toHaveBeenCalledTimes(9)
+    // Nine tarkov.dev files and the wiki's list of story chapters.
+    expect(fetchFn).toHaveBeenCalledTimes(10)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(18)
+    expect(fetchFn).toHaveBeenCalledTimes(20)
   })
 
   it('keeps the story chapters it had when the wiki can’t be reached', async () => {
@@ -453,6 +484,18 @@ describe('createQuestDataService', () => {
       'pvp'
     )
     expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, stations: [] } })
+  })
+
+  it('upgrades a 1.20 cache without crafts, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 1)
+    const { crafts: _, ...old } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, crafts: [] } })
+    expect(offline.dataset!.stations.length).toBeGreaterThan(0)
   })
 
   it('upgrades a 1.6 cache without keys, rewards or pictures, and refetches it', async () => {

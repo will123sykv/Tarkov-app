@@ -1,25 +1,31 @@
 import { useMemo, useState } from 'react'
+import { howToGet } from '../../../shared/hideout'
 import { neededItems, type ObjectiveProgress } from '../../../shared/questProgress'
-import type { PriceState } from '../../../shared/types'
-import { formatRub } from '../lib/format'
+import type { PriceState, PublicSettings } from '../../../shared/types'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
+import { GetCell } from './GetCell'
 
 /** Items still to hand over or plant for active (and optionally available) quests. */
 export default function NeededItems({
   rows,
   objectives,
+  settings,
   priceState
 }: {
   rows: QuestRow[]
   /** How far along each objective is (hand-overs already made aren't needed). */
   objectives: ObjectiveProgress
+  settings: PublicSettings
   priceState: PriceState | null
 }) {
   const [includeAvailable, setIncludeAvailable] = useState(false)
   const selectQuest = useStore((s) => s.selectQuest)
   const items = useItemLookup(priceState)
+  const ctx = useBuyContext(settings, priceState)
+  const cc = useCraftContext(settings, priceState)
   const { items: needed, anyOf } = useMemo(
     () =>
       neededItems(
@@ -51,7 +57,15 @@ export default function NeededItems({
             <tr>
               <th>Item</th>
               <th className="num">Needed</th>
-              <th className="num">Flea now</th>
+              <th
+                className="num"
+                title={
+                  'The cheapest way to get one now: buy it or, when it must be found in raid (bought items ' +
+                  'never are), craft it in the hideout (crafted ones are) or find it'
+                }
+              >
+                Buy or craft
+              </th>
               <th>For</th>
             </tr>
           </thead>
@@ -68,7 +82,21 @@ export default function NeededItems({
                     </span>
                   </td>
                   <td className="num">{n.count}</td>
-                  <td className="num">{item?.fleaPrice ? formatRub(item.fleaPrice) : '—'}</td>
+                  <td className="num">
+                    <GetCell
+                      get={howToGet(
+                        {
+                          itemId: n.itemId,
+                          needed: n.count,
+                          missing: n.count,
+                          firNeeded: n.foundInRaid ? n.count : 0
+                        },
+                        cc,
+                        ctx
+                      )}
+                      items={items}
+                    />
+                  </td>
                   <td>
                     {n.quests.map((q, i) => (
                       <span key={q.questId}>

@@ -314,7 +314,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           </div>
         </div>
         {tab === 'items' ? (
-          <NeededItems rows={all} objectives={objectives} priceState={priceState} />
+          <NeededItems rows={all} objectives={objectives} settings={settings} priceState={priceState} />
         ) : (
           <div className="quests-main">
             <div className="quest-list">

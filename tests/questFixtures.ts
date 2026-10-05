@@ -20,6 +20,7 @@ export const STASH = '5d484fc0654e76006657e0ab'
 export const LAVATORY = '5d484fba654e7600691aadf7'
 export const BOLTS = '57347c93245977448d35f6e3'
 export const LEDX = '5c0530ee86f774697952d952'
+export const SCREWDRIVER = '590c2d8786f774245b1f03f3'
 
 export const Q = {
   debut: '5936d90786f7742b1420ba5b',
@@ -420,5 +421,35 @@ export const RAW_QUEST_DATA: QuestDataInput = {
       ]
     }
   },
-  hideoutLang: { hideout_area_10_name: 'Workbench', hideout_area_3_name: 'Stash' }
+  hideoutLang: { hideout_area_10_name: 'Workbench', hideout_area_3_name: 'Stash' },
+  // As json.tarkov.dev's `crafts` file has them (1.21.0): one product each, tools flagged.
+  crafts: [
+    {
+      id: 'craft-ledx',
+      requiredItems: [
+        { item: BOLTS, count: 4, attributes: {} },
+        { item: SCREWDRIVER, count: 1, attributes: { tool: true } },
+        { item: ROUBLES, count: 5000, attributes: {} }
+      ],
+      requiredQuestItems: [],
+      station: WORKBENCH,
+      duration: 7200,
+      gameEditions: [],
+      level: 2,
+      productItem: { item: LEDX, count: 1, attributes: {} },
+      taskUnlock: Q.checking
+    },
+    {
+      id: 'craft-bolts',
+      requiredItems: [{ item: SCREWDRIVER, count: 1, attributes: { functional: true } }],
+      requiredQuestItems: [],
+      station: WORKBENCH,
+      duration: 1800,
+      gameEditions: [],
+      level: 1,
+      productItem: { item: BOLTS, count: 3, attributes: {} }
+    },
+    // Without a station or a product: left out.
+    { id: 'broken', requiredItems: [], station: WORKBENCH, level: 1, duration: 60 }
+  ]
 }

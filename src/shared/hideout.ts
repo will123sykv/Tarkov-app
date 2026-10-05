@@ -1,6 +1,6 @@
 import { CURRENCIES } from './constants'
 import { neededItems, type NeededItem, type ObjectiveProgress } from './questProgress'
-import type { HideoutLevel, HideoutStation, Quest } from './questTypes'
+import type { HideoutCraft, HideoutLevel, HideoutStation, Quest } from './questTypes'
 import type { LootItem } from './types'
 import { evaluateItem } from './valuation'
 
@@ -193,6 +193,112 @@ export function buyOptions(
     }
   }
   return { options: options.sort((a, b) => a.price - b.price), locked }
+}
+
+/** Roubles for one of an item at the cheapest place to buy it now (money at what traders charge). */
+function unitPrice(itemId: string, items: ReadonlyMap<string, LootItem>, ctx: BuyContext): number | null {
+  if (itemId === ROUBLES_ID) return 1
+  return buyOptions(items.get(itemId) ?? NO_ITEM, ctx).options[0]?.price ?? null
+}
+
+/** What crafting needs to know: what the stations make, how far they're built, and prices. */
+export interface CraftContext {
+  crafts: readonly HideoutCraft[]
+  stations: ReadonlyMap<string, HideoutStation>
+  progress: HideoutProgress
+  items: ReadonlyMap<string, LootItem>
+}
+
+/** A way to make an item in the hideout. Made items count as found in raid; bought ones don't. */
+export interface CraftOption {
+  craft: HideoutCraft
+  stationName: string
+  /** The player's station is built far enough. */
+  stationReady: boolean
+  /** The station's level now. */
+  stationLevel: number
+  /** No quest stands in the way (none is needed, or it's done). */
+  questDone: boolean
+  /** The quest that unlocks it, when one does. */
+  questName: string | null
+  /** How many of the item one craft makes. */
+  makes: number
+  /**
+   * Roubles of what it uses up, per item made, at the cheapest place to buy each now (tools aren't
+   * used up); null when something it uses can't be bought now.
+   */
+  costEach: number | null
+}
+
+export const canCraft = (o: CraftOption): boolean => o.stationReady && o.questDone
+
+/** The crafts that make an item: ones the player can do now first, then the cheapest, then the quickest. */
+export function craftOptions(itemId: string, cc: CraftContext, ctx: BuyContext): CraftOption[] {
+  return cc.crafts
+    .filter((c) => c.outputs.some((o) => o.itemId === itemId))
+    .map((craft) => {
+      const station = cc.stations.get(craft.stationId)
+      const level = station ? stationLevel(station, cc.progress) : 0
+      const makes = craft.outputs.filter((o) => o.itemId === itemId).reduce((n, o) => n + o.count, 0)
+      let cost: number | null = 0
+      for (const input of craft.inputs) {
+        const price = unitPrice(input.itemId, cc.items, ctx)
+        cost = cost !== null && price !== null ? cost + price * input.count : null
+      }
+      return {
+        craft,
+        stationName: station?.name ?? 'the hideout',
+        stationReady: ctx.unlockAll === true || level >= craft.level,
+        stationLevel: level,
+        questDone: !craft.questId || ctx.unlockAll === true || ctx.completedQuests.has(craft.questId),
+        questName: craft.questId ? (ctx.questNames?.get(craft.questId) ?? 'a quest') : null,
+        makes,
+        costEach: cost !== null && makes > 0 ? cost / makes : null
+      }
+    })
+    .sort(
+      (a, b) =>
+        Number(canCraft(b)) - Number(canCraft(a)) ||
+        (a.costEach ?? Infinity) - (b.costEach ?? Infinity) ||
+        a.craft.duration - b.craft.duration
+    )
+}
+
+/**
+ * How to get the copies of an item still missing (or, with none missing, all of them): the ones that
+ * needn't be found in raid can be bought; the rest must be found in raid, or crafted.
+ */
+export interface GetInfo {
+  /** Copies to find in raid or craft: bought ones never count as found in raid. */
+  find: number
+  /** Copies that can be bought instead. */
+  buyCount: number
+  /** Where to buy those now (null when there are none to buy). */
+  buy: BuyInfo | null
+  /** Ways to make it, best first (only when some must be found in raid). */
+  crafts: CraftOption[]
+}
+
+/**
+ * As the keep list does, copies put aside are taken to be ones that needn't be found in raid, so this
+ * errs towards finding: of what's missing, as many as must be found in raid are to find or craft.
+ */
+export function howToGet(
+  need: Pick<HideoutNeed, 'itemId' | 'needed' | 'firNeeded' | 'missing'>,
+  cc: CraftContext,
+  ctx: BuyContext
+): GetInfo {
+  const count = need.missing > 0 ? need.missing : need.needed
+  const find = Math.min(count, need.firNeeded)
+  const buyCount = count - find
+  const item = cc.items.get(need.itemId)
+  return {
+    find,
+    buyCount,
+    // With nothing needed (only put aside), what buying one back would cost.
+    buy: item && (buyCount > 0 || count === 0) ? buyOptions(item, ctx) : null,
+    crafts: find > 0 ? craftOptions(need.itemId, cc, ctx) : []
+  }
 }
 
 /**
@@ -403,17 +509,21 @@ export interface UpgradePart {
   needed: number
   have: number
   missing: number
-  /** The cheapest way to buy one now, if there is one. */
+  /** Of the missing ones, how many must be found in raid (or crafted): bought ones won't do. */
+  find: number
+  /** The cheapest way to buy one now, if there is one (for the missing ones that can be bought). */
   best: BuyOption | null
   /** What would open up a way to buy it, when there's none now. */
   locked: string[]
+  /** Ways to make it, best first, when some must be found in raid. */
+  crafts: CraftOption[]
 }
 
 export interface UpgradeStatus {
   /**
    * `ready`: everything in hand and every station and trader level met; `buyable`: the rest can
    * all be bought now; `blocked`: the items are covered but another station or a trader level isn't;
-   * `short`: something missing can't be bought yet.
+   * `short`: something missing can't be bought yet, or must be found in raid.
    */
   state: 'ready' | 'buyable' | 'blocked' | 'short'
   parts: UpgradePart[]
@@ -421,6 +531,8 @@ export interface UpgradeStatus {
   partsCost: number
   /** How many missing parts (by kind) can't be bought now. */
   unbuyable: number
+  /** How many missing parts (by kind) must be found in raid, or crafted. */
+  toFind: number
   /** The upgrade's own money cost. */
   money: { itemId: string; count: number }[]
   /** That money in roubles, at what traders charge for dollars and euros; null when unknown. */
@@ -433,19 +545,21 @@ const ROUBLES_ID = Object.keys(CURRENCIES).find((id) => CURRENCIES[id] === '₽'
 
 /**
  * What it takes to build a station level now: what's missing, what buying it would cost at the
- * player's level and trader loyalty, and which other requirements aren't met.
+ * player's level and trader loyalty (only for parts that needn't be found in raid: bought ones never
+ * are), and which other requirements aren't met.
  */
 export function upgradeStatus(
   level: HideoutLevel,
   progress: HideoutProgress,
   ctx: BuyContext,
   items: ReadonlyMap<string, LootItem>,
-  stationsById: ReadonlyMap<string, HideoutStation>
+  stationsById: ReadonlyMap<string, HideoutStation>,
+  crafts: readonly HideoutCraft[] = []
 ): UpgradeStatus {
   const parts: UpgradePart[] = []
   const money: { itemId: string; count: number }[] = []
   let moneyCost: number | null = 0
-  for (const { itemId, count } of level.items) {
+  for (const { itemId, count, foundInRaid } of level.items) {
     if (CURRENCIES[itemId]) {
       money.push({ itemId, count })
       const rate =
@@ -455,21 +569,32 @@ export function upgradeStatus(
     }
     const have = Math.max(0, progress.have[itemId] ?? 0)
     const missing = Math.max(0, count - have)
+    const find = foundInRaid ? missing : 0
     const item = items.get(itemId)
-    const buy = missing && item ? buyOptions(item, ctx) : { options: [], locked: [] }
-    parts.push({ itemId, needed: count, have, missing, best: buy.options[0] ?? null, locked: buy.locked })
+    const buy = missing > find && item ? buyOptions(item, ctx) : { options: [], locked: [] }
+    parts.push({
+      itemId,
+      needed: count,
+      have,
+      missing,
+      find,
+      best: buy.options[0] ?? null,
+      locked: buy.locked,
+      crafts: find ? craftOptions(itemId, { crafts, stations: stationsById, progress, items }, ctx) : []
+    })
   }
-  const short = parts.filter((p) => p.missing > 0)
-  const partsCost = short.reduce((sum, p) => sum + (p.best ? p.best.price * p.missing : 0), 0)
+  const short = parts.filter((p) => p.missing > p.find)
+  const partsCost = short.reduce((sum, p) => sum + (p.best ? p.best.price * (p.missing - p.find) : 0), 0)
   const unbuyable = short.filter((p) => !p.best).length
+  const toFind = parts.filter((p) => p.find > 0).length
   const unmetStations = level.stations.filter((r) => {
     const other = stationsById.get(r.stationId)
     return other !== undefined && stationLevel(other, progress) < r.level
   })
   const unmetTraders = level.traders.filter((r) => (ctx.traderLevels[r.traderId] ?? 1) < r.level)
   const met = !unmetStations.length && !unmetTraders.length
-  const state = unbuyable ? 'short' : !met ? 'blocked' : short.length ? 'buyable' : 'ready'
-  return { state, parts, partsCost, unbuyable, money, moneyCost, unmetStations, unmetTraders }
+  const state = unbuyable || toFind ? 'short' : !met ? 'blocked' : short.length ? 'buyable' : 'ready'
+  return { state, parts, partsCost, unbuyable, toFind, money, moneyCost, unmetStations, unmetTraders }
 }
 
 const NO_ITEM: Pick<LootItem, 'bannedOnFlea' | 'minLevelForFlea' | 'fleaPrice' | 'buyFrom'> = {

@@ -4054,3 +4054,28 @@ button.link.small {
   grid-column: 1 / -1;
   height: auto;
 }
+
+/* Buy or craft: found-in-raid items aren't bought */
+
+.get-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.get-line + .get-line {
+  margin-top: 3px;
+}
+
+.get-craft {
+  color: var(--info);
+}
+
+/* Words, not a price: the text font. */
+.get-line.get-find,
+.get-line.get-craft {
+  font-family: var(--font);
+}
+
+.upgrade-item-name small.get-craft {
+  color: var(--info);
+}
