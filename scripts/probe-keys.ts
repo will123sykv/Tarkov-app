@@ -1,6 +1,8 @@
 // Temporary CI probe (removed after use): what tarkov.dev's data says about keys on the maps: the
 // locks each key opens (doors, containers) and where keys spawn as loose loot.
 
+export {}
+
 const BASE = 'https://json.tarkov.dev'
 type Raw = Record<string, unknown>
 
