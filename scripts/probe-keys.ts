@@ -1,8 +1,6 @@
 // Temporary CI probe (removed after use): what tarkov.dev's data says about keys on the maps: the
 // locks each key opens (doors, containers) and where keys spawn as loose loot.
 
-export {}
-
 const BASE = 'https://json.tarkov.dev'
 type Raw = Record<string, unknown>
 
@@ -134,5 +132,9 @@ async function graphql(): Promise<void> {
   }
 }
 
-await json().catch((e) => console.log('[json] failed', e))
-await graphql().catch((e) => console.log('[graphql] failed', e))
+async function main(): Promise<void> {
+  await json().catch((e) => console.log('[json] failed', e))
+  await graphql().catch((e) => console.log('[graphql] failed', e))
+}
+
+void main()
