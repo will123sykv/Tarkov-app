@@ -13,6 +13,7 @@ import { objectiveValue, type ObjectiveProgress } from '../../../shared/questPro
 import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
+  mapOverview,
   objectiveMapIds,
   questSummary,
   todoPlan,
@@ -290,7 +291,8 @@ function MapCard({
   questMaps,
   onDetails,
   onOpenQuest,
-  onOpenMap
+  onOpenMap,
+  wide = false
 }: {
   plan: MapPlan
   rank: number
@@ -309,6 +311,8 @@ function MapCard({
   onDetails: (questId: string) => void
   onOpenQuest: (questId: string) => void
   onOpenMap: (mapKey: string) => void
+  /** Across the page, its quests side by side (as the map to raid next is). */
+  wide?: boolean
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
@@ -323,7 +327,7 @@ function MapCard({
     .filter(Boolean)
     .join(' · ')
   return (
-    <article className={`todo-map ${best ? 'best' : ''}`}>
+    <article className={`todo-map ${best ? 'best' : ''} ${wide ? 'wide' : ''}`}>
       <header>
         <span className="todo-rank" aria-label={`Number ${rank}`}>
           {rank}
@@ -459,6 +463,187 @@ function MapCard({
         </p>
       )}
     </article>
+  )
+}
+
+/** A map at a glance: how much a raid there gets done, and what's in the way. Click it for its quests. */
+function MapTile({
+  plan,
+  rank,
+  best,
+  owned,
+  keyName,
+  traderOf,
+  onOpen
+}: {
+  plan: MapPlan
+  rank: number
+  best: boolean
+  owned: ReadonlySet<string>
+  keyName: (keyId: string) => string
+  traderOf: (quest: Quest) => QuestTrader | undefined
+  onOpen: (mapKey: string) => void
+}): React.JSX.Element {
+  const group = plan.group
+  const o = mapOverview(plan, owned)
+  const total = o.done + o.left
+  const shown = plan.quests.slice(0, 3)
+  const more = plan.quests.length - shown.length
+  return (
+    <button
+      className={`todo-tile ${best ? 'best' : ''}`}
+      aria-label={`${group.name}: ${plural(o.quests, 'quest')}, ${plural(o.left, 'objective')} left. Show its quests`}
+      onClick={() => onOpen(group.key)}
+    >
+      <span className="todo-tile-head">
+        <span className="todo-rank">{rank}</span>
+        <span className="todo-tile-name">
+          {best && <span className="todo-next">Next raid</span>}
+          <strong>{group.name}</strong>
+        </span>
+        <span className="todo-tile-open" aria-hidden>
+          ▶
+        </span>
+      </span>
+      <span className="todo-tile-line">
+        {plural(o.quests, 'quest')} · {plural(o.left, 'objective')} left
+      </span>
+      {(o.kills > 0 || o.locate > 0) && (
+        <span className="todo-tile-stats">
+          {o.kills > 0 && (
+            <span title="Enemies left to kill here">
+              <Icon path={OBJECTIVE_ICONS.kill} className="kind" />
+              {plural(o.kills, 'kill')}
+            </span>
+          )}
+          {o.locate > 0 && (
+            <span title="Places to go to, spots to mark, items to find or stash, and extracts">
+              <Icon path={OBJECTIVE_ICONS.visit} className="kind" />
+              {o.locate} to locate
+            </span>
+          )}
+        </span>
+      )}
+      <span className="todo-tile-progress">
+        <span
+          className="todo-bar"
+          role="progressbar"
+          aria-label="Objectives done here"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={o.done}
+        >
+          <span style={{ width: `${total ? (o.done / total) * 100 : 0}%` }} />
+        </span>
+        <span className="muted">
+          {o.done} of {total} done
+        </span>
+      </span>
+      {(o.finishes > 0 || o.blocked > 0 || o.keys > 0 || o.bring > 0 || o.pickUp > 0) && (
+        <span className="todo-chips">
+          {o.finishes > 0 && (
+            <span className="badge ok" title="Quests with nothing left to do in raid anywhere else">
+              Finishes {o.finishes}
+            </span>
+          )}
+          {plan.noAccess ? (
+            <span className="badge warn" title="You don't have what gets you onto this map">
+              Can&rsquo;t get in: {plan.noAccess.map(keyName).join(' or ')}
+            </span>
+          ) : (
+            o.blocked > 0 && (
+              <span className="badge warn" title="Everything they have here is behind a key you don't have">
+                {o.blocked} need{o.blocked === 1 ? 's' : ''} a key
+              </span>
+            )
+          )}
+          {o.keys > 0 && (
+            <span
+              className={`todo-chip ${o.missingKeys ? 'missing' : ''}`}
+              title={
+                o.missingKeys
+                  ? "Keys the objectives here need, and how many you don't have"
+                  : 'You have them all'
+              }
+            >
+              {plural(o.keys, 'key')}
+              {o.missingKeys ? ` · ${o.missingKeys} missing` : ' ✓'}
+            </span>
+          )}
+          {o.bring > 0 && (
+            <span className="todo-chip" title="Items and quest items to take in">
+              {plural(o.bring, 'item')} to bring
+            </span>
+          )}
+          {o.pickUp > 0 && (
+            <span className="todo-chip" title="Quests you haven't picked up yet that have objectives here">
+              +{o.pickUp} to pick up
+            </span>
+          )}
+        </span>
+      )}
+      <span className="todo-tile-quests">
+        {shown.map((q) => {
+          const trader = traderOf(q)
+          return (
+            <span key={q.id}>
+              {trader?.imageLink && <img className="todo-portrait" src={trader.imageLink} alt="" />}
+              <span>{q.name}</span>
+            </span>
+          )
+        })}
+        {more > 0 && <span className="muted">+{more} more</span>}
+      </span>
+    </button>
+  )
+}
+
+/** Back to the overview, and on to the map before or after in the ranking. */
+function MapNav({
+  plans,
+  current,
+  name,
+  onOpen
+}: {
+  plans: MapPlan[]
+  current: string
+  name: string
+  onOpen: (mapKey: string | null) => void
+}): React.JSX.Element {
+  const i = plans.findIndex((p) => p.group.key === current)
+  const prev = i > 0 ? plans[i - 1] : null
+  const next = i >= 0 && i < plans.length - 1 ? plans[i + 1] : null
+  return (
+    <nav className="todo-nav" aria-label="Maps">
+      <button className="button small" onClick={() => onOpen(null)}>
+        ◀ All maps
+      </button>
+      <span className="todo-nav-where">
+        <strong>{name}</strong>
+        {i >= 0 && (
+          <span className="muted">
+            {' '}
+            · {i + 1} of {plans.length}
+          </span>
+        )}
+      </span>
+      <button
+        className="button small"
+        disabled={!prev}
+        title={prev ? `Open ${prev.group.name}` : undefined}
+        onClick={() => prev && onOpen(prev.group.key)}
+      >
+        ◀ {prev?.group.name ?? 'Previous'}
+      </button>
+      <button
+        className="button small"
+        disabled={!next}
+        title={next ? `Open ${next.group.name}` : undefined}
+        onClick={() => next && onOpen(next.group.key)}
+      >
+        {next?.group.name ?? 'Next'} ▶
+      </button>
+    </nav>
   )
 }
 
@@ -660,6 +845,8 @@ export default function TodoView({
   const t = settings.todo
   const setTodo = (patch: Partial<TodoSettings>): void => void updateSettings({ todo: { ...t, ...patch } })
   const [detail, setDetail] = useState<string | null>(null)
+  const todoMap = useStore((s) => s.todoMap)
+  const openTodoMap = useStore((s) => s.openTodoMap)
   const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
   const keyName = (keyId: string): string => info(keyId).name
 
@@ -717,6 +904,54 @@ export default function TodoView({
     for (const q of p.quests) questMaps.set(q, [...(questMaps.get(q) ?? []), p.group.name])
   const detailRow = detail ? (rows.find((r) => r.quest.id === detail) ?? null) : null
   const beforeCount = plan.turnIn.length + plan.handOvers.length + buildable.length
+  // The map opened from the overview (it stays open when the filters leave nothing there, saying so).
+  const openedName =
+    t.layout === 'maps' && todoMap
+      ? ([...groups.values()].find((g) => g.key === todoMap)?.name ?? null)
+      : null
+  const openedRank = ranked.findIndex((p) => p.group.key === todoMap)
+  const mapCard = (p: MapPlan, rank: number, wide = false): React.JSX.Element => (
+    <MapCard
+      key={p.group.key}
+      plan={p}
+      rank={rank}
+      best={rank === 1}
+      items={items}
+      traderOf={traderOf}
+      mapsById={mapsById}
+      objectives={objectives}
+      detected={detected}
+      owned={owned}
+      keyName={keyName}
+      view={t.view}
+      questMaps={questMaps}
+      onDetails={setDetail}
+      onOpenQuest={openQuest}
+      onOpenMap={openMap}
+      wide={wide}
+    />
+  )
+  const segmented = <T extends string>(
+    label: string,
+    value: T,
+    options: readonly (readonly [T, string, string])[],
+    onPick: (id: T) => void
+  ): React.JSX.Element => (
+    <div className="segmented small" role="radiogroup" aria-label={label}>
+      {options.map(([id, text, title]) => (
+        <button
+          key={id}
+          role="radio"
+          aria-checked={value === id}
+          className={value === id ? 'active' : ''}
+          title={title}
+          onClick={() => onPick(id)}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <div className={`todo ${detailRow && dataset ? 'with-detail' : ''}`}>
@@ -872,71 +1107,72 @@ export default function TodoView({
             </span>
           </div>
           <div className="summary-stats todo-filters">
-            <div className="segmented small" role="radiogroup" aria-label="Which quests">
-              {(
+            {segmented(
+              'How to show maps',
+              t.layout,
+              [
+                ['maps', 'Overview', 'A tile for each map: click one for its quests'],
+                ['list', 'List', 'Every map with its quests, best first']
+              ] as const,
+              (layout) => {
+                // Overview also goes back from an opened map.
+                openTodoMap(null)
+                setTodo({ layout })
+              }
+            )}
+            {segmented(
+              'Which quests',
+              t.show,
+              [
+                ['all', 'Show all', 'Every objective, with the ones behind keys you don’t have marked'],
                 [
-                  ['all', 'Show all', 'Every objective, with the ones behind keys you don’t have marked'],
-                  [
-                    'doable',
-                    'Only quests I can do',
-                    'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
-                  ]
-                ] as const
-              ).map(([id, text, title]) => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={t.show === id}
-                  className={t.show === id ? 'active' : ''}
-                  title={title}
-                  onClick={() => setTodo({ show: id })}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
-            <div className="segmented small" role="radiogroup" aria-label="Which objectives">
-              {(
-                [
-                  ['all', 'Both', 'Kill and locate objectives'],
-                  ['kill', 'Kill', 'Only objectives to eliminate enemies'],
-                  ['locate', 'Locate', 'Only objectives to go to, mark, find, stash or extract']
-                ] as const
-              ).map(([id, text, title]) => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={t.kinds === id}
-                  className={t.kinds === id ? 'active' : ''}
-                  title={title}
-                  onClick={() => setTodo({ kinds: id })}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
-            <div className="segmented small" role="radiogroup" aria-label="How to show quests">
-              {(
+                  'doable',
+                  'Only quests I can do',
+                  'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
+                ]
+              ] as const,
+              (show) => setTodo({ show })
+            )}
+            {segmented(
+              'Which objectives',
+              t.kinds,
+              [
+                ['all', 'Both', 'Kill and locate objectives'],
+                ['kill', 'Kill', 'Only objectives to eliminate enemies'],
+                ['locate', 'Locate', 'Only objectives to go to, mark, find, stash or extract']
+              ] as const,
+              (kinds) => setTodo({ kinds })
+            )}
+            {/* The overview's tiles don't list quests: this is for a map opened from it, or the list. */}
+            {(t.layout === 'list' || openedName) &&
+              segmented(
+                'How to show quests',
+                t.view,
                 [
                   ['summary', 'Summary', 'Each quest in a few lines'],
                   ['full', 'Full', 'Every objective, to tick off as you go']
-                ] as const
-              ).map(([id, text, title]) => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={t.view === id}
-                  className={t.view === id ? 'active' : ''}
-                  title={title}
-                  onClick={() => setTodo({ view: id })}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
+                ] as const,
+                (view) => setTodo({ view })
+              )}
           </div>
         </div>
-        {dataset && ranked.length === 0 ? (
+        {openedName && todoMap ? (
+          <div key={`map:${todoMap}`} className="todo-maps">
+            <MapNav plans={ranked} current={todoMap} name={openedName} onOpen={openTodoMap} />
+            {openedRank >= 0 ? (
+              mapCard(ranked[openedRank], openedRank + 1, true)
+            ) : (
+              <div className="empty todo-nothing">
+                <p>Nothing left to do on {openedName} that the filters show.</p>
+                <p className="hint">
+                  {plan.hidden
+                    ? 'Show all lists objectives behind keys you don’t have too.'
+                    : 'Other filters, or quests you pick up, may have some.'}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : dataset && ranked.length === 0 ? (
           <div className="empty">
             <p>
               {plan.active === 0
@@ -959,28 +1195,27 @@ export default function TodoView({
               )
             )}
           </div>
-        ) : (
-          <div className="todo-maps">
+        ) : t.layout === 'maps' ? (
+          <div key="tiles" className="todo-maps tiles">
             {ranked.map((p, i) => (
-              <MapCard
+              <MapTile
                 key={p.group.key}
                 plan={p}
                 rank={i + 1}
                 best={i === 0}
-                items={items}
-                traderOf={traderOf}
-                mapsById={mapsById}
-                objectives={objectives}
-                detected={detected}
                 owned={owned}
                 keyName={keyName}
-                view={t.view}
-                questMaps={questMaps}
-                onDetails={setDetail}
-                onOpenQuest={openQuest}
-                onOpenMap={openMap}
+                traderOf={traderOf}
+                onOpen={openTodoMap}
               />
             ))}
+            {others.length > 0 && (
+              <OtherMaps plans={others} keyName={keyName} onOpenQuest={openQuest} onOpenMap={openMap} />
+            )}
+          </div>
+        ) : (
+          <div key="list" className="todo-maps">
+            {ranked.map((p, i) => mapCard(p, i + 1))}
             {others.length > 0 && (
               <OtherMaps plans={others} keyName={keyName} onOpenQuest={openQuest} onOpenMap={openMap} />
             )}

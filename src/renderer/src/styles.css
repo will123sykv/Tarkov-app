@@ -3375,9 +3375,13 @@ button.link.small {
   font-size: 13px;
 }
 
-/* The map to raid next spans the row, its quests side by side. */
-.todo-map.best {
+/* The map to raid next spans the row, its quests side by side (as does a map opened from the overview). */
+.todo-map.best,
+.todo-map.wide {
   grid-column: 1 / -1;
+}
+
+.todo-map.best {
   border-color: rgba(200, 178, 122, 0.7);
   box-shadow: inset 3px 0 var(--accent);
 }
@@ -3443,7 +3447,8 @@ button.link.small {
   list-style: none;
 }
 
-.todo-map.best .todo-quests {
+.todo-map.best .todo-quests,
+.todo-map.wide .todo-quests {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px 24px;
 }
@@ -3790,7 +3795,8 @@ button.link.small {
   gap: 8px;
 }
 
-.todo-map.best .todo-cards {
+.todo-map.best .todo-cards,
+.todo-map.wide .todo-cards {
   gap: 8px 16px;
 }
 
@@ -3875,4 +3881,176 @@ button.link.small {
 
 .todo-reward .muted {
   margin-right: 4px;
+}
+
+/* To do: the map overview */
+
+.todo-maps.tiles {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.todo-tile {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-tile:hover {
+  border-color: var(--accent);
+}
+
+.todo-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.todo-tile.best {
+  border-color: rgba(200, 178, 122, 0.7);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.todo-tile.best .todo-rank {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.todo-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.todo-tile-name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.todo-tile-name strong {
+  color: var(--accent-strong);
+  font-size: 16px;
+}
+
+.todo-next {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.todo-tile-open {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.todo-tile:hover .todo-tile-open {
+  color: var(--accent);
+}
+
+.todo-tile-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.todo-tile-stats > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.todo-tile-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.todo-bar {
+  height: 6px;
+  overflow: hidden;
+  background: var(--panel-2);
+  border-radius: 3px;
+}
+
+.todo-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.todo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.todo-chip {
+  padding: 2px 8px;
+  background: var(--panel-2);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.todo-chip.missing {
+  color: var(--warn);
+}
+
+.todo-tile-quests {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.todo-tile-quests > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.todo-tile-quests > span > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-tile-quests .todo-portrait {
+  width: 16px;
+  height: 16px;
+}
+
+.todo-nav {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.todo-nav-where {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.todo-nothing {
+  grid-column: 1 / -1;
+  height: auto;
 }

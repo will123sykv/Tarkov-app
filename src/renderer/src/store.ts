@@ -43,6 +43,8 @@ interface AppStore {
   keys: Partial<Record<GameMode, KeyInventory>>
   /** A key to show the locks and spawns of on the Maps tab. */
   keyFocus: string | null
+  /** The map opened from the To do tab's overview (a map group's key), or null for the overview. */
+  todoMap: string | null
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
   selectedQuest: string | null
@@ -78,6 +80,7 @@ interface AppStore {
   setOwnedKeys(keyIds: string[]): Promise<void>
   /** Open the Maps tab on a map with a key's locks and spawns on it (null: stop showing them). */
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
+  openTodoMap(mapKey: string | null): void
   setHideoutHaveMany(counts: Record<string, number>): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
   setTraderLevel(traderId: string, level: number): Promise<void>
@@ -136,6 +139,7 @@ export const useStore = create<AppStore>((set, get) => ({
   hideoutProgress: {},
   keys: {},
   keyFocus: null,
+  todoMap: null,
   logHistory: {},
   logStatus: null,
   selectedQuest: null,
@@ -380,6 +384,8 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ keyFocus: keyId })
     if (keyId && mapKey) await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
   },
+
+  openTodoMap: (todoMap) => set({ todoMap }),
 
   async setHideoutHave(itemId, count) {
     const gameMode = get().settings?.gameMode

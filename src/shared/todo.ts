@@ -101,6 +101,8 @@ export interface MapPlan {
   steps: TodoStep[]
   /** Active quests with something to do here: ones to finish first, then the most steps. */
   quests: Quest[]
+  /** Their in-raid objectives here (of the kinds shown) already done: with `steps`, how far along. */
+  done: number
   /** Of those, the ones with nothing left in raid anywhere else (only hand-ins, if anything). */
   finishes: Quest[]
   /** Quests not started yet that have objectives here, to pick up from their traders first. */
@@ -195,6 +197,7 @@ export function todoPlan(
         group,
         steps: [],
         quests: [],
+        done: 0,
         finishes: [],
         available: [],
         blocked: [],
@@ -307,6 +310,14 @@ export function todoPlan(
       if (!here.length) continue
       p.steps.push(...here.map(({ groups: _, ...st }) => st))
       p.quests.push(quest)
+      p.done += quest.objectives.filter(
+        (o) =>
+          !o.optional &&
+          inRaid(o) &&
+          wanted(o) &&
+          objectiveMapIds(o).some((id) => group.mapIds.includes(id)) &&
+          objectiveValue(o, quest.id, objectives) >= objectiveTarget(o)
+      ).length
       if (!here.some(canDo)) p.blocked.push(quest)
       // Finished here: nothing left in raid anywhere else (of any kind), and nothing in the way.
       const allHere = onMapsAll.filter(inGroup)
@@ -359,6 +370,47 @@ export function todoPlan(
         a.group.name.localeCompare(b.group.name)
     )
   return result
+}
+
+/** A map's plan in a few numbers, for its tile in the overview. */
+export interface MapOverview {
+  /** Active quests with something to do here. */
+  quests: number
+  /** Objectives left here. */
+  left: number
+  /** Objectives here already done. */
+  done: number
+  /** Enemies left to kill here, over every kill objective. */
+  kills: number
+  /** Locate objectives left here. */
+  locate: number
+  finishes: number
+  blocked: number
+  /** Locks the objectives here need opened. */
+  keys: number
+  /** Of those, the ones none of the player's keys open (none when their keys aren't known). */
+  missingKeys: number
+  /** Items and quest items to take in. */
+  bring: number
+  /** Quests to pick up that have objectives here. */
+  pickUp: number
+}
+
+export function mapOverview(plan: MapPlan, owned: ReadonlySet<string> | null = null): MapOverview {
+  const kills = plan.steps.filter((s) => objectiveCategory(s.objective) === 'kill')
+  return {
+    quests: plan.quests.length,
+    left: plan.steps.length,
+    done: plan.done,
+    kills: kills.reduce((n, s) => n + s.left, 0),
+    locate: plan.steps.length - kills.length,
+    finishes: plan.finishes.length,
+    blocked: plan.blocked.length,
+    keys: plan.keys.length,
+    missingKeys: owned ? plan.keys.filter((k) => !opens(k, owned)).length : 0,
+    bring: plan.bring.length + plan.questItems.length,
+    pickUp: plan.available.length
+  }
 }
 
 /** A line of a quest's summary: one kill objective, or the objectives of one kind (with how many done). */

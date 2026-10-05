@@ -10,8 +10,8 @@ prices, your PMC level and the game mode you play. It also has:
   reading the game's log files, with the main story's chapters, objectives you tick off as you go
   (and count, like 6/15 cigarettes handed over) or that the app ticks off itself where it can, each
   quest's keys, items, rewards and the wiki's guide and pictures of where to go;
-- **To do:** which map to raid next to move your active quests on, what to take, and what to hand
-  in, hand over or build before you go;
+- **To do:** which map to raid next to move your active quests on, each map at a glance and then
+  its quests, what to take, and what to hand in, hand over or build before you go;
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
   buy back later), and the items not to sell (rare ones flagged) marked in the loot list;
@@ -126,9 +126,17 @@ or set by hand in the Quests tab) and the objectives you haven't ticked off yet,
 by how many of those quests a raid there moves on. A quest with nothing left to do in raid anywhere
 else counts twice and is marked **Finish here**: finishing quests is what opens up the next ones.
 
-- The map at the top, **Next raid**, and each one after it shows the quests to do there, the
-  **Keys** they need and what to **Bring** (markers, items to stash, quest items to plant). **Show on
-  map** opens the map in the Maps tab with your quests on it.
+- **Overview** (the default) shows a tile for each map, best first, the top one marked **Next
+  raid**: how many quests and objectives are left there, how many enemies to kill and objectives to
+  locate, a bar of how many of its objectives you've done, the quests it finishes, quests held up by
+  a key you don't have (or **Can't get in** without the Lab's keycard), the keys it needs (and how
+  many you're missing), items to bring, quests you could pick up there, and the first few quests'
+  names. Click a tile (or tab to it and press Enter) to open that map: its quests, keys and what to
+  bring, with **◀ All maps** to go back and the maps before and after it in the ranking either side.
+  **List** shows every map with its quests on one page instead.
+- An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
+  what to **Bring** (markers, items to stash, quest items to plant). **Show on map** opens the map in
+  the Maps tab with your quests on it; coming back to To do keeps the map open.
 - **Summary** (the default) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,

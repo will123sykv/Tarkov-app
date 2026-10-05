@@ -4,6 +4,7 @@ import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import {
   inRaid,
+  mapOverview,
   objectiveCategory,
   objectiveMapIds,
   questSummary,
@@ -301,6 +302,58 @@ describe('todoPlan', () => {
       ['Woods', ['mixed'], ['far']]
     ])
     expect(locate.maps[1].available).toEqual([])
+  })
+})
+
+describe('the map overview', () => {
+  const q1 = quest('q1', [
+    objective('a', 'visit'),
+    objective('b', 'visit', { requiredKeys: [['dorm']] }),
+    objective('c', 'shoot', { count: 5 }),
+    objective('d', 'visit', { optional: true }),
+    objective('e', 'giveItem', { items: ['bolts'] }),
+    objective('f', 'visit', { maps: [WOODS] })
+  ])
+  const q2 = quest('q2', [
+    objective('m', 'mark', { items: ['marker'], requiredKeys: [['safe']] }),
+    objective('p', 'plantQuestItem', { questItem: { id: 'x', name: 'Flash drive' } })
+  ])
+  const q3 = quest('q3', [objective('a', 'visit')])
+  const q4 = quest('q4', [objective('z', 'visit', { requiredKeys: [['dorm']] })])
+  const rows = [row(q1), row(q2), row(q3, 'available'), row(q4)]
+  const progress = { q1: { a: 1, c: 2, d: 1, e: 1, f: 1 } }
+
+  it('counts the objectives done on each map, of the kinds shown', () => {
+    const customs = (kinds?: 'kill' | 'locate') =>
+      todoPlan(rows, progress, groupOf, { kinds }).maps.find((p) => p.group.name === 'Customs')!
+    // "a" is done; the optional one, the hand-over and the one on Woods don't count.
+    expect([customs().done, customs().steps.length]).toEqual([1, 5])
+    expect([customs('kill').done, customs('kill').steps.length]).toEqual([0, 1])
+    expect([customs('locate').done, customs('locate').steps.length]).toEqual([1, 4])
+    // Nothing is left for q1 on Woods, so Woods isn't listed.
+    expect(todoPlan(rows, progress, groupOf).maps.map((p) => p.group.name)).toEqual(['Customs'])
+  })
+
+  it('sums up a map: quests, objectives, kills, keys, what to take and quests to pick up', () => {
+    const owned = new Set(['safe'])
+    const [customs] = todoPlan(rows, progress, groupOf, { owned }).maps
+    expect(mapOverview(customs, owned)).toEqual({
+      quests: 3,
+      left: 5,
+      done: 1,
+      // 3 of 5 Scavs left; the four others are spots to visit, mark or plant at.
+      kills: 3,
+      locate: 4,
+      // q2 is finished here; q4 is all behind the dorm key.
+      finishes: 1,
+      blocked: 1,
+      keys: 2,
+      missingKeys: 1,
+      // A marker and the flash drive.
+      bring: 2,
+      pickUp: 1
+    })
+    expect(mapOverview(todoPlan(rows, progress, groupOf).maps[0]).missingKeys).toBe(0)
   })
 })
 

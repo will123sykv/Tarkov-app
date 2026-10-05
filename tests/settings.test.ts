@@ -290,14 +290,18 @@ describe('sanitizeSettings', () => {
     ).toBe('active')
   })
 
-  it('keeps the To do filters and view (since 1.19.0)', () => {
-    expect(DEFAULT_SETTINGS.todo).toEqual({ show: 'all', kinds: 'all', view: 'summary' })
+  it('keeps the To do filters and view (since 1.19.0), and the map overview or list (since 1.20.0)', () => {
+    expect(DEFAULT_SETTINGS.todo).toEqual({ show: 'all', kinds: 'all', view: 'summary', layout: 'maps' })
     // 1.17–1.18's key switch gives way to the filters' defaults.
     expect(sanitizeSettings({ todo: { keys: true } }).todo).toEqual(DEFAULT_SETTINGS.todo)
-    const chosen = { show: 'doable', kinds: 'kill', view: 'full' } as const
+    const chosen = { show: 'doable', kinds: 'kill', view: 'full', layout: 'list' } as const
     expect(sanitizeSettings({ todo: chosen }).todo).toEqual(chosen)
     expect(sanitizeSettings({ todo: { kinds: 'locate' } }).todo.kinds).toBe('locate')
-    expect(sanitizeSettings({ todo: { show: 'some', kinds: 'loot', view: 1 } }).todo).toEqual(
+    // 1.19 had no overview: it opens on it.
+    expect(sanitizeSettings({ todo: { show: 'doable', kinds: 'kill', view: 'full' } }).todo.layout).toBe(
+      'maps'
+    )
+    expect(sanitizeSettings({ todo: { show: 'some', kinds: 'loot', view: 1, layout: 'grid' } }).todo).toEqual(
       DEFAULT_SETTINGS.todo
     )
     expect(

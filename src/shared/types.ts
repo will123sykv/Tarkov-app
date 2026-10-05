@@ -159,6 +159,8 @@ export interface TodoSettings {
   kinds: 'all' | 'kill' | 'locate'
   /** Each quest in a few lines, or every objective to tick off (since 1.19.0). */
   view: 'summary' | 'full'
+  /** A tile per map to click into, or every map with its quests (since 1.20.0). */
+  layout: 'maps' | 'list'
 }
 
 export interface KeysSettings {
