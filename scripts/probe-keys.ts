@@ -50,7 +50,15 @@ async function json(): Promise<void> {
   const keyLockTotal = new Map<string, number>()
   for (const m of values(maps.maps)) {
     const mapName = mlang[m.name as string] ?? m.name
-    console.log(`\n[map ${m.normalizedName} / ${mapName}] fields: ${short(Object.keys(m), 2000)}`)
+    console.log(
+      `\n[map ${m.normalizedName} / ${mapName}] level ${m.minPlayerLevel}–${m.maxPlayerLevel} · access keys ${short(values(m.accessKeys).map((k) => name(idOf(k) ?? String(k))))} from level ${m.accessKeysMinPlayerLevel} · raw ${short(m.accessKeys, 200)}`
+    )
+    if (Array.isArray(m.locks)) {
+      const locks = m.locks as Raw[]
+      console.log(
+        `  locks with outline ${locks.filter((l) => l.outline).length}, top ${locks.filter((l) => l.top != null).length}, power ${locks.filter((l) => l.needsPower).length} of ${locks.length}`
+      )
+    }
     for (const field of [
       'locks',
       'lootLoose',
