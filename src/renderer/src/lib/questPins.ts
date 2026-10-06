@@ -10,6 +10,7 @@ import {
   mdiPackageDown,
   mdiSkull
 } from '@mdi/js'
+import { missingKeys } from '../../../shared/keys'
 import type { QuestStatus } from '../../../shared/questProgress'
 import { objectiveKind, type ObjectiveKind } from '../../../shared/todo'
 import type { Quest, QuestObjective, QuestTrader, QuestZone, Vec3 } from '../../../shared/questTypes'
@@ -64,6 +65,8 @@ export interface QuestPin {
   kinds: ObjectiveKind[]
   /** Any of them needs a key. */
   needsKey: boolean
+  /** Any of them needs a key none of the player's keys open (false when their keys aren't known). */
+  keyMissing: boolean
   /** Only roughly here: a place its story step names (`places`). */
   rough: boolean
   places: string[]
@@ -92,10 +95,31 @@ const MAX_PINNED_SPOTS = 3
 const near = (a: Vec3, b: Vec3, radius: number): boolean =>
   Math.hypot(a.x - b.x, a.z - b.z) <= radius && Math.abs(a.y - b.y) <= SAME_FLOOR
 
-export function questPins(markers: ObjectiveMarker[]): { pins: QuestPin[]; dots: QuestDot[] } {
+/**
+ * Only what the player can do (the To do tab's "Only quests I can do"): objectives behind a lock none of
+ * their keys open are left out, and every one on a map they can't get onto (`shut`), except those `keep`
+ * asks for (the quest shown from "Show on map"). Says how many objectives, of how many quests, were left
+ * out.
+ */
+export function doableMarkers(
+  markers: readonly ObjectiveMarker[],
+  owned: ReadonlySet<string>,
+  shut: boolean,
+  keep: (marker: ObjectiveMarker) => boolean = () => false
+): { markers: ObjectiveMarker[]; hidden: number; quests: number } {
+  const kept = markers.filter((m) => keep(m) || (!shut && !missingKeys(m.objective, owned).length))
+  const left = markers.filter((m) => !kept.includes(m))
+  return { markers: kept, hidden: left.length, quests: new Set(left.map((m) => m.quest.id)).size }
+}
+
+export function questPins(
+  markers: ObjectiveMarker[],
+  owned: ReadonlySet<string> | null = null
+): { pins: QuestPin[]; dots: QuestDot[] } {
   const pins: QuestPin[] = []
   const dots: QuestDot[] = []
   for (const { quest, status, trader, objective, zones, spots } of markers) {
+    const keyMissing = owned !== null && missingKeys(objective, owned).length > 0
     const points: Pick<QuestZone, 'position' | 'source' | 'place'>[] = [...zones]
     if (spots.length > MAX_PINNED_SPOTS)
       dots.push(...spots.map((position) => ({ quest, status, objective, position })))
@@ -111,6 +135,7 @@ export function questPins(markers: ObjectiveMarker[]): { pins: QuestPin[]; dots:
           objectives: [objective],
           kinds: [objectiveKind(objective)],
           needsKey: objective.requiredKeys.length > 0,
+          keyMissing,
           rough: source === 'rough',
           places: place ? [place] : [],
           mine: source === 'mine',
@@ -126,6 +151,7 @@ export function questPins(markers: ObjectiveMarker[]): { pins: QuestPin[]; dots:
         const kind = objectiveKind(objective)
         if (!pin.kinds.includes(kind)) pin.kinds.push(kind)
         pin.needsKey ||= objective.requiredKeys.length > 0
+        pin.keyMissing ||= keyMissing
       }
     }
   }

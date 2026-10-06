@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
+import { opens } from '../../../shared/keys'
 import type { GameMap, MapLabel, Vec3 } from '../../../shared/questTypes'
 import type { MapProjection } from '../lib/mapProjection'
 import {
@@ -38,6 +39,8 @@ interface Props {
   /** Place names. */
   labels: MapLabel[]
   objectives: ObjectiveMarker[]
+  /** The player's keys: pins needing one they don't have say so (null: not known). */
+  owned?: ReadonlySet<string> | null
   layers: MapLayers
   /** Whose extracts to show. */
   faction: 'pmc' | 'scav'
@@ -59,15 +62,18 @@ export const MARKER_COLORS = {
   spawn: '#c9ccce'
 }
 
-/** A pin's tooltip: the quest, its trader, and what to do there (and the keys it takes). */
-function pinTooltip(pin: QuestPin, itemName: (id: string) => string | undefined): HTMLElement {
-  const keys = [...new Set(pin.objectives.flatMap((o) => o.requiredKeys.map((g) => g.join(' | '))))].map(
-    (group) =>
-      `Key: ${group
-        .split(' | ')
-        .map((id) => itemName(id) ?? 'unknown key')
-        .join(' or ')}`
-  )
+/** A pin's tooltip: the quest, its trader, what to do there, and the keys it takes (and which are missing). */
+function pinTooltip(
+  pin: QuestPin,
+  itemName: (id: string) => string | undefined,
+  owned: ReadonlySet<string> | null
+): HTMLElement {
+  const locks = new Map<string, string[]>()
+  for (const o of pin.objectives) for (const g of o.requiredKeys) if (g.length) locks.set(g.join(), g)
+  const keys = [...locks.values()].map((g) => {
+    const names = g.map((id) => itemName(id) ?? 'unknown key').join(' or ')
+    return owned && !opens(g, owned) ? `Key: ${names} (you don’t have it)` : `Key: ${names}`
+  })
   return label(pin.quest.name, [
     ...(pin.trader ? [pin.trader.name] : []),
     ...pin.objectives.map((o) => `• ${o.description || o.type}`),
@@ -110,6 +116,7 @@ export default function MapCanvas({
   maps,
   labels,
   objectives,
+  owned = null,
   layers,
   faction,
   itemName,
@@ -291,7 +298,7 @@ export default function MapCanvas({
         )
       }
     }
-    const { pins, dots } = questPins(objectives)
+    const { pins, dots } = questPins(objectives, owned)
     for (const d of dots) {
       add(
         `${d.quest.id}:${d.objective.id}`,
@@ -308,7 +315,10 @@ export default function MapCanvas({
         questPinElement(pin, selected ? 'selected' : fade(pin.quest.id) ? 'dimmed' : null),
         { riseOnHover: true, pane: 'mapObjectives', zIndexOffset: selected ? 1000 : 0 }
       )
-        .bindTooltip(pinTooltip(pin, itemName), { direction: 'top', offset: [0, -48 - pin.stack * 44] })
+        .bindTooltip(pinTooltip(pin, itemName, owned), {
+          direction: 'top',
+          offset: [0, -48 - pin.stack * 44]
+        })
         .on('click', () => onSelectQuest(pin.quest.id))
       for (const o of pin.objectives) add(`${pin.quest.id}:${o.id}`, marker)
     }
@@ -318,6 +328,7 @@ export default function MapCanvas({
     maps,
     labels,
     objectives,
+    owned,
     layers,
     faction,
     itemName,

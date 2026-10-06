@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { objectiveKind, questPins, type ObjectiveMarker } from '../src/renderer/src/lib/questPins'
+import {
+  doableMarkers,
+  objectiveKind,
+  questPins,
+  type ObjectiveMarker
+} from '../src/renderer/src/lib/questPins'
 import { formatMoney, formatStanding, itemsNeeded, keysNeeded } from '../src/renderer/src/lib/questSummary'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { Quest, QuestObjective, Vec3 } from '../src/shared/questTypes'
@@ -106,6 +111,62 @@ describe('quest pins', () => {
       ['two', 'available', 1]
     ])
     expect(dots.map((d) => d.position)).toEqual(many)
+  })
+})
+
+describe('only quests I can do, on the map', () => {
+  // Customs: Painkiller's stash behind the Unknown key, Golden Swag's room 303 (either copy of its key
+  // opens it), and a dorm room the player has the key to.
+  const free = objective('free', 'visit')
+  const pills = objective('pills', 'findQuestItem', { requiredKeys: [['unknown-key']] })
+  const swag = objective('swag', 'findQuestItem', { requiredKeys: [['key-303', 'key-303-copy']] })
+  const stash = objective('stash', 'plantItem', { requiredKeys: [['key-303', 'key-303-copy']] })
+  const dorm = objective('dorm', 'visit', { requiredKeys: [['dorm-key']] })
+  const markers = [
+    marker(quest('trip', [free]), free, [at(0, 0)]),
+    marker(quest('painkiller', [pills]), pills, [at(100, 0)]),
+    marker(quest('golden', [swag, stash]), swag, [at(180, 150)]),
+    marker(quest('golden', [swag, stash]), stash, [at(181, 150)]),
+    marker(quest('dorm', [dorm]), dorm, [at(200, 100)])
+  ]
+  const ids = (list: ObjectiveMarker[]): string[] => list.map((m) => m.objective.id)
+
+  it('leaves out objectives behind keys the player doesn’t have, and counts them', () => {
+    const shown = doableMarkers(markers, new Set(['dorm-key']), false)
+    expect(ids(shown.markers)).toEqual(['free', 'dorm'])
+    expect([shown.hidden, shown.quests]).toEqual([3, 2])
+    // Either copy of a key opens its lock.
+    expect(ids(doableMarkers(markers, new Set(['dorm-key', 'key-303-copy']), false).markers)).toEqual([
+      'free',
+      'swag',
+      'stash',
+      'dorm'
+    ])
+  })
+
+  it('leaves out everything on a map the player can’t get onto, but the quest asked for', () => {
+    const all = new Set(['dorm-key', 'unknown-key', 'key-303'])
+    expect(doableMarkers(markers, all, false).hidden).toBe(0)
+    expect(doableMarkers(markers, all, true)).toMatchObject({ markers: [], hidden: 5, quests: 4 })
+    const shown = doableMarkers(markers, new Set(), false, (m) => m.quest.id === 'painkiller')
+    expect(ids(shown.markers)).toEqual(['free', 'pills'])
+    expect([shown.hidden, shown.quests]).toEqual([3, 2])
+  })
+
+  it('marks pins needing a key the player doesn’t have, when their keys are known', () => {
+    const missing = (owned: ReadonlySet<string> | null): [string, boolean, boolean][] =>
+      questPins(markers, owned).pins.map((p) => [
+        p.objectives.map((o) => o.id).join(),
+        p.needsKey,
+        p.keyMissing
+      ])
+    expect(missing(new Set(['dorm-key', 'key-303']))).toEqual([
+      ['free', false, false],
+      ['pills', true, true],
+      ['swag,stash', true, false],
+      ['dorm', true, false]
+    ])
+    expect(missing(null).every(([, , keyMissing]) => !keyMissing)).toBe(true)
   })
 })
 

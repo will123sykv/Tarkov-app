@@ -89,7 +89,7 @@ export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | nu
   if (pin.rough) icons.append(iconTile(ROUGH_ICON, 'map-pin-icon note'))
   if (pin.mine) icons.append(iconTile(MINE_ICON, 'map-pin-icon note'))
   for (const kind of pin.kinds) icons.append(iconTile(OBJECTIVE_ICONS[kind]))
-  if (pin.needsKey) icons.append(iconTile(KEY_ICON, 'map-pin-icon key'))
+  if (pin.needsKey) icons.append(iconTile(KEY_ICON, `map-pin-icon key${pin.keyMissing ? ' missing' : ''}`))
   const stem = document.createElement('div')
   stem.className = 'map-pin-stem'
   stem.style.height = `${5 + pin.stack * QUEST_PIN_HEIGHT}px`

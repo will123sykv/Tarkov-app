@@ -2576,6 +2576,16 @@ button.link.small {
   background: #e9ecef;
 }
 
+/* A key the player doesn't have: like a lock with no key of theirs. */
+.map-pin.quest .map-pin-icon.key.missing {
+  background: #1d2228;
+  border-color: var(--warn);
+}
+
+.map-pin.quest .map-pin-icon.key.missing svg {
+  fill: var(--warn);
+}
+
 .map-pin.quest.selected .map-pin-label,
 .map-pin.quest.selected .map-pin-icon {
   outline: 2px solid #fff;
@@ -2752,6 +2762,23 @@ button.link.small {
   width: 15px;
   height: 15px;
   fill: var(--accent-strong);
+}
+
+.legend-key-missing {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  background: #1d2228;
+  border: 1px solid var(--warn);
+  border-radius: 2px;
+}
+
+.legend-kind .legend-key-missing svg {
+  width: 12px;
+  height: 12px;
+  fill: var(--warn);
 }
 
 .legend-kind .legend-dot {

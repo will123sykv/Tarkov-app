@@ -147,7 +147,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   map**, the keys and items it takes, its rewards and the wiki's guide. **✕** goes back.
 - **Filters**, kept until you change them: **Show all** or **Only quests I can do** (leaves out
   objectives behind a lock none of your keys open, and maps you can't get onto, like the Lab without
-  its access keycard), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
+  its access keycard; the Maps tab shares it), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
   to, marking, finding, stashing, extracting). A quest with both kinds shows just the ones asked for,
   and the maps are ranked by what's shown.
 - **Also here, if you pick them up** names quests you haven't started yet that have objectives on
@@ -366,6 +366,12 @@ the game's install folder, or its `build` folder.
   Zero underground, the Shoreline resort's floors, Reserve's bunkers, Interchange's mall), and a
   switch goes back to tarkov.dev's map; The Lab uses tarkov.dev's interactive map. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards.
+- **Only quests I can do on the maps:** the same filter as the To do tab (switching it on either tab
+  switches both). With **Show all**, a pin whose objective needs a key you don't have shows its key
+  in amber on dark, like a lock you have no key for, and its tooltip says **(you don't have it)**;
+  **Only quests I can do** leaves those objectives off the map, and the sidebar says how many it
+  hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
+  out. A quest opened with **Show on map** is shown anyway.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **View map** is highlighted, with how many

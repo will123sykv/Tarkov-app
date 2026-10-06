@@ -1,13 +1,20 @@
 import { useCallback, useMemo } from 'react'
-import { EMPTY_KEYS, keysNeeded } from '../../../shared/keys'
+import { EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
-import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
+import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { interactiveProjection, posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
-import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type ObjectiveMarker } from '../lib/questPins'
+import {
+  doableMarkers,
+  KEY_ICON,
+  MINE_ICON,
+  OBJECTIVE_ICONS,
+  ROUGH_ICON,
+  type ObjectiveMarker
+} from '../lib/questPins'
 import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
@@ -20,6 +27,18 @@ const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'available', label: 'Active + available' },
   { id: 'none', label: 'None' }
 ]
+
+// The To do tab's filter, shared with it.
+const WHICH: { id: TodoSettings['show']; label: string; title: string }[] = [
+  { id: 'all', label: 'Show all', title: 'Every objective, with keys you don’t have marked' },
+  {
+    id: 'doable',
+    label: 'Only quests I can do',
+    title: 'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
+  }
+]
+
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
 const Icon = ({ path }: { path: string }): React.JSX.Element => (
   <svg viewBox="0 0 24 24" aria-hidden>
@@ -251,8 +270,18 @@ export default function MapsView({
     [dataset, config]
   )
   const mapIds = useMemo(() => new Set(maps.map((gm) => gm.id)), [maps])
+  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
+  // What it takes to get onto the map, as the To do tab has it (the main version's): the Lab's keycard.
+  const accessKeys = useMemo(
+    () => (maps.find((gm) => gm.normalizedName === config?.key) ?? maps[0])?.access?.keyIds ?? [],
+    [maps, config]
+  )
+  const shut = accessKeys.length > 0 && !opens(accessKeys, owned)
+  const doable = settings.todo.show === 'doable'
+  const setShow = (show: TodoSettings['show']): void =>
+    void updateSettings({ todo: { ...settings.todo, show } })
 
-  const objectives = useMemo<ObjectiveMarker[]>(() => {
+  const inScope = useMemo<ObjectiveMarker[]>(() => {
     if (m.questScope === 'none') return []
     const wanted = new Set(m.questScope === 'available' ? ['active', 'available'] : ['active'])
     const traders = new Map((dataset?.traders ?? []).map((t) => [t.id, t]))
@@ -272,6 +301,16 @@ export default function MapsView({
     }
     return result
   }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset, done])
+  // "Only quests I can do" leaves out what's behind keys the player doesn't have (not the quest shown
+  // from "Show on map").
+  const shown = useMemo(
+    () =>
+      doable
+        ? doableMarkers(inScope, owned, shut, (marker) => focus?.questId === marker.quest.id)
+        : { markers: inScope, hidden: 0, quests: 0 },
+    [doable, inScope, owned, shut, focus]
+  )
+  const objectives = shown.markers
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
   const storySteps = useMemo<StepHere[]>(() => {
@@ -285,12 +324,13 @@ export default function MapsView({
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
         if (!pinning && !objective.maps.some((id) => mapIds.has(id))) continue
         if (!pinning && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
+        if (!pinning && doable && shut) continue
         const zone = objective.zones.find((z) => mapIds.has(z.map))
         result.push({ quest, objective, pin: zone?.source ?? null })
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, placing, selectedQuest, done])
+  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut])
   const placingStep = placing
     ? (rows
         .find((r) => r.quest.id === placing.questId)
@@ -312,7 +352,6 @@ export default function MapsView({
   )
 
   // Locks and key spawns: the key looked at from the Keys tab, and (when asked) the keys quests need.
-  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
   const neededKeys = useMemo(
     () =>
       m.showKeys
@@ -380,6 +419,19 @@ export default function MapsView({
       }
     : null
 
+  const accessName = accessKeys.map((id) => itemName(id) ?? 'its access item').join(' or ')
+  const hiddenCount =
+    shown.hidden > 1
+      ? `${plural(shown.hidden, 'objective')} of ${plural(shown.quests, 'quest')}`
+      : '1 objective'
+  const hiddenNote = !doable
+    ? null
+    : shut
+      ? `You have no ${accessName}, so this map’s objectives are hidden.`
+      : shown.hidden
+        ? `${hiddenCount} hidden: behind keys you don’t have.`
+        : 'Nothing here is behind a key you don’t have.'
+
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
   // The sidebar lists each quest once, with how many of its objectives are here.
@@ -442,6 +494,28 @@ export default function MapsView({
               </button>
             ))}
           </div>
+          {m.questScope !== 'none' && (
+            <>
+              <div className="mini-toggle wide" role="radiogroup" aria-label="Which quests">
+                {WHICH.map((w) => (
+                  <button
+                    key={w.id}
+                    role="radio"
+                    aria-checked={settings.todo.show === w.id}
+                    className={settings.todo.show === w.id ? 'active' : ''}
+                    title={w.title}
+                    onClick={() => setShow(w.id)}
+                  >
+                    {w.label}
+                  </button>
+                ))}
+              </div>
+              <p className="hint">
+                {hiddenNote && <>{hiddenNote} </>}
+                The To do tab shares this filter.
+              </p>
+            </>
+          )}
           <ul className="legend">
             <QuestPinLegend icon={OBJECTIVE_ICONS.visit}>Active quest</QuestPinLegend>
             {m.questScope === 'available' && (
@@ -462,6 +536,12 @@ export default function MapsView({
             <KindLegend icon={OBJECTIVE_ICONS.kill}>Eliminate</KindLegend>
             <KindLegend icon={OBJECTIVE_ICONS.extract}>Extract</KindLegend>
             <KindLegend icon={KEY_ICON}>Needs a key</KindLegend>
+            <li className="legend-kind">
+              <span className="legend-key-missing" aria-hidden>
+                <Icon path={KEY_ICON} />
+              </span>
+              Needs a key you don&rsquo;t have
+            </li>
             <li className="legend-kind">
               <span className="legend-dot" style={{ background: MARKER_COLORS.quest }} aria-hidden />
               One of several spots
@@ -567,7 +647,11 @@ export default function MapsView({
             <p className="hint">
               {m.questScope === 'none'
                 ? 'Quest objectives are hidden.'
-                : 'None of your active quests have marked spots here.'}
+                : shown.hidden
+                  ? shut
+                    ? `Getting onto this map takes a ${accessName}: Show all lists its objectives.`
+                    : 'What your quests have here is behind keys you don’t have: Show all lists it.'
+                  : 'None of your active quests have marked spots here.'}
             </p>
           ) : (
             <ul className="map-objectives">
@@ -641,6 +725,7 @@ export default function MapsView({
             maps={maps}
             labels={config?.labels ?? NO_LABELS}
             objectives={objectives}
+            owned={owned}
             layers={layers}
             faction={m.faction}
             itemName={itemName}
