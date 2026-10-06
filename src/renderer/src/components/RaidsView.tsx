@@ -110,9 +110,9 @@ export default function RaidsView({
       <main className="content raids-content">
         <div className="summary">
           <div className="summary-title">
-            <strong>Raids &amp; flea</strong>
+            <strong>Raids</strong>
             <span className="muted">
-              What the game&rsquo;s logs recorded for{' '}
+              Raids and flea sales the game&rsquo;s logs recorded for{' '}
               {settings.gameMode === 'pve' ? 'PvE' : settings.gameMode === 'season' ? 'PvP Season' : 'PvP'}.
               How raids ended isn&rsquo;t in the logs.
             </span>

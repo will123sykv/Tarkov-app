@@ -91,7 +91,7 @@ has prices at two or more times of day on 4 or more days. Each item shows:
 
 - **Now:** **Buy now** or **Sell now** when it's that time (in your time zone), otherwise how long
   until the next one; tick **Only items to buy or sell now** to list just those;
-- **Day:** a strip with one cell per part of the day, blue where the item is usually cheaper than
+- **Time of day:** a strip with one cell per part of the day, blue where the item is usually cheaper than
   the middle of its day and red where it's dearer (grey in between), with **B** and **S** on the
   buy and sell parts and the part it is now outlined; point at a cell for its usual price;
 - **Buy at / Sell at:** the part of the day it's usually cheapest and dearest in, and at roughly
@@ -183,10 +183,10 @@ station's level in the sidebar (the Stash starts at level 1).
   or just what your quests need, each counted on its own against what you've put aside. When the
   other needs some of an item too, the row says how many (**+2 for quests**), in amber when what
   you have isn't enough for both; point at it for the totals.
-- **Quest items:** under **Count items for**, choose **Active quests** (the default) or **Every
+- **Quest items:** under **Count items for**, **Quests**, choose **Active** (the default) or **Every
   quest left**, which adds quests you haven't started or unlocked yet (the Collector's items, for
-  example). Quests that take any of several items are listed in the Quests tab's **Items needed**
-  instead. Items you hand over come off what you've put aside: when you count them up on the
+  example). Quests that take any of several items are listed in the Quests tab's **Items to hand
+  over** instead. Items you hand over come off what you've put aside: when you count them up on the
   quest's objective in the Quests tab, or when the game's logs say you finished the quest (only
   what you hadn't counted already, and only if you set the count before finishing it).
 - **Sell:** items you've put aside that you could sell get a green **Sell** badge saying how many:
@@ -217,7 +217,7 @@ station's level in the sidebar (the Stash starts at level 1).
   level 15, or later for some items) or a trader's offer (at your loyalty level, and after the
   quest that unlocks it, if any), or **Can't buy yet** with what would open it up. Set your
   loyalty with the traders who sell what the hideout needs under **Trader loyalty** in the sidebar
-  (per game mode; unset is LL1). The Quests tab's **Items needed** has the same column.
+  (per game mode; unset is LL1). The Quests tab's **Items to hand over** has the same column.
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
   sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
@@ -279,8 +279,9 @@ The **Keys** tab lists the keys your quests still need and the ones you have, pe
 game's logs don't say which keys you have, so tick them yourself.
 
 - **Needed keys** come from the quests: every objective not yet done that has a lock to open, and
-  tarkov.dev's list of each quest's keys. Choose whose: **Active quests**, **+ available** (quests
-  you could start) or **Every quest left**. Each key says which quests need it and their status;
+  tarkov.dev's list of each quest's keys. Choose whose: **Active**, **Active + available** (quests
+  you could start too) or **Every quest left**. The summary says how many keys those quests need,
+  how many you have and how many are left to get. Each key says which quests need it and their status;
   quests you can't start yet say why (**Needs level 25**, a trader's loyalty level or another
   quest). A lock that takes any of several keys is one row.
 - **How to get it:** the cheapest way to buy it now at your level and trader loyalty, or **Can't buy
@@ -288,7 +289,7 @@ game's logs don't say which keys you have, so tick them yourself.
   that gives it as a reward or when you accept it; and the maps where it can spawn as loose loot
   (how many spots, and whether one only ever has keys). Keys also spawn in containers, which the
   data doesn't list, and it doesn't say how likely a key is at a spot.
-- **View map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
+- **Show on map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
   links to the other maps it's on). **Add to To do** lists it under **Keys to get** in the To do
   tab. **Every key** lists all the game's keys, to tick ones no quest needs.
 - **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
@@ -313,8 +314,9 @@ the game's install folder, or its `build` folder.
   so to catch up on older progress, open a quest you've reached and use **Mark this and everything
   before it done**, which also completes everything that had to come before it. You can set any
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
-  trader, map, faction, and Kappa or Lightkeeper. **Items needed** lists what your active quests
-  still want handed over, flagging found-in-raid items.
+  trader, map, faction, and Kappa or Lightkeeper. **Items to hand over** lists what your **Active**
+  (or **Active + available**) quests still want handed over or planted, flagging found-in-raid
+  items, with how many you've put aside in Items to collect (**Have**, ticked when it's enough).
 - **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
   the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
   for Bad Habit handed over (per game mode, kept with your progress). The quest list shows how many
@@ -338,7 +340,8 @@ the game's install folder, or its `build` folder.
   chapter's hand-overs take (rechargeable batteries, toolsets…) count towards **Items needed** while
   it's active, except ones on a path you may not take. The steps are refreshed with the quest data,
   and the last ones fetched are kept when the wiki can't be reached. A quest's panel shows its trader, its
-  objectives with the keys each needs, the keys and items it takes, what it gives when you accept
+  objectives with the keys each needs (and whether you have one: **you don't have it** comes with
+  an **I have it** link to tick it), the keys and items it takes, what it gives when you accept
   it, its rewards (experience, reputation, items and money, trader and craft unlocks, skills) and
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
   pictures of where to go (click one to see it full size). Guides are kept for a week, so ones
@@ -374,7 +377,7 @@ the game's install folder, or its `build` folder.
   out. A quest opened with **Show on map** is shown anyway.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
-  don't have can spawn. A key opened from the Keys tab's **View map** is highlighted, with how many
+  don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many
   locks and spots it has on this map.
 - **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
   out, and the wiki describes places in words), so the app works out which map each step is on from

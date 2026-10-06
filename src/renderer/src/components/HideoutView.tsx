@@ -638,12 +638,6 @@ export default function HideoutView({
   }
   const money = sourceNeeds.filter((n) => CURRENCIES[n.itemId] && n.missing > 0)
   const missing = sourceNeeds.filter((n) => !CURRENCIES[n.itemId] && n.missing > 0)
-  const scarceKinds = missing.map((n) => {
-    const item = items.get(n.itemId)
-    return item ? scarcity(item, ctx)?.kind : undefined
-  })
-  const rareCount = scarceKinds.filter((k) => k === 'rare').length
-  const lockedCount = scarceKinds.filter((k) => k === 'locked').length
   // Traders that sell something the hideout still needs: their loyalty decides what's on offer.
   const sellers = useMemo(() => {
     const ids = new Set(
@@ -750,7 +744,8 @@ export default function HideoutView({
         </section>
         <section>
           <h2>Count items for</h2>
-          <div className="mini-toggle wide" role="radiogroup" aria-label="Count items for">
+          <span className="toggle-label">Hideout levels</span>
+          <div className="mini-toggle wide" role="radiogroup" aria-label="Hideout levels to count items for">
             {(
               [
                 ['next', 'Next levels'],
@@ -768,10 +763,11 @@ export default function HideoutView({
               </button>
             ))}
           </div>
+          <span className="toggle-label">Quests</span>
           <div className="mini-toggle wide" role="radiogroup" aria-label="Quests to count items for">
             {(
               [
-                ['active', 'Active quests'],
+                ['active', 'Active'],
                 ['all', 'Every quest left']
               ] as const
             ).map(([id, text]) => (
@@ -787,14 +783,13 @@ export default function HideoutView({
             ))}
           </div>
           <p className="hint">
-            Quest items are the ones to hand over or plant. Quests that take any of several items are in the
-            Quests tab&rsquo;s Items needed. Handing items over in the Quests tab, or a quest the game&rsquo;s
-            logs say you finished, takes them off Have.
+            Quest items are the ones to hand over or plant (quests that take any of several items are in the
+            Quests tab&rsquo;s Items to hand over). Handing them over, or finishing the quest, takes them off
+            Have.
           </p>
           <p className="hint">
-            <strong>Hideout only</strong> and <strong>Quests only</strong> above the list count each on its
-            own against what you have; <span className="also-needed">+N for quests</span> says how many the
-            other needs too.
+            <strong>Hideout only</strong> and <strong>Quests only</strong> count each against what you have;{' '}
+            <span className="also-needed">+N for quests</span> says how many the other needs too.
           </p>
           <label className="check">
             <input
@@ -808,19 +803,16 @@ export default function HideoutView({
         <section>
           <h2>Don&rsquo;t sell</h2>
           <p className="hint">
-            Items still missing here or for your active quests get a <span className="keep-tag">Keep</span>{' '}
-            tag in the Loot tab. <span className="badge bad rare-badge">Rare</span> ones are hard to get even
-            once everything&rsquo;s unlocked: no trader sells them, and on the flea they&rsquo;re banned, cost{' '}
-            {formatRub(RARE_MIN_PRICE)} or more, or have fewer than {RARE_MAX_OFFERS} offers up (and are worth{' '}
-            {formatRub(RARE_SCARCE_MIN_PRICE)}+).{' '}
-            <span className="badge warn rare-badge">Can&rsquo;t buy yet</span> ones you can&rsquo;t buy at
-            your level and trader loyalty. Ones a trader sells you are neither.
+            Items still missing get a <span className="keep-tag">Keep</span> tag in the Loot tab.{' '}
+            <span className="badge bad rare-badge">Rare</span>: no trader sells it, and on the flea it&rsquo;s
+            banned, scarce (under {RARE_MAX_OFFERS} offers, worth {formatRub(RARE_SCARCE_MIN_PRICE)}+) or{' '}
+            {formatRub(RARE_MIN_PRICE)}+. <span className="badge warn rare-badge">Can&rsquo;t buy yet</span>:
+            not at your level and trader loyalty.
           </p>
           <p className="hint">
-            <span className="badge ok rare-badge">Sell</span> marks what you could sell from what you&rsquo;ve
-            put aside: anything more than every level and quest left needs, and anything you can buy back now
-            on the flea or from a trader (except copies that must be found in raid). Hover it for what selling
-            gets and buying back costs.
+            <span className="badge ok rare-badge">Sell</span>: what you&rsquo;ve put aside that nothing left
+            needs, or that you can buy back now (not copies that must be found in raid). Hover it for the
+            prices.
           </p>
         </section>
       </aside>
@@ -830,7 +822,7 @@ export default function HideoutView({
             <strong>Items to collect</strong>
             <span className="muted">
               {dataset
-                ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ${maxed.length} maxed · ` +
+                ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ` +
                   (readyCount ? `${readyCount} ready to build · ` : '') +
                   (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
                   `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
@@ -841,9 +833,7 @@ export default function HideoutView({
                       : questCount
                         ? ` (${questCount} for quests)`
                         : '') +
-                  (rareCount ? ` · ${rareCount} rare` : '') +
-                  (lockedCount ? ` · ${lockedCount} you can’t buy yet` : '') +
-                  (firCount ? ` · ${firCount} need finding in raid` : '') +
+                  (firCount ? ` · ${firCount} to find in raid` : '') +
                   (sellCount ? ` · ${sellCount} you could sell` : '') +
                   (money.length
                     ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`

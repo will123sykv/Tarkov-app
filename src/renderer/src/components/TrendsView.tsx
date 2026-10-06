@@ -374,6 +374,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
   const { analysis, rows: ranked, patternsReady, sort, clock } = ranking
   const loadTrends = useStore((s) => s.loadTrends)
   const trendsError = useStore((s) => s.trendsError)
+  const trendsLoading = useStore((s) => s.trendsLoading)
   const selected = useStore((s) => s.selectedTrendItem)
   const selectTrendItem = useStore((s) => s.selectTrendItem)
   const updateSettings = useStore((s) => s.updateSettings)
@@ -435,8 +436,8 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
           </div>
           <div className="summary-stats muted">
             {patternsReady && (
-              <span className="day-legend" aria-label="Day column key">
-                Day:
+              <span className="day-legend" aria-label="Time of day column key">
+                Time of day:
                 <span className="day-cell cheap" style={{ '--strength': '100%' } as React.CSSProperties} />
                 cheaper
                 <span className="day-cell dear" style={{ '--strength': '100%' } as React.CSSProperties} />
@@ -462,7 +463,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
                 <th className="num">{header('offers', 'Offers up')}</th>
                 <th className="num">Lowest now</th>
                 <th className="num">{header('swing', 'Today (low–high)')}</th>
-                <th>Day</th>
+                <th>Time of day</th>
                 <th>Buy at</th>
                 <th>{header('spread', 'Sell at')}</th>
                 <th className="num">{header('profit', 'Profit / unit')}</th>
@@ -477,7 +478,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
                   selected={row.item.id === selected}
                   bucketHours={bucketHours}
                   hour={clock.hour}
-                  patternsReady={patternsReady}
+                  loading={trendsLoading || !analysis}
                   onSelect={toggleItem}
                 />
               ))}

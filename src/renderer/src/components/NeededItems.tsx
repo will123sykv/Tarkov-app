@@ -8,7 +8,12 @@ import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
 import { GetCell } from './GetCell'
 
-/** Items still to hand over or plant for active (and optionally available) quests. */
+const NO_HAVE: Record<string, number> = {}
+
+/**
+ * Items still to hand over or plant for active (and optionally available) quests, with what's put aside
+ * for them in Items to collect.
+ */
 export default function NeededItems({
   rows,
   objectives,
@@ -23,6 +28,7 @@ export default function NeededItems({
 }) {
   const [includeAvailable, setIncludeAvailable] = useState(false)
   const selectQuest = useStore((s) => s.selectQuest)
+  const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
   const cc = useCraftContext(settings, priceState)
@@ -39,14 +45,27 @@ export default function NeededItems({
 
   return (
     <div className="needed-items">
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={includeAvailable}
-          onChange={(e) => setIncludeAvailable(e.target.checked)}
-        />
-        Include quests I haven&rsquo;t started yet
-      </label>
+      <div className="needed-items-bar">
+        <div className="segmented small" role="radiogroup" aria-label="Quests">
+          {(
+            [
+              [false, 'Active'],
+              [true, 'Active + available']
+            ] as const
+          ).map(([on, text]) => (
+            <button
+              key={text}
+              role="radio"
+              aria-checked={includeAvailable === on}
+              className={includeAvailable === on ? 'active' : ''}
+              onClick={() => setIncludeAvailable(on)}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+        <span className="hint">Have is what you&rsquo;ve put aside in Items to collect.</span>
+      </div>
       {needed.length === 0 && anyOf.length === 0 ? (
         <div className="empty">
           <p>Nothing to hand over for {includeAvailable ? 'these' : 'your active'} quests.</p>
@@ -56,6 +75,9 @@ export default function NeededItems({
           <thead>
             <tr>
               <th>Item</th>
+              <th className="num" title="What you've put aside in Items to collect">
+                Have
+              </th>
               <th className="num">Needed</th>
               <th
                 className="num"
@@ -72,6 +94,7 @@ export default function NeededItems({
           <tbody>
             {needed.map((n) => {
               const item = items.get(n.itemId)
+              const got = have[n.itemId] ?? 0
               return (
                 <tr key={`${n.itemId}:${n.foundInRaid}`}>
                   <td className="item-cell">
@@ -81,6 +104,10 @@ export default function NeededItems({
                       {n.foundInRaid && <span className="tag fir">found in raid</span>}
                     </span>
                   </td>
+                  <td className={`num ${got >= n.count ? 'enough' : ''}`}>
+                    {got}
+                    {got >= n.count && ' ✓'}
+                  </td>
                   <td className="num">{n.count}</td>
                   <td className="num">
                     <GetCell
@@ -88,7 +115,7 @@ export default function NeededItems({
                         {
                           itemId: n.itemId,
                           needed: n.count,
-                          missing: n.count,
+                          missing: Math.max(0, n.count - got),
                           firNeeded: n.foundInRaid ? n.count : 0
                         },
                         cc,

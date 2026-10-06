@@ -16,7 +16,8 @@ interface Props {
   bucketHours: number
   /** The hour of the day now (local). */
   hour: number
-  patternsReady: boolean
+  /** The price history is still being analysed. */
+  loading: boolean
   onSelect: (itemId: string) => void
 }
 
@@ -35,14 +36,7 @@ function Now({ row, hour, bucketHours }: { row: TrendRow; hour: number; bucketHo
 }
 
 /** One flea trends row. Memoised: selecting a row or a price refresh only re-renders what changed. */
-function TrendTableRow({
-  row,
-  selected,
-  bucketHours,
-  hour,
-  patternsReady,
-  onSelect
-}: Props): React.JSX.Element {
+function TrendTableRow({ row, selected, bucketHours, hour, loading, onSelect }: Props): React.JSX.Element {
   const { item, stats, access } = row
   const swing = currentSwing(row)
   const recent = stats?.recent ?? null
@@ -98,7 +92,7 @@ function TrendTableRow({
             </small>
           </>
         ) : (
-          <span className="muted">{patternsReady ? 'not enough prices' : 'loading…'}</span>
+          <span className="muted">{loading ? 'loading…' : 'not enough prices yet'}</span>
         )}
       </td>
       <td>

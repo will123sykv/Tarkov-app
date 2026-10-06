@@ -1,5 +1,6 @@
 import { mdiKeyVariant } from '@mdi/js'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { EMPTY_KEYS, opens } from '../../../shared/keys'
 import type { Detected, DetectedProgress } from '../../../shared/objectiveDetection'
 import {
   lockReasons,
@@ -87,8 +88,18 @@ export function ItemChip({
   )
 }
 
-/** Keys that open one lock: any one of them. */
-export function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items }): React.JSX.Element {
+/** Keys that open one lock: any one of them. Given the player's keys, says whether they have one. */
+export function KeyChoice({
+  keyIds,
+  items,
+  owned
+}: {
+  keyIds: string[]
+  items: Items
+  owned?: ReadonlySet<string>
+}): React.JSX.Element {
+  const setKey = useStore((s) => s.setKey)
+  const have = owned ? opens(keyIds, owned) : null
   return (
     <span className="key-choice">
       <KeyIcon />
@@ -98,8 +109,28 @@ export function KeyChoice({ keyIds, items }: { keyIds: string[]; items: Items })
           <ItemChip id={id} items={items} />
         </span>
       ))}
+      {have === true && <span className="key-have">✓ you have it</span>}
+      {have === false && (
+        <>
+          <span className="key-missing">you don&rsquo;t have it</span>
+          <button
+            className="link small"
+            title="Tick it as one of your keys (the Keys tab lists them all)"
+            onClick={() => void setKey(keyIds[0], 'owned', true)}
+          >
+            I have it
+          </button>
+        </>
+      )}
     </span>
   )
+}
+
+/** The player's keys in the game mode shown. */
+function useOwnedKeys(): ReadonlySet<string> {
+  const gameMode = useStore((s) => s.settings?.gameMode)
+  const inventory = useStore((s) => (gameMode ? s.keys[gameMode] : undefined)) ?? EMPTY_KEYS
+  return useMemo(() => new Set(inventory.owned), [inventory.owned])
 }
 
 /** Tick an objective off, or count how many of it are done ("6 / 15"). */
@@ -259,6 +290,7 @@ function Objective({
   completed: boolean
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
+  const owned = useOwnedKeys()
   const onMap = objectiveMap(objective, mapsById)
   const zone = objective.zones[0]
   const mapNames = objective.maps.map((id) => mapsById.get(id)?.name).filter(Boolean)
@@ -311,7 +343,7 @@ function Objective({
       {objective.questItem && <div className="objective-item">Quest item: {objective.questItem.name}</div>}
       {objective.requiredKeys.map((group) => (
         <div key={group.join()} className="objective-item">
-          <KeyChoice keyIds={group} items={items} />
+          <KeyChoice keyIds={group} items={items} owned={owned} />
         </div>
       ))}
       <div className="objective-meta">
@@ -345,6 +377,7 @@ function Needs({
   mapsById: ReadonlyMap<string, GameMap>
   items: Items
 }): React.JSX.Element | null {
+  const owned = useOwnedKeys()
   const keys = keysNeeded(quest)
   const needs = itemsNeeded(quest.objectives)
   if (!keys.length && !needs.length) return null
@@ -354,7 +387,7 @@ function Needs({
       <ul className="reward-list">
         {keys.map((k) => (
           <li key={k.keyIds.join()}>
-            <KeyChoice keyIds={k.keyIds} items={items} />
+            <KeyChoice keyIds={k.keyIds} items={items} owned={owned} />
             {k.mapIds.length > 0 && (
               <span className="muted">
                 {' '}
@@ -677,15 +710,17 @@ export default function QuestDetail({
       <div className="mini-toggle wide" role="radiogroup" aria-label="Set status">
         {SET_STATUSES.map(({ status: s, label }) => {
           const current = (entry?.status ?? null) === s
+          // Not started: Available or Locked, as the list has it.
+          const text = s === null && !entry ? STATUS_LABEL[status] : label
           return (
             <button
-              key={label}
+              key={s ?? 'none'}
               role="radio"
               aria-checked={current}
               className={current ? 'active' : ''}
               onClick={() => void setQuestStatus(quest.id, s)}
             >
-              {label}
+              {text}
             </button>
           )
         })}

@@ -549,7 +549,7 @@ export default function MapsView({
           </ul>
         </section>
         <section>
-          <h2>On the map</h2>
+          <h2>Map layers</h2>
           <div className="mini-toggle wide" role="radiogroup" aria-label="Extracts for">
             {(
               [
@@ -642,7 +642,7 @@ export default function MapsView({
         </section>
         <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
         <section>
-          <h2>On this map</h2>
+          <h2>Quests on this map</h2>
           {questsHere.length === 0 ? (
             <p className="hint">
               {m.questScope === 'none'

@@ -149,16 +149,7 @@ function ItemRow({
   return (
     <>
       <div className="icon">
-        {item.iconLink && (
-          <img
-            src={item.iconLink}
-            alt=""
-            loading="lazy"
-            width={40}
-            height={40}
-            onError={(e) => (e.currentTarget.style.visibility = 'hidden')}
-          />
-        )}
+        {item.iconLink && <img src={item.iconLink} alt="" loading="lazy" width={40} height={40} />}
       </div>
       <div className="name">
         {item.wikiLink ? (

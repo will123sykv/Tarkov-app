@@ -128,7 +128,7 @@ function Sidebar({
         <label className="field">
           <span>Map</span>
           <select value={q.mapId ?? ''} onChange={(e) => set({ mapId: e.target.value || null })}>
-            <option value="">Any map</option>
+            <option value="">All maps</option>
             {maps.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -354,7 +354,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                 className={tab === 'items' ? 'active' : ''}
                 onClick={() => setTab('items')}
               >
-                Items needed
+                Items to hand over
               </button>
             </div>
             {tab === 'quests' && (

@@ -354,7 +354,7 @@ export default function MapCanvas({
     }
   }, [placing, onPlace, onCancelPlace, projection])
 
-  // Centre on a key's locks and spawns (from the Keys tab's "View map").
+  // Centre on a key's locks and spawns (from the Keys tab's "Show on map").
   useEffect(() => {
     const map = mapRef.current
     const focusKey = keyMarks?.focusKey ?? null

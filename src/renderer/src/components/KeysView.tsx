@@ -150,7 +150,7 @@ function KeyRow({
             title="Open the map with this key's locks and the spots it can spawn at"
             onClick={() => void showKeyOnMap(first.id, mapKey)}
           >
-            View map
+            Show on map
           </button>
         )}
         {!have && (
@@ -210,6 +210,13 @@ function KeyTable({
       </table>
     </section>
   )
+}
+
+/** Which quests the counts are for, as words before "quests". */
+const SCOPE_WORDS: Record<KeysSettings['scope'], string> = {
+  active: 'active ',
+  available: 'active and available ',
+  all: ''
 }
 
 export default function KeysView({
@@ -274,8 +281,8 @@ export default function KeysView({
           <div className="mini-toggle wide" role="radiogroup" aria-label="Keys for">
             {(
               [
-                ['active', 'Active quests'],
-                ['available', '+ available'],
+                ['active', 'Active'],
+                ['available', 'Active + available'],
                 ['all', 'Every quest left']
               ] as const
             ).map(([id, text]) => (
@@ -317,22 +324,20 @@ export default function KeysView({
             ))}
           </div>
           <p className="hint">
-            Tick the keys you have (per game mode), or read them all from screenshots of your key tool and
-            cases with <strong>Read from screenshots</strong>. <strong>Every key</strong> lists the rest too,
-            to tick keys no quest needs.
+            Tick the keys you have (per game mode), or read them from screenshots with{' '}
+            <strong>Read from screenshots</strong>. <strong>Every key</strong> lists keys no quest needs too.
           </p>
         </section>
         <section>
           <h2>In the To do tab</h2>
           <p className="hint">
-            Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto, like the Lab
-            without its keycard) don&rsquo;t count towards which map to raid, and the keys that would open
-            them are listed under <strong>Keys to get</strong>, with any you add here.
+            Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto) don&rsquo;t
+            count towards which map to raid. The keys for them are under <strong>Keys to get</strong>, with
+            any you add here.
           </p>
           <p className="hint">
-            <strong>View map</strong> opens the Maps tab with the key&rsquo;s locks and the loose loot spots
-            it can spawn at (tarkov.dev doesn&rsquo;t say how likely). Keys also spawn in containers, which
-            aren&rsquo;t listed.
+            <strong>Show on map</strong> shows the key&rsquo;s locks and the loose loot spots it can spawn at.
+            Keys also spawn in containers, which aren&rsquo;t listed.
           </p>
         </section>
       </aside>
@@ -342,10 +347,15 @@ export default function KeysView({
             <strong>Keys</strong>
             <span className="muted">
               {dataset
-                ? `${plural(needs.length, 'key')} your quests need` +
-                  (needs.length ? ` · ${needs.length - missingAll.length} you have` : '') +
-                  (buyable ? ` · ${buyable} of the rest you can buy now` : '') +
-                  ` · ${plural(inventory.owned.length, 'key')} ticked in all`
+                ? `${plural(needs.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
+                  (needs.length
+                    ? ` · ${needs.length - missingAll.length} you have · ${missingAll.length} to get`
+                    : '') +
+                  (buyable ? ` (${buyable} you can buy now)` : '') +
+                  // Keys no quest here needs are ticked too.
+                  (inventory.owned.length > needs.length - missingAll.length
+                    ? ` · ${plural(inventory.owned.length, 'key')} ticked in all`
+                    : '')
                 : questState?.error
                   ? `Couldn't load quests: ${questState.error}`
                   : 'Loading quests…'}

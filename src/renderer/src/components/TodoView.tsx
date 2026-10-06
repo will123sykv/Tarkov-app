@@ -803,7 +803,7 @@ function KeyToGetRow({
           </button>
           {mapKey && (
             <button className="link small" onClick={() => void showKeyOnMap(first.id, mapKey)}>
-              View map
+              Show on map
             </button>
           )}
           {added && (
@@ -1102,7 +1102,12 @@ export default function TodoView({
                     (plan.hidden
                       ? ` · ${plural(plan.hidden, 'quest')} with objectives hidden behind keys you don’t have`
                       : '') +
-                    (keysCount ? ` · ${plural(keysCount, 'key')} to get` : '') +
+                    (plan.keysToGet.length
+                      ? ` · ${plural(plan.keysToGet.length, 'key')} to get` +
+                        (addedKeys.length ? ` (+${addedKeys.length} you added)` : '')
+                      : addedKeys.length
+                        ? ` · ${plural(addedKeys.length, 'key')} you added to get`
+                        : '') +
                     (beforeCount ? ` · ${beforeCount} to do before you raid` : '')}
             </span>
           </div>

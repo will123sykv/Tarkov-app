@@ -395,8 +395,9 @@ input:focus {
 }
 
 .mini-toggle button.active {
-  background: var(--panel-2);
-  color: var(--accent-strong);
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
 }
 
 .mini-toggle.wide button {
@@ -577,6 +578,14 @@ input:focus {
 }
 
 .field span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* A small label over a sidebar toggle. */
+.toggle-label {
+  display: block;
+  margin: 8px 0 4px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -1295,7 +1304,11 @@ button.link {
   color: var(--muted);
 }
 
-/* Keep the top bar on one line at the minimum window width. */
+/* Keep the top bar on one line at the minimum window width: the game modes never shrink. */
+.topbar .segmented {
+  flex: none;
+}
+
 .view-tabs button,
 .segmented button,
 .topbar-actions .button,
@@ -1856,6 +1869,21 @@ button.link.small {
   gap: 4px;
 }
 
+.key-choice .key-have,
+.key-choice .key-missing {
+  margin-left: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.key-choice .key-have {
+  color: var(--ok);
+}
+
+.key-choice .key-missing {
+  color: var(--warn);
+}
+
 .key-icon {
   flex: none;
   width: 15px;
@@ -2011,8 +2039,22 @@ button.link.small {
   padding: 12px 16px 24px;
 }
 
+.needed-items-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.needed-items-bar .hint {
+  margin: 0;
+}
+
 .needed-table {
   margin-top: 10px;
+}
+
+.needed-table td.enough {
+  color: var(--ok);
 }
 
 .needed-table td {
