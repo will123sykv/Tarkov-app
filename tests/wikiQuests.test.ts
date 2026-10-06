@@ -120,6 +120,16 @@ describe('reading a quest from its wiki page', () => {
     expect(parseWikiQuest('Santa hat', "'''Santa hat''' is a hat.\n==Location==\n* Scavs", [])).toBeNull()
   })
 
+  it('reads a page saved with Windows line endings the same', () => {
+    const windows = FOG.replace(/\r?\n/g, '\r\n')
+    expect(parseWikiQuest('Fog of War', windows, [], MAPS)).toEqual(
+      parseWikiQuest('Fog of War', FOG, [], MAPS)
+    )
+    expect(parseWikiQuest('Fog of War', windows, [], MAPS)?.leadsTo).toEqual([
+      'Number Temporarily Unavailable'
+    ])
+  })
+
   it('takes a page’s title from a link or a name', () => {
     expect(titleFromInput('https://escapefromtarkov.fandom.com/wiki/Fog_of_War')).toBe('Fog of War')
     expect(titleFromInput('escapefromtarkov.fandom.com/wiki/Fog_of_War#Guide')).toBe('Fog of War')

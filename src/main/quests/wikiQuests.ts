@@ -90,10 +90,12 @@ export function parseRewards(wikitext: string): WikiQuest['rewards'] {
 /** A quest's page on the wiki, read; null when the page isn't a quest's. */
 export function parseWikiQuest(
   title: string,
-  wikitext: string,
+  page: string,
   categories: readonly string[],
   maps: readonly StoryMap[] = []
 ): WikiQuest | null {
+  // Lines end in \n from the wiki; a copy saved on Windows may end them in \r\n.
+  const wikitext = page.replace(/\r\n?/g, '\n')
   const fields = infoboxFields(wikitext)
   if (!fields) return null
   const cats = new Set(categories.map(category))
