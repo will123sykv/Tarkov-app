@@ -19,6 +19,9 @@ const api: TarkovApi = {
   getTrendSeries: (dataMode, itemId) => ipcRenderer.invoke(IPC.trendsSeries, dataMode, itemId),
   getQuestData: (dataMode, force) => ipcRenderer.invoke(IPC.questsData, dataMode, force === true),
   getQuestGuide: (wikiLink) => ipcRenderer.invoke(IPC.questsGuide, wikiLink),
+  getWikiQuestList: (force) => ipcRenderer.invoke(IPC.wikiQuestList, force === true),
+  getWikiQuests: (titles, dataMode) => ipcRenderer.invoke(IPC.wikiQuestGet, titles, dataMode),
+  resolveWikiQuest: (input) => ipcRenderer.invoke(IPC.wikiQuestResolve, input),
   getQuestProgress: (gameMode) => ipcRenderer.invoke(IPC.questsProgress, gameMode),
   setQuestStatus: (gameMode, questId, status) =>
     ipcRenderer.invoke(IPC.questsSetStatus, gameMode, questId, status),

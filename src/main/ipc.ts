@@ -14,6 +14,8 @@ import type { PlayerStore } from './quests/playerStore'
 import type { ScanService } from './scan/scanService'
 import type { QuestDataService } from './quests/questData'
 import type { QuestGuideService } from './quests/questGuide'
+import type { WikiQuestService } from './quests/wikiQuests'
+import { MAX_WIKI_QUESTS } from '../shared/settings'
 import type { SettingsStore } from './settings'
 import type { TrendService } from './trends/trendService'
 import { checkForUpdates, getUpdaterStatus, installUpdate } from './updater'
@@ -33,9 +35,12 @@ function requireGameMode(value: unknown): GameMode {
   return value
 }
 
-/** tarkov.dev's quest ids (24 hex characters), or a story chapter's own (`story-<name>`). */
+/**
+ * tarkov.dev's quest ids (24 hex characters), a story chapter's own (`story-<name>`) or an event
+ * quest's from the wiki (`wiki-<name>`).
+ */
 function requireQuestId(value: unknown): string {
-  if (typeof value !== 'string' || !/^([0-9a-f]{24}|story-[a-z0-9-]{1,80})$/i.test(value))
+  if (typeof value !== 'string' || !/^([0-9a-f]{24}|(story|wiki)-[a-z0-9-]{1,80})$/i.test(value))
     throw new Error('Invalid quest id')
   return value
 }
@@ -105,12 +110,14 @@ export function registerIpc(deps: {
   trends: TrendService
   questData: QuestDataService
   questGuides: QuestGuideService
+  wikiQuests: WikiQuestService
   player: PlayerStore
   logs: LogWatcher
   scan: ScanService
   onSettingsChanged?: (previous: Settings, current: Settings) => void
 }): void {
-  const { settings, prices, containers, trends, questData, questGuides, player, logs, scan } = deps
+  const { settings, prices, containers, trends, questData, questGuides, wikiQuests, player, logs, scan } =
+    deps
 
   ipcMain.handle(IPC.settingsGet, () => settings.getPublic())
   ipcMain.handle(IPC.settingsUpdate, async (_e, patch: SettingsPatch) => {
@@ -149,6 +156,21 @@ export function registerIpc(deps: {
   ipcMain.handle(IPC.questsGuide, (_e, wikiLink: unknown) =>
     questGuides.get(typeof wikiLink === 'string' ? wikiLink : null)
   )
+  ipcMain.handle(IPC.wikiQuestList, (_e, force: unknown) => wikiQuests.list(force === true))
+  ipcMain.handle(IPC.wikiQuestGet, async (_e, titles: unknown, dataMode: unknown) => {
+    if (
+      !Array.isArray(titles) ||
+      titles.length > MAX_WIKI_QUESTS ||
+      !titles.every((t) => typeof t === 'string')
+    )
+      throw new Error('Invalid wiki quest titles')
+    const { dataset } = await questData.get(requireDataMode(dataMode))
+    return wikiQuests.get(titles as string[], dataset?.maps ?? [])
+  })
+  ipcMain.handle(IPC.wikiQuestResolve, (_e, input: unknown) => {
+    if (typeof input !== 'string' || input.length > 500) throw new Error('Invalid wiki link or name')
+    return wikiQuests.resolve(input)
+  })
   ipcMain.handle(IPC.questsProgress, (_e, gameMode: unknown) => player.progress(requireGameMode(gameMode)))
   ipcMain.handle(IPC.questsSetStatus, (_e, gameMode: unknown, questId: unknown, status: unknown) => {
     if (status !== null && !PROGRESS_STATUSES.includes(status as ProgressEntry['status']))

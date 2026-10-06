@@ -619,6 +619,7 @@ export default function QuestDetail({
   const { quest, status } = row
   const setQuestStatus = useStore((s) => s.setQuestStatus)
   const markQuestsUpTo = useStore((s) => s.markQuestsUpTo)
+  const removeWikiQuest = useStore((s) => s.removeWikiQuest)
   const selectQuest = useStore((s) => s.selectQuest)
   const items = useItemLookup(priceState)
   const now = useNow(60_000)
@@ -689,10 +690,29 @@ export default function QuestDetail({
           )
         })}
       </div>
-      {!quest.story && (
+      {!quest.story && !quest.wiki && (
         <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
           Mark this and everything before it done
         </button>
+      )}
+
+      {quest.wiki && (
+        <section className="quest-section story-intro">
+          <p className="wiki-note">
+            <span className="badge info">{quest.wiki.event ? 'Event quest' : 'From the wiki'}</span>{' '}
+            {quest.wiki.past
+              ? 'From an event that’s over, by the wiki. '
+              : quest.wiki.event
+                ? 'Only given during an event. '
+                : ''}
+            tarkov.dev doesn&rsquo;t list it, so this is read from its page on the wiki: there are no map pins
+            or keys, and the game&rsquo;s logs don&rsquo;t name it, so set its status here yourself.
+          </p>
+          {quest.wiki.description && <blockquote>{quest.wiki.description}</blockquote>}
+          <button className="link small" onClick={() => void removeWikiQuest(quest.wiki!.title)}>
+            Remove from my quests
+          </button>
+        </section>
       )}
 
       {quest.story && (

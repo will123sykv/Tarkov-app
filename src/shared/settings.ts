@@ -61,7 +61,8 @@ export const DEFAULT_SETTINGS: Settings = {
     mapId: null,
     kappaOnly: false,
     lightkeeperOnly: false,
-    faction: null
+    faction: null,
+    wikiQuests: []
   },
   maps: {
     mapKey: 'customs',
@@ -106,9 +107,23 @@ function sanitizeQuests(raw: unknown): QuestSettings {
     mapId: optionalId(r.mapId),
     kappaOnly: r.kappaOnly === true,
     lightkeeperOnly: r.lightkeeperOnly === true,
-    faction: r.faction === 'USEC' || r.faction === 'BEAR' ? r.faction : null
+    faction: r.faction === 'USEC' || r.faction === 'BEAR' ? r.faction : null,
+    wikiQuests: Array.isArray(r.wikiQuests)
+      ? [
+          ...new Set(
+            r.wikiQuests
+              .filter((t): t is string => typeof t === 'string')
+              .map((t) => t.trim())
+              .filter((t) => t && t.length <= MAX_WIKI_TITLE)
+          )
+        ].slice(0, MAX_WIKI_QUESTS)
+      : []
   }
 }
+
+/** Event quests kept from the wiki: titles are short, and nobody adds hundreds. */
+const MAX_WIKI_TITLE = 200
+export const MAX_WIKI_QUESTS = 200
 
 function sanitizeMaps(raw: unknown): MapSettings {
   const d = DEFAULT_SETTINGS.maps

@@ -1,0 +1,45 @@
+{{Historical content}}
+{{Event content}}
+{{Infobox quest
+|icon         =
+|image        =PartyPreparations img.png
+|location     =
+|given by     =[[Ragman]]
+|reward       =
+|reputation   =
+|time limit   =
+|quest number =
+|previous     =[[Only Business]]
+|leads to     =
+|related      =
+|related2     =
+|reqkappa     =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' was a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Wanna hear something hilarious? People suddenly became interested in all this Christmas stuff now: hats, white beards, all that.}}
+
+==Objectives==
+*Hand over 5 found [[Found in raid|<font color="red">in raid</font>]] [[Santa hat]]s to [[Ragman]]
+*Hand over 5 found [[Found in raid|<font color="red">in raid</font>]] [[Ded Moroz hat|Ded Moroz hats]] to [[Ragman]]
+*Hand over 5 found [[Found in raid|<font color="red">in raid</font>]] [[Fake white beard|Fake white beards]] to [[Ragman]]
+
+==Rewards ==
+*+5,400 [[EXP]]
+*[[Ragman]] Rep <font color="green">'''+0.01'''</font>
+* 47,000 Roubles
+** 49,350 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+*1× [[First Spear Strandhogg plate carrier (Ranger Green)]]
+*+1 level [[Charisma]]
+{{quote|Awesome, awesome. Let's dress some people up, here.}}
+
+== Guide==
+{| class="wikitable"
+! colspan="6" | Related Quest Items
+|-
+|[[Santa hat]]
+|5
+|}{{Navbox quests}}
+[[Category:Quests]]

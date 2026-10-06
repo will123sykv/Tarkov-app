@@ -210,6 +210,8 @@ export interface QuestSettings {
   lightkeeperOnly: boolean
   /** Hide the other faction's quests; null shows both. */
   faction: 'USEC' | 'BEAR' | null
+  /** Event quests added from the wiki, by page title (since 1.22.0). */
+  wikiQuests: string[]
 }
 
 export interface MapSettings {

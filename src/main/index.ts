@@ -18,6 +18,7 @@ import { createPlayerStore } from './quests/playerStore'
 import { createScanService } from './scan/scanService'
 import { createQuestDataService } from './quests/questData'
 import { createQuestGuideService } from './quests/questGuide'
+import { createWikiQuestService } from './quests/wikiQuests'
 import { createSettingsStore } from './settings'
 import { createTarkovDevHistory } from './trends/history'
 import { createPriceRecorder } from './trends/recorder'
@@ -141,6 +142,7 @@ async function bootstrap(): Promise<void> {
   app.on('will-quit', () => void scan.dispose())
   const questData = createQuestDataService({ fetchFn, cacheDir })
   const questGuides = createQuestGuideService({ fetchFn, cacheDir })
+  const wikiQuests = createWikiQuestService({ fetchFn, cacheDir })
   const player = createPlayerStore({ file: join(userData, 'player.json') })
   const logs = createLogWatcher({
     stateFile: join(userData, 'logs', 'state.json'),
@@ -177,6 +179,7 @@ async function bootstrap(): Promise<void> {
     trends,
     questData,
     questGuides,
+    wikiQuests,
     player,
     logs,
     scan,

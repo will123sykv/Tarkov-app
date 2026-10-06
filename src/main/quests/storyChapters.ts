@@ -11,6 +11,8 @@ const LIST_PAGE = 'Story chapters'
 const MAIN_LINE = ['Tour', 'Falling Skies', 'The Ticket']
 /** Linked pages that aren't items in a hand-over step. */
 const NOT_ITEMS = /^(found in raid|hideout|file:|image:|category:)/i
+/** Steps that take items into a raid to leave there: their linked items are what to bring. */
+const STASH = /^(stash|plant|hide|place|leave)\b/i
 /** Steps whose number is how many of something they take. */
 const COUNTED = /^(hand over|eliminate|kill|neutralize|find|obtain|collect|bring|stash|plant|mark|launch)\b/i
 
@@ -25,7 +27,7 @@ export function chapterList(wikitext: string): { title: string; name: string }[]
 }
 
 /** A top-level `== Heading ==` section's text, up to the next one. */
-function section(wikitext: string, heading: string): string {
+export function section(wikitext: string, heading: string): string {
   const start = new RegExp(`^==\\s*${heading}\\s*==\\s*$`, 'im').exec(wikitext)
   if (!start) return ''
   const rest = wikitext.slice(start.index + start[0].length)
@@ -33,7 +35,7 @@ function section(wikitext: string, heading: string): string {
   return end ? rest.slice(0, end.index) : rest
 }
 
-const slug = (text: string): string =>
+export const slug = (text: string): string =>
   text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -44,7 +46,7 @@ const slug = (text: string): string =>
 const LINK = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g
 
 /** The pages a piece of markup links to (`[[Page|text]]` → Page). */
-function linkTargets(markup: string): string[] {
+export function linkTargets(markup: string): string[] {
   return [...markup.matchAll(LINK)].map((m) => m[1].trim())
 }
 
@@ -71,14 +73,14 @@ const QUALIFIER = /^\s+(?:transit|extract|extraction|exit|exfil|v-ex|border)\b/i
 /** "Ensure access to Reserve", "the entrance to the port Terminal": where it leads, not where it's done. */
 const DESTINATION = /\b(?:to|towards|into)(?:\s+[\w'-]+){0,2}\s+$/i
 
-interface MapNamer {
+export interface MapNamer {
   /** A map by a link's target or any of its names (case doesn't matter). */
   byName: (name: string) => string | null
   /** Names to look for in plain text (as written), longest first. */
   names: { text: string; id: string; ambiguous: boolean }[]
 }
 
-function mapNamer(maps: readonly StoryMap[]): MapNamer {
+export function mapNamer(maps: readonly StoryMap[]): MapNamer {
   const lookup = new Map<string, string>()
   const names: MapNamer['names'] = []
   for (const map of maps) {
@@ -282,7 +284,7 @@ export function parseObjectives(wikitext: string, maps: readonly StoryMap[] = []
       optional,
       depth,
       count: count >= 2 ? count : null,
-      itemNames: handOver ? linkTargets(markup).filter((t) => !NOT_ITEMS.test(t)) : [],
+      itemNames: handOver || STASH.test(text) ? linkTargets(markup).filter((t) => !NOT_ITEMS.test(t)) : [],
       handOver,
       foundInRaid: /\bin raid\b/i.test(text),
       branch,

@@ -4079,3 +4079,54 @@ button.link.small {
 .upgrade-item-name small.get-craft {
   color: var(--info);
 }
+
+/* Event quests from the wiki */
+
+.quest-flags abbr.quest-wiki {
+  color: var(--info);
+}
+
+.wiki-note {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.event-up-next {
+  display: block;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.event-picker {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.event-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.event-list {
+  max-height: 46vh;
+  margin: 10px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.event-list li {
+  padding: 2px 0;
+}
+
+.event-list .check {
+  margin-top: 0;
+  align-items: center;
+}
+
+.event-list .tag {
+  margin-left: 8px;
+}

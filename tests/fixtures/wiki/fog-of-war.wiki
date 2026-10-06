@@ -1,0 +1,48 @@
+{{Event content}}
+{{Infobox quest
+|image           =Fog of War Banner.png
+|icon            =
+|given by        =[[Prapor]]
+|location        =[[Lighthouse]]
+|LL requirement  =2
+|LL quests       =
+|previous        =
+|leads to        =[[Number Temporarily Unavailable]]
+|related         =
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Hey. Been out by the treatment plant lately? There's some real shit going down there. Looks like the Rogues got softened up by the PMCs first, then the smugglers launched an assault. All that commotion screwed up one of my boys' jobs. They were supposed to pick something up from a contact on Reserve, but with the assault going on, they had to pull back to a better position. They've set up camp high in the mountains now. At least we won't be running into the Rogues by accident at the new spot. Problem is, our contact who was supposed to hand over the package got cold feet and went to ground, claiming the risks were too high. Can you help me sort this out? First thing is to scout the area and see what the Rogues' positions look like now. They're expecting that package from me at the Lighthouse, so you know what that means... Better not drag your feet.}}
+
+==Objectives==
+* Scout the Rogues' position near the BRDM car in the northern part of the water treatment plant on [[Lighthouse]]
+* Scout the Rogues' checkpoint with the guard tower in the southwestern part of the water treatment plant on [[Lighthouse]]
+* Scout the water treatment plant territory from the roof of any of the plant buildings on [[Lighthouse]]
+
+==Rewards==
+* +10,000 [[EXP]]
+* 300,000 Roubles
+** 315,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 345,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* 1× [[SVDS 7.62x54R sniper rifle]]
+* 3× [[SVD 7.62x54R 10-round magazine]]
+* 2× [[7.62x54mm R PS gzh ammo pack (20 pcs)]]
+{{quote|What, for real? Didn't think anyone could drive the Rogues out of the treatment plant. They used to be able to pick off anyone from those fixed positions. You couldn't get anywhere near the place. Though if the smugglers already had the approaches mapped out, plus mortars... And after that little war and their operations on that ship, looks like the Rogues were pretty damn worn out. They're probably up in the cliffs now, holed up in the chalets. Which means we can finally work in the rest of the coastal area without worrying about them. That's good news, rookie.}}
+
+==Guide==
+In this quest you have to scout the northern BRDM position, the southwestern checkpoint and the roof of building #1, #2 or #3 at the water treatment plant on [[Lighthouse]].
+<li style="display: inline-block;"><gallery widths="300" heights="169" mode="packed">
+File:Fog of War Map.png|Locations marked on map
+File:Fog of War BRDM Location.png|Northern BRDM position
+File:Fog of War Southwestern Location.png|Southwestern checkpoint
+File:Stairs1.png|Building #1 stairs
+File:Stairs2.png|Building #2 stairs
+File:Stairs3.png|Building #3 stairs
+</gallery></li>
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[ru:Туман войны]]

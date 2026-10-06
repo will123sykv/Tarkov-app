@@ -117,6 +117,8 @@ export interface Quest {
   imageLink: string | null
   /** For a story chapter: its blurb and what starts it. */
   story?: { description: string; howItStarts: string }
+  /** For a quest read from the wiki (an event quest tarkov.dev doesn't list). Since 1.22.0. */
+  wiki?: { title: string; event: boolean; past: boolean; description: string }
 }
 
 export interface MapExtract {
@@ -240,7 +242,7 @@ export interface StoryObjective {
   depth: number
   /** How many it takes (items to hand over, targets…), when more than one. */
   count: number | null
-  /** For a hand-over: the items linked in the step, by name (matched to items in the app). */
+  /** For a hand-over (or a step to stash items): the items linked in the step, by name (matched to items in the app). */
   itemNames: string[]
   handOver: boolean
   foundInRaid: boolean
@@ -267,6 +269,50 @@ export interface StoryChapter {
   howItStarts: string
   imageLink: string | null
   objectives: StoryObjective[]
+}
+
+/**
+ * A quest read from its page on the Escape from Tarkov wiki: event quests (Fog of War…) that
+ * tarkov.dev doesn't list, added by the player. Since 1.22.0.
+ */
+export interface WikiQuest {
+  /** The page's title: how it's added and kept. */
+  title: string
+  name: string
+  wikiLink: string
+  /** Only given during an event. */
+  event: boolean
+  /** From an event that's over (the wiki's historical content). */
+  past: boolean
+  /** Who gives it, by name. */
+  trader: string | null
+  /** Map ids from the infobox's location. */
+  maps: string[]
+  /** The trader's loyalty level it needs. */
+  loyaltyLevel: number | null
+  /** Pages of the quests before and after it. */
+  previous: string[]
+  leadsTo: string[]
+  kappa: boolean
+  /** What the trader says when giving it. */
+  description: string
+  objectives: StoryObjective[]
+  rewards: {
+    experience: number
+    money: { currency: '₽' | '$' | '€'; amount: number }[]
+    /** By name, matched to items in the app. */
+    items: { name: string; count: number }[]
+    standing: { trader: string; value: number }[]
+    /** Anything else (skill levels, unlocks), as text. */
+    other: string[]
+  }
+}
+
+/** An event quest the wiki lists, for picking. */
+export interface WikiQuestEntry {
+  title: string
+  /** From an event that's over. */
+  past: boolean
 }
 
 export interface QuestDataset {

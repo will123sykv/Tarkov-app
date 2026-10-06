@@ -13,6 +13,7 @@ import type { GameMap, Quest, QuestDataState } from '../../../shared/questTypes'
 import type { PublicSettings } from '../../../shared/types'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { storyQuests } from '../../../shared/storyQuests'
+import { wikiQuestId, wikiQuests } from '../../../shared/wikiQuests'
 import { useStore } from '../store'
 import { mapPlaces, raidMapLookup } from './storyMaps'
 
@@ -51,6 +52,9 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
   const pins = useStore((s) => s.storyPins)
   const loadQuestData = useStore((s) => s.loadQuestData)
   const loadPlayerData = useStore((s) => s.loadPlayerData)
+  const wikiState = useStore((s) => s.wikiQuests)
+  const loadWikiQuests = useStore((s) => s.loadWikiQuests)
+  const wikiTitles = settings.quests.wikiQuests
 
   useEffect(() => {
     if (ready) void loadQuestData()
@@ -58,6 +62,9 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
   useEffect(() => {
     if (ready) void loadPlayerData()
   }, [loadPlayerData, settings.gameMode, ready])
+  useEffect(() => {
+    if (ready) void loadWikiQuests(wikiTitles, dataMode)
+  }, [loadWikiQuests, wikiTitles, dataMode, ready])
 
   const dataset = questState?.dataset ?? null
   const level = settings.playerLevels[settings.gameMode]
@@ -77,13 +84,21 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
     [dataset]
   )
   const places = useMemo(() => mapPlaces(dataset?.maps ?? []), [dataset])
-  const quests = useMemo(
-    () => [
-      ...(dataset?.quests ?? []),
-      ...storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins })
-    ],
-    [dataset, itemIds, traderIds, places, pins]
-  )
+  const quests = useMemo(() => {
+    const listed = dataset?.quests ?? []
+    // Event quests added from the wiki, unless tarkov.dev lists them by now.
+    const names = new Set(listed.map((q) => q.name.toLowerCase()))
+    const pages = (wikiState?.quests ?? []).filter((w) => !names.has(w.name.toLowerCase()))
+    const questIds = new Map([
+      ...listed.map((q) => [q.name.toLowerCase(), q.id] as const),
+      ...pages.map((w) => [w.title.toLowerCase(), wikiQuestId(w.title)] as const)
+    ])
+    return [
+      ...listed,
+      ...storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins }),
+      ...wikiQuests(pages, { itemIds, traderIds, questIds })
+    ]
+  }, [dataset, itemIds, traderIds, places, pins, wikiState])
   const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
   const rows = useMemo<QuestRow[]>(

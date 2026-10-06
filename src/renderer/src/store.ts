@@ -5,7 +5,7 @@ import type { HideoutProgress } from '../../shared/hideout'
 import type { KeyInventory } from '../../shared/keys'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
-import type { QuestDataState } from '../../shared/questTypes'
+import type { QuestDataState, WikiQuest } from '../../shared/questTypes'
 import type { StoryPin, StoryPins } from '../../shared/storyPlaces'
 import type {
   ContainerCatalog,
@@ -45,6 +45,8 @@ interface AppStore {
   keyFocus: string | null
   /** The map opened from the To do tab's overview (a map group's key), or null for the overview. */
   todoMap: string | null
+  /** Event quests added from the wiki, as read from it (for the titles and data mode in `key`). */
+  wikiQuests: { key: string; quests: WikiQuest[]; errors: Record<string, string>; loading: boolean } | null
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
   selectedQuest: string | null
@@ -69,6 +71,11 @@ interface AppStore {
   loadTrendSeries(itemId: string): Promise<void>
   selectTrendItem(itemId: string | null): void
   loadQuestData(force?: boolean): Promise<void>
+  /** Read the event quests added from the wiki (cached by the main process). */
+  loadWikiQuests(titles: readonly string[], dataMode: DataMode): Promise<void>
+  /** Add event quests from the wiki, by page title. */
+  addWikiQuests(titles: readonly string[]): Promise<void>
+  removeWikiQuest(title: string): Promise<void>
   loadPlayerData(): Promise<void>
   setObjectiveProgress(questId: string, objectiveId: string, value: number): Promise<void>
   setQuestStatus(questId: string, status: ProgressEntry['status'] | null): Promise<void>
@@ -140,6 +147,7 @@ export const useStore = create<AppStore>((set, get) => ({
   keys: {},
   keyFocus: null,
   todoMap: null,
+  wikiQuests: null,
   logHistory: {},
   logStatus: null,
   selectedQuest: null,
@@ -282,6 +290,46 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   selectTrendItem: (selectedTrendItem) => set({ selectedTrendItem }),
+
+  async loadWikiQuests(titles, dataMode) {
+    const key = `${dataMode}|${titles.join('\n')}`
+    if (get().wikiQuests?.key === key) return
+    if (!titles.length) {
+      set({ wikiQuests: { key, quests: [], errors: {}, loading: false } })
+      return
+    }
+    set((s) => ({
+      wikiQuests: { key, quests: s.wikiQuests?.quests ?? [], errors: {}, loading: true }
+    }))
+    try {
+      const { quests, errors } = await window.api.getWikiQuests([...titles], dataMode)
+      if (get().wikiQuests?.key === key) set({ wikiQuests: { key, quests, errors, loading: false } })
+    } catch (err) {
+      if (get().wikiQuests?.key === key)
+        set((s) => ({
+          wikiQuests: {
+            key,
+            quests: s.wikiQuests?.quests ?? [],
+            errors: { '': err instanceof Error ? err.message : String(err) },
+            loading: false
+          }
+        }))
+    }
+  },
+
+  async addWikiQuests(titles) {
+    const settings = get().settings
+    if (!settings) return
+    const wikiQuests = [...new Set([...settings.quests.wikiQuests, ...titles])]
+    await get().updateSettings({ quests: { ...settings.quests, wikiQuests } })
+  },
+
+  async removeWikiQuest(title) {
+    const settings = get().settings
+    if (!settings) return
+    const wikiQuests = settings.quests.wikiQuests.filter((t) => t !== title)
+    await get().updateSettings({ quests: { ...settings.quests, wikiQuests } })
+  },
 
   async loadQuestData(force = false) {
     const settings = get().settings

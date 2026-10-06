@@ -343,6 +343,18 @@ the game's install folder, or its `build` folder.
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
   pictures of where to go (click one to see it full size). Guides are kept for a week, so ones
   you've opened work offline.
+- **Event quests:** limited-time event quests (Fog of War, Number Temporarily Unavailable…) aren't
+  on tarkov.dev, so the app can't list them by itself. Under **Event quests** in the Quests tab's
+  sidebar, **Add event quests…** lists the wiki's event quests (this event's first; tick **Show
+  past events' quests** for older ones): tick the ones you have, or paste a wiki link or a quest's
+  name. Each is read from its page on the wiki and shown under its trader with an **Event** tag:
+  the loyalty level and quest it needs, its objectives (each with its map, and the items to stash or
+  hand over, which count towards **Items needed**), the trader's briefing and its rewards. They
+  show on the To do tab like any quest. The game's logs don't name event quests, so set their
+  status in the quest's panel yourself; **Remove from my quests** takes one off. The quests an added
+  one leads to are offered next (in the sidebar and the picker). Pages are refreshed twice a day and
+  kept for when the wiki can't be reached. If tarkov.dev starts listing a quest, its own version is
+  shown instead.
 - **Maps:** your active (or available) quests as pins with the quest's name and trader, the
   trader's portrait and an icon for each thing to do there (go to, pick up, stash, mark, eliminate,
   extract, and a key when one's needed); click one to open the quest's panel on the right, the same

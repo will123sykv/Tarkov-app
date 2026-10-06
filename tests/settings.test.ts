@@ -184,6 +184,14 @@ describe('sanitizeSettings', () => {
         style: '2d'
       }
     })
+    // Event quests from the wiki (since 1.22.0): titles, once each, trimmed.
+    expect(DEFAULT_SETTINGS.quests.wikiQuests).toEqual([])
+    expect(
+      sanitizeSettings({
+        quests: { wikiQuests: [' Fog of War', 'Fog of War', '', 3, 'x'.repeat(201), 'Duck Hunt'] }
+      }).quests.wikiQuests
+    ).toEqual(['Fog of War', 'Duck Hunt'])
+    expect(sanitizeSettings({ quests: { wikiQuests: 'Fog of War' } }).quests.wikiQuests).toEqual([])
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps.style).toBe('tarkov-dev')
     // 1.5's name for the 2D maps.
     expect(sanitizeSettings({ maps: { style: 're3mr' } }).maps.style).toBe('2d')

@@ -1,0 +1,29 @@
+{{Event content}}
+{{Infobox quest
+|image         =Number Temporarily Unavailable Banner.png
+|location      =[[Lighthouse]]
+|given by      =[[Prapor]]
+|previous      =[[Fog of War]]
+|leads to      =[[All-Inclusive Support]]
+|related       =
+|related2      =
+|reqkappa      =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|We need you again. Looks like this rat's not crawling out of his hole with that package unless we give him a kick. So you need to get in touch with him ASAP, and my guys are short on equipment. Can you bring it? I'll give you the list.}}
+
+==Objectives==
+* Stash 3 [[Electronic components]] at Prapor's new camp on [[Lighthouse]]
+* Stash a [[Military cable]] at Prapor's new camp on [[Lighthouse]]
+* Stash 3 [[Capacitors]] at Prapor's new camp on [[Lighthouse]]
+
+==Rewards==
+* +15,000 [[EXP]]
+* 300,000 Roubles
+** 315,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 345,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* 2× [[6B45 armored rig (Medic, EMR)]]
+{{quote|Whatcha think of our camp? Why the hell didn't we set up there sooner, huh... That's what you call a good position.}}

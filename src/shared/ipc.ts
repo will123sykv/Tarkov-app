@@ -3,7 +3,7 @@ import type { KeyInventory } from './keys'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
 import type { StoryPin, StoryPins } from './storyPlaces'
-import type { QuestDataState, QuestGuideState } from './questTypes'
+import type { QuestDataState, QuestGuideState, WikiQuest, WikiQuestEntry } from './questTypes'
 import type { OcrJob, OcrResult, ScreenshotFile } from './scanTypes'
 import type {
   ContainerCatalog,
@@ -40,6 +40,9 @@ export const IPC = {
   questsProgressChanged: 'quests:progress-changed',
   hideoutProgressChanged: 'hideout:progress-changed',
   questsGuide: 'quests:guide',
+  wikiQuestList: 'quests:wiki-list',
+  wikiQuestGet: 'quests:wiki-get',
+  wikiQuestResolve: 'quests:wiki-resolve',
   hideoutProgress: 'hideout:progress',
   hideoutSetLevel: 'hideout:set-level',
   hideoutSetHave: 'hideout:set-have',
@@ -84,6 +87,15 @@ export interface TarkovApi {
   getQuestData(dataMode: DataMode, force?: boolean): Promise<QuestDataState>
   /** The guide (text and pictures) on a quest's wiki page, given the quest's `wikiLink`. */
   getQuestGuide(wikiLink: string | null): Promise<QuestGuideState>
+  /** The wiki's event quests, to pick from. */
+  getWikiQuestList(force?: boolean): Promise<{ quests: WikiQuestEntry[]; error: string | null }>
+  /** The event quests added (by page title), read from the wiki; maps named as in that data mode. */
+  getWikiQuests(
+    titles: string[],
+    dataMode: DataMode
+  ): Promise<{ quests: WikiQuest[]; errors: Record<string, string> }>
+  /** A pasted wiki link or quest name, as a quest page's title. */
+  resolveWikiQuest(input: string): Promise<{ title: string } | { error: string }>
   getQuestProgress(gameMode: GameMode): Promise<QuestProgress>
   /** Set a quest's status by hand, or clear it with null. */
   setQuestStatus(

@@ -7,11 +7,13 @@ import {
   type QuestStatus
 } from '../../../shared/questProgress'
 import { STORY_TRADER } from '../../../shared/storyQuests'
+import { nextWikiQuests } from '../../../shared/wikiQuests'
 import type { GameMap, Quest } from '../../../shared/questTypes'
 import type { PriceState, PublicSettings, QuestSettings, QuestStatusFilter } from '../../../shared/types'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useQuestRows, type QuestRow } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import EventQuestPicker from './EventQuestPicker'
 import LogStatusPanel from './LogStatusPanel'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
@@ -54,6 +56,18 @@ const QuestListRow = memo(function QuestListRow({
               {summary.done}/{summary.total}
             </span>
           )}
+          {quest.wiki && (
+            <abbr
+              className="quest-wiki"
+              title={
+                quest.wiki.event
+                  ? `An event quest${quest.wiki.past ? ' from a past event' : ''}, from the wiki`
+                  : 'From the wiki'
+              }
+            >
+              {quest.wiki.event ? 'Event' : 'Wiki'}
+            </abbr>
+          )}
           {quest.kappaRequired && <abbr title="Needed for Kappa">K</abbr>}
           {quest.lightkeeperRequired && <abbr title="Needed for Lightkeeper">LK</abbr>}
         </span>
@@ -66,14 +80,18 @@ function Sidebar({
   settings,
   counts,
   traders,
-  maps
+  maps,
+  onAddEventQuests
 }: {
   settings: PublicSettings
   counts: Record<QuestStatus, number>
   traders: { id: string; name: string }[]
   maps: GameMap[]
+  onAddEventQuests: () => void
 }): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
+  const wiki = useStore((s) => s.wikiQuests)
+  const addWikiQuests = useStore((s) => s.addWikiQuests)
   const q = settings.quests
   const set = (patch: Partial<QuestSettings>): void => void updateSettings({ quests: { ...q, ...patch } })
   const toggle = (status: QuestStatusFilter): void =>
@@ -148,6 +166,33 @@ function Sidebar({
           Needed for Lightkeeper
         </label>
       </section>
+      <section>
+        <h2>Event quests</h2>
+        <p className="hint">
+          {q.wikiQuests.length
+            ? `${q.wikiQuests.length} added from the wiki${wiki?.loading ? ' (reading…)' : ''}.`
+            : 'Event quests, like Fog of War, aren’t on tarkov.dev: add the ones you have from the wiki.'}
+        </p>
+        {Object.entries(wiki?.errors ?? {}).map(([title, error]) => (
+          <p key={title} className="hint error">
+            {title ? `${title}: ` : ''}
+            {error}
+          </p>
+        ))}
+        {wiki &&
+          nextWikiQuests(wiki.quests, q.wikiQuests).map((title) => (
+            <button
+              key={title}
+              className="link small event-up-next"
+              onClick={() => void addWikiQuests([title])}
+            >
+              + Add {title}, next in the chain
+            </button>
+          ))}
+        <button className="button small" onClick={onAddEventQuests}>
+          Add event quests…
+        </button>
+      </section>
     </aside>
   )
 }
@@ -159,6 +204,8 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const selectQuest = useStore((s) => s.selectQuest)
   const [tab, setTab] = useState<'quests' | 'items'>('quests')
   const [search, setSearch] = useState('')
+  const [picking, setPicking] = useState(false)
+  const wiki = useStore((s) => s.wikiQuests)
 
   const dataset = questState?.dataset ?? null
   const q = settings.quests
@@ -262,7 +309,20 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
 
   return (
     <div className="quests">
-      <Sidebar settings={settings} counts={counts} traders={traders} maps={questMapList} />
+      <Sidebar
+        settings={settings}
+        counts={counts}
+        traders={traders}
+        maps={questMapList}
+        onAddEventQuests={() => setPicking(true)}
+      />
+      {picking && (
+        <EventQuestPicker
+          added={q.wikiQuests}
+          next={nextWikiQuests(wiki?.quests ?? [], q.wikiQuests)}
+          onClose={() => setPicking(false)}
+        />
+      )}
       <main className="content">
         <div className="summary">
           <div className="summary-title">
