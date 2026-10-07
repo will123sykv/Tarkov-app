@@ -127,7 +127,7 @@ describe('sanitizeSettings', () => {
     }
     const migrated = sanitizeSettings({ trends: saved131 })
     expect(migrated.trends).toEqual(DEFAULT_SETTINGS.trends)
-    expect(migrated.settingsVersion).toBe(2)
+    expect(migrated.settingsVersion).toBe(3)
     expect(sanitizeSettings({ trends: { ...saved131, minOffers: 80 } }).trends).toMatchObject({
       minOffers: 80,
       minSwing: 0.15
@@ -219,7 +219,7 @@ describe('sanitizeSettings', () => {
       firOnly: false,
       keepOnly: false,
       sellOnly: false,
-      scanSellBuyable: false,
+      scanSellBuyable: true,
       tab: 'items'
     })
     const chosen = { scope: 'next', hideDone: true, firOnly: true, keepOnly: true, tab: 'upgrades' } as const
@@ -260,10 +260,15 @@ describe('sanitizeSettings', () => {
       sellOnly: false
     })
     expect(hideout({ keepOnly: true, sellOnly: true })).toMatchObject({ keepOnly: true, sellOnly: false })
-    // The screenshot scanner's "sell what I can buy back later" is off unless chosen (since 1.15.0).
-    expect(hideout({}).scanSellBuyable).toBe(false)
-    expect(hideout({ scanSellBuyable: true }).scanSellBuyable).toBe(true)
-    expect(hideout({ scanSellBuyable: 'yes' }).scanSellBuyable).toBe(false)
+    // The screenshot scanner's "sell what I can buy or craft later" is on by default since 1.25.0, and
+    // turned on for settings saved before then; after that, switching it off sticks.
+    expect(hideout({}).scanSellBuyable).toBe(true)
+    expect(hideout({ scanSellBuyable: false }).scanSellBuyable).toBe(true)
+    const saved = (version: number, raw: Record<string, unknown>) =>
+      sanitizeSettings({ settingsVersion: version, hideout: raw }).hideout.scanSellBuyable
+    expect(saved(2, { scanSellBuyable: false })).toBe(true)
+    expect(saved(3, { scanSellBuyable: false })).toBe(false)
+    expect(saved(3, {})).toBe(true)
   })
 
   it('keeps whose items the list shows, and the To do view (since 1.16.0)', () => {

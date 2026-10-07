@@ -429,7 +429,7 @@ describe('what to keep and what to sell', () => {
     expect(scanTotals(advice)).toEqual({ sell: 66_000, flea: 54_000, traders: 12_000, keep: 5 })
   })
 
-  it('sells what can be bought back later, keeping what’s rare or must be found in raid', () => {
+  it('sells what can be got back later, keeping what can’t or must be found in raid', () => {
     const advice = adviseScan(
       [
         { itemId: 'bolts', count: 2 },
@@ -437,10 +437,10 @@ describe('what to keep and what to sell', () => {
         { itemId: 'ledx', count: 1 }
       ],
       items,
-      keepOnlyHardToReplace(keep),
+      keepOnlyHardToReplace(keep, (id) => id !== 'ledx'),
       ctx
     )
-    // Bolts can be bought back: only the one that must be found in raid is kept. The LEDX is rare.
+    // Bolts can be bought back: only the one that must be found in raid is kept. The LEDX can't be.
     expect(advice.map((a) => [a.keep, a.sell])).toEqual([
       [1, 1],
       [0, 5],

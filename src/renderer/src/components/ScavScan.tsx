@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
 import { CURRENCIES } from '../../../shared/constants'
 import {
-  buyOptions,
+  getBackNow,
   keepOnlyHardToReplace,
-  type BuyOption,
+  type GetBack,
   type HideoutNeed,
   type HideoutProgress
 } from '../../../shared/hideout'
@@ -43,7 +43,7 @@ import {
   type RgbaImage,
   type ScanTile
 } from '../lib/scavScan'
-import { useBuyContext, useKeepList } from '../lib/useKeepList'
+import { useBuyContext, useCraftContext, useKeepList } from '../lib/useKeepList'
 import { useKeyInfo } from '../lib/useKeyInfo'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
@@ -445,12 +445,15 @@ function ItemPicker({
 function Advice({
   advice,
   item,
-  buyLater
+  firOnly,
+  getLater
 }: {
   advice: ScanAdvice
   item: LootItem | undefined
-  /** Set when it's sold only because it can be bought back: where and for how much. */
-  buyLater: BuyOption | null
+  /** The kept ones are only the copies that must be found in raid (the rest can be got back). */
+  firOnly: boolean
+  /** Set when it's sold only because it can be got back: bought (where, for how much) or crafted. */
+  getLater: GetBack | null
 }): React.JSX.Element {
   if (!item) return <span className="badge warn">Pick the item</span>
   const keepFor = [
@@ -463,14 +466,18 @@ function Advice({
       {advice.keep > 0 && (
         <span>
           <span className="badge ok">{advice.sell ? `Keep ${advice.keep}` : 'Keep'}</span>{' '}
-          <span className="muted nowrap">for {keepFor.join(', ')}</span>
+          <span className="muted nowrap">
+            for {keepFor.join(', ')}
+            {firOnly && ' (found in raid)'}
+          </span>
           {advice.stored > 0 && (
             <span className="muted nowrap" title="Added to the Have counts in Items needed">
               {' '}
               · added
             </span>
           )}
-          {advice.scarce && <ScarceBadge scarce={advice.scarce} />}
+          {/* Kept only because they must be found in raid: how hard it is to buy isn't the reason. */}
+          {advice.scarce && !firOnly && <ScarceBadge scarce={advice.scarce} />}
         </span>
       )}
       {advice.sell > 0 &&
@@ -479,13 +486,16 @@ function Advice({
             <span className="badge info">
               {advice.keep ? `Sell ${advice.sell}` : 'Sell'} {where}
             </span>
-            {buyLater && (
+            {getLater && (
               <span
                 className="muted nowrap"
-                title="The hideout or a quest needs it, but you can buy it back when you do"
+                title={`The hideout or a quest needs it, but it needn't be found in raid and you can ${getLater.kind === 'buy' ? 'buy' : 'craft'} it when you do`}
               >
                 {' '}
-                needed later · buy back {formatRub(buyLater.price)} ({buyLater.label})
+                needed later ·{' '}
+                {getLater.kind === 'buy'
+                  ? `buy back ${formatRub(getLater.option.price)} (${getLater.option.label})`
+                  : `craft at ${getLater.option.stationName}`}
               </span>
             )}
           </span>
@@ -552,17 +562,29 @@ export default function ScavScan({
   const setOwnedKeys = useStore((s) => s.setOwnedKeys)
   const keepAll = useKeepList(settings, priceState)
   const buyCtx = useBuyContext(settings, priceState)
+  const craftCtx = useCraftContext(settings, priceState)
   const updateSettings = useStore((s) => s.updateSettings)
-  // Optionally sell what's needed but easy to buy back, keeping only what's hard to replace.
+  // By default, sell what's needed but can be bought or crafted now, keeping only what can't and the
+  // copies that must be found in raid.
   const sellBuyable = settings.hideout.scanSellBuyable
-  const keep = useMemo(() => (sellBuyable ? keepOnlyHardToReplace(keepAll) : keepAll), [keepAll, sellBuyable])
-  /** For an item sold only because it can be bought back: the cheapest way to buy it back now. */
-  const buyLater = (itemId: string | null, item: LootItem | undefined): BuyOption | null => {
-    if (!sellBuyable || !itemId || !item) return null
+  const getBack = useCallback(
+    (itemId: string): GetBack | null => {
+      const item = items.get(itemId)
+      return item ? getBackNow(item, buyCtx, craftCtx) : null
+    },
+    [items, buyCtx, craftCtx]
+  )
+  const keep = useMemo(
+    () => (sellBuyable ? keepOnlyHardToReplace(keepAll, (id) => getBack(id) !== null) : keepAll),
+    [keepAll, sellBuyable, getBack]
+  )
+  /** For an item sold only because it can be got back: the cheapest way to buy it, or a craft. */
+  const getLater = (itemId: string | null): GetBack | null => {
+    if (!sellBuyable || !itemId) return null
     const all = keepAll.get(itemId)
     const kept = keep.get(itemId)
     if (!all || !kept || all.hideout + all.quests <= kept.hideout + kept.quests) return null
-    return buyOptions(item, buyCtx).options[0] ?? null
+    return getBack(itemId)
   }
   const setHaveMany = useStore((s) => s.setHideoutHaveMany)
   const [picking, setPicking] = useState<number | null>(null)
@@ -1154,12 +1176,12 @@ export default function ScavScan({
                   {settings.hideout.scope === 'next' ? 'the next level of each station' : 'every level left'}{' '}
                   (see <em>Count items for</em>)
                   {sellBuyable &&
-                    ', except what you can buy back now: only the rare ones, the ones you can’t buy yet and the ones that must be found in raid'}
+                    ', except what you can buy or craft now: of those it keeps only the copies that must be found in raid'}
                   , and sells the rest where it pays most at level {ctx.playerLevel}.
                 </div>
                 <label
                   className="check scan-note"
-                  title="Sell needed items you can buy back now on the flea or from a trader, and buy them again when you need them"
+                  title="Sell needed items you can buy now (on the flea or from a trader) or craft in the hideout, and get them again when you need them; copies that must be found in raid are kept"
                 >
                   <input
                     type="checkbox"
@@ -1170,7 +1192,7 @@ export default function ScavScan({
                       })
                     }
                   />
-                  Sell what I can buy back later
+                  Sell what I can buy or craft later
                 </label>
               </div>
             )}
@@ -1418,7 +1440,12 @@ export default function ScavScan({
                         ) : mode === 'stash' ? (
                           <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
                         ) : (
-                          <Advice advice={a} item={item} buyLater={buyLater(r.itemId, item)} />
+                          <Advice
+                            advice={a}
+                            item={item}
+                            firOnly={sellBuyable && !!r.itemId && getBack(r.itemId) !== null}
+                            getLater={getLater(r.itemId)}
+                          />
                         )}
                       </td>
                       {mode !== 'keys' && (

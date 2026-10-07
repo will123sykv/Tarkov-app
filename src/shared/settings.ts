@@ -24,8 +24,8 @@ import type {
 
 const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
 
-/** 2: 1.5.0's looser flea trends defaults. */
-const SETTINGS_VERSION = 2
+/** 2: 1.5.0's looser flea trends defaults. 3: 1.25.0's screenshot scanner selling what can be got back. */
+const SETTINGS_VERSION = 3
 
 export const DEFAULT_SETTINGS: Settings = {
   settingsVersion: SETTINGS_VERSION,
@@ -85,7 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
     firOnly: false,
     keepOnly: false,
     sellOnly: false,
-    scanSellBuyable: false,
+    scanSellBuyable: true,
     tab: 'items'
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
@@ -144,7 +144,7 @@ function sanitizeMaps(raw: unknown): MapSettings {
   }
 }
 
-function sanitizeHideout(raw: unknown): HideoutSettings {
+function sanitizeHideout(raw: unknown, version: number): HideoutSettings {
   const r = isRecord(raw) ? raw : {}
   return {
     scope: r.scope === 'next' ? 'next' : 'all',
@@ -155,7 +155,8 @@ function sanitizeHideout(raw: unknown): HideoutSettings {
     // The two "only" filters contradict each other; keep the older one if both were saved.
     keepOnly: r.keepOnly === true,
     sellOnly: r.sellOnly === true && r.keepOnly !== true,
-    scanSellBuyable: r.scanSellBuyable === true,
+    // On by default since 1.25.0, so turned on for settings saved before then.
+    scanSellBuyable: version < 3 || r.scanSellBuyable !== false,
     tab: r.tab === 'upgrades' || r.tab === 'scav' ? r.tab : 'items'
   }
 }
@@ -270,7 +271,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       typeof r.gameLogsDir === 'string' && r.gameLogsDir.length <= 1024 ? r.gameLogsDir || null : null,
     quests: sanitizeQuests(r.quests),
     maps: sanitizeMaps(r.maps),
-    hideout: sanitizeHideout(r.hideout),
+    hideout: sanitizeHideout(r.hideout, version),
     todo: sanitizeTodo(r.todo),
     keys: sanitizeKeys(r.keys)
   }

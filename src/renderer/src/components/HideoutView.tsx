@@ -111,12 +111,14 @@ function sellTitle(advice: SellAdvice): string {
   const lines = [
     advice.reason === 'extra'
       ? `${advice.count} more than every level and quest left needs: sell ${them}.`
-      : `You can buy ${them} back now, so there's no need to hold on to ${them}.`
+      : `You can ${advice.craftBack ? 'craft' : 'buy'} ${them} back now, so there's no need to hold on to ${them}.`
   ]
   if (advice.sellEach !== null)
     lines.push(
       `Sells for ~${formatRub(advice.sellEach)} each ${advice.sellVia === 'flea' ? 'on the flea after the fee' : `to ${advice.sellVia}`}.`
     )
+  if (advice.reason === 'buyBack' && advice.craftBack)
+    lines.push(`Craft ${them} at ${advice.craftBack.stationName} when you need ${them}.`)
   if (advice.reason === 'buyBack' && advice.buyBack) {
     lines.push(
       `Buy back for ${formatRub(advice.buyBack.price)} each (${advice.buyBack.label}) when you need ${them}.`
@@ -222,7 +224,7 @@ function ItemsNeeded({
             item,
             scarce: item ? scarcity(item, ctx) : null,
             get: howToGet(n, cc, ctx),
-            sell: sellAdvice(everything.get(n.itemId) ?? n, item, ctx)
+            sell: sellAdvice(everything.get(n.itemId) ?? n, item, ctx, cc)
           }
         })
         // To save: what can't be bought back, including copies that must be found in raid.
@@ -623,9 +625,9 @@ export default function HideoutView({
   )
   const sellCount = useMemo(
     () =>
-      listed.filter((n) => sellAdvice(everything.get(n.itemId) ?? n, items.get(n.itemId), ctx) !== null)
+      listed.filter((n) => sellAdvice(everything.get(n.itemId) ?? n, items.get(n.itemId), ctx, cc) !== null)
         .length,
-    [listed, everything, items, ctx]
+    [listed, everything, items, ctx, cc]
   )
   const term = search.trim().toLowerCase()
   const shownNeeds = useMemo(

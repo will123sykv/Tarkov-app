@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buyOptions,
   craftOptions,
+  getBackNow,
   EMPTY_HIDEOUT,
   handOversLeft,
   hideoutNeeds,
@@ -266,18 +267,24 @@ describe('what the player can buy, and rare items', () => {
     })
   })
 
-  it('keeps only what’s hard to replace, or must be found in raid, when buying back later is fine', () => {
+  it('keeps only what can’t be got back now, or must be found in raid, when getting it later is fine', () => {
     const scarce = { kind: 'rare', reason: 'Rare' } as const
     const keep = new Map([
       ['bolts', { hideout: 6, quests: 2, fir: { hideout: 0, quests: 0 }, scarce: null }],
       ['salewa', { hideout: 0, quests: 3, fir: { hideout: 0, quests: 2 }, scarce: null }],
+      // Pricey on the flea, but it can be bought now.
+      ['folder', { hideout: 5, quests: 0, fir: { hideout: 3, quests: 0 }, scarce }],
       ['ledx', { hideout: 1, quests: 0, fir: { hideout: 0, quests: 0 }, scarce }]
     ])
-    expect(Object.fromEntries(keepOnlyHardToReplace(keep))).toEqual({
+    expect(Object.fromEntries(keepOnlyHardToReplace(keep, (id) => id !== 'ledx'))).toEqual({
       bolts: { hideout: 0, quests: 0, fir: { hideout: 0, quests: 0 }, scarce: null },
       salewa: { hideout: 0, quests: 2, fir: { hideout: 0, quests: 2 }, scarce: null },
+      // 3 must be found in raid; the other 2 can be bought when needed.
+      folder: { hideout: 3, quests: 0, fir: { hideout: 3, quests: 0 }, scarce },
       ledx: keep.get('ledx')
     })
+    // Nothing can be got back now: everything needed is kept.
+    expect(keepOnlyHardToReplace(keep, () => false).get('folder')?.hideout).toBe(5)
   })
 })
 
@@ -503,6 +510,30 @@ describe('upgradeStatus', () => {
       // Nothing missing: how all of them would be got; nothing needed: what buying one back costs.
       expect(get('screws', 4, 0, 0)).toMatchObject({ find: 0, buyCount: 4, crafts: [] })
       expect(get('screws', 0, 0, 0).buy?.options[0]?.label).toBe('Flea')
+    })
+
+    it('gets an item back by buying it, or else by a craft that can be done now', () => {
+      const back = (id: string, c = cc) => getBackNow(items.get(id)!, named(), c)
+      expect(back('screws')).toMatchObject({ kind: 'buy', option: { label: 'Flea', price: 9_000 } })
+      // Nobody sells the LEDX, but the Generator makes one.
+      expect(back('ledx')).toMatchObject({ kind: 'craft', option: { craft: { id: 'c' } } })
+      // Without the Generator built, nothing makes it now; without crafts, only buying counts.
+      expect(back('ledx', { ...cc, progress: progress({}, { gen: 0, wb: 1 }) })).toBeNull()
+      expect(getBackNow(items.get('ledx')!, named())).toBeNull()
+      expect(getBackNow(items.get(DOLLARS)!, named(), cc)).toBeNull()
+    })
+
+    it('sells copies of what can only be crafted back, keeping ones that must be found in raid', () => {
+      const ledx = items.get('ledx')
+      expect(sellAdvice({ have: 3, needed: 3, firNeeded: 1 }, ledx, named(), cc)).toMatchObject({
+        count: 2,
+        reason: 'buyBack',
+        keepFir: 1,
+        buyBack: null,
+        craftBack: { craft: { id: 'c' }, stationName: 'Generator' }
+      })
+      // Without the crafts it can't be got back: keep it.
+      expect(sellAdvice({ have: 3, needed: 3, firNeeded: 1 }, ledx, named())).toBeNull()
     })
   })
 })
@@ -732,7 +763,8 @@ describe('sell advice', () => {
       keepFir: 0,
       sellEach: 28_000,
       sellVia: 'flea',
-      buyBack: { source: 'flea', label: 'Flea', price: 30_000 }
+      buyBack: { source: 'flea', label: 'Flea', price: 30_000 },
+      craftBack: null
     })
     expect(sellAdvice(need(3, 5, 2), item(), ctx())).toMatchObject({ count: 1, keepFir: 2 })
     expect(sellAdvice(need(3, 5, 3), item(), ctx())).toBeNull()
@@ -755,10 +787,10 @@ describe('sell advice', () => {
     expect(sellAdvice(need(2, 4), traderOnly, ctx())).toBeNull()
   })
 
-  it('only sells extras of what is rare or can’t be bought yet', () => {
-    const rare = item({ bannedOnFlea: true })
-    expect(sellAdvice(need(5, 3), rare, ctx())).toMatchObject({ count: 2, reason: 'extra', buyBack: null })
-    expect(sellAdvice(need(2, 3), rare, ctx())).toBeNull()
+  it('only sells extras of what can’t be bought yet', () => {
+    const banned = item({ bannedOnFlea: true })
+    expect(sellAdvice(need(5, 3), banned, ctx())).toMatchObject({ count: 2, reason: 'extra', buyBack: null })
+    expect(sellAdvice(need(2, 3), banned, ctx())).toBeNull()
     // Before the flea opens.
     expect(sellAdvice(need(2, 3), item(), ctx({ playerLevel: 10 }))).toBeNull()
     expect(sellAdvice(need(4, 3), item(), ctx({ playerLevel: 10 }))).toMatchObject({
@@ -766,8 +798,19 @@ describe('sell advice', () => {
       reason: 'extra',
       sellVia: 'Therapist'
     })
-    // Scarce on the flea (few offers, pricey).
-    expect(sellAdvice(need(2, 3), item({ offerCount: 2 }), ctx())).toBeNull()
+  })
+
+  it('sells what’s scarce or pricey on the flea too, as long as it can be bought now', () => {
+    expect(sellAdvice(need(2, 3), item({ offerCount: 2 }), ctx())).toMatchObject({
+      count: 2,
+      reason: 'buyBack'
+    })
+    // 3 must be found in raid: keep those, sell the other 2.
+    expect(sellAdvice(need(5, 5, 3), item({ fleaPrice: 300_000 }), ctx())).toMatchObject({
+      count: 2,
+      keepFir: 3,
+      buyBack: { price: 300_000 }
+    })
   })
 
   it('calls extras extra even when they can be bought back', () => {

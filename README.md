@@ -14,7 +14,7 @@ prices, your PMC level and the game mode you play. It also has:
   its quests, what to take, and what to hand in, hand over or build before you go;
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
-  buy back later), and the items not to sell (rare ones flagged) marked in the loot list;
+  buy or craft back later), and the items not to sell (rare ones flagged) marked in the loot list;
 - **Keys:** the keys you have (ticked by hand) and the ones your quests still need, with how to get
   each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
 - **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
@@ -190,11 +190,11 @@ station's level in the sidebar (the Stash starts at level 1).
   quest's objective in the Quests tab, or when the game's logs say you finished the quest (only
   what you hadn't counted already, and only if you set the count before finishing it).
 - **Sell:** items you've put aside that you could sell get a green **Sell** badge saying how many:
-  any more than every level and quest left needs, and anything you can buy back now on the flea
-  or from a trader at your loyalty (and that isn't rare). Copies that must be found in raid are
-  kept, as bought ones aren't. Hover the badge for what selling gets (the flea after the fee, or a
-  trader), what buying back costs and where, and what selling now and buying back later costs in
-  all. Items put aside that nothing needs any more are listed too. Tick **Can sell only** to see
+  any more than every level and quest left needs, and anything you can get back now: buy it on the
+  flea or from a trader at your loyalty (however pricey or scarce), or craft it at a station you've
+  built. Copies that must be found in raid are kept, as bought ones aren't. Hover the badge for what
+  selling gets (the flea after the fee, or a trader), what buying back costs and where (or where to
+  craft it), and what selling now and buying back later costs in all. Items put aside that nothing needs any more are listed too. Tick **Can sell only** to see
   just these.
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
@@ -247,10 +247,12 @@ stash and cases).
 setting, or your active quests, and a **Rare** or **Can't buy yet** badge when it would be hard to
 replace), **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the
 flea fee, if that setting is on). Several stacks of one item are kept until the need is met, and the
-rest sold. Tick **Sell what I can buy back later** to keep only what's hard to replace (rare items,
-ones you can't buy yet at your level and trader loyalty, and copies that must be found in raid):
-needed items you can buy back now on the flea or from a trader are sold instead, marked **needed
-later** with what buying them back costs and where. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
+rest sold. **Sell what I can buy or craft later** (on by default) keeps only what you can't get
+back now (you can't buy it at your level and trader loyalty, nor craft it at a station you've
+built) and the copies that must be found in raid, marked **(found in raid)**. The rest of what's
+needed is sold, marked **needed later** with what buying it back costs and where, or where to craft
+it: needing 3 found in raid and 2 more of an item you can buy, it keeps 3 and sells 2. Untick it to
+keep everything the hideout and your quests need. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
 you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
 again). A haul that takes two screenshots can be read together with **Add another**.
 

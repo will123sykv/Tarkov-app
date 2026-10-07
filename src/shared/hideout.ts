@@ -232,6 +232,22 @@ export interface CraftOption {
 
 export const canCraft = (o: CraftOption): boolean => o.stationReady && o.questDone
 
+/** A way to get an item now: buy it, or craft it. */
+export type GetBack = { kind: 'buy'; option: BuyOption } | { kind: 'craft'; option: CraftOption }
+
+/**
+ * How the player could get an item right now, if they can: the cheapest way to buy it (on the flea
+ * or from a trader, at their level and loyalty, however pricey or scarce), else a craft they can do
+ * now. Null when neither (and for money).
+ */
+export function getBackNow(item: LootItem, ctx: BuyContext, cc?: CraftContext): GetBack | null {
+  if (CURRENCIES[item.id]) return null
+  const buy = buyOptions(item, ctx).options[0]
+  if (buy) return { kind: 'buy', option: buy }
+  const craft = cc ? craftOptions(item.id, cc, ctx).find(canCraft) : undefined
+  return craft ? { kind: 'craft', option: craft } : null
+}
+
 /** The crafts that make an item: ones the player can do now first, then the cheapest, then the quickest. */
 export function craftOptions(itemId: string, cc: CraftContext, ctx: BuyContext): CraftOption[] {
   return cc.crafts
@@ -414,14 +430,18 @@ export function keepList(
 }
 
 /**
- * The keep list with items that can be bought back now (not rare, nothing in the way) cut down to
- * the copies that must be found in raid: the rest can be sold and bought again when needed.
+ * The keep list with items the player can get back now (`canGetBack`: buy or craft them) cut down to
+ * the copies that must be found in raid: the rest can be sold and bought or crafted again when needed.
+ * Items they can't get now are all kept.
  */
-export function keepOnlyHardToReplace(keep: ReadonlyMap<string, KeepInfo>): Map<string, KeepInfo> {
+export function keepOnlyHardToReplace(
+  keep: ReadonlyMap<string, KeepInfo>,
+  canGetBack: (itemId: string) => boolean
+): Map<string, KeepInfo> {
   return new Map(
     [...keep].map(([itemId, info]) => [
       itemId,
-      info.scarce ? info : { ...info, hideout: info.fir.hideout, quests: info.fir.quests }
+      canGetBack(itemId) ? { ...info, hideout: info.fir.hideout, quests: info.fir.quests } : info
     ])
   )
 }
@@ -448,8 +468,8 @@ export interface SellAdvice {
   /** How many to sell. */
   count: number
   /**
-   * `extra`: more than every level and quest left needs; `buyBack`: it can be bought back now, so
-   * there's no need to hold on to it.
+   * `extra`: more than every level and quest left needs; `buyBack`: it can be bought (or crafted)
+   * back now, so there's no need to hold on to it.
    */
   reason: 'extra' | 'buyBack'
   /** Copies kept back because they must be found in raid (bought ones aren't). */
@@ -460,25 +480,27 @@ export interface SellAdvice {
   sellVia: string | null
   /** The cheapest way to buy one back now. */
   buyBack: BuyOption | null
+  /** A craft the player can do now, when it can't be bought back. */
+  craftBack: CraftOption | null
 }
 
 /**
  * Whether to sell some of an item put aside. `everything` is the same item's need over every level
- * and quest left, so a later level's or quest's copies are never called extra. An item that can be
- * bought back now (and isn't rare) needn't be held: sell all but the copies that must be found in
- * raid. Otherwise only the extras.
+ * and quest left, so a later level's or quest's copies are never called extra. An item the player
+ * can get back now (buy it, however pricey, or craft it with `cc`) needn't be held: sell all but the
+ * copies that must be found in raid. Otherwise only the extras.
  */
 export function sellAdvice(
   everything: Pick<HideoutNeed, 'have' | 'needed' | 'firNeeded'>,
   item: LootItem | undefined,
-  ctx: BuyContext
+  ctx: BuyContext,
+  cc?: CraftContext
 ): SellAdvice | null {
   const have = everything.have
   if (have <= 0 || (item && CURRENCIES[item.id])) return null
   const extra = Math.max(0, have - everything.needed)
-  const buy = item ? buyOptions(item, ctx) : null
-  const buyBack = buy?.options[0] ?? null
-  const easy = item !== undefined && buyBack !== null && scarcity(item, ctx) === null
+  const back = item ? getBackNow(item, ctx, cc) : null
+  const easy = back !== null
   const sellable = easy ? Math.max(0, have - everything.firNeeded) : extra
   if (sellable <= 0) return null
   const value = item
@@ -499,7 +521,8 @@ export function sellAdvice(
         : value?.via === 'trader'
           ? (item?.bestTrader?.name ?? 'a trader')
           : null,
-    buyBack
+    buyBack: back?.kind === 'buy' ? back.option : null,
+    craftBack: back?.kind === 'craft' ? back.option : null
   }
 }
 
