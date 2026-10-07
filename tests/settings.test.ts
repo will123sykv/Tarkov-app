@@ -271,6 +271,31 @@ describe('sanitizeSettings', () => {
     expect(saved(3, {})).toBe(true)
   })
 
+  it('keeps each tab’s hidden sidebar sections and whether it’s collapsed (since 1.26.0)', () => {
+    expect(DEFAULT_SETTINGS.sidebars).toEqual({})
+    expect(sanitizeSettings({}).sidebars).toEqual({})
+    expect(
+      sanitizeSettings({
+        sidebars: {
+          todo: { hidden: ['Keys to get', 'Keys to get', 7, '', 'x'.repeat(61)], collapsed: 'yes' },
+          maps: { collapsed: true },
+          nowhere: { hidden: ['Map'] },
+          keys: { hidden: [], collapsed: false },
+          raids: 'hidden'
+        }
+      }).sidebars
+    ).toEqual({
+      todo: { hidden: ['Keys to get'], collapsed: false },
+      maps: { hidden: [], collapsed: true }
+    })
+    // One tab's change leaves the others.
+    const before = sanitizeSettings({ sidebars: { maps: { hidden: ['Map layers'], collapsed: false } } })
+    expect(mergeSettings(before, { sidebars: { todo: { hidden: [], collapsed: true } } }).sidebars).toEqual({
+      maps: { hidden: ['Map layers'], collapsed: false },
+      todo: { hidden: [], collapsed: true }
+    })
+  })
+
   it('keeps whose items the list shows, and the To do view (since 1.16.0)', () => {
     const hideout = (raw: Record<string, unknown>) => sanitizeSettings({ hideout: raw }).hideout
     // Settings saved before 1.16.0 list both.

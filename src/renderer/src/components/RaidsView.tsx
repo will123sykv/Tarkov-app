@@ -6,6 +6,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LogStatusPanel from './LogStatusPanel'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 const MAX_ROWS = 200
 
@@ -68,10 +69,9 @@ export default function RaidsView({
 
   return (
     <div className="raids">
-      <aside className="sidebar">
+      <Sidebar view="raids">
         <LogStatusPanel />
-        <section>
-          <h2>Raids</h2>
+        <SidebarSection title="Raids">
           <dl className="stat-list">
             <dt>Raids read</dt>
             <dd>{raids.length.toLocaleString()}</dd>
@@ -94,9 +94,8 @@ export default function RaidsView({
               ))}
             </ul>
           )}
-        </section>
-        <section>
-          <h2>Flea market</h2>
+        </SidebarSection>
+        <SidebarSection title="Flea market">
           <dl className="stat-list">
             <dt>Sold</dt>
             <dd>{stats.sold.toLocaleString()}</dd>
@@ -105,8 +104,8 @@ export default function RaidsView({
             <dt>Expired unsold</dt>
             <dd>{stats.expired.toLocaleString()}</dd>
           </dl>
-        </section>
-      </aside>
+        </SidebarSection>
+      </Sidebar>
       <main className="content raids-content">
         <div className="summary">
           <div className="summary-title">

@@ -308,7 +308,7 @@ select {
 
 .workspace {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: var(--sidebar-w, 270px) 1fr;
   min-height: 0;
 }
 
@@ -328,6 +328,76 @@ select {
   border-right: 1px solid var(--border);
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* Taking sections out of a sidebar, and folding it away (its column shrinks to the strip). */
+:has(> .sidebar.collapsed) {
+  --sidebar-w: 34px;
+}
+
+.sidebar {
+  position: relative;
+}
+
+.sidebar.collapsed {
+  align-items: center;
+  padding: 10px 4px;
+}
+
+.sidebar-toggle {
+  align-self: flex-end;
+  margin: -8px -8px -14px 0;
+  padding: 0 7px;
+  color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  align-self: center;
+  margin: 0;
+}
+
+.sidebar-toggle:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sidebar-head h2 {
+  flex: 1;
+  margin: 0 !important;
+}
+
+.section-hide {
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.sidebar section:hover .section-hide,
+.section-hide:focus-visible {
+  opacity: 0.8;
+}
+
+.section-hide:hover {
+  color: var(--text);
+  opacity: 1;
+}
+
+.sidebar-hidden {
+  margin-top: auto !important;
 }
 
 .sidebar h2 {
@@ -880,7 +950,7 @@ button.link {
 
 .trends {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -1424,7 +1494,7 @@ button.link.active {
 .maps,
 .raids {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -1435,7 +1505,7 @@ button.link.active {
 }
 
 .maps.with-detail {
-  grid-template-columns: 270px minmax(0, 1fr) 400px;
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr) 400px;
 }
 
 .quests-main {
@@ -3852,7 +3922,7 @@ button.link.small {
 /* To do: filters, quest summaries and the details panel */
 
 .todo.with-detail {
-  grid-template-columns: 270px minmax(0, 1fr) 400px;
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr) 400px;
 }
 
 .todo-filters {

@@ -17,6 +17,7 @@ import EventQuestPicker from './EventQuestPicker'
 import LogStatusPanel from './LogStatusPanel'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
+import TabSidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
   settings: PublicSettings
@@ -100,10 +101,9 @@ function Sidebar({
     })
 
   return (
-    <aside className="sidebar">
+    <TabSidebar view="quests">
       <LogStatusPanel />
-      <section>
-        <h2>Show</h2>
+      <SidebarSection title="Show">
         {STATUSES.map((status) => (
           <label key={status} className="check">
             <input type="checkbox" checked={q.statuses.includes(status)} onChange={() => toggle(status)} />
@@ -111,9 +111,8 @@ function Sidebar({
             <span className="muted">{counts[status]}</span>
           </label>
         ))}
-      </section>
-      <section>
-        <h2>Filters</h2>
+      </SidebarSection>
+      <SidebarSection title="Filters">
         <label className="field">
           <span>Trader</span>
           <select value={q.traderId ?? ''} onChange={(e) => set({ traderId: e.target.value || null })}>
@@ -165,9 +164,8 @@ function Sidebar({
           />
           Needed for Lightkeeper
         </label>
-      </section>
-      <section>
-        <h2>Event quests</h2>
+      </SidebarSection>
+      <SidebarSection title="Event quests">
         <p className="hint">
           {q.wikiQuests.length
             ? `${q.wikiQuests.length} added from the wiki${wiki?.loading ? ' (reading…)' : ''}.`
@@ -192,8 +190,8 @@ function Sidebar({
         <button className="button small" onClick={onAddEventQuests}>
           Add event quests…
         </button>
-      </section>
-    </aside>
+      </SidebarSection>
+    </TabSidebar>
   )
 }
 

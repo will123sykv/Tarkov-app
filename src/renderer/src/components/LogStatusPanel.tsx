@@ -1,6 +1,7 @@
 import { formatAgo } from '../lib/format'
 import { useNow } from '../lib/useNow'
 import { useStore } from '../store'
+import { SidebarSection } from './Sidebar'
 
 /** Where the game's logs are read from, how far along reading is, and the controls for it. */
 export default function LogStatusPanel(): React.JSX.Element {
@@ -24,8 +25,7 @@ export default function LogStatusPanel(): React.JSX.Element {
       (status.lastEventAt ? `. Latest ${formatAgo(status.lastEventAt, now)}.` : '.')
 
   return (
-    <section>
-      <h2>Game logs</h2>
+    <SidebarSection title="Game logs">
       <p className={`hint ${status?.state === 'error' || status?.state === 'not-found' ? 'error' : ''}`}>
         {text}
       </p>
@@ -50,6 +50,6 @@ export default function LogStatusPanel(): React.JSX.Element {
           Read all again
         </button>
       </div>
-    </section>
+    </SidebarSection>
   )
 }

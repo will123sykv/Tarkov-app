@@ -36,6 +36,7 @@ import { useStore } from '../store'
 import { craftText, GetCell } from './GetCell'
 import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 type Items = ReadonlyMap<string, LootItem>
 
@@ -671,9 +672,8 @@ export default function HideoutView({
 
   return (
     <div className="hideout">
-      <aside className="sidebar">
-        <section>
-          <h2>Stations</h2>
+      <Sidebar view="hideout">
+        <SidebarSection title="Stations">
           <p className="hint">Set how far each station is built. The game&rsquo;s logs don&rsquo;t say.</p>
           <ul className="station-levels">
             {stations.map((s) => {
@@ -704,9 +704,8 @@ export default function HideoutView({
               {questState?.error ? `Couldn't load the hideout: ${questState.error}` : 'Loading the hideout…'}
             </p>
           )}
-        </section>
-        <section>
-          <h2>Trader loyalty</h2>
+        </SidebarSection>
+        <SidebarSection title="Trader loyalty">
           <p className="hint">
             At level {ctx.playerLevel}
             {ctx.playerLevel < ctx.fleaMinLevel
@@ -743,9 +742,8 @@ export default function HideoutView({
               ))}
             </ul>
           )}
-        </section>
-        <section>
-          <h2>Count items for</h2>
+        </SidebarSection>
+        <SidebarSection title="Count items for">
           <span className="toggle-label">Hideout levels</span>
           <div className="mini-toggle wide" role="radiogroup" aria-label="Hideout levels to count items for">
             {(
@@ -801,9 +799,8 @@ export default function HideoutView({
             />
             Hide items I have enough of
           </label>
-        </section>
-        <section>
-          <h2>Don&rsquo;t sell</h2>
+        </SidebarSection>
+        <SidebarSection title="Don’t sell">
           <p className="hint">
             Items still missing get a <span className="keep-tag">Keep</span> tag in the Loot tab.{' '}
             <span className="badge bad rare-badge">Rare</span>: no trader sells it, and on the flea it&rsquo;s
@@ -816,8 +813,8 @@ export default function HideoutView({
             needs, or that you can buy back now (not copies that must be found in raid). Hover it for the
             prices.
           </p>
-        </section>
-      </aside>
+        </SidebarSection>
+      </Sidebar>
       <main className="content">
         <div className="summary">
           <div className="summary-title">

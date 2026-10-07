@@ -39,6 +39,10 @@ next time you close the app.
 
 ## Features
 
+- **Sidebars you can trim.** Point at a sidebar section and click its **×** to take it out; the
+  line at the bottom of the sidebar lists what's hidden, to bring a section back (or **Show all**).
+  **«** folds a tab's whole sidebar away so the page gets the full width, and **»** brings it back.
+  Each tab remembers its own.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
   also sort by worth, flea price, trader price, size or name.
 - **Live prices.** Flea and trader prices from [tarkov.dev](https://tarkov.dev), refreshed every

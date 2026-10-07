@@ -17,6 +17,7 @@ import BackgroundToggles from './BackgroundToggles'
 import NumberField from './NumberField'
 import TrendDetail from './TrendDetail'
 import TrendTableRow from './TrendTableRow'
+import TabSidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
   settings: PublicSettings
@@ -238,18 +239,16 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
   const set = (patch: Partial<TrendSettings>): void => void updateSettings({ trends: { ...t, ...patch } })
 
   return (
-    <aside className="sidebar">
-      <section>
-        <h2>Price history</h2>
+    <TabSidebar view="trends">
+      <SidebarSection title="Price history">
         <PriceHistory analysis={analysis} loading={trendsLoading} />
         <BackgroundToggles settings={settings} />
         <button className="button small" onClick={() => void loadTrends()} disabled={trendsLoading}>
           {trendsLoading ? 'Analysing…' : 'Re-analyse now'}
         </button>
-      </section>
+      </SidebarSection>
 
-      <section>
-        <h2>Split the day into</h2>
+      <SidebarSection title="Split the day into">
         <div className="mini-toggle wide" role="radiogroup" aria-label="Interval length">
           {TREND_INTERVALS.map((hours) => (
             <button
@@ -267,10 +266,9 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
           {24 / t.intervalHours} parts of {t.intervalHours} hours. Shorter parts are more precise; longer ones
           are steadier. tarkov.dev checks prices about every 2 hours.
         </p>
-      </section>
+      </SidebarSection>
 
-      <section>
-        <h2>Look back</h2>
+      <SidebarSection title="Look back">
         <div className="mini-toggle wide" role="radiogroup" aria-label="Look back">
           {([7, 14, 30] as const).map((days) => (
             <button
@@ -284,10 +282,9 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
             </button>
           ))}
         </div>
-      </section>
+      </SidebarSection>
 
-      <section>
-        <h2>Filters</h2>
+      <SidebarSection title="Filters">
         <label className="field">
           <span>Min swing</span>
           <select value={t.minSwing} onChange={(e) => set({ minSwing: Number(e.target.value) })}>
@@ -364,8 +361,8 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
             Sorted by {SORT_LABELS[sort].toLowerCase()} until buy and sell times are known.
           </p>
         )}
-      </section>
-    </aside>
+      </SidebarSection>
+    </TabSidebar>
   )
 }
 

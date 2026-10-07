@@ -33,6 +33,7 @@ import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 // The To do tab: which map to raid next to move your active quests on, what to take, and what can be
 // done before the raid (quests to hand in, items to hand over, upgrades to build). Filters leave out
@@ -955,9 +956,8 @@ export default function TodoView({
 
   return (
     <div className={`todo ${detailRow && dataset ? 'with-detail' : ''}`}>
-      <aside className="sidebar">
-        <section>
-          <h2>Before you raid</h2>
+      <Sidebar view="todo">
+        <SidebarSection title="Before you raid">
           {beforeCount === 0 ? (
             <p className="hint">Nothing to hand in, hand over or build right now.</p>
           ) : (
@@ -1012,9 +1012,8 @@ export default function TodoView({
           <p className="hint">
             Hand-overs and upgrades count what you&rsquo;ve put aside in Items to collect.
           </p>
-        </section>
-        <section>
-          <h2>Keys to get</h2>
+        </SidebarSection>
+        <SidebarSection title="Keys to get">
           {keysCount === 0 ? (
             <p className="hint">None: you have a key for every lock your active quests need opened.</p>
           ) : (
@@ -1039,9 +1038,8 @@ export default function TodoView({
             Objectives behind a lock none of your keys open (tick yours in the Keys tab), or on a map you
             can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> leaves them out.
           </p>
-        </section>
-        <section>
-          <h2>On any map</h2>
+        </SidebarSection>
+        <SidebarSection title="On any map">
           {plan.anyMap.length === 0 ? (
             <p className="hint">None of your active quests has anything to do that isn&rsquo;t on a map.</p>
           ) : (
@@ -1072,9 +1070,8 @@ export default function TodoView({
               .
             </p>
           )}
-        </section>
-        <section>
-          <h2>How maps are ranked</h2>
+        </SidebarSection>
+        <SidebarSection title="How maps are ranked">
           <p className="hint">
             By how many of your active quests a raid there moves on (of the ones the filters show). A quest
             with nothing left to do in raid anywhere else counts twice: finishing it opens up the next ones.
@@ -1084,8 +1081,8 @@ export default function TodoView({
             Tick objectives off here or in the Quests tab as you do them: the game&rsquo;s logs only say when
             a quest starts and finishes.
           </p>
-        </section>
-      </aside>
+        </SidebarSection>
+      </Sidebar>
       <main className="content">
         <div className="summary">
           <div className="summary-title">

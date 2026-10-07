@@ -5,6 +5,7 @@ import { containerImage } from '../lib/containerImages'
 import { formatDataMonth, formatRub } from '../lib/format'
 import { useStore } from '../store'
 import ContainerPreview from './ContainerPreview'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
   settings: PublicSettings
@@ -58,7 +59,7 @@ export default function ContainerSidebar({
   const previewed = preview ? containers.find((c) => c.loot.id === preview.id) : undefined
 
   return (
-    <aside className="sidebar" onScroll={followRow}>
+    <Sidebar view="loot" onScroll={followRow}>
       <input
         className="search"
         type="search"
@@ -68,8 +69,7 @@ export default function ContainerSidebar({
         aria-label="Search items"
       />
 
-      <section>
-        <h2>Map</h2>
+      <SidebarSection title="Map">
         <select
           value={pool.mapId ?? ''}
           onChange={(e) => void setContainerMap(e.target.value || null)}
@@ -83,11 +83,11 @@ export default function ContainerSidebar({
             </option>
           ))}
         </select>
-      </section>
+      </SidebarSection>
 
-      <section>
-        <div className="section-head">
-          <h2>Container</h2>
+      <SidebarSection
+        title="Container"
+        actions={
           <div className="mini-toggle" role="radiogroup" aria-label="Sort containers">
             {(['value', 'name'] as const).map((key) => (
               <button
@@ -101,7 +101,8 @@ export default function ContainerSidebar({
               </button>
             ))}
           </div>
-        </div>
+        }
+      >
         <ul className="container-list">
           <li>
             <button
@@ -153,10 +154,9 @@ export default function ContainerSidebar({
             Money and ammo count as one unit, not a full stack, so safes and registers read low.
           </p>
         )}
-      </section>
+      </SidebarSection>
 
-      <section>
-        <h2>Filters</h2>
+      <SidebarSection title="Filters">
         <label className="check">
           <input
             type="checkbox"
@@ -186,7 +186,7 @@ export default function ContainerSidebar({
             onChange={(e) => void updateSettings({ minValuePerSlot: Number(e.target.value) || 0 })}
           />
         </label>
-      </section>
-    </aside>
+      </SidebarSection>
+    </Sidebar>
   )
 }

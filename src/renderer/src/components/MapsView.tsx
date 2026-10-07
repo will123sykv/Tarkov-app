@@ -21,6 +21,7 @@ import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import MapCanvas, { MARKER_COLORS, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'active', label: 'Active' },
@@ -144,8 +145,7 @@ function StorySteps({
   if (!steps.length) return null
   const chapters = [...new Set(steps.map((s) => s.quest))]
   return (
-    <section>
-      <h2>Story steps here</h2>
+    <SidebarSection title="Story steps here">
       {chapters.map((quest) => (
         <div key={quest.id} className="story-steps">
           <button className="link story-chapter" onClick={() => selectQuest(quest.id)}>
@@ -193,7 +193,7 @@ function StorySteps({
         The wiki doesn&rsquo;t say exactly where story steps are: &asymp; pins sit on the place a step names.
         Pin a step yourself to mark the spot.
       </p>
-    </section>
+    </SidebarSection>
   )
 }
 
@@ -447,9 +447,8 @@ export default function MapsView({
 
   return (
     <div className={`maps ${selected && dataset ? 'with-detail' : ''}`}>
-      <aside className="sidebar">
-        <section>
-          <h2>Map</h2>
+      <Sidebar view="maps">
+        <SidebarSection title="Map">
           <select value={m.mapKey} onChange={(e) => set({ mapKey: e.target.value })} aria-label="Map">
             {choices.map((c) => (
               <option key={c.key} value={c.key}>
@@ -478,9 +477,8 @@ export default function MapsView({
               ))}
             </div>
           )}
-        </section>
-        <section>
-          <h2>Quest objectives</h2>
+        </SidebarSection>
+        <SidebarSection title="Quest objectives">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Quest objectives">
             {SCOPES.map((s) => (
               <button
@@ -547,9 +545,8 @@ export default function MapsView({
               One of several spots
             </li>
           </ul>
-        </section>
-        <section>
-          <h2>Map layers</h2>
+        </SidebarSection>
+        <SidebarSection title="Map layers">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Extracts for">
             {(
               [
@@ -585,9 +582,8 @@ export default function MapsView({
             <BadgeLegend kind="sniper">Sniper scav</BadgeLegend>
             <Legend color={MARKER_COLORS.spawn}>PMC spawn</Legend>
           </ul>
-        </section>
-        <section>
-          <h2>Keys</h2>
+        </SidebarSection>
+        <SidebarSection title="Keys">
           {keyFocus && focusHere && (
             <div className="key-focus">
               <strong>{itemName(keyFocus) ?? 'Key'}</strong>
@@ -639,10 +635,9 @@ export default function MapsView({
             Spawn spots are loose loot: tarkov.dev doesn&rsquo;t say how likely a key is there, and keys also
             turn up in containers. Tick the keys you have in the Keys tab.
           </p>
-        </section>
+        </SidebarSection>
         <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
-        <section>
-          <h2>Quests on this map</h2>
+        <SidebarSection title="Quests on this map">
           {questsHere.length === 0 ? (
             <p className="hint">
               {m.questScope === 'none'
@@ -679,7 +674,7 @@ export default function MapsView({
               ))}
             </ul>
           )}
-        </section>
+        </SidebarSection>
         {showPoster ? (
           <p className="hint credit">
             Map by{' '}
@@ -709,7 +704,7 @@ export default function MapsView({
             </p>
           )
         )}
-      </aside>
+      </Sidebar>
       <main className="content map-content">
         {placing && (
           <div className="placing-banner" role="status">

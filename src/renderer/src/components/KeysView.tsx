@@ -10,6 +10,7 @@ import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import ScavScan from './ScavScan'
+import Sidebar, { SidebarSection } from './Sidebar'
 
 // The Keys tab: the keys the player has (ticked by hand), the ones their quests still need, and how to
 // get each: buy it, a quest that hands it out, or where it spawns.
@@ -275,9 +276,8 @@ export default function KeysView({
 
   return (
     <div className="keys">
-      <aside className="sidebar">
-        <section>
-          <h2>Keys for</h2>
+      <Sidebar view="keys">
+        <SidebarSection title="Keys for">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Keys for">
             {(
               [
@@ -302,9 +302,8 @@ export default function KeysView({
             tarkov.dev&rsquo;s list of each quest&rsquo;s keys. Quests you can&rsquo;t start yet say why (your
             level, a trader&rsquo;s loyalty or another quest).
           </p>
-        </section>
-        <section>
-          <h2>Show</h2>
+        </SidebarSection>
+        <SidebarSection title="Show">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Keys to show">
             {(
               [
@@ -327,9 +326,8 @@ export default function KeysView({
             Tick the keys you have (per game mode), or read them from screenshots with{' '}
             <strong>Read from screenshots</strong>. <strong>Every key</strong> lists keys no quest needs too.
           </p>
-        </section>
-        <section>
-          <h2>In the To do tab</h2>
+        </SidebarSection>
+        <SidebarSection title="In the To do tab">
           <p className="hint">
             Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto) don&rsquo;t
             count towards which map to raid. The keys for them are under <strong>Keys to get</strong>, with
@@ -339,8 +337,8 @@ export default function KeysView({
             <strong>Show on map</strong> shows the key&rsquo;s locks and the loose loot spots it can spawn at.
             Keys also spawn in containers, which aren&rsquo;t listed.
           </p>
-        </section>
-      </aside>
+        </SidebarSection>
+      </Sidebar>
       <main className="content">
         <div className="summary">
           <div className="summary-title">

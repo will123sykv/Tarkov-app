@@ -17,6 +17,7 @@ import type {
   QuestSettings,
   QuestStatusFilter,
   Settings,
+  SidebarSettings,
   SortKey,
   TrendInterval,
   TrendSettings
@@ -89,7 +90,8 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items'
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
-  keys: { scope: 'all', list: 'needed', tab: 'list' }
+  keys: { scope: 'all', list: 'needed', tab: 'list' },
+  sidebars: {}
 }
 
 const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'keys', 'maps', 'raids']
@@ -273,7 +275,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     maps: sanitizeMaps(r.maps),
     hideout: sanitizeHideout(r.hideout, version),
     todo: sanitizeTodo(r.todo),
-    keys: sanitizeKeys(r.keys)
+    keys: sanitizeKeys(r.keys),
+    sidebars: sanitizeSidebars(r.sidebars)
   }
 }
 
@@ -297,6 +300,31 @@ function sanitizeKeys(raw: unknown): KeysSettings {
   }
 }
 
+/** Far more sections than any sidebar has, and longer than any heading. */
+const MAX_HIDDEN_SECTIONS = 40
+const MAX_SECTION_TITLE = 60
+
+function sanitizeSidebars(raw: unknown): Partial<Record<AppView, SidebarSettings>> {
+  const r = isRecord(raw) ? raw : {}
+  const result: Partial<Record<AppView, SidebarSettings>> = {}
+  for (const view of VIEWS) {
+    const v = r[view]
+    if (!isRecord(v)) continue
+    const hidden = Array.isArray(v.hidden)
+      ? [
+          ...new Set(
+            v.hidden.filter(
+              (t): t is string => typeof t === 'string' && t.length > 0 && t.length <= MAX_SECTION_TITLE
+            )
+          )
+        ].slice(0, MAX_HIDDEN_SECTIONS)
+      : []
+    const collapsed = v.collapsed === true
+    if (hidden.length || collapsed) result[view] = { hidden, collapsed }
+  }
+  return result
+}
+
 export function mergeSettings(current: Settings, patch: Partial<Settings>): Settings {
   return sanitizeSettings({
     ...current,
@@ -309,6 +337,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     maps: { ...current.maps, ...patch.maps },
     hideout: { ...current.hideout, ...patch.hideout },
     todo: { ...current.todo, ...patch.todo },
-    keys: { ...current.keys, ...patch.keys }
+    keys: { ...current.keys, ...patch.keys },
+    sidebars: { ...current.sidebars, ...patch.sidebars }
   })
 }

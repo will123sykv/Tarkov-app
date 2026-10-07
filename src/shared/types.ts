@@ -150,6 +150,15 @@ export interface Settings {
   todo: TodoSettings
   /** Since 1.17.0. */
   keys: KeysSettings
+  /** Each tab's sidebar: sections hidden (by heading) and whether it's collapsed (since 1.26.0). */
+  sidebars: Partial<Record<AppView, SidebarSettings>>
+}
+
+export interface SidebarSettings {
+  /** Headings of the sections taken out. */
+  hidden: string[]
+  /** Folded to a thin strip, the content taking the width. */
+  collapsed: boolean
 }
 
 export interface TodoSettings {
