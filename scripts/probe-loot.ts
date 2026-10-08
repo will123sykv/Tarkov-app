@@ -26,12 +26,11 @@ async function main(): Promise<void> {
       shown = true
     }
     for (const c of containers) {
-      const lc = (c.lootContainer ?? {}) as Raw
-      const key = `${String(lc.id ?? '?')} | ${String(lc.name ?? lc.normalizedName ?? JSON.stringify(c).slice(0, 80))}`
+      const key = String(c.lootContainer)
       names.set(key, (names.get(key) ?? 0) + 1)
     }
   }
-  for (const [key, n] of [...names].sort((a, b) => b[1] - a[1])) console.log('CTYPE', n, key)
+  console.log('CTYPES', JSON.stringify([...names].sort((a, b) => b[1] - a[1])))
 }
 
 void main().catch((e) => console.log('failed', e))
