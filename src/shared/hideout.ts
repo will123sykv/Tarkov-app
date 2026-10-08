@@ -1,6 +1,6 @@
 import { CURRENCIES } from './constants'
 import { neededItems, type NeededItem, type ObjectiveProgress } from './questProgress'
-import type { HideoutCraft, HideoutLevel, HideoutStation, Quest } from './questTypes'
+import type { HideoutCraft, HideoutLevel, HideoutStation, Quest, TraderBarter } from './questTypes'
 import type { LootItem } from './types'
 import { evaluateItem } from './valuation'
 
@@ -150,6 +150,8 @@ export interface BuyContext {
   completedQuests: ReadonlySet<string>
   /** Quest names by id, to say which quest unlocks an offer. */
   questNames?: ReadonlyMap<string, string>
+  /** Trader names by id, to name a barter's trader. */
+  traderNames?: ReadonlyMap<string, string>
   /** As if every level, loyalty and quest were unlocked. */
   unlockAll?: boolean
 }
@@ -204,6 +206,8 @@ function unitPrice(itemId: string, items: ReadonlyMap<string, LootItem>, ctx: Bu
 /** What crafting needs to know: what the stations make, how far they're built, and prices. */
 export interface CraftContext {
   crafts: readonly HideoutCraft[]
+  /** Traders' barter trades (since 1.27.0). */
+  barters?: readonly TraderBarter[]
   stations: ReadonlyMap<string, HideoutStation>
   progress: HideoutProgress
   items: ReadonlyMap<string, LootItem>
@@ -232,8 +236,48 @@ export interface CraftOption {
 
 export const canCraft = (o: CraftOption): boolean => o.stationReady && o.questDone
 
-/** A way to get an item now: buy it, or craft it. */
-export type GetBack = { kind: 'buy'; option: BuyOption } | { kind: 'craft'; option: CraftOption }
+/** A trader's barter that gives an item, at the player's loyalty and with its quest done. */
+export interface BarterOption {
+  barter: TraderBarter
+  /** "Mechanic LL2". */
+  label: string
+  /** Roubles of what it takes, per item given, at the cheapest place to buy each now (null: something can't be bought). */
+  costEach: number | null
+}
+
+/** Barters the player can make now that give an item, cheapest first. */
+export function barterOptions(itemId: string, cc: CraftContext, ctx: BuyContext): BarterOption[] {
+  const traderName = new Map<string, string>()
+  for (const item of cc.items.values())
+    for (const offer of item.buyFrom ?? []) traderName.set(offer.traderId, offer.trader)
+  return (cc.barters ?? [])
+    .filter(
+      (b) =>
+        b.outputs.some((o) => o.itemId === itemId) &&
+        (ctx.unlockAll || (ctx.traderLevels[b.traderId] ?? 1) >= b.level) &&
+        (ctx.unlockAll || !b.questId || ctx.completedQuests.has(b.questId))
+    )
+    .map((barter) => {
+      const gives = barter.outputs.filter((o) => o.itemId === itemId).reduce((n, o) => n + o.count, 0)
+      let cost: number | null = 0
+      for (const input of barter.inputs) {
+        const price = unitPrice(input.itemId, cc.items, ctx)
+        cost = cost !== null && price !== null ? cost + price * input.count : null
+      }
+      return {
+        barter,
+        label: `${ctx.traderNames?.get(barter.traderId) ?? traderName.get(barter.traderId) ?? 'A trader'} LL${barter.level}`,
+        costEach: cost !== null && gives > 0 ? cost / gives : null
+      }
+    })
+    .sort((a, b) => (a.costEach ?? Infinity) - (b.costEach ?? Infinity))
+}
+
+/** A way to get an item now: buy it, trade for it, or craft it. */
+export type GetBack =
+  | { kind: 'buy'; option: BuyOption }
+  | { kind: 'barter'; option: BarterOption }
+  | { kind: 'craft'; option: CraftOption }
 
 /**
  * How the player could get an item right now, if they can: the cheapest way to buy it (on the flea
@@ -244,6 +288,8 @@ export function getBackNow(item: LootItem, ctx: BuyContext, cc?: CraftContext): 
   if (CURRENCIES[item.id]) return null
   const buy = buyOptions(item, ctx).options[0]
   if (buy) return { kind: 'buy', option: buy }
+  const barter = cc ? barterOptions(item.id, cc, ctx)[0] : undefined
+  if (barter) return { kind: 'barter', option: barter }
   const craft = cc ? craftOptions(item.id, cc, ctx).find(canCraft) : undefined
   return craft ? { kind: 'craft', option: craft } : null
 }
@@ -480,7 +526,9 @@ export interface SellAdvice {
   sellVia: string | null
   /** The cheapest way to buy one back now. */
   buyBack: BuyOption | null
-  /** A craft the player can do now, when it can't be bought back. */
+  /** A barter the player can make now, when it can't be bought back. */
+  barterBack: BarterOption | null
+  /** A craft the player can do now, when it can't be bought or bartered back. */
   craftBack: CraftOption | null
 }
 
@@ -522,6 +570,7 @@ export function sellAdvice(
           ? (item?.bestTrader?.name ?? 'a trader')
           : null,
     buyBack: back?.kind === 'buy' ? back.option : null,
+    barterBack: back?.kind === 'barter' ? back.option : null,
     craftBack: back?.kind === 'craft' ? back.option : null
   }
 }

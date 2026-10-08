@@ -451,5 +451,38 @@ export const RAW_QUEST_DATA: QuestDataInput = {
     },
     // Without a station or a product: left out.
     { id: 'broken', requiredItems: [], station: WORKBENCH, level: 1, duration: 60 }
+  ],
+  // As json.tarkov.dev's `barters` file has them (1.27.0): one item offered each.
+  barters: [
+    {
+      id: 'barter-ledx',
+      trader: THERAPIST,
+      taskUnlock: Q.checking,
+      requiredItems: [
+        { item: BOLTS, count: 10, attributes: {} },
+        { item: SCREWDRIVER, count: 2, attributes: {} }
+      ],
+      restockAmount: 1,
+      buyLimit: 1,
+      minTraderLevel: 3,
+      offeredItem: { item: LEDX, count: 1, attributes: {} }
+    },
+    {
+      id: 'barter-bolts',
+      trader: PRAPOR,
+      taskUnlock: null,
+      requiredItems: [{ item: ROUBLES, count: 155.5, attributes: {} }],
+      minTraderLevel: 1,
+      offeredItem: { item: BOLTS, count: 2, attributes: {} }
+    },
+    // Nothing offered, or nothing asked: left out.
+    { id: 'broken', trader: PRAPOR, requiredItems: [{ item: BOLTS, count: 1 }], minTraderLevel: 1 },
+    {
+      id: 'free',
+      trader: PRAPOR,
+      requiredItems: [],
+      minTraderLevel: 1,
+      offeredItem: { item: BOLTS, count: 1 }
+    }
   ]
 }

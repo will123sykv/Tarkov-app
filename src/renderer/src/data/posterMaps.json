@@ -1,10 +1,11 @@
 {
   "sources": {
     "re3mr": "Re3MR (reemr.se), as published by tarkov.dev (github.com/the-hideout/tarkov-dev, public/maps)",
-    "db4tarkov": "db4tarkov.com's clean versions of the community maps, as 512 px WebP tiles from cdn.db4tarkov.com"
+    "db4tarkov": "db4tarkov.com's clean versions of the community maps, as 512 px WebP tiles from cdn.db4tarkov.com",
+    "wiki": "The Escape from Tarkov Wiki (escapefromtarkov.fandom.com): the image behind its interactive map, from its CDN"
   },
   "license": "CC BY-NC-SA 4.0",
-  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions, and the db4tarkov maps by registering tarkov.dev's SVG maps (and their floor layers, for the insets) onto the images, Interchange's photo-like render by matching its roads and its floor plans' outlines; all were checked against what the images draw. A panel is one floor, deck or inset of the image: the first panel whose area (game [xMin, zMin, xMax, zMax], when it has one) holds a position and whose height range [minY, maxY) holds its height; otherwise the whole-map panels, by height.",
+  "calibration": "Game (x, z) to image pixels: u = a·x + b·z + e, v = c·x + d·z + f. Factory and Terminal were fitted against tarkov.dev's calibrated SVG maps, Labyrinth and Icebreaker against the game's extract, lock, switch and spawn positions, the wiki's Lab map against its own extract, lock, key and spawn markers matched to tarkov.dev's positions, and the db4tarkov maps by registering tarkov.dev's SVG maps (and their floor layers, for the insets) onto the images, Interchange's photo-like render by matching its roads and its floor plans' outlines; all were checked against what the images draw. A panel is one floor, deck or inset of the image: the first panel whose area (game [xMin, zMin, xMax, zMax], when it has one) holds a position and whose height range [minY, maxY) holds its height; otherwise the whole-map panels, by height.",
   "maps": [
     {
       "key": "customs",
@@ -500,6 +501,38 @@
           "minY": 42.4,
           "maxY": null,
           "transform": [-14.7, 0, 0, 13.82, 310, 1400.6]
+        }
+      ]
+    },
+    {
+      "key": "the-lab",
+      "provider": "wiki",
+      "author": "Jindouz",
+      "authorLink": "https://escapefromtarkov.fandom.com/wiki/Map:The_Lab",
+      "version": "2025-11-28",
+      "file": "the-lab",
+      "license": "CC BY-SA 3.0",
+      "width": 3820,
+      "height": 2189,
+      "panels": [
+        {
+          "name": "Second floor",
+          "minY": 3,
+          "maxY": null,
+          "area": [-271, -422, -101, -270],
+          "transform": [0.03782, 6.526, 5.96914, 0.04126, 5323.4, 1748.13]
+        },
+        {
+          "name": "Basement",
+          "minY": null,
+          "maxY": -0.9,
+          "transform": [-0.10328, 6.20863, 5.92041, -0.5336, 2614.41, 1590.64]
+        },
+        {
+          "name": "First floor",
+          "minY": -0.9,
+          "maxY": null,
+          "transform": [0.08984, 6.72795, 6.05654, -0.10229, 4134.06, 2518.45]
         }
       ]
     }

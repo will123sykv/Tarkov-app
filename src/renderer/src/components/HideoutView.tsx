@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CURRENCIES } from '../../../shared/constants'
+import { upgradeKey } from '../../../shared/favourites'
 import {
   EMPTY_HIDEOUT,
   hideoutNeeds,
@@ -33,6 +34,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import FavouriteStar from './FavouriteStar'
 import { craftText, GetCell } from './GetCell'
 import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
@@ -112,12 +114,14 @@ function sellTitle(advice: SellAdvice): string {
   const lines = [
     advice.reason === 'extra'
       ? `${advice.count} more than every level and quest left needs: sell ${them}.`
-      : `You can ${advice.craftBack ? 'craft' : 'buy'} ${them} back now, so there's no need to hold on to ${them}.`
+      : `You can ${advice.craftBack ? 'craft' : advice.barterBack ? 'trade for' : 'buy'} ${them} back now, so there's no need to hold on to ${them}.`
   ]
   if (advice.sellEach !== null)
     lines.push(
       `Sells for ~${formatRub(advice.sellEach)} each ${advice.sellVia === 'flea' ? 'on the flea after the fee' : `to ${advice.sellVia}`}.`
     )
+  if (advice.reason === 'buyBack' && advice.barterBack)
+    lines.push(`Trade for ${them} with ${advice.barterBack.label} when you need ${them}.`)
   if (advice.reason === 'buyBack' && advice.craftBack)
     lines.push(`Craft ${them} at ${advice.craftBack.stationName} when you need ${them}.`)
   if (advice.reason === 'buyBack' && advice.buyBack) {
@@ -295,6 +299,7 @@ function ItemsNeeded({
               }
             >
               <td className="item-cell">
+                <FavouriteStar kind="items" id={need.itemId} />
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span>
                   {item?.name ?? 'Unknown item'}
@@ -444,6 +449,7 @@ function UpgradeCard({
           </span>
         </div>
         {badge && <span className={`badge ${badge.className}`}>{badge.text}</span>}
+        <FavouriteStar kind="upgrades" id={upgradeKey(station.id, level.level)} />
       </header>
       <div className="upgrade-cost">
         {missing.length === 0 ? (

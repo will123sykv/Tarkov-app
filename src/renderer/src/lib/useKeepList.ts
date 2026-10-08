@@ -24,6 +24,7 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
   const playerLevel = settings.playerLevels[settings.gameMode]
   const fleaMinLevel = priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
   const quests = questState?.dataset?.quests
+  const traderList = questState?.dataset?.traders
   return useMemo(
     () => ({
       playerLevel,
@@ -34,9 +35,10 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
           .filter(([, entry]) => entry.status === 'completed')
           .map(([id]) => id)
       ),
-      questNames: new Map((quests ?? []).map((q) => [q.id, q.name]))
+      questNames: new Map((quests ?? []).map((q) => [q.id, q.name])),
+      traderNames: new Map((traderList ?? []).map((t) => [t.id, t.name]))
     }),
-    [playerLevel, fleaMinLevel, traders, progress, quests]
+    [playerLevel, fleaMinLevel, traders, progress, quests, traderList]
   )
 }
 
@@ -50,6 +52,7 @@ export function useCraftContext(current: PublicSettings | null, priceState: Pric
   return useMemo(
     () => ({
       crafts: dataset?.crafts ?? [],
+      barters: dataset?.barters ?? [],
       stations: new Map((dataset?.stations ?? []).map((s) => [s.id, s])),
       progress,
       items

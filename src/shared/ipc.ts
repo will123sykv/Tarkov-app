@@ -18,6 +18,7 @@ import type {
   SettingsPatch,
   UpdaterStatus
 } from './types'
+import type { FavouriteKind, Favourites } from './favourites'
 
 export const IPC = {
   settingsGet: 'settings:get',
@@ -52,6 +53,8 @@ export const IPC = {
   keysGet: 'keys:get',
   keysSet: 'keys:set',
   keysSetOwned: 'keys:set-owned',
+  favouritesGet: 'favourites:get',
+  favouritesSet: 'favourites:set',
   scanReadText: 'scan:read-text',
   scanGridImage: 'scan:grid-image',
   scanLatestScreenshot: 'scan:latest-screenshot',
@@ -134,6 +137,10 @@ export interface TarkovApi {
   setKey(gameMode: GameMode, keyId: string, list: keyof KeyInventory, on: boolean): Promise<KeyInventory>
   /** Replace the keys the player has (e.g. read from screenshots). */
   setOwnedKeys(gameMode: GameMode, keyIds: string[]): Promise<KeyInventory>
+  /** Items, upgrades and quests the player starred (per game mode). */
+  getFavourites(gameMode: GameMode): Promise<Favourites>
+  /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */
+  setFavourite(gameMode: GameMode, kind: FavouriteKind, id: string, on: boolean): Promise<Favourites>
   /** Read labels cut out of a screenshot (OCR, offline). */
   readLabels(jobs: OcrJob[]): Promise<OcrResult[]>
   /** An item's tarkov.dev grid image (cached), for telling look-alikes apart. */

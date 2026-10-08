@@ -17,8 +17,9 @@ prices, your PMC level and the game mode you play. It also has:
   buy or craft back later), and the items not to sell (rare ones flagged) marked in the loot list;
 - **Keys:** the keys you have (ticked by hand) and the ones your quests still need, with how to get
   each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
-- **Maps:** interactive maps with your quests (named, with their trader) and story chapter steps,
-  extracts, transits, spawns, and the locks and spawn spots of the keys you need;
+- **Maps:** 2D maps with your quests (named, with their trader) and story chapter steps,
+  extracts, transits, spawns, the locks and spawn spots of the keys you need, and what your starred
+  items, upgrades and quests still need from raids;
 - **Raids:** your raid history and flea market sales, also from the logs.
 
 ## Download
@@ -195,10 +196,10 @@ station's level in the sidebar (the Stash starts at level 1).
   what you hadn't counted already, and only if you set the count before finishing it).
 - **Sell:** items you've put aside that you could sell get a green **Sell** badge saying how many:
   any more than every level and quest left needs, and anything you can get back now: buy it on the
-  flea or from a trader at your loyalty (however pricey or scarce), or craft it at a station you've
-  built. Copies that must be found in raid are kept, as bought ones aren't. Hover the badge for what
-  selling gets (the flea after the fee, or a trader), what buying back costs and where (or where to
-  craft it), and what selling now and buying back later costs in all. Items put aside that nothing needs any more are listed too. Tick **Can sell only** to see
+  flea or from a trader at your loyalty (however pricey or scarce), trade for it in a trader's barter
+  at your loyalty (once its quest is done), or craft it at a station you've built. Copies that must be found in raid are kept, as bought ones aren't. Hover the badge for what
+  selling gets (the flea after the fee, or a trader), what buying back costs and where (or which
+  trader to trade with, or where to craft it), and what selling now and buying back later costs in all. Items put aside that nothing needs any more are listed too. Tick **Can sell only** to see
   just these.
 - **Upgrades** shows each station's next level: its items (ticked off as you put them aside), the
   other stations, trader loyalty levels and skills it needs, and how long it takes to build.
@@ -252,10 +253,10 @@ setting, or your active quests, and a **Rare** or **Can't buy yet** badge when i
 replace), **Sell on the flea** or **Sell to** a trader, whichever pays more at your level (after the
 flea fee, if that setting is on). Several stacks of one item are kept until the need is met, and the
 rest sold. **Sell what I can buy or craft later** (on by default) keeps only what you can't get
-back now (you can't buy it at your level and trader loyalty, nor craft it at a station you've
-built) and the copies that must be found in raid, marked **(found in raid)**. The rest of what's
-needed is sold, marked **needed later** with what buying it back costs and where, or where to craft
-it: needing 3 found in raid and 2 more of an item you can buy, it keeps 3 and sells 2. Untick it to
+back now (you can't buy it at your level and trader loyalty, trade for it in a barter, nor craft it
+at a station you've built) and the copies that must be found in raid, marked **(found in raid)**. The rest of what's
+needed is sold, marked **needed later** with what buying it back costs and where, the trader to
+trade with (**trade with Mechanic LL2**), or where to craft it: needing 3 found in raid and 2 more of an item you can buy, it keeps 3 and sells 2. Untick it to
 keep everything the hideout and your quests need. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
 you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
 again). A haul that takes two screenshots can be read together with **Add another**.
@@ -371,9 +372,11 @@ the game's install folder, or its `build` folder.
   ones marked, with what they need), transits, boss spawns, sniper scavs, place names and PMC
   spawns. Customs, Ground Zero, Woods, Shoreline, Reserve, Interchange, Lighthouse and Streets use
   the clean community 2D maps db4tarkov shows; Factory, Icebreaker, Labyrinth and Terminal use
-  [Re3MR](https://reemr.se)'s. Each marker is drawn on the floor, deck or inset it's on (the Ground
-  Zero underground, the Shoreline resort's floors, Reserve's bunkers, Interchange's mall), and a
-  switch goes back to tarkov.dev's map; The Lab uses tarkov.dev's interactive map. **Show on map** on any objective jumps to it. Map images are downloaded the first time you
+  [Re3MR](https://reemr.se)'s, and the Lab the
+  [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com/wiki/Map:The_Lab)'s, with its
+  basement, first and second floors side by side. Each marker is drawn on the floor, deck or inset
+  it's on (the Ground Zero underground, the Shoreline resort's floors, Reserve's bunkers,
+  Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards.
 - **Only quests I can do on the maps:** the same filter as the To do tab (switching it on either tab
   switches both). With **Show all**, a pin whose objective needs a key you don't have shows its key
@@ -388,11 +391,20 @@ the game's install folder, or its `build` folder.
 - **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
   out, and the wiki describes places in words), so the app works out which map each step is on from
   the step and its part of the wiki's guide, and lists the unfinished ones under **Story steps
-  here**. A step that names a place the map knows (the Resort, Lexos, the Tunnel extract) gets a
+  here**, below **Quests on this map**. A step that names a place the map knows (the Resort, Lexos, the Tunnel extract) gets a
   dashed **≈ roughly here** pin there. **Pin it** (or **Pin it exactly**) lets you click where a step
   really is: your pin is kept (in every game mode), and **Move** and **Remove** change it. In a
   chapter's panel, steps with no map can be pinned on any map you pick (point at the step to see
   the picker).
+- **Favourites on the map:** star (☆) items in Items to collect's **Items needed**, a station's
+  next level in **Upgrades**, or quests (in the Quests list or a quest's panel), and the
+  **★ Favourites** panel at the top right of the map lists what they still need from raids: items
+  you can't buy, trade for or craft now (**can't get yet**, all of what's missing), the copies that
+  must be found in raid (**found in raid**), and for a starred quest the items it still needs
+  handed over or planted plus the quest items to pick up (**quest item**). Each says how many and
+  what it's for; one item wanted by several favourites is listed once. Built levels and finished
+  quests drop out by themselves. Click the panel's heading to fold it away (it's remembered).
+  Favourites are kept per game mode.
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
 
@@ -535,7 +547,10 @@ Price, item, quest and map data: [tarkov.dev](https://tarkov.dev) and
 Terminal (CC BY-NC-SA 4.0, fetched from tarkov.dev's repository), and the 2D maps of Customs
 (monkimonkimonk and Glory4Lyfe), Ground Zero (xTycho), Woods, Shoreline, Reserve, Lighthouse and
 Streets (Jindouz, Shoreline from monkimonkimonk's) and Interchange (Re3MR) as shown on
-[db4tarkov.com](https://db4tarkov.com/map) (CC BY-NC-SA 4.0, fetched from its CDN). Pin icons: [Material Design Icons](https://pictogrammers.com/library/mdi/)
+[db4tarkov.com](https://db4tarkov.com/map) (CC BY-NC-SA 4.0, fetched from its CDN), and the Lab's
+interactive map image by Jindouz from the
+[Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com/wiki/Map:The_Lab) (CC BY-SA 3.0,
+fetched from its CDN). Pin icons: [Material Design Icons](https://pictogrammers.com/library/mdi/)
 (Apache-2.0). Map rendering: [Leaflet](https://leafletjs.com) (BSD-2-Clause). Screenshot text
 recognition: [Tesseract.js](https://github.com/naptha/tesseract.js) and its English model
 (Apache-2.0). The log formats

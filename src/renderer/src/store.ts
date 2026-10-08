@@ -20,6 +20,7 @@ import type {
   TrendSeries,
   UpdaterStatus
 } from '../../shared/types'
+import type { FavouriteKind, Favourites } from '../../shared/favourites'
 
 interface AppStore {
   settings: PublicSettings | null
@@ -41,6 +42,8 @@ interface AppStore {
   hideoutProgress: Partial<Record<GameMode, HideoutProgress>>
   /** Keys the player has and wants to get, per game mode. */
   keys: Partial<Record<GameMode, KeyInventory>>
+  /** Items, upgrades and quests starred, per game mode (listed over the map). */
+  favourites: Partial<Record<GameMode, Favourites>>
   /** A key to show the locks and spawns of on the Maps tab. */
   keyFocus: string | null
   /** The map opened from the To do tab's overview (a map group's key), or null for the overview. */
@@ -85,6 +88,8 @@ interface AppStore {
   setKey(keyId: string, list: keyof KeyInventory, on: boolean): Promise<void>
   /** Replace the keys the player has (read from screenshots). */
   setOwnedKeys(keyIds: string[]): Promise<void>
+  /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */
+  setFavourite(kind: FavouriteKind, id: string, on: boolean): Promise<void>
   /** Open the Maps tab on a map with a key's locks and spawns on it (null: stop showing them). */
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   openTodoMap(mapKey: string | null): void
@@ -145,6 +150,7 @@ export const useStore = create<AppStore>((set, get) => ({
   objectiveProgress: {},
   hideoutProgress: {},
   keys: {},
+  favourites: {},
   keyFocus: null,
   todoMap: null,
   wikiQuests: null,
@@ -361,17 +367,19 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history, hideout, objectives, storyPins, keys] = await Promise.all([
+    const [progress, history, hideout, objectives, storyPins, keys, favourites] = await Promise.all([
       window.api.getQuestProgress(gameMode),
       window.api.getLogHistory(gameMode),
       window.api.getHideoutProgress(gameMode),
       window.api.getObjectiveProgress(gameMode),
       window.api.getStoryPins(),
-      window.api.getKeys(gameMode)
+      window.api.getKeys(gameMode),
+      window.api.getFavourites(gameMode)
     ])
     set((s) => ({
       storyPins,
       keys: { ...s.keys, [gameMode]: keys },
+      favourites: { ...s.favourites, [gameMode]: favourites },
       questProgress: { ...s.questProgress, [gameMode]: progress },
       objectiveProgress: { ...s.objectiveProgress, [gameMode]: objectives },
       logHistory: { ...s.logHistory, [gameMode]: history },
@@ -424,6 +432,13 @@ export const useStore = create<AppStore>((set, get) => ({
     if (!gameMode) return
     const keys = await window.api.setOwnedKeys(gameMode, keyIds)
     set((s) => ({ keys: { ...s.keys, [gameMode]: keys } }))
+  },
+
+  async setFavourite(kind, id, on) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const favourites = await window.api.setFavourite(gameMode, kind, id, on)
+    set((s) => ({ favourites: { ...s.favourites, [gameMode]: favourites } }))
   },
 
   async showKeyOnMap(keyId, mapKey) {

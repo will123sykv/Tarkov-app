@@ -3,6 +3,7 @@ import type {
   BossSpawn,
   GameMap,
   HideoutCraft,
+  TraderBarter,
   HideoutLevel,
   HideoutStation,
   KeySpawn,
@@ -44,6 +45,8 @@ export interface QuestDataInput {
   hideoutLang?: Dict
   /** Optional: what the stations make. */
   crafts?: unknown
+  /** Optional: traders' barter trades. */
+  barters?: unknown
 }
 
 const arr = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
@@ -308,6 +311,39 @@ export function hideoutCrafts(crafts: unknown): HideoutCraft[] {
       tools: required.filter((r) => r.tool && r.part).map((r) => r.part!.itemId),
       outputs,
       questId: idOf(c.taskUnlock)
+    })
+  }
+  return result
+}
+
+/** Traders' barter trades, from tarkov.dev's `barters` file. */
+export function traderBarters(barters: unknown): TraderBarter[] {
+  const result: TraderBarter[] = []
+  const counted = (value: unknown): { itemId: string; count: number } | null => {
+    const r = rec(value)
+    const itemId = idOf(r.item)
+    const count = num(r.count) ?? num(r.quantity) ?? 1
+    return itemId && count > 0 ? { itemId, count } : null
+  }
+  for (const raw of values(barters as Collection<Raw>)) {
+    const b = rec(raw)
+    const id = str(b.id)
+    const traderId = idOf(b.trader)
+    // One item offered (`offeredItem`); a list (`rewardItems`, as in tarkov.dev's API) works too.
+    const outputs = [b.offeredItem, ...arr(b.rewardItems)]
+      .map(counted)
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+    const inputs = arr(b.requiredItems)
+      .map(counted)
+      .filter((o): o is NonNullable<typeof o> => o !== null)
+    if (!id || !traderId || !outputs.length || !inputs.length) continue
+    result.push({
+      id,
+      traderId,
+      level: num(b.minTraderLevel) ?? num(b.level) ?? 1,
+      questId: idOf(b.taskUnlock),
+      inputs,
+      outputs
     })
   }
   return result
@@ -589,6 +625,7 @@ export function normalizeQuestData(
     traders,
     stations: hideoutStations(input.hideout ?? {}, input.hideoutLang ?? {}),
     crafts: hideoutCrafts(input.crafts ?? []),
+    barters: traderBarters(input.barters ?? []),
     otherQuestNames,
     // Filled in from the wiki by fetchQuestData.
     storyChapters: []
@@ -603,7 +640,7 @@ export async function fetchQuestData(
   // The hideout and its crafts aren't what quests need: do without them rather than fail.
   const optional = <T>(file: string): Promise<T | undefined> =>
     fetchJsonData<T>(fetchFn, dataMode, file).catch(() => undefined)
-  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts] =
+  const [tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts, barters] =
     await Promise.all([
       fetchJsonData<Raw>(fetchFn, dataMode, 'tasks'),
       fetchJsonData<Dict>(fetchFn, dataMode, 'tasks_en'),
@@ -613,10 +650,11 @@ export async function fetchQuestData(
       fetchJsonData<Dict>(fetchFn, dataMode, 'traders_en'),
       optional<Raw>('hideout'),
       optional<Dict>('hideout_en'),
-      optional<unknown>('crafts')
+      optional<unknown>('crafts'),
+      optional<unknown>('barters')
     ])
   const dataset = normalizeQuestData(
-    { tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts },
+    { tasks, tasksLang, maps, mapsLang, traders, tradersLang, hideout, hideoutLang, crafts, barters },
     dataMode,
     now
   )
@@ -677,6 +715,8 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.stations) result = { ...result, fetchedAt: 0, stations: [] }
   // 1.21.0: what the hideout's stations make.
   if (!result.crafts) result = { ...result, fetchedAt: 0, crafts: [] }
+  // 1.27.0: traders' barter trades.
+  if (!result.barters) result = { ...result, fetchedAt: 0, barters: [] }
   // 1.17.0: locks, key spawns and who can enter each map.
   if (result.maps.some((m) => !m.locks))
     result = {

@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buyOptions,
+  barterOptions,
   craftOptions,
   getBackNow,
   EMPTY_HIDEOUT,
@@ -523,6 +524,35 @@ describe('upgradeStatus', () => {
       expect(getBackNow(items.get(DOLLARS)!, named(), cc)).toBeNull()
     })
 
+    it('trades for an item with a trader at the loyalty and with the quest its barter needs', () => {
+      const barter = (level: number, questId: string | null = null) => ({
+        id: 'b',
+        traderId: MECH,
+        level,
+        questId,
+        inputs: [{ itemId: 'bolts', count: 2 }],
+        outputs: [{ itemId: 'ledx', count: 1 }]
+      })
+      const withBarter = (b: ReturnType<typeof barter>) => ({ ...cc, barters: [b] })
+      // Mechanic LL1 by default: an LL2 barter isn't offered yet.
+      expect(barterOptions('ledx', withBarter(barter(2)), named())).toEqual([])
+      expect(
+        barterOptions('ledx', withBarter(barter(2)), named({ traderLevels: { [MECH]: 2 } }))
+      ).toMatchObject([{ label: 'Mechanic LL2', costEach: 48_000 }])
+      expect(barterOptions('ledx', withBarter(barter(1, 'q1')), named())).toEqual([])
+      expect(
+        barterOptions('ledx', withBarter(barter(1, 'q1')), named({ completedQuests: new Set(['q1']) }))
+      ).toHaveLength(1)
+      // A barter comes before a craft; buying before both.
+      expect(getBackNow(items.get('ledx')!, named(), withBarter(barter(1)))).toMatchObject({
+        kind: 'barter',
+        option: { label: 'Mechanic LL1' }
+      })
+      expect(
+        sellAdvice({ have: 2, needed: 2, firNeeded: 0 }, items.get('ledx'), named(), withBarter(barter(1)))
+      ).toMatchObject({ count: 2, reason: 'buyBack', barterBack: { label: 'Mechanic LL1' }, craftBack: null })
+    })
+
     it('sells copies of what can only be crafted back, keeping ones that must be found in raid', () => {
       const ledx = items.get('ledx')
       expect(sellAdvice({ have: 3, needed: 3, firNeeded: 1 }, ledx, named(), cc)).toMatchObject({
@@ -764,6 +794,7 @@ describe('sell advice', () => {
       sellEach: 28_000,
       sellVia: 'flea',
       buyBack: { source: 'flea', label: 'Flea', price: 30_000 },
+      barterBack: null,
       craftBack: null
     })
     expect(sellAdvice(need(3, 5, 2), item(), ctx())).toMatchObject({ count: 1, keepFir: 2 })

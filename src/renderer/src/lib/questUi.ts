@@ -39,8 +39,3 @@ export function objectiveMap(
   }
   return null
 }
-
-/** `https://assets.tarkov.dev/…` → the app's cached copy. */
-export function mapAsset(url: string): string {
-  return url.replace(/^https:\/\/assets\.tarkov\.dev\//, 'tarkov-map://assets/')
-}

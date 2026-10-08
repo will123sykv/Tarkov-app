@@ -1,8 +1,6 @@
 import L from 'leaflet'
-import type { MapConfig, Vec3 } from '../../../shared/questTypes'
-import { mapAsset } from './questUi'
+import type { Vec3 } from '../../../shared/questTypes'
 import { fromImagePoint, toImagePoint, type Anchor, type PosterMap } from './posterMap'
-import { createCrs, prepareSvg, toBounds, toLatLng } from './tarkovMap'
 
 /** How a map's base image and game positions are laid out in Leaflet. */
 export interface MapProjection {
@@ -26,53 +24,6 @@ export interface MapProjection {
   background: string | null
 }
 
-/** tarkov.dev's interactive maps: tiles or an SVG, with its projection. */
-export function interactiveProjection(config: MapConfig): MapProjection {
-  const bounds = toBounds(config.bounds)
-  return {
-    id: `tarkov.dev:${config.key}`,
-    crs: createCrs(config),
-    bounds,
-    minZoom: config.minZoom,
-    maxZoom: config.maxZoom + 2,
-    focusZoom: Math.max(config.minZoom + 1, config.maxZoom - 2),
-    toLatLng: (p) => toLatLng(p),
-    fromLatLng: ([lat, lng]) => ({ x: lng, y: 0, z: lat }),
-    shows: () => true,
-    background: null,
-    addBase(map, onError) {
-      let cancelled = false
-      if (config.tilePath) {
-        L.tileLayer(mapAsset(config.tilePath), {
-          tileSize: config.tileSize,
-          bounds,
-          maxNativeZoom: config.maxZoom,
-          maxZoom: config.maxZoom + 2,
-          noWrap: true
-        })
-          .on('tileerror', () => onError('Some map tiles couldn’t be loaded (offline?).'))
-          .addTo(map)
-      } else if (config.svgPath) {
-        fetch(mapAsset(config.svgPath))
-          .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`HTTP ${res.status}`))))
-          .then((text) => {
-            if (cancelled) return
-            const svg = prepareSvg(text, config.otherLayers)
-            if (!svg) throw new Error('not an SVG')
-            L.svgOverlay(svg, toBounds(config.svgBounds ?? config.bounds), {
-              className: 'map-svg',
-              pane: 'mapBase'
-            }).addTo(map)
-          })
-          .catch((err: Error) => !cancelled && onError(`The map image couldn’t be loaded: ${err.message}`))
-      }
-      return () => {
-        cancelled = true
-      }
-    }
-  }
-}
-
 /**
  * A community 2D map as a flat image (1 unit = 1 image pixel at zoom 0), with positions placed on the
  * panel (floor or inset) they belong to. Re3MR's come as one image, db4tarkov's as tiles whose top
@@ -83,7 +34,7 @@ export function posterProjection(
   gameBounds: [[number, number], [number, number]] | null = null
 ): MapProjection {
   const bounds = L.latLngBounds([-poster.height, 0], [0, poster.width])
-  const failed = `The ${poster.author} map couldn’t be loaded (offline?). Switch to tarkov.dev, or try again later.`
+  const failed = `The ${poster.author} map couldn’t be loaded (offline?). Try again later.`
   // tarkov.dev lists the odd position from another map; a little past the edge is still this map.
   const margin = 0.05 * Math.max(poster.width, poster.height)
   return {
@@ -125,7 +76,7 @@ export function posterProjection(
           })
           .addTo(map)
       } else if (poster.file) {
-        const image = L.imageOverlay(`tarkov-map://re3mr/${poster.file}`, bounds, {
+        const image = L.imageOverlay(`tarkov-map://${poster.provider}/${poster.file}`, bounds, {
           pane: 'mapBase',
           className: 'map-image'
         })

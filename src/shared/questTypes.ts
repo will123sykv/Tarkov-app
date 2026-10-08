@@ -232,6 +232,20 @@ export interface HideoutCraft {
   questId: string | null
 }
 
+/** A trade a trader offers: items for an item. Bartered items aren't found in raid. Since 1.27.0. */
+export interface TraderBarter {
+  id: string
+  traderId: string
+  /** The loyalty level it takes. */
+  level: number
+  /** A quest to finish before the trader offers it. */
+  questId: string | null
+  /** What it takes (money counts too). */
+  inputs: { itemId: string; count: number }[]
+  /** What the trader gives. */
+  outputs: { itemId: string; count: number }[]
+}
+
 /** One step of a story chapter, as the wiki lists it. */
 export interface StoryObjective {
   /** The step's text, slugged (`#2`… on repeats), so progress survives the list being refreshed. */
@@ -325,6 +339,8 @@ export interface QuestDataset {
   stations: HideoutStation[]
   /** What the stations can make (empty when it couldn't be fetched). Since 1.21.0. */
   crafts: HideoutCraft[]
+  /** Traders' barter trades (empty when they couldn't be fetched). Since 1.27.0. */
+  barters: TraderBarter[]
   /**
    * Names of quests tarkov.dev leaves out of its quest list (story chapters, new or event quests),
    * by id, so ones the logs mention can still be named.

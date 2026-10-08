@@ -238,8 +238,8 @@ export interface MapSettings {
   showKeys: boolean
   /** Whose extracts to show; co-op extracts show for both. */
   faction: 'pmc' | 'scav'
-  /** A community 2D map where there is one, or tarkov.dev's interactive map. */
-  style: '2d' | 'tarkov-dev'
+  /** The favourites panel over the map is open (since 1.27.0, when the 2D maps became the only ones). */
+  favouritesOpen: boolean
 }
 
 export interface TrendSettings {

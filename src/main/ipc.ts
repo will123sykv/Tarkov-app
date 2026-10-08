@@ -237,6 +237,13 @@ export function registerIpc(deps: {
     if (typeof on !== 'boolean') throw new Error('Invalid key state')
     return player.setKey(requireGameMode(gameMode), requireId(keyId, 'item'), list, on)
   })
+  ipcMain.handle(IPC.favouritesGet, (_e, gameMode: unknown) => player.favourites(requireGameMode(gameMode)))
+  ipcMain.handle(IPC.favouritesSet, (_e, gameMode: unknown, kind: unknown, id: unknown, on: unknown) => {
+    if (kind !== 'items' && kind !== 'upgrades' && kind !== 'quests') throw new Error('Invalid favourite')
+    if (typeof id !== 'string' || !/^[\w:-]{1,80}$/.test(id)) throw new Error('Invalid favourite id')
+    if (typeof on !== 'boolean') throw new Error('Invalid favourite state')
+    return player.setFavourite(requireGameMode(gameMode), kind, id, on)
+  })
   ipcMain.handle(IPC.keysSetOwned, (_e, gameMode: unknown, keyIds: unknown) => {
     if (!Array.isArray(keyIds) || keyIds.length > MAX_KEYS) throw new Error('Invalid keys')
     return player.setOwnedKeys(

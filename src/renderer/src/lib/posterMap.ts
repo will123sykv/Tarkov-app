@@ -20,13 +20,18 @@ export interface PosterPanel {
 export interface PosterMap {
   /** tarkov.dev's map key (the map's normalized name). */
   key: string
-  /** Re3MR's images come whole from tarkov.dev's repository, db4tarkov's as tiles from its CDN. */
-  provider: 're3mr' | 'db4tarkov'
+  /**
+   * Re3MR's images come whole from tarkov.dev's repository, db4tarkov's as tiles from its CDN, the
+   * wiki's whole from its CDN.
+   */
+  provider: 're3mr' | 'db4tarkov' | 'wiki'
   author: string
   authorLink: string
   version: string
-  /** Re3MR: the image. */
+  /** Re3MR: the image; the wiki: its map (src/shared/wikiMaps.ts). */
   file?: string
+  /** When not posterMaps.json's licence. */
+  license?: string
   /** db4tarkov: its name for the map and the zoom at which a tile pixel is an image pixel. */
   tiles?: { slug: string; maxZoom: number }
   width: number

@@ -14,6 +14,7 @@ import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useQuestRows, type QuestRow } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import EventQuestPicker from './EventQuestPicker'
+import FavouriteStar from './FavouriteStar'
 import LogStatusPanel from './LogStatusPanel'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
@@ -44,7 +45,7 @@ const QuestListRow = memo(function QuestListRow({
   // How far along it is, once something's been ticked off.
   const summary = status === 'completed' ? null : objectiveSummary(quest, objectives)
   return (
-    <li>
+    <li className="quest-item">
       <button className={`quest-row ${selected ? 'selected' : ''}`} onClick={() => onSelect(quest.id)}>
         <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
         <span className="quest-name">
@@ -73,6 +74,7 @@ const QuestListRow = memo(function QuestListRow({
           {quest.lightkeeperRequired && <abbr title="Needed for Lightkeeper">LK</abbr>}
         </span>
       </button>
+      <FavouriteStar kind="quests" id={quest.id} />
     </li>
   )
 })

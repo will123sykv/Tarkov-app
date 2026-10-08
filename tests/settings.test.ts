@@ -181,7 +181,7 @@ describe('sanitizeSettings', () => {
         showBosses: true,
         showSnipers: false,
         faction: 'scav',
-        style: '2d'
+        favouritesOpen: true
       }
     })
     // Event quests from the wiki (since 1.22.0): titles, once each, trimmed.
@@ -192,9 +192,11 @@ describe('sanitizeSettings', () => {
       }).quests.wikiQuests
     ).toEqual(['Fog of War', 'Duck Hunt'])
     expect(sanitizeSettings({ quests: { wikiQuests: 'Fog of War' } }).quests.wikiQuests).toEqual([])
-    expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps.style).toBe('tarkov-dev')
-    // 1.5's name for the 2D maps.
-    expect(sanitizeSettings({ maps: { style: 're3mr' } }).maps.style).toBe('2d')
+    // The 2D maps are the only ones since 1.27.0: an old style setting is dropped. The favourites panel
+    // over the map is open unless closed.
+    expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps).not.toHaveProperty('style')
+    expect(sanitizeSettings({ maps: {} }).maps.favouritesOpen).toBe(true)
+    expect(sanitizeSettings({ maps: { favouritesOpen: false } }).maps.favouritesOpen).toBe(false)
     expect(
       sanitizeSettings({
         view: 'nope',
@@ -206,7 +208,7 @@ describe('sanitizeSettings', () => {
       view: 'loot',
       gameLogsDir: null,
       quests: DEFAULT_SETTINGS.quests,
-      maps: { mapKey: 'customs', questScope: 'active', style: '2d', faction: 'pmc', showLabels: true }
+      maps: { mapKey: 'customs', questScope: 'active', faction: 'pmc', showLabels: true }
     })
   })
 

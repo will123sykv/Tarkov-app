@@ -31,6 +31,7 @@ import { useNow } from '../lib/useNow'
 import { useQuestGuide } from '../lib/useQuestGuide'
 import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
+import FavouriteStar from './FavouriteStar'
 
 interface Props {
   row: QuestRow
@@ -690,6 +691,7 @@ export default function QuestDetail({
             </button>
           )}
         </div>
+        <FavouriteStar kind="quests" id={quest.id} />
         <button
           className="button icon"
           onClick={() => (onClose ? onClose() : selectQuest(null))}

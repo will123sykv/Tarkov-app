@@ -4,7 +4,7 @@ import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
-import { interactiveProjection, posterProjection } from '../lib/mapProjection'
+import { posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
 import {
@@ -19,6 +19,7 @@ import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import FavouritesPanel from './FavouritesPanel'
 import MapCanvas, { MARKER_COLORS, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
@@ -242,15 +243,9 @@ export default function MapsView({
   }, [dataset])
   const config = MAP_CONFIGS.find((c) => c.key === m.mapKey) ?? null
   const poster = config ? posterFor(config.key) : null
-  const showPoster = poster !== null && m.style === '2d'
   const projection = useMemo(
-    () =>
-      showPoster
-        ? posterProjection(poster, config?.bounds ?? null)
-        : config
-          ? interactiveProjection(config)
-          : null,
-    [config, poster, showPoster]
+    () => (poster ? posterProjection(poster, config?.bounds ?? null) : null),
+    [config, poster]
   )
   const layers = useMemo<MapLayers>(
     () => ({
@@ -457,26 +452,6 @@ export default function MapsView({
             ))}
             {!choices.length && <option value={m.mapKey}>Loading maps…</option>}
           </select>
-          {poster && (
-            <div className="mini-toggle wide map-style" role="radiogroup" aria-label="Map style">
-              {(
-                [
-                  ['2d', '2D map'],
-                  ['tarkov-dev', 'tarkov.dev']
-                ] as const
-              ).map(([id, text]) => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={m.style === id}
-                  className={m.style === id ? 'active' : ''}
-                  onClick={() => set({ style: id })}
-                >
-                  {text}
-                </button>
-              ))}
-            </div>
-          )}
         </SidebarSection>
         <SidebarSection title="Quest objectives">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Quest objectives">
@@ -636,7 +611,6 @@ export default function MapsView({
             turn up in containers. Tick the keys you have in the Keys tab.
           </p>
         </SidebarSection>
-        <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
         <SidebarSection title="Quests on this map">
           {questsHere.length === 0 ? (
             <p className="hint">
@@ -675,7 +649,8 @@ export default function MapsView({
             </ul>
           )}
         </SidebarSection>
-        {showPoster ? (
+        <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />
+        {poster && (
           <p className="hint credit">
             Map by{' '}
             <a href={poster.authorLink} target="_blank" rel="noreferrer">
@@ -689,20 +664,12 @@ export default function MapsView({
                   db4tarkov.com
                 </a>
               </>
+            ) : poster.provider === 'wiki' ? (
+              ', from the Escape from Tarkov Wiki'
             ) : null}
-            , CC BY-NC-SA 4.0. Place names, extracts and spawns from tarkov.dev; markers are placed on the
-            floor they&rsquo;re on.
+            , {poster.license ?? 'CC BY-NC-SA 4.0'}. Place names, extracts and spawns from tarkov.dev; markers
+            are placed on the floor they&rsquo;re on.
           </p>
-        ) : (
-          config && (
-            <p className="hint credit">
-              Map by{' '}
-              <a href={config.authorLink} target="_blank" rel="noreferrer">
-                {config.author}
-              </a>{' '}
-              via tarkov.dev, CC BY-NC-SA 4.0.
-            </p>
-          )
         )}
       </Sidebar>
       <main className="content map-content">
@@ -737,6 +704,7 @@ export default function MapsView({
             <p>{questState?.error ? `Couldn't load map data: ${questState.error}` : 'Loading map data…'}</p>
           </div>
         )}
+        <FavouritesPanel settings={settings} priceState={priceState} />
       </main>
       {selected && dataset && (
         <QuestDetail

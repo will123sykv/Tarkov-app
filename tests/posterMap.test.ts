@@ -10,6 +10,7 @@ import {
 import { MAP_CONFIGS } from '../src/renderer/src/lib/questUi'
 import { DB4TARKOV_MAPS } from '../src/shared/db4tarkov'
 import { RE3MR_FILES } from '../src/shared/re3mr'
+import { WIKI_MAPS } from '../src/shared/wikiMaps'
 
 const map = (key: string): PosterMap => {
   const m = posterFor(key)
@@ -19,7 +20,7 @@ const map = (key: string): PosterMap => {
 const at = (x: number, y: number | null, z: number) => ({ x, y, z })
 
 describe('2D maps', () => {
-  it('covers Re3MR’s and db4tarkov’s maps, with the images the app is allowed to fetch', () => {
+  it('covers Re3MR’s, db4tarkov’s and the wiki’s maps, with the images the app is allowed to fetch', () => {
     expect(POSTER_MAPS.map((m) => m.key).sort()).toEqual([
       'customs',
       'factory',
@@ -31,6 +32,7 @@ describe('2D maps', () => {
       'shoreline',
       'streets-of-tarkov',
       'terminal',
+      'the-lab',
       'the-labyrinth',
       'woods'
     ])
@@ -43,7 +45,8 @@ describe('2D maps', () => {
     // At the top zoom a 512 px tile is 512 image pixels: the image fits the tile grid.
     for (const m of db4)
       expect(Math.max(m.width, m.height), m.key).toBeLessThanOrEqual(512 * 2 ** (m.tiles!.maxZoom - 1))
-    expect(posterFor('the-lab')).toBeNull()
+    const wiki = POSTER_MAPS.filter((m) => m.provider === 'wiki')
+    expect(wiki.map((m) => m.file).sort()).toEqual(Object.keys(WIKI_MAPS).sort())
   })
 
   it('gives every height exactly one whole-map panel, and each inset area at most one per height', () => {
@@ -138,6 +141,18 @@ describe('2D maps', () => {
     ['woods', 'Friendship Bridge', { x: 93.17, y: 16.57, z: -843.98 }, [2800, 488], 40],
     ['shoreline', 'Lighthouse (end of the pier)', { x: -458.15, y: -54.29, z: 567.29 }, [3369, 4380], 40],
     ['reserve', 'Tarmac (the helicopter)', { x: -120, y: -2, z: 37 }, [2378, 1440], 40],
+    // The Lab: where the wiki's own markers are.
+    ['the-lab', 'Main Elevator (basement)', { x: -282.7, y: -2.8, z: -334.7 }, [562.5, 101.9], 40],
+    ['the-lab', 'Quarantine Zone door lock', { x: -123.2, y: 1, z: -406.5 }, [1388.1, 1813.8], 30],
+    ['the-lab', 'PMC spawn by the hangar', { x: -116.5, y: 0, z: -253.9 }, [2411.6, 1835.4], 30],
+    [
+      'the-lab',
+      'Kruglov’s Office door lock (second floor)',
+      { x: -261.4, y: 5.2, z: -372.8 },
+      [2892, 171.9],
+      30
+    ],
+    ['the-lab', 'Cargo Elevator (second floor)', { x: -111.8, y: 5.4, z: -408.5 }, [2648.5, 1060.4], 30],
     ['interchange', 'Oli Tower (the roundabout)', { x: 202.3, y: 22, z: 219.4 }, [1945, 4200], 60],
     ['lighthouse', 'Northern Checkpoint (the booth)', { x: 114.67, y: 11.86, z: -989.46 }, [878, 442], 50],
     [

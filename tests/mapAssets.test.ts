@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FetchFn } from '../src/main/pricing/http'
 import { createMapAssetHandler, toMapAssetUrl } from '../src/main/maps/mapAssets'
 import { RE3MR_COMMIT } from '../src/shared/re3mr'
+import { WIKI_MAPS } from '../src/shared/wikiMaps'
 import { tempDir } from './helpers'
 
 const request = (url: string) => new Request(url)
@@ -118,6 +119,47 @@ describe('db4tarkov tiles', () => {
     ]) {
       expect((await handle(request(url))).status, url).toBe(404)
     }
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+})
+
+describe('the wiki’s map images', () => {
+  it('fetches them from the wiki’s CDN, caches them by upload and reads their type off the image', async () => {
+    const cacheDir = await tempDir()
+    // The CDN sent WebP for a .png file.
+    const webp = new Uint8Array([
+      ...new TextEncoder().encode('RIFF'),
+      0,
+      0,
+      0,
+      0,
+      ...new TextEncoder().encode('WEBP')
+    ])
+    const fetchFn = vi.fn<FetchFn>(async () => new Response(webp))
+    const handle = createMapAssetHandler({ cacheDir, fetchFn })
+    const res = await handle(request('tarkov-map://wiki/the-lab'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/webp')
+    expect(fetchFn).toHaveBeenCalledWith(WIKI_MAPS['the-lab'].url)
+    const cached = join(cacheDir, 'wiki', `the-lab-${WIKI_MAPS['the-lab'].version}.img`)
+    expect([...(await readFile(cached))]).toEqual([...webp])
+
+    const png = createMapAssetHandler({
+      cacheDir: await tempDir(),
+      fetchFn: async () => new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10]))
+    })
+    expect((await png(request('tarkov-map://wiki/the-lab'))).headers.get('content-type')).toBe('image/png')
+  })
+
+  it('refuses any other map', async () => {
+    const fetchFn = vi.fn<FetchFn>()
+    const handle = createMapAssetHandler({ cacheDir: await tempDir(), fetchFn })
+    for (const url of [
+      'tarkov-map://wiki/customs',
+      'tarkov-map://wiki/toString',
+      'tarkov-map://wiki/the-lab/x'
+    ])
+      expect((await handle(request(url))).status, url).toBe(404)
     expect(fetchFn).not.toHaveBeenCalled()
   })
 })

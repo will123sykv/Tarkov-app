@@ -2,12 +2,14 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, normalize, sep } from 'node:path'
 import { DB4TARKOV_MAPS, db4tarkovTileUrl } from '../../shared/db4tarkov'
 import { RE3MR_COMMIT, RE3MR_FILES, re3mrImageUrl } from '../../shared/re3mr'
+import { WIKI_MAPS } from '../../shared/wikiMaps'
 import type { FetchFn } from '../pricing/http'
 
 /**
  * The app's scheme for map images: `tarkov-map://assets/maps/…` mirrors `https://assets.tarkov.dev/maps/…`,
  * `tarkov-map://re3mr/<file>` serves one of Re3MR's 2D maps, and `tarkov-map://db4tarkov/<map>/<z>/<x>/<y>.webp`
- * a tile of one of db4tarkov's. `tarkov-map://assets/<item id>-grid-image.webp` is an item's grid image.
+ * a tile of one of db4tarkov's, and `tarkov-map://wiki/<map>` the wiki's image of a map.
+ * `tarkov-map://assets/<item id>-grid-image.webp` is an item's grid image.
  */
 export const MAP_SCHEME = 'tarkov-map'
 const ORIGIN = 'https://assets.tarkov.dev'
@@ -23,6 +25,14 @@ const TYPES: Record<string, string> = {
   svg: 'image/svg+xml'
 }
 
+/** An image's type from its first bytes (PNG, JPEG or WebP). */
+function sniff(body: Buffer): string {
+  if (body.subarray(0, 4).toString('latin1') === '\x89PNG') return 'image/png'
+  if (body[0] === 0xff && body[1] === 0xd8) return 'image/jpeg'
+  if (body.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp'
+  return 'application/octet-stream'
+}
+
 /** Where a request's image comes from and where it's cached, or null when it isn't a map image. */
 function resolve(url: URL): { source: string; cachePath: string } | null {
   const path = decodeURIComponent(url.pathname)
@@ -32,6 +42,11 @@ function resolve(url: URL): { source: string; cachePath: string } | null {
   const file = path.slice(1)
   if (url.host === 're3mr' && (RE3MR_FILES as readonly string[]).includes(file))
     return { source: re3mrImageUrl(file), cachePath: `/re3mr/${RE3MR_COMMIT}/${file}` }
+  if (url.host === 'wiki' && Object.hasOwn(WIKI_MAPS, file)) {
+    const { url: source, version } = WIKI_MAPS[file]
+    // The wiki's CDN sends PNG or WebP as it likes: the type is read off the image.
+    return { source, cachePath: `/wiki/${file}-${version}.img` }
+  }
   const tile = url.host === 'db4tarkov' ? DB4TARKOV_TILE.exec(path) : null
   if (tile) {
     const [slug, z, x, y] = [tile[1], Number(tile[2]), Number(tile[3]), Number(tile[4])]
@@ -47,8 +62,8 @@ function resolve(url: URL): { source: string; cachePath: string } | null {
 
 /**
  * Serves map images from a disk cache, downloading each (from assets.tarkov.dev, Re3MR's from GitHub,
- * db4tarkov's from its CDN) the first time it's needed, so maps opened once also work offline. Only
- * map images (and item grid images) are allowed.
+ * db4tarkov's and the wiki's from their CDNs) the first time it's needed, so maps opened once also
+ * work offline. Only map images (and item grid images) are allowed.
  */
 export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn }) {
   const inFlight = new Map<string, Promise<Buffer | null>>()
@@ -69,7 +84,6 @@ export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn
     if (!target) return new Response('Not found', { status: 404 })
     const file = normalize(join(deps.cacheDir, target.cachePath))
     if (!file.startsWith(normalize(deps.cacheDir) + sep)) return new Response('Not found', { status: 404 })
-    const type = TYPES[target.cachePath.split('.').pop()!.toLowerCase()]
     let body: Buffer | null = await readFile(file).catch(() => null)
     if (!body) {
       let pending = inFlight.get(file)
@@ -82,6 +96,7 @@ export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn
       body = await pending
     }
     if (!body) return new Response('Not found', { status: 404 })
+    const type = TYPES[target.cachePath.split('.').pop()!.toLowerCase()] ?? sniff(body)
     return new Response(new Uint8Array(body), {
       headers: { 'Content-Type': type, 'Cache-Control': 'max-age=31536000, immutable' }
     })

@@ -76,7 +76,7 @@ export const DEFAULT_SETTINGS: Settings = {
     showSnipers: true,
     showKeys: false,
     faction: 'pmc',
-    style: '2d'
+    favouritesOpen: true
   },
   hideout: {
     scope: 'all',
@@ -141,8 +141,7 @@ function sanitizeMaps(raw: unknown): MapSettings {
     showSnipers: typeof r.showSnipers === 'boolean' ? r.showSnipers : d.showSnipers,
     showKeys: r.showKeys === true,
     faction: r.faction === 'scav' ? 'scav' : 'pmc',
-    // 1.5 called the 2D maps 're3mr', when Re3MR drew all of them.
-    style: r.style === 'tarkov-dev' ? 'tarkov-dev' : '2d'
+    favouritesOpen: r.favouritesOpen !== false
   }
 }
 

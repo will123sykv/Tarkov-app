@@ -489,13 +489,15 @@ function Advice({
             {getLater && (
               <span
                 className="muted nowrap"
-                title={`The hideout or a quest needs it, but it needn't be found in raid and you can ${getLater.kind === 'buy' ? 'buy' : 'craft'} it when you do`}
+                title={`The hideout or a quest needs it, but it needn't be found in raid and you can ${getLater.kind === 'buy' ? 'buy' : getLater.kind === 'barter' ? 'trade for' : 'craft'} it when you do`}
               >
                 {' '}
                 needed later ·{' '}
                 {getLater.kind === 'buy'
                   ? `buy back ${formatRub(getLater.option.price)} (${getLater.option.label})`
-                  : `craft at ${getLater.option.stationName}`}
+                  : getLater.kind === 'barter'
+                    ? `trade with ${getLater.option.label}`
+                    : `craft at ${getLater.option.stationName}`}
               </span>
             )}
           </span>

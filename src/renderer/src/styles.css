@@ -2487,10 +2487,6 @@ button.link.small {
   position: relative;
 }
 
-.map-style {
-  margin-top: 8px;
-}
-
 .map-canvas,
 .leaflet-host {
   position: absolute;
@@ -3437,6 +3433,168 @@ button.link.small {
 .map-canvas.placing .leaflet-container,
 .map-canvas.placing .leaflet-interactive {
   cursor: crosshair;
+}
+
+/* Favourites: a star beside an item, an upgrade or a quest, and what they need over the map. */
+.favourite-star {
+  flex: none;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.favourite-star:hover,
+.favourite-star:focus-visible {
+  color: var(--accent-strong);
+}
+
+.favourite-star.on {
+  color: var(--accent);
+}
+
+.favourite-star:not(.on) {
+  opacity: 0.55;
+}
+
+.favourite-star:hover,
+.favourite-star:focus-visible,
+.quest-item:hover .favourite-star,
+tr:hover .favourite-star {
+  opacity: 1;
+}
+
+/* In the quest list the star sits over the row's right end (a button can't hold another). */
+.quest-item {
+  position: relative;
+}
+
+.quest-item .quest-row {
+  padding-right: 34px;
+}
+
+.quest-item .favourite-star {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+.quest-detail > header .favourite-star {
+  margin-left: auto;
+  padding-top: 6px;
+  font-size: 18px;
+}
+
+.favourites-panel {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.favourites-panel.closed {
+  width: auto;
+}
+
+.favourites-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.favourites-head .favourites-star {
+  color: var(--accent);
+}
+
+.favourites-head .favourites-fold {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.favourites-empty {
+  margin: 0;
+  padding: 0 10px 8px;
+}
+
+.favourites-list {
+  margin: 0;
+  padding: 0 4px 4px;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.favourites-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+.favourites-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.favourites-list img,
+.favourites-list .icon-gap {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.favourites-list li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.favourites-name {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.favourites-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favourites-for {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.favourites-for .tag {
+  margin-left: 0;
+}
+
+.tag.cant-get {
+  background: rgba(213, 99, 79, 0.16);
+  color: var(--bad);
 }
 
 .placing-banner {

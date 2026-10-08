@@ -16,6 +16,13 @@ import type { StoryPin, StoryPins } from '../../shared/storyPlaces'
 import type { GameMode } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import type { LogEvent } from '../logs/interpret'
+import {
+  EMPTY_FAVOURITES,
+  MAX_FAVOURITES,
+  sanitizeFavourites,
+  type FavouriteKind,
+  type Favourites
+} from '../../shared/favourites'
 
 const MODES: GameMode[] = ['pvp', 'pve', 'season']
 const MAX_RAIDS = 1000
@@ -33,6 +40,8 @@ interface Saved {
   pins: StoryPins
   /** Keys the player has, and ones they want to get. Since 1.17.0. */
   keys: Record<GameMode, KeyInventory>
+  /** Items, upgrades and quests the player starred, listed over the map. Since 1.27.0. */
+  favourites: Record<GameMode, Favourites>
 }
 
 /** Item counts are whole and at least 0; a count of 0 isn't kept. */
@@ -53,7 +62,8 @@ const empty = (): Saved => ({
   hideout: { pvp: EMPTY_HIDEOUT, pve: EMPTY_HIDEOUT, season: EMPTY_HIDEOUT },
   objectives: { pvp: {}, pve: {}, season: {} },
   pins: {},
-  keys: { pvp: EMPTY_KEYS, pve: EMPTY_KEYS, season: EMPTY_KEYS }
+  keys: { pvp: EMPTY_KEYS, pve: EMPTY_KEYS, season: EMPTY_KEYS },
+  favourites: { pvp: EMPTY_FAVOURITES, pve: EMPTY_FAVOURITES, season: EMPTY_FAVOURITES }
 })
 
 /** A saved key list: ids only, each once (files from before 1.17.0 have none). */
@@ -119,7 +129,10 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
                 mode,
                 { owned: keyList(raw.keys?.[mode]?.owned), toDo: keyList(raw.keys?.[mode]?.toDo) }
               ])
-            ) as Saved['keys']
+            ) as Saved['keys'],
+            favourites: Object.fromEntries(
+              MODES.map((mode) => [mode, sanitizeFavourites(raw.favourites?.[mode])])
+            ) as Saved['favourites']
           }
         : base
     return data
@@ -204,6 +217,21 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       d.keys[mode] = { owned, toDo: d.keys[mode].toDo.filter((id) => !have.has(id)) }
       await save()
       return d.keys[mode]
+    },
+
+    async favourites(mode: GameMode): Promise<Favourites> {
+      return (await load()).favourites[mode]
+    },
+
+    /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */
+    async setFavourite(mode: GameMode, kind: FavouriteKind, id: string, on: boolean): Promise<Favourites> {
+      const d = await load()
+      const current = d.favourites[mode]
+      const without = current[kind].filter((x) => x !== id)
+      if (on && without.length >= MAX_FAVOURITES) throw new Error('Too many favourites')
+      d.favourites[mode] = { ...current, [kind]: on ? [...without, id] : without }
+      await save()
+      return d.favourites[mode]
     },
 
     async pins(): Promise<StoryPins> {

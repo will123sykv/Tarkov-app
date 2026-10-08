@@ -171,6 +171,30 @@ describe('normalizeQuestData', () => {
     ])
   })
 
+  it('keeps traders’ barter trades: what each takes and gives, its loyalty level and quest', () => {
+    expect(data.barters).toEqual([
+      {
+        id: 'barter-ledx',
+        traderId: THERAPIST,
+        level: 3,
+        questId: Q.checking,
+        inputs: [
+          { itemId: BOLTS, count: 10 },
+          { itemId: SCREWDRIVER, count: 2 }
+        ],
+        outputs: [{ itemId: LEDX, count: 1 }]
+      },
+      {
+        id: 'barter-bolts',
+        traderId: PRAPOR,
+        level: 1,
+        questId: null,
+        inputs: [{ itemId: ROUBLES, count: 155.5 }],
+        outputs: [{ itemId: BOLTS, count: 2 }]
+      }
+    ])
+  })
+
   it('keeps what the hideout makes: what each craft uses up, its tools, product and quest', () => {
     expect(data.crafts).toEqual([
       {
@@ -289,7 +313,8 @@ describe('createQuestDataService', () => {
     traders_en: RAW_QUEST_DATA.tradersLang,
     hideout: RAW_QUEST_DATA.hideout,
     hideout_en: RAW_QUEST_DATA.hideoutLang,
-    crafts: RAW_QUEST_DATA.crafts
+    crafts: RAW_QUEST_DATA.crafts,
+    barters: RAW_QUEST_DATA.barters
   }
   const serve = (fail = false) =>
     mockFetch({
@@ -385,9 +410,9 @@ describe('createQuestDataService', () => {
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
     // Nine tarkov.dev files and the wiki's list of story chapters.
-    expect(fetchFn).toHaveBeenCalledTimes(10)
+    expect(fetchFn).toHaveBeenCalledTimes(11)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(20)
+    expect(fetchFn).toHaveBeenCalledTimes(22)
   })
 
   it('keeps the story chapters it had when the wiki can’t be reached', async () => {
@@ -496,6 +521,17 @@ describe('createQuestDataService', () => {
     )
     expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, crafts: [] } })
     expect(offline.dataset!.stations.length).toBeGreaterThan(0)
+  })
+
+  it('upgrades a 1.26 cache without barters, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 8)
+    const { barters: _, ...old } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, barters: [] } })
   })
 
   it('upgrades a 1.6 cache without keys, rewards or pictures, and refetches it', async () => {
