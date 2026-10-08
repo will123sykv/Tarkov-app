@@ -178,7 +178,8 @@ const score = (plan: MapPlan): number => plan.quests.length + plan.finishes.leng
 /**
  * Where to raid next for the active quests, and what can be done without a raid. `groupOf` says which
  * map (group) a map id belongs to. With `owned` (the player's keys), objectives behind a lock none of them
- * opens, or on a map they can't get onto, are flagged (and with `hideBlocked`, left out).
+ * opens, or on a map they can't get onto, are flagged; with `hideBlocked`, a quest such a lock holds up
+ * is left out entirely (its keys still listed to get), and so is what's on a map they can't get onto.
  */
 export function todoPlan(
   rows: readonly { quest: Quest; status: QuestStatus }[],
@@ -283,12 +284,14 @@ export function todoPlan(
 
     const onMaps = raid.filter((s) => s.groups.length)
     const onMapsAll = raidAll.filter((s) => s.groups.length)
+    // "Only quests I can do": a lock none of the player's keys open, anywhere in the quest, holds it all up.
+    const keyBlocked = hideBlocked && open.some((s) => s.missing.length > 0)
+    if (keyBlocked) hidden.add(quest)
     for (const step of raid) {
       if (step.groups.length) continue
       if (step.objective.type !== 'findItem') {
         for (const keyIds of step.missing) needKey(keyIds, quest, [], false)
-        if (hideBlocked && step.missing.length) hidden.add(quest)
-        else result.anyMap.push(step)
+        if (!keyBlocked) result.anyMap.push(step)
       } else {
         const single = step.objective.items.length === 1 ? step.objective.items[0] : null
         if (!single || (have[single] ?? 0) < step.left) result.finds.push(step)
@@ -305,6 +308,7 @@ export function todoPlan(
       if (p.noAccess) needKey(p.noAccess, quest, group.mapIds.slice(0, 1), true)
       for (const { objective, missing } of all)
         for (const keyIds of missing) needKey(keyIds, quest, objective.maps, false)
+      if (keyBlocked) continue
       const here = hideBlocked ? all.filter(canDo) : all
       if (here.length < all.length) hidden.add(quest)
       if (!here.length) continue

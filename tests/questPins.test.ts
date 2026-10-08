@@ -144,6 +144,21 @@ describe('only quests I can do, on the map', () => {
     ])
   })
 
+  it('leaves out a whole quest a missing key holds up, even its free objectives and on other maps', () => {
+    // Its free objective here, and a locked one on Woods (not on this map at all).
+    const here = objective('here', 'visit')
+    const woods = objective('woods', 'visit', { maps: ['woods-id'], requiredKeys: [['cabin-key']] })
+    const split = quest('split', [here, woods])
+    const list = [...markers, marker(split, here, [at(50, 50)])]
+    const shown = doableMarkers(list, new Set(['dorm-key']), false)
+    expect(ids(shown.markers)).toEqual(['free', 'dorm'])
+    expect([shown.hidden, shown.quests]).toEqual([4, 3])
+    expect(ids(doableMarkers(list, new Set(['dorm-key', 'cabin-key']), false).markers)).toContain('here')
+    // Once the locked objective's done (as the Maps tab says through `blocked`), the quest's back.
+    const done = doableMarkers(list, new Set(['dorm-key']), false, undefined, (q) => q.id === 'painkiller')
+    expect(ids(done.markers)).toEqual(['free', 'swag', 'stash', 'dorm', 'here'])
+  })
+
   it('leaves out everything on a map the player can’t get onto, but the quest asked for', () => {
     const all = new Set(['dorm-key', 'unknown-key', 'key-303'])
     expect(doableMarkers(markers, all, false).hidden).toBe(0)

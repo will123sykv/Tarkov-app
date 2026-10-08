@@ -67,6 +67,21 @@ export function missingKeys(
 }
 
 /**
+ * The locks in the way of finishing a quest: those its objectives still to do (not optional ones)
+ * need opened, on any map, that none of the player's keys open. Empty when nothing's in the way.
+ * "Only quests I can do" leaves a quest with any out entirely.
+ */
+export function blockedByKeys(
+  quest: Pick<Quest, 'id' | 'objectives'>,
+  owned: ReadonlySet<string>,
+  objectives: ObjectiveProgress | undefined
+): string[][] {
+  return quest.objectives
+    .filter((o) => !o.optional && objectiveValue(o, quest.id, objectives) < objectiveTarget(o))
+    .flatMap((o) => missingKeys(o, owned))
+}
+
+/**
  * The keys the player's quests still need, for quests with one of the given statuses: each objective
  * not yet done adds the locks it names, and tarkov.dev's list of the quest's keys adds the rest.
  */

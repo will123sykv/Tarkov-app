@@ -210,7 +210,7 @@ describe('todoPlan', () => {
     expect(customs.questItems).toEqual([{ name: 'Flash drive', questId: '1' }])
   })
 
-  it('with your keys, flags or leaves out objectives behind a lock you can’t open, and says which keys to get', () => {
+  it('with your keys, flags objectives behind a lock you can’t open, or leaves out their quests, and says which keys to get', () => {
     const locked = quest('locked', [objective('a', 'visit', { requiredKeys: [['dorm', 'dormCopy']] })])
     const half = quest('half', [
       objective('a', 'visit'),
@@ -231,21 +231,30 @@ describe('todoPlan', () => {
     expect(all.hidden).toBe(0)
     expect(all.maps.map((p) => p.group.name)).toEqual(['Customs', 'Woods'])
 
-    // Only what you can do: "locked" goes, "half" keeps the objective you can do (but can't be finished).
+    // Only what you can do: "locked" goes, and so does all of "half" (the lock holds the quest up).
     const plan = todoPlan(rows, {}, groupOf, { owned: new Set(), hideBlocked: true })
-    const customs = plan.maps.find((p) => p.group.name === 'Customs')!
-    expect(names(customs.quests)).toEqual(['half'])
-    expect(customs.steps.map((s) => s.objective.id)).toEqual(['a'])
-    expect(customs.finishes).toEqual([])
-    expect(customs.blocked).toEqual([])
+    expect(plan.maps.map((p) => [p.group.name, names(p.quests)])).toEqual([['Woods', ['open']]])
     expect(plan.hidden).toBe(2)
-    // Woods (1 quest, finished there: 2) now beats Customs (1 quest: 1).
-    expect(plan.maps.map((p) => p.group.name)).toEqual(['Woods', 'Customs'])
     // The keys are listed either way.
     for (const p of [all, plan])
       expect(p.keysToGet.map((k) => [k.keyIds, names(k.quests), k.mapIds, k.access])).toEqual([
         [['dorm', 'dormCopy'], ['locked', 'half'], [CUSTOMS], false]
       ])
+
+    // A lock on another map holds the quest up here too.
+    const split = quest('split', [
+      objective('a', 'visit', { maps: [WOODS] }),
+      objective('b', 'visit', { requiredKeys: [['dorm', 'dormCopy']] })
+    ])
+    const splitPlan = todoPlan([row(split), row(open)], {}, groupOf, { owned: new Set(), hideBlocked: true })
+    expect(splitPlan.maps.map((p) => names(p.quests))).toEqual([['open']])
+    expect(splitPlan.keysToGet.map((k) => names(k.quests))).toEqual([['split']])
+    // Once the locked objective's done, the quest's back.
+    const doneB = todoPlan([row(split)], { split: { b: 1 } }, groupOf, {
+      owned: new Set(),
+      hideBlocked: true
+    })
+    expect(names(doneB.maps[0].quests)).toEqual(['split'])
 
     // Either copy of the key opens it.
     const withKey = todoPlan(rows, {}, groupOf, { owned: new Set(['dormCopy']), hideBlocked: true })

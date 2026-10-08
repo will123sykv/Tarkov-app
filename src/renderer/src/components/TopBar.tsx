@@ -2,6 +2,7 @@ import { GAME_MODES } from '../../../shared/gameModes'
 import type { AppView, PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import LevelInput from './LevelInput'
+import RaidClock from './RaidClock'
 
 const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
   { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
@@ -68,6 +69,8 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
           </button>
         ))}
       </div>
+
+      <RaidClock />
 
       <LevelInput
         key={settings.gameMode}

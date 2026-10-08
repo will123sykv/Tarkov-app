@@ -1379,6 +1379,29 @@ button.link {
   flex: none;
 }
 
+/* The two in-raid times, with a sun or moon for how light it is. */
+.raid-clock {
+  display: grid;
+  flex: none;
+  gap: 2px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.15;
+  cursor: default;
+}
+
+.raid-clock-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.raid-sky {
+  flex: none;
+}
+
 .view-tabs button,
 .segmented button,
 .topbar-actions .button,

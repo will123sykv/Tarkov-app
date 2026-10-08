@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
+import { blockedByKeys, EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
@@ -38,7 +38,7 @@ const WHICH: { id: TodoSettings['show']; label: string; title: string }[] = [
   {
     id: 'doable',
     label: 'Only quests I can do',
-    title: 'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
+    title: 'Leave out quests that need a key you don’t have, and maps you can’t get onto'
   }
 ]
 
@@ -332,14 +332,15 @@ export default function MapsView({
     }
     return result
   }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset, done])
-  // "Only quests I can do" leaves out what's behind keys the player doesn't have (not the quest shown
-  // from "Show on map").
+  // "Only quests I can do" leaves out every quest a key the player doesn't have holds up, on any map
+  // (not the quest shown from "Show on map").
+  const blocked = useCallback((q: Quest) => blockedByKeys(q, owned, done).length > 0, [owned, done])
   const shown = useMemo(
     () =>
       doable
-        ? doableMarkers(inScope, owned, shut, (marker) => focus?.questId === marker.quest.id)
+        ? doableMarkers(inScope, owned, shut, (marker) => focus?.questId === marker.quest.id, blocked)
         : { markers: inScope, hidden: 0, quests: 0 },
-    [doable, inScope, owned, shut, focus]
+    [doable, inScope, owned, shut, focus, blocked]
   )
   const objectives = shown.markers
 
@@ -355,13 +356,13 @@ export default function MapsView({
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
         if (!pinning && !objective.maps.some((id) => mapIds.has(id))) continue
         if (!pinning && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
-        if (!pinning && doable && shut) continue
+        if (!pinning && doable && (shut || blocked(quest))) continue
         const zone = objective.zones.find((z) => mapIds.has(z.map))
         result.push({ quest, objective, pin: zone?.source ?? null })
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut])
+  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked])
   const placingStep = placing
     ? (rows
         .find((r) => r.quest.id === placing.questId)
@@ -460,8 +461,8 @@ export default function MapsView({
     : shut
       ? `You have no ${accessName}, so this map’s objectives are hidden.`
       : shown.hidden
-        ? `${hiddenCount} hidden: behind keys you don’t have.`
-        : 'Nothing here is behind a key you don’t have.'
+        ? `${hiddenCount} hidden: ${shown.quests > 1 ? 'their quests need' : 'its quest needs'} a key you don’t have.`
+        : 'No quest here needs a key you don’t have.'
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null

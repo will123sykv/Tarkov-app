@@ -57,6 +57,10 @@ next time you close the app.
   Items you can't sell on the flea are valued at the best trader price. You can hide them.
 - **Game modes.** Switch between PvP, PvE and PvP Season. Each mode keeps its own PMC level,
   because each is a separate character in game.
+- **Time in raid.** Next to the game modes, the two times a raid can start at right now (Tarkov's
+  clock runs 7 times as fast as real time, and the two are 12 hours apart), each with a moon when
+  it's dark in raid, a sun when it's light, and a half-lit disc at dawn and dusk. Factory has its own
+  day and night versions.
 - **Containers.** Pick what you're about to search (jacket, safe, PC block, toolbox, weapon box,
   caches, bodies and more) and see everything that can spawn in it, ranked by ₽ per slot:
   - a **Chance** column shows how likely one search is to turn up each item;
@@ -151,8 +155,9 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   tab: status, what unlocks it and what it unlocks, every objective with its progress and **Show on
   map**, the keys and items it takes, its rewards and the wiki's guide. **✕** goes back.
 - **Filters**, kept until you change them: **Show all** or **Only quests I can do** (leaves out
-  objectives behind a lock none of your keys open, and maps you can't get onto, like the Lab without
-  its access keycard; the Maps tab shares it), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
+  every quest held up by a lock none of your keys open, on any map, while still listing the keys
+  to get, and maps you can't get onto, like the Lab without its access keycard; the Maps tab shares
+  it), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
   to, marking, finding, stashing, extracting). A quest with both kinds shows just the ones asked for,
   and the maps are ranked by what's shown.
 - **Also here, if you pick them up** names quests you haven't started yet that have objectives on
@@ -381,8 +386,8 @@ the game's install folder, or its `build` folder.
 - **Only quests I can do on the maps:** the same filter as the To do tab (switching it on either tab
   switches both). With **Show all**, a pin whose objective needs a key you don't have shows its key
   in amber on dark, like a lock you have no key for, and its tooltip says **(you don't have it)**;
-  **Only quests I can do** leaves those objectives off the map, and the sidebar says how many it
-  hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
+  **Only quests I can do** takes the whole quest off the map (all its objectives, on every map,
+  until you have the key or have done the locked part), and the sidebar says how many it hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
   out. A quest opened with **Show on map** is shown anyway.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you

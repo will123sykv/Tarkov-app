@@ -1036,7 +1036,8 @@ export default function TodoView({
           )}
           <p className="hint">
             Objectives behind a lock none of your keys open (tick yours in the Keys tab), or on a map you
-            can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> leaves them out.
+            can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> leaves out the whole quest
+            a missing key holds up, and the maps you can&rsquo;t get onto.
           </p>
         </SidebarSection>
         <SidebarSection title="On any map">
@@ -1130,7 +1131,7 @@ export default function TodoView({
                 [
                   'doable',
                   'Only quests I can do',
-                  'Leave out objectives behind keys you don’t have, and maps you can’t get onto'
+                  'Leave out quests that need a key you don’t have, and maps you can’t get onto'
                 ]
               ] as const,
               (show) => setTodo({ show })

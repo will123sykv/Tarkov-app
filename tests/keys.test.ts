@@ -3,7 +3,15 @@ import { writeFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import { createPlayerStore } from '../src/main/quests/playerStore'
-import { EMPTY_KEYS, keyRewards, keyScanChanges, keysNeeded, missingKeys, opens } from '../src/shared/keys'
+import {
+  blockedByKeys,
+  EMPTY_KEYS,
+  keyRewards,
+  keyScanChanges,
+  keysNeeded,
+  missingKeys,
+  opens
+} from '../src/shared/keys'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import { tempDir } from './helpers'
@@ -56,6 +64,20 @@ describe('which locks are open', () => {
     expect(opens(['a', 'b'], owned)).toBe(true)
     expect(opens(['a'], owned)).toBe(false)
     expect(missingKeys(objective('x', { requiredKeys: [['a', 'b'], ['c'], []] }), owned)).toEqual([['c']])
+  })
+
+  it('says which keys hold up a whole quest, on any map', () => {
+    const q = quest('q', [
+      objective('free'),
+      objective('locked', { maps: ['woods-id'], requiredKeys: [['dorm', 'dormCopy']] }),
+      objective('extra', { optional: true, requiredKeys: [['safe']] })
+    ])
+    // A lock on another map still holds the quest up; an optional objective's lock doesn't.
+    expect(blockedByKeys(q, new Set(), undefined)).toEqual([['dorm', 'dormCopy']])
+    // Either copy of the key opens it.
+    expect(blockedByKeys(q, new Set(['dormCopy']), undefined)).toEqual([])
+    // Done already: its lock is no longer in the way.
+    expect(blockedByKeys(q, new Set(), { q: { locked: 1 } })).toEqual([])
   })
 })
 
