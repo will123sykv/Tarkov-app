@@ -23,6 +23,14 @@ export interface KeyMarks {
   focusKey: string | null
 }
 
+/** Where a favourite item can be found on this map: loose spots, and containers that can hold it. */
+export interface FindMarks {
+  /** The item, for tooltips. */
+  name: string
+  loose: Vec3[]
+  containers: { name: string; chance: string; spots: Vec3[] }[]
+}
+
 export interface MapLayers {
   extracts: boolean
   transits: boolean
@@ -50,6 +58,8 @@ interface Props {
   selectedQuest: string | null
   onSelectQuest: (questId: string) => void
   keyMarks?: KeyMarks | null
+  /** A favourite item's spots: the map centres on them. */
+  findMarks?: FindMarks | null
   /** Waiting for a click on where a story step is; `onPlace` gets the spot in the game. */
   placing?: boolean
   onPlace?: (position: Vec3) => void
@@ -59,7 +69,10 @@ interface Props {
 export const MARKER_COLORS = {
   quest: '#e2c985',
   questOther: '#aebdcc',
-  spawn: '#c9ccce'
+  spawn: '#c9ccce',
+  /** A favourite item's loose spots, and containers that can hold it. */
+  findLoose: '#7fb069',
+  findContainer: '#6a9fd4'
 }
 
 /** A pin's tooltip: the quest, its trader, what to do there, and the keys it takes (and which are missing). */
@@ -124,6 +137,7 @@ export default function MapCanvas({
   selectedQuest,
   onSelectQuest,
   keyMarks = null,
+  findMarks = null,
   placing = false,
   onPlace,
   onCancelPlace
@@ -135,6 +149,7 @@ export default function MapCanvas({
   const [baseError, setBaseError] = useState<string | null>(null)
   const handledFocus = useRef<Props['focus']>(null)
   const handledKey = useRef<string | null>(null)
+  const handledFind = useRef<string | null>(null)
 
   // The map itself and its base image; rebuilt when switching maps.
   useEffect(() => {
@@ -275,6 +290,23 @@ export default function MapCanvas({
         )
       }
     }
+    if (findMarks) {
+      for (const p of findMarks.loose.filter(shown))
+        add(
+          'find',
+          dot(p, MARKER_COLORS.findLoose, 6, 'mapObjectives').bindTooltip(
+            label(`${findMarks.name} can spawn here`, ['Loose loot'])
+          )
+        )
+      for (const c of findMarks.containers)
+        for (const p of c.spots.filter(shown))
+          add(
+            'find',
+            dot(p, MARKER_COLORS.findContainer, 5, 'mapObjectives').bindTooltip(
+              label(c.name, [`${c.chance} chance to hold a ${findMarks.name}`])
+            )
+          )
+    }
     const color = (status: string): string =>
       status === 'active' ? MARKER_COLORS.quest : MARKER_COLORS.questOther
     const fade = (questId: string): boolean => selectedQuest !== null && questId !== selectedQuest
@@ -334,7 +366,8 @@ export default function MapCanvas({
     itemName,
     selectedQuest,
     onSelectQuest,
-    keyMarks
+    keyMarks,
+    findMarks
   ])
 
   // Placing a pin: the next click on the map is where it goes; Esc cancels.
@@ -367,6 +400,18 @@ export default function MapCanvas({
     handledKey.current = id
     map.flyToBounds(L.latLngBounds(points).pad(0.4), { maxZoom: projection.focusZoom, duration: 0.6 })
   }, [keyMarks, maps, projection])
+
+  // Fit a favourite item's spots in view when one is picked.
+  useEffect(() => {
+    const map = mapRef.current
+    const id = findMarks ? `${findMarks.name}@${maps.map((m) => m.id).join()}` : null
+    if (!map || !id || handledFind.current === id) return
+    const points = (markersRef.current.get('find') ?? []).flatMap((l) =>
+      l instanceof L.CircleMarker ? [l.getLatLng()] : []
+    )
+    handledFind.current = id
+    if (points.length) map.flyToBounds(L.latLngBounds(points).pad(0.2), { duration: 0.6 })
+  }, [findMarks, maps])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {

@@ -126,7 +126,7 @@ export function containerLootKey(mapId: string | null): string {
   return mapId ?? ''
 }
 
-async function loadContainerLoot(mapId: string | null): Promise<void> {
+export async function loadContainerLoot(mapId: string | null): Promise<void> {
   const key = containerLootKey(mapId)
   if (useStore.getState().containerLoot[key]) return
   const loot = await window.api.getContainerLoot(mapId)

@@ -35,6 +35,7 @@ export function idMonth(id: string): string | null {
 
 interface Accumulator {
   name: string
+  templates: Set<string>
   maps: Map<string, { observations: number; countTotal: number; weights: Map<string, number> }>
 }
 
@@ -55,8 +56,9 @@ export function aggregateStaticLoot(
       const name = locale[`${tpl} Name`] ?? tpl
       if (SEASONAL.test(name) || !table.itemDistribution?.length) continue
       const id = slugify(name)
-      const container = containers.get(id) ?? { name, maps: new Map() }
+      const container = containers.get(id) ?? { name, templates: new Set<string>(), maps: new Map() }
       containers.set(id, container)
+      container.templates.add(tpl)
       const entry = container.maps.get(map.id) ?? { observations: 0, countTotal: 0, weights: new Map() }
       container.maps.set(map.id, entry)
 
@@ -90,6 +92,7 @@ export function aggregateStaticLoot(
       .map(([id, container]) => ({
         id,
         name: container.name,
+        templates: [...container.templates].sort(),
         maps: Object.fromEntries(
           [...container.maps.entries()].map(([mapId, entry]): [string, ContainerMapLoot] => [
             mapId,

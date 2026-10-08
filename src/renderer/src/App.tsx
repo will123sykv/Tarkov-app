@@ -3,6 +3,7 @@ import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
 import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
 import { rankItems, type ContainerFilter } from '../../shared/valuation'
+import ErrorBoundary from './components/ErrorBoundary'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
 import HideoutView from './components/HideoutView'
@@ -111,46 +112,48 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
       <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
-      {view === 'trends' ? (
-        <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
-      ) : view === 'todo' ? (
-        <TodoView settings={settings} priceState={priceState} />
-      ) : view === 'quests' ? (
-        <QuestsView settings={settings} priceState={priceState} />
-      ) : view === 'hideout' ? (
-        <HideoutView settings={settings} priceState={priceState} />
-      ) : view === 'keys' ? (
-        <KeysView settings={settings} priceState={priceState} />
-      ) : view === 'maps' ? (
-        <MapsView settings={settings} priceState={priceState} />
-      ) : view === 'raids' ? (
-        <RaidsView settings={settings} priceState={priceState} />
-      ) : (
-        <div className="workspace">
-          <ContainerSidebar
-            settings={settings}
-            catalog={catalog}
-            ranking={lootList ? ranking : null}
-            pricesLoaded={dataset !== null}
-          />
-          <main className="content">
-            <ContainerSummary
-              selected={selected}
-              mapName={mapName}
-              unavailableContainer={unavailableContainer}
+      <ErrorBoundary key={view} what="this tab" variant="tab">
+        {view === 'trends' ? (
+          <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
+        ) : view === 'todo' ? (
+          <TodoView settings={settings} priceState={priceState} />
+        ) : view === 'quests' ? (
+          <QuestsView settings={settings} priceState={priceState} />
+        ) : view === 'hideout' ? (
+          <HideoutView settings={settings} priceState={priceState} />
+        ) : view === 'keys' ? (
+          <KeysView settings={settings} priceState={priceState} />
+        ) : view === 'maps' ? (
+          <MapsView settings={settings} priceState={priceState} />
+        ) : view === 'raids' ? (
+          <RaidsView settings={settings} priceState={priceState} />
+        ) : (
+          <div className="workspace">
+            <ContainerSidebar
+              settings={settings}
+              catalog={catalog}
+              ranking={lootList ? ranking : null}
               pricesLoaded={dataset !== null}
             />
-            <ItemTable
-              keep={keep}
-              rows={ranked}
-              priceState={priceState}
-              sort={settings.sort}
-              showChance={selected !== null}
-              scopeLabel={selected ? `${selected.loot.name}${mapName ? ` on ${mapName}` : ''}` : null}
-            />
-          </main>
-        </div>
-      )}
+            <main className="content">
+              <ContainerSummary
+                selected={selected}
+                mapName={mapName}
+                unavailableContainer={unavailableContainer}
+                pricesLoaded={dataset !== null}
+              />
+              <ItemTable
+                keep={keep}
+                rows={ranked}
+                priceState={priceState}
+                sort={settings.sort}
+                showChance={selected !== null}
+                scopeLabel={selected ? `${selected.loot.name}${mapName ? ` on ${mapName}` : ''}` : null}
+              />
+            </main>
+          </div>
+        )}
+      </ErrorBoundary>
       <StatusBar
         priceState={priceState}
         shown={trendsView ? trendRanking.rows.length : lootView ? ranked.length : null}

@@ -292,7 +292,6 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             spawnLocations: [{ spawnKey: 'ZoneDormitory', chance: 1 }]
           }
         ],
-        lootContainers: [{ huge: true }],
         // Locks, and loose loot spots: only those where a known key can spawn are kept.
         locks: [
           {
@@ -310,6 +309,13 @@ export const RAW_QUEST_DATA: QuestDataInput = {
           { position: { x: 170, y: 6, z: 141 }, items: [KEY.dorm303] },
           { position: { x: 10, y: 1, z: 10 }, items: ['5449016a4bdc2d6f028b456f', KEY.cabin, KEY.unknown] },
           { position: { x: 11, y: 1, z: 11 }, items: ['5449016a4bdc2d6f028b456f'] }
+        ],
+        lootContainers: [
+          { lootContainer: '578f87a3245977356274f2cb', position: { x: 5.04, y: 1, z: -5.06 } },
+          { lootContainer: { id: '578f87a3245977356274f2cb' }, position: { x: 7, y: 2, z: 8 } },
+          { lootContainer: '5909d50c86f774659e6aaebe', position: { x: 1, y: 1, z: 1 } },
+          { lootContainer: '5909d50c86f774659e6aaebe' },
+          { huge: true }
         ],
         minPlayerLevel: 0,
         maxPlayerLevel: 100,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import {
   EMPTY_FAVOURITES,
   favouriteNeeds,
@@ -7,8 +7,11 @@ import {
 } from '../../../shared/favourites'
 import { EMPTY_HIDEOUT, getBackNow, hideoutNeeds } from '../../../shared/hideout'
 import { neededItems } from '../../../shared/questProgress'
+import type { GameMap } from '../../../shared/questTypes'
 import type { PriceState, PublicSettings } from '../../../shared/types'
-import { useStore } from '../store'
+import { containerMapId, findScore, whereToFind, type WhereToFind } from '../../../shared/whereToFind'
+import { containerLootKey, loadContainerLoot, useStore } from '../store'
+import { configFor } from './questUi'
 import { useItemLookup } from './useItemLookup'
 import { useBuyContext, useCraftContext } from './useKeepList'
 import { useQuestRows } from './useQuestRows'
@@ -52,4 +55,67 @@ export function useFavouriteNeeds(settings: PublicSettings, priceState: PriceSta
       }
     })
   }, [favourites, rows, stations, progress, objectives, questsById, items, ctx, cc])
+}
+
+/** Where an item can be found on the map shown, and the map that gives clearly more chances, if any. */
+export interface FindInfo {
+  here: WhereToFind
+  better: { key: string; name: string } | null
+}
+
+/** How many more chances another map must give to be suggested instead. */
+const BETTER_BY = 1.5
+
+/**
+ * Where to look for items: on `map` (the map shown), and which other map gives more chances. Loads
+ * the container tables for every map the first time.
+ */
+export function useWhereToFind(
+  map: GameMap | null,
+  allMaps: readonly GameMap[]
+): (itemId: string) => FindInfo | null {
+  const catalog = useStore((s) => s.containerCatalog)
+  const containerLoot = useStore((s) => s.containerLoot)
+  // One map per image (the main version: the Lab, not the Lab in the dark).
+  const candidates = useMemo(() => {
+    const byKey = new Map<string, GameMap>()
+    for (const m of allMaps) {
+      const config = configFor(m)
+      if (!config) continue
+      if (!byKey.has(config.key) || m.normalizedName === config.key) byKey.set(config.key, m)
+    }
+    return [...byKey.entries()].map(([key, m]) => ({ key, map: m }))
+  }, [allMaps])
+  useEffect(() => {
+    for (const { map: m } of candidates) void loadContainerLoot(containerMapId(m))
+  }, [candidates])
+  return useMemo(() => {
+    const cache = new Map<string, FindInfo | null>()
+    const where = (itemId: string, m: GameMap): WhereToFind =>
+      whereToFind(
+        itemId,
+        m,
+        containerLoot[containerLootKey(containerMapId(m))] ?? [],
+        catalog?.containers ?? []
+      )
+    return (itemId) => {
+      if (!map) return null
+      if (cache.has(itemId)) return cache.get(itemId)!
+      const here = where(itemId, map)
+      const score = findScore(here)
+      let better: FindInfo['better'] = null
+      let best = Math.max(1, score * BETTER_BY)
+      for (const c of candidates) {
+        if (c.map.id === map.id || configFor(c.map) === configFor(map)) continue
+        const s = findScore(where(itemId, c.map))
+        if (s > best) {
+          best = s
+          better = { key: c.key, name: c.map.name }
+        }
+      }
+      const info = { here, better }
+      cache.set(itemId, info)
+      return info
+    }
+  }, [map, candidates, containerLoot, catalog])
 }

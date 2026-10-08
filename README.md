@@ -405,6 +405,12 @@ the game's install folder, or its `build` folder.
   what it's for; one item wanted by several favourites is listed once. Built levels and finished
   quests drop out by themselves. Click the panel's heading to fold it away (it's remembered).
   Favourites are kept per game mode.
+- **Where to find them:** under each item the panel says where it can turn up on the map you're
+  looking at: how many loose loot spots it can spawn at (tarkov.dev's map data) and the containers
+  likeliest to hold it, with the chance one search turns one up (**Here: 6 loose spots · Technical
+  supply crate 2%, Duffle bag 0.5%**; hover for more). **Show** puts its loose spots (green) and the
+  likeliest three kinds of container (blue) on the map, and **Better on Customs** (say) opens a map
+  that gives clearly more chances to find it.
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
 
@@ -503,7 +509,9 @@ downloads SPT's per-map `staticLoot.json` files, merges container variants that 
 archived [sp-tarkov/server-csharp](https://github.com/sp-tarkov/server-csharp) repository
 (NCSA licence). `npm run data:containers -- --source tushonka` reads its maintained successor,
 [SP-Tushonka/server-csharp](https://github.com/SP-Tushonka/server-csharp) (CC BY-NC-SA 4.0),
-if newer tables appear there. The CI smoke test warns when too many of the bundled items no
+if newer tables appear there (in October 2026 they were still the same). Each kind of container
+also lists the game's template ids it's made of, which is how tarkov.dev's maps name the
+containers at each spot, so the Maps tab can place them. The CI smoke test warns when too many of the bundled items no
 longer exist on tarkov.dev.
 
 ### Container pictures

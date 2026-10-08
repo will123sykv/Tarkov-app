@@ -44,6 +44,15 @@ export type Anchor = { x: number; y: number | null; z: number }
 
 export const POSTER_MAPS: readonly PosterMap[] = (posterData as unknown as { maps: PosterMap[] }).maps
 
+/**
+ * When an image arrives at another size than the one calibrated (its source uploaded a new version),
+ * what to tell the player: the markers may no longer line up. Null when it matches.
+ */
+export function sizeMismatch(map: PosterMap, width: number, height: number): string | null {
+  if (width === map.width && height === map.height) return null
+  return `The ${map.author} map has changed since the app was set up for it (${width}×${height}, not ${map.width}×${map.height}), so markers may be off. An app update will fix it.`
+}
+
 export function posterFor(mapKey: string): PosterMap | null {
   return POSTER_MAPS.find((m) => m.key === mapKey) ?? null
 }

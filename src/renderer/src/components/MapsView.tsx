@@ -1,8 +1,9 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
+import { formatChance } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
@@ -17,10 +18,11 @@ import {
 } from '../lib/questPins'
 import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useWhereToFind } from '../lib/useFavourites'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import FavouritesPanel from './FavouritesPanel'
-import MapCanvas, { MARKER_COLORS, type KeyMarks, type MapLayers } from './MapCanvas'
+import MapCanvas, { MARKER_COLORS, type FindMarks, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -199,6 +201,7 @@ function StorySteps({
 }
 
 const NO_LABELS: MapLabel[] = []
+const NO_MAPS: GameMap[] = []
 
 const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
   { key: 'showLabels', label: 'Place names' },
@@ -267,6 +270,25 @@ export default function MapsView({
   const mapIds = useMemo(() => new Set(maps.map((gm) => gm.id)), [maps])
   const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
   // What it takes to get onto the map, as the To do tab has it (the main version's): the Lab's keycard.
+  // A favourite item picked in the panel: where it can be found here.
+  const [findItem, setFindItem] = useState<string | null>(null)
+  const mainMap = useMemo(
+    () => maps.find((gm) => gm.normalizedName === config?.key) ?? maps[0] ?? null,
+    [maps, config]
+  )
+  const findInfo = useWhereToFind(mainMap, dataset?.maps ?? NO_MAPS)
+  const findMarks = useMemo<FindMarks | null>(() => {
+    const where = findItem ? findInfo(findItem)?.here : null
+    if (!findItem || !where) return null
+    const vec = ([x, y, z]: [number, number, number]): Vec3 => ({ x, y, z })
+    return {
+      name: itemName(findItem) ?? 'the item',
+      loose: where.loose.map(vec),
+      containers: where.containers
+        .slice(0, 3)
+        .map((c) => ({ name: c.name, chance: formatChance(c.chance), spots: c.spots.map(vec) }))
+    }
+  }, [findItem, findInfo, itemName])
   const accessKeys = useMemo(
     () => (maps.find((gm) => gm.normalizedName === config?.key) ?? maps[0])?.access?.keyIds ?? [],
     [maps, config]
@@ -695,6 +717,7 @@ export default function MapsView({
             selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
             keyMarks={keyMarks}
+            findMarks={findMarks}
             placing={placing !== null}
             onPlace={onPlace}
             onCancelPlace={cancelPlace}
@@ -704,7 +727,14 @@ export default function MapsView({
             <p>{questState?.error ? `Couldn't load map data: ${questState.error}` : 'Loading map data…'}</p>
           </div>
         )}
-        <FavouritesPanel settings={settings} priceState={priceState} />
+        <FavouritesPanel
+          settings={settings}
+          priceState={priceState}
+          findInfo={findInfo}
+          picked={findItem}
+          onPick={setFindItem}
+          onOpenMap={(mapKey) => set({ mapKey })}
+        />
       </main>
       {selected && dataset && (
         <QuestDetail

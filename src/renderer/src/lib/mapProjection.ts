@@ -1,6 +1,6 @@
 import L from 'leaflet'
 import type { Vec3 } from '../../../shared/questTypes'
-import { fromImagePoint, toImagePoint, type Anchor, type PosterMap } from './posterMap'
+import { fromImagePoint, sizeMismatch, toImagePoint, type Anchor, type PosterMap } from './posterMap'
 
 /** How a map's base image and game positions are laid out in Leaflet. */
 export interface MapProjection {
@@ -84,6 +84,11 @@ export function posterProjection(
           .on('error', () => {
             image.remove()
             onError(failed)
+          })
+          .on('load', () => {
+            const el = image.getElement()
+            const changed = el && sizeMismatch(poster, el.naturalWidth, el.naturalHeight)
+            if (changed) onError(changed)
           })
           .addTo(map)
       }

@@ -20,6 +20,8 @@ export interface ContainerLootEntry {
   /** Slug of the container name; variants sharing a name are merged. */
   id: string
   name: string
+  /** The game's template ids merged into it (how tarkov.dev's maps name the container at each spot). */
+  templates?: string[]
   maps: Record<string, ContainerMapLoot>
 }
 

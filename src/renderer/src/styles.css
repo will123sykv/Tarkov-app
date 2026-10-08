@@ -3592,6 +3592,25 @@ tr:hover .favourite-star {
   margin-left: 0;
 }
 
+.favourites-list li.picked {
+  background: rgba(127, 176, 105, 0.1);
+  box-shadow: inset 2px 0 var(--ok);
+}
+
+.favourites-where {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin-top: 1px;
+}
+
+/* On the map: green dots for loose spots, blue for containers that can hold it. */
+.favourites-legend {
+  margin: 0;
+  padding: 4px 10px 6px;
+  border-top: 1px solid var(--border);
+}
+
 .tag.cant-get {
   background: rgba(213, 99, 79, 0.16);
   color: var(--bad);
@@ -4426,4 +4445,45 @@ tr:hover .favourite-star {
 
 .event-list .tag {
   margin-left: 8px;
+}
+
+/* A tab or panel that failed to draw: what went wrong, and a way to load it again. */
+.error-tab {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px;
+}
+
+.error-boundary {
+  max-width: 640px;
+  margin: 40px auto;
+  padding: 16px 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+}
+
+.quest-detail .error-boundary {
+  margin: 0;
+}
+
+.error-boundary p {
+  margin: 0 0 10px;
+}
+
+.error-boundary pre {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: var(--bg);
+  border-radius: var(--radius);
+  color: var(--bad);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.favourites-legend .legend-dot {
+  display: inline-block;
+  vertical-align: -1px;
 }

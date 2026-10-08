@@ -31,6 +31,7 @@ import { useNow } from '../lib/useNow'
 import { useQuestGuide } from '../lib/useQuestGuide'
 import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
+import ErrorBoundary from './ErrorBoundary'
 import FavouriteStar from './FavouriteStar'
 
 interface Props {
@@ -637,7 +638,7 @@ function Guide({ wikiLink }: { wikiLink: string | null }): React.JSX.Element | n
  * A quest's details: its trader, status (settable by hand), what unlocks it, its objectives, the keys
  * and items it needs, its rewards, and the wiki's guide with pictures.
  */
-export default function QuestDetail({
+function QuestPanel({
   row,
   progress,
   ctx,
@@ -862,5 +863,14 @@ export default function QuestDetail({
         </a>
       )}
     </aside>
+  )
+}
+
+/** A quest's panel; an error drawing it shows in the panel, not across the whole tab. */
+export default function QuestDetail(props: Props): React.JSX.Element {
+  return (
+    <ErrorBoundary key={props.row.quest.id} what="this quest’s panel" variant="panel">
+      <QuestPanel {...props} />
+    </ErrorBoundary>
   )
 }

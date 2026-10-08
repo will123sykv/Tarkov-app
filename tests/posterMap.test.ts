@@ -4,6 +4,7 @@ import {
   panelFor,
   posterFor,
   POSTER_MAPS,
+  sizeMismatch,
   toImagePoint,
   type PosterMap
 } from '../src/renderer/src/lib/posterMap'
@@ -205,5 +206,13 @@ describe('2D maps', () => {
       }
     }
     expect(checked).toBeGreaterThan(60)
+  })
+
+  it('notices when an image comes at another size than it was calibrated for', () => {
+    const lab = map('the-lab')
+    expect(sizeMismatch(lab, 3820, 2189)).toBeNull()
+    expect(sizeMismatch(lab, 4096, 2348)).toMatch(
+      /has changed .*4096×2348, not 3820×2189.*markers may be off/
+    )
   })
 })

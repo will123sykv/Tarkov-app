@@ -158,6 +158,19 @@ export interface GameMap {
   keySpawns: KeySpawn[]
   /** Who can raid it: player levels, and items needed to get in. Since 1.17.0. */
   access: MapAccess
+  /** Loose loot spots and what can spawn at each, to find an item. Since 1.28.0. */
+  looseLoot: LooseLoot
+  /** Where the loot containers are, by the game's container template id. Since 1.28.0. */
+  containers: Record<string, Spot[]>
+}
+
+/** A position kept compactly: [x, y, z], to a tenth of a metre. */
+export type Spot = [number, number, number]
+
+/** Loose loot spots, and for each item the spots it can spawn at (indexes into `spots`). */
+export interface LooseLoot {
+  spots: Spot[]
+  items: Record<string, number[]>
 }
 
 /** A locked door or trunk, and the key that opens it. */

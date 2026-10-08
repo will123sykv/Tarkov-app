@@ -7,6 +7,7 @@ import type {
   HideoutLevel,
   HideoutStation,
   KeySpawn,
+  LooseLoot,
   MapAccess,
   MapExtract,
   MapLock,
@@ -18,6 +19,7 @@ import type {
   QuestTrader,
   QuestZone,
   RequirementStatus,
+  Spot,
   TraderRequirement,
   Vec3
 } from '../../shared/questTypes'
@@ -584,7 +586,9 @@ export function normalizeQuestData(
           }
         })
         .filter((spot): spot is KeySpawn => spot.position !== null && spot.keyIds.length > 0),
-      access: mapAccess(raw)
+      access: mapAccess(raw),
+      looseLoot: looseLoot(raw.lootLoose),
+      containers: lootContainers(raw.lootContainers)
     })
   }
 
@@ -673,6 +677,33 @@ export async function fetchQuestData(
  * locks, key spawns and map access; 1.21.0: crafts): fill in
  * defaults so they still work offline, and date them so they're refetched straight away.
  */
+const spot = (p: Vec3): Spot => [round1(p.x), round1(p.y), round1(p.z)]
+const round1 = (n: number): number => Math.round(n * 10) / 10
+
+/** tarkov.dev's loose loot spots, with each item's spots as indexes (the file stays small). */
+function looseLoot(raw: unknown): LooseLoot {
+  const result: LooseLoot = { spots: [], items: {} }
+  for (const entry of arr(raw)) {
+    const position = vec(rec(entry).position)
+    const items = ids(rec(entry).items)
+    if (!position || !items.length) continue
+    const index = result.spots.push(spot(position)) - 1
+    for (const id of new Set(items)) (result.items[id] ??= []).push(index)
+  }
+  return result
+}
+
+/** Where the loot containers are, by the game's container template id. */
+function lootContainers(raw: unknown): Record<string, Spot[]> {
+  const result: Record<string, Spot[]> = {}
+  for (const entry of arr(raw)) {
+    const template = idOf(rec(entry).lootContainer)
+    const position = vec(rec(entry).position)
+    if (template && position) (result[template] ??= []).push(spot(position))
+  }
+  return result
+}
+
 function upgradeCache(cached: QuestDataset): QuestDataset {
   let result = cached
   if (!result.otherQuestNames)
@@ -717,6 +748,17 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.crafts) result = { ...result, fetchedAt: 0, crafts: [] }
   // 1.27.0: traders' barter trades.
   if (!result.barters) result = { ...result, fetchedAt: 0, barters: [] }
+  // 1.28.0: loose loot and loot containers, to find items.
+  if (result.maps.some((m) => !m.looseLoot))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      maps: result.maps.map((m) => ({
+        ...m,
+        looseLoot: m.looseLoot ?? { spots: [], items: {} },
+        containers: m.containers ?? {}
+      }))
+    }
   // 1.17.0: locks, key spawns and who can enter each map.
   if (result.maps.some((m) => !m.locks))
     result = {

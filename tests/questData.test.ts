@@ -273,11 +273,34 @@ describe('normalizeQuestData', () => {
         { position: { x: 170, y: 6, z: 141 }, keyIds: [KEY.dorm303], items: 1 },
         { position: { x: 10, y: 1, z: 10 }, keyIds: [KEY.cabin, KEY.unknown], items: 3 }
       ],
-      access: { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] }
+      access: { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] },
+      // Every loose loot spot, with each item's spots; containers by template id.
+      looseLoot: {
+        spots: [
+          [170, 6, 141],
+          [10, 1, 10],
+          [11, 1, 11]
+        ],
+        items: {
+          [KEY.dorm303]: [0],
+          '5449016a4bdc2d6f028b456f': [1, 2],
+          [KEY.cabin]: [1],
+          [KEY.unknown]: [1]
+        }
+      },
+      containers: {
+        '578f87a3245977356274f2cb': [
+          [5, 1, -5.1],
+          [7, 2, 8]
+        ],
+        '5909d50c86f774659e6aaebe': [[1, 1, 1]]
+      }
     })
     expect(data.maps.find((m) => m.id === WOODS)).toMatchObject({
       locks: [],
       keySpawns: [],
+      looseLoot: { spots: [], items: {} },
+      containers: {},
       access: { minPlayerLevel: null, maxPlayerLevel: 20, keyIds: [KEY.labs] }
     })
     expect(data.traders).toEqual([
@@ -402,6 +425,19 @@ describe('createQuestDataService', () => {
       keySpawns: [],
       access: { minPlayerLevel: null, maxPlayerLevel: null, keyIds: [] }
     })
+  })
+
+  it('upgrades a 1.27 cache without loose loot or loot containers, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 8)
+    const old = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    const maps = old.maps.map(({ looseLoot: _, containers: __, ...m }) => m)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify({ ...old, maps }))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0 } })
+    expect(offline.dataset!.maps[0]).toMatchObject({ looseLoot: { spots: [], items: {} }, containers: {} })
   })
 
   it('reuses fresh data and shares one request between callers', async () => {

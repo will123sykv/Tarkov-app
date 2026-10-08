@@ -93,7 +93,8 @@ export interface ContainerCatalog {
   /** Month of the newest item in the loot tables (YYYY-MM). */
   dataAsOf: string
   maps: { id: string; name: string }[]
-  containers: { id: string; name: string; mapIds: string[] }[]
+  /** `templates`: the game's template ids for it, as tarkov.dev's maps name containers. */
+  containers: { id: string; name: string; mapIds: string[]; templates: string[] }[]
 }
 
 export interface ContainerLoot {

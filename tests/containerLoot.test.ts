@@ -67,6 +67,8 @@ describe('aggregateStaticLoot', () => {
     expect(weights).toEqual({ [OLD]: 15, [NEW]: 5 })
     expect(jacket.maps.bigmap.observations).toBe(8)
     expect(jacket.maps.bigmap.expectedCount).toBe(1.125)
+    // Both variants' template ids, which tarkov.dev's maps name containers by.
+    expect(jacket.templates).toEqual(['jacketA', 'jacketB'])
   })
 
   it('drops seasonal and empty containers and keeps per-map tables', () => {

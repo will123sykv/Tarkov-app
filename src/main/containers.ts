@@ -14,7 +14,12 @@ export function createContainerService(data: ContainerLootData) {
     license: data.license,
     dataAsOf: data.dataAsOf,
     maps: data.maps,
-    containers: data.containers.map((c) => ({ id: c.id, name: c.name, mapIds: Object.keys(c.maps) }))
+    containers: data.containers.map((c) => ({
+      id: c.id,
+      name: c.name,
+      mapIds: Object.keys(c.maps),
+      templates: c.templates ?? []
+    }))
   }
 
   function buildLoot(mapId: string | null): ContainerLoot[] {

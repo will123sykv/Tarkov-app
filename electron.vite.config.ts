@@ -10,7 +10,8 @@ const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob: tarkov-map: https://assets.tarkov.dev https://*.tarkov-market.app https://*.tarkov-market.com https://static.wikia.nocookie.net",
   "connect-src 'self' tarkov-map:",
   "object-src 'none'",
-  "base-uri 'none'"
+  "base-uri 'none'",
+  "form-action 'none'"
 ].join('; ')
 
 function contentSecurityPolicy(): Plugin {
