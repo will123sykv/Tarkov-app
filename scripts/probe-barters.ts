@@ -16,16 +16,33 @@ async function wiki(): Promise<void> {
   for (const k of Object.keys(map))
     if (!['categories', 'markers', 'description'].includes(k))
       console.log(`  ${k}:`, JSON.stringify(map[k]).slice(0, 600))
-  const markers = map.markers as Record<string, Raw[]>
-  for (const [group, list] of Object.entries(markers ?? {})) {
-    console.log(`MARKERS ${group} (${list.length})`)
-    for (const m of list) {
-      const { description, image, ...rest } = m as Raw
-      void description
-      void image
-      console.log('  M', group, JSON.stringify(rest).slice(0, 300))
+  const markers = map.markers as unknown
+  const dump = (v: unknown, depth = 0): void => {
+    if (Array.isArray(v)) {
+      console.log(`${'  '.repeat(depth)}[array ${v.length}]`)
+      for (const x of v) dump(x, depth + 1)
+      return
     }
+    if (v && typeof v === 'object') {
+      const o = v as Raw
+      const flat: Raw = {}
+      const nested: [string, unknown][] = []
+      for (const [k, x] of Object.entries(o)) {
+        if (k === 'description' || k === 'image') continue
+        if (x && typeof x === 'object' && !(Array.isArray(x) && x.every((n) => typeof n === 'number')))
+          nested.push([k, x])
+        else flat[k] = x
+      }
+      console.log(`${'  '.repeat(depth)}M ${JSON.stringify(flat).slice(0, 260)}`)
+      for (const [k, x] of nested) {
+        console.log(`${'  '.repeat(depth + 1)}.${k}:`)
+        dump(x, depth + 2)
+      }
+      return
+    }
+    console.log(`${'  '.repeat(depth)}${JSON.stringify(v)}`)
   }
+  dump(markers)
 }
 
 async function tarkovDev(): Promise<void> {
@@ -58,7 +75,6 @@ async function tarkovDev(): Promise<void> {
 
 async function main(): Promise<void> {
   await wiki().catch((e) => console.log('wiki failed', e))
-  await tarkovDev().catch((e) => console.log('tarkov.dev failed', e))
 }
 
 void main()
