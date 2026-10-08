@@ -1,35 +1,43 @@
-// Temporary: the wiki's interactive Lab map's markers (image pixels) and tarkov.dev's Lab positions
-// (game coordinates), to calibrate the wiki's image (removed after use).
+// Temporary: the wiki's Lab map image (its URL, size, uploader and licence), to show it (removed after use).
 
 const WIKI = 'https://escapefromtarkov.fandom.com/api.php'
 const UA = { 'user-agent': 'TarkovLootOptimiser-probe/1.0 (github.com/will123sykv/tarkov-app)' }
-type Raw = Record<string, unknown>
-
-async function wiki(): Promise<void> {
-  const url = `${WIKI}?${new URLSearchParams({ format: 'json', formatversion: '2', action: 'parse', page: 'Map:The_Lab', prop: 'wikitext' })}`
-  const res = await fetch(url, { headers: UA })
-  const text = String(((await res.json()) as { parse: { wikitext: string } }).parse.wikitext)
-  const map = JSON.parse(text) as Raw
-  console.log('top-level keys:', Object.keys(map))
-  for (const k of Object.keys(map))
-    if (!['categories', 'markers', 'description'].includes(k))
-      console.log(`  ${k}:`, JSON.stringify(map[k]).slice(0, 600))
-  const markers = (map.markers as Raw[]) ?? []
-  const wanted = /exfil|spawn|locked|lever|loot_key|boss|scav/
-  const counts = new Map<string, number>()
-  for (const m of markers) {
-    const cat = String(m.categoryId)
-    counts.set(cat, (counts.get(cat) ?? 0) + 1)
-    if (!wanted.test(cat)) continue
-    const pos = m.position as number[]
-    const title = (m.popup as Raw | undefined)?.title
-    console.log(`W ${cat} ${pos.map((n) => Math.round(n * 10) / 10).join(' ')} ${JSON.stringify(title)}`)
-  }
-  console.log('counts', JSON.stringify([...counts]))
-}
 
 async function main(): Promise<void> {
-  await wiki().catch((e) => console.log('wiki failed', e))
+  const params = new URLSearchParams({
+    format: 'json',
+    formatversion: '2',
+    action: 'query',
+    titles: 'File:The Lab Interactive Map Base.png',
+    prop: 'imageinfo',
+    iiprop: 'url|size|user|timestamp|sha1|mime|extmetadata',
+    iilimit: '3'
+  })
+  const res = await fetch(`${WIKI}?${params}`, { headers: UA })
+  const json = (await res.json()) as {
+    query: { pages: { title: string; imageinfo?: Record<string, unknown>[] }[] }
+  }
+  for (const page of json.query.pages) {
+    console.log('PAGE', page.title)
+    for (const info of page.imageinfo ?? []) {
+      const { extmetadata, ...rest } = info
+      console.log('INFO', JSON.stringify(rest))
+      const meta = (extmetadata ?? {}) as Record<string, { value: unknown }>
+      for (const key of ['LicenseShortName', 'License', 'LicenseUrl', 'Artist', 'Credit', 'Attribution'])
+        if (meta[key]) console.log('META', key, JSON.stringify(meta[key].value).slice(0, 300))
+    }
+  }
+  const url = json.query.pages[0]?.imageinfo?.[0]?.url as string | undefined
+  if (!url) return
+  // Whether the image comes straight from the CDN (as the app will fetch it), and how big it is.
+  const image = await fetch(url, { headers: UA })
+  const bytes = new Uint8Array(await image.arrayBuffer())
+  console.log('IMAGE', image.status, image.headers.get('content-type'), bytes.length, 'bytes')
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+    const view = new DataView(bytes.buffer)
+    console.log('PNG size', view.getUint32(16), 'x', view.getUint32(20))
+  }
+  console.log('final url', image.url)
 }
 
-void main()
+void main().catch((e) => console.log('failed', e))
