@@ -241,6 +241,8 @@ export interface MapSettings {
   faction: 'pmc' | 'scav'
   /** The favourites panel over the map is open (since 1.27.0, when the 2D maps became the only ones). */
   favouritesOpen: boolean
+  /** Favourite items shown on the map as a circle where they turn up most, in the order picked. */
+  highlighted: string[]
 }
 
 export interface TrendSettings {

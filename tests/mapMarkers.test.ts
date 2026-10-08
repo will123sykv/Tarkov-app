@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { MapExtract, MapLabel } from '../src/shared/questTypes'
 import {
   bossLines,
+  HIGHLIGHT_COLORS,
+  highlightColors,
   extractDetail,
   extractKind,
   extractsFor,
@@ -121,5 +123,23 @@ describe('place names', () => {
     expect(labelAnchor(label(null, -2))).toEqual({ x: 5, y: -2.5, z: 6 })
     expect(labelAnchor(label(-100, 100))).toEqual({ x: 5, y: null, z: 6 })
     expect(labelAnchor(label(null, null))).toEqual({ x: 5, y: null, z: 6 })
+  })
+})
+
+describe('highlightColors', () => {
+  it('gives each item its own colour, kept while others come and go', () => {
+    const ids = ['5d1b2fa286f77425227d1674', '5e2aedd986f7746d404f3aa4', '5af04b6486f774195a3ebb49']
+    const all = highlightColors(ids)
+    expect(new Set(all.values()).size).toBe(3)
+    for (const c of all.values()) expect(HIGHLIGHT_COLORS).toContain(c)
+    // Taking one off leaves the others' colours alone (unless they had been bumped by it).
+    const fewer = highlightColors([ids[0], ids[2]])
+    expect(fewer.get(ids[0])).toBe(all.get(ids[0]))
+    expect(fewer.get(ids[2])).toBe(all.get(ids[2]))
+  })
+
+  it('still gives distinct colours to as many items as there are colours', () => {
+    const ids = Array.from({ length: HIGHLIGHT_COLORS.length }, (_, i) => `item${i}`)
+    expect(new Set(highlightColors(ids).values()).size).toBe(HIGHLIGHT_COLORS.length)
   })
 })

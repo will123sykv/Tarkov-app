@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ContainerCatalog, ContainerLoot } from '../src/shared/types'
-import { containerMapId, findScore, formatChance, whereToFind } from '../src/shared/whereToFind'
+import {
+  containerMapId,
+  densestArea,
+  findRadius,
+  findScore,
+  formatChance,
+  whereToFind
+} from '../src/shared/whereToFind'
 
 const BOLTS = 'bolts'
 const LEDX = 'ledx'
@@ -65,5 +72,72 @@ describe('whereToFind', () => {
     expect(formatChance(0.0975)).toBe('10%')
     expect(formatChance(0.034)).toBe('3%')
     expect(formatChance(0.0042)).toBe('0.4%')
+  })
+})
+
+describe('densestArea', () => {
+  const spot = (x: number, z: number, y = 0): [number, number, number] => [x, y, z]
+  const where = (
+    loose: [number, number, number][],
+    containers: { chance: number; spots: [number, number, number][] }[] = []
+  ) => ({
+    loose,
+    containers: containers.map((c, i) => ({ id: `c${i}`, name: `C${i}`, ...c }))
+  })
+
+  it('circles the densest cluster, centred on what it holds', () => {
+    const area = densestArea(
+      where([spot(0, 0), spot(4, 0), spot(0, 4), spot(4, 4), spot(200, 200), spot(205, 200)]),
+      20
+    )!
+    expect(area.centre).toEqual({ x: 2, y: 0, z: 2 })
+    expect(area.loose).toBe(4)
+    expect(area.containers).toBe(0)
+    // As big as it needs (the corners, 2.83 m out, plus a pad), but no smaller than half the window.
+    expect(area.radius).toBe(10)
+  })
+
+  it('weighs containers by their chance', () => {
+    // One loose spot alone, against ten containers at 20%: the containers win.
+    const area = densestArea(
+      where([spot(500, 500)], [{ chance: 0.2, spots: Array.from({ length: 10 }, (_, i) => spot(i, 0)) }]),
+      30
+    )!
+    expect(area.centre.x).toBeCloseTo(4.5)
+    expect(area).toMatchObject({ loose: 0, containers: 10 })
+    // 4.5 m out plus a 4.5 m pad is under half the window, so half the window.
+    expect(area.radius).toBe(15)
+  })
+
+  it('puts the circle on the floor most of it is on', () => {
+    const area = densestArea(where([spot(0, 0, 5), spot(1, 0, 5), spot(2, 0, -3)]), 20)!
+    expect(area.centre.y).toBe(5)
+  })
+
+  it('gives a lone spot the smallest circle, and nothing when it is nowhere', () => {
+    expect(densestArea(where([spot(10, 10)]), 40)).toMatchObject({ centre: { x: 10, z: 10 }, radius: 20 })
+    expect(densestArea(where([]), 40)).toBeNull()
+  })
+
+  it('scales the area with the map', () => {
+    expect(
+      findRadius([
+        [0, 0],
+        [143, 132]
+      ])
+    ).toBe(12)
+    expect(
+      findRadius([
+        [-80, -477],
+        [-287, -193]
+      ])
+    ).toBeCloseTo(19.88)
+    expect(
+      findRadius([
+        [0, 0],
+        [1560, 1033]
+      ])
+    ).toBe(90)
+    expect(findRadius(null)).toBe(40)
   })
 })

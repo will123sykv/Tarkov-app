@@ -76,7 +76,8 @@ export const DEFAULT_SETTINGS: Settings = {
     showSnipers: true,
     showKeys: false,
     faction: 'pmc',
-    favouritesOpen: true
+    favouritesOpen: true,
+    highlighted: []
   },
   hideout: {
     scope: 'all',
@@ -127,6 +128,9 @@ function sanitizeQuests(raw: unknown): QuestSettings {
 const MAX_WIKI_TITLE = 200
 export const MAX_WIKI_QUESTS = 200
 
+/** More items than anyone would show on the map at once. */
+const MAX_HIGHLIGHTED = 20
+
 function sanitizeMaps(raw: unknown): MapSettings {
   const d = DEFAULT_SETTINGS.maps
   const r = isRecord(raw) ? raw : {}
@@ -141,7 +145,14 @@ function sanitizeMaps(raw: unknown): MapSettings {
     showSnipers: typeof r.showSnipers === 'boolean' ? r.showSnipers : d.showSnipers,
     showKeys: r.showKeys === true,
     faction: r.faction === 'scav' ? 'scav' : 'pmc',
-    favouritesOpen: r.favouritesOpen !== false
+    favouritesOpen: r.favouritesOpen !== false,
+    highlighted: Array.isArray(r.highlighted)
+      ? [
+          ...new Set(
+            r.highlighted.filter((id): id is string => typeof id === 'string' && /^[\w-]{1,40}$/.test(id))
+          )
+        ].slice(0, MAX_HIGHLIGHTED)
+      : []
   }
 }
 

@@ -1,4 +1,4 @@
-import type { GameMap, Spot } from './questTypes'
+import type { GameMap, Spot, Vec3 } from './questTypes'
 import type { ContainerCatalog, ContainerLoot } from './types'
 
 // Where an item can be found on a map: the loose loot spots it can spawn at (tarkov.dev's map data),
@@ -64,4 +64,65 @@ export function findScore(where: WhereToFind): number {
 export function formatChance(chance: number): string {
   const percent = chance * 100
   return `${percent >= 1 ? Math.round(percent) : percent.toFixed(1)}%`
+}
+
+/** The area where an item's spawns are densest on a map, drawn as a circle. */
+export interface FindArea {
+  centre: Vec3
+  /** Metres. */
+  radius: number
+  /** Loose spots and containers that can hold it inside the circle. */
+  loose: number
+  containers: number
+}
+
+/**
+ * How far around a spot counts as its area on a map: 7% of the map's larger side, from 12 m (Factory)
+ * to 90 m. `bounds` is the map's [[x, z], [x, z]].
+ */
+export function findRadius(bounds: [[number, number], [number, number]] | null): number {
+  if (!bounds) return 40
+  const [[x0, z0], [x1, z1]] = bounds
+  return Math.min(90, Math.max(12, 0.07 * Math.max(Math.abs(x1 - x0), Math.abs(z1 - z0))))
+}
+
+/**
+ * The area where an item turns up most: every loose spot counts 1 and every container that can hold
+ * it counts its chance; the circle goes where the most of that lies within `radius` metres, centred
+ * on the middle of what it holds and only as big as it needs to be. Null when it's nowhere here.
+ */
+export function densestArea(where: WhereToFind, radius: number): FindArea | null {
+  const points = [
+    ...where.loose.map((spot) => ({ spot, weight: 1, loose: true })),
+    ...where.containers.flatMap((c) => c.spots.map((spot) => ({ spot, weight: c.chance, loose: false })))
+  ]
+  if (!points.length) return null
+  const flat = (a: Spot, b: Spot): number => Math.hypot(a[0] - b[0], a[2] - b[2])
+  let best: { inside: typeof points; weight: number; spread: number } | null = null
+  for (const candidate of points) {
+    const inside = points.filter((p) => flat(p.spot, candidate.spot) <= radius)
+    const weight = inside.reduce((sum, p) => sum + p.weight, 0)
+    const spread = inside.reduce((sum, p) => sum + flat(p.spot, candidate.spot), 0) / inside.length
+    if (
+      !best ||
+      weight > best.weight + 1e-9 ||
+      (Math.abs(weight - best.weight) <= 1e-9 && spread < best.spread)
+    )
+      best = { inside, weight, spread }
+  }
+  const { inside, weight } = best!
+  const x = inside.reduce((sum, p) => sum + p.spot[0] * p.weight, 0) / weight
+  const z = inside.reduce((sum, p) => sum + p.spot[2] * p.weight, 0) / weight
+  // The floor most of it is on: the weighted median height.
+  const byHeight = [...inside].sort((a, b) => a.spot[1] - b.spot[1])
+  let acc = 0
+  const y = byHeight.find((p) => (acc += p.weight) >= weight / 2)!.spot[1]
+  const centre: Spot = [x, y, z]
+  const reach = Math.max(...inside.map((p) => flat(p.spot, centre)))
+  return {
+    centre: { x, y, z },
+    radius: Math.min(radius, Math.max(radius / 2, reach + radius * 0.15)),
+    loose: inside.filter((p) => p.loose).length,
+    containers: inside.filter((p) => !p.loose).length
+  }
 }

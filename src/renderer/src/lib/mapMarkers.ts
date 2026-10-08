@@ -114,3 +114,32 @@ export const pinIcons = (kind: PinKind): string[] => PIN_ICONS[kind]
 export const BOSS_ICON = mdiSkull
 export const SNIPER_ICON = mdiCrosshairsGps
 export const LOCK_ICON = mdiLock
+
+/** Colours for the items shown on the map; they read on the dark maps. */
+export const HIGHLIGHT_COLORS = [
+  '#4fc3f7',
+  '#f06292',
+  '#aed581',
+  '#ffb74d',
+  '#ba68c8',
+  '#4db6ac',
+  '#e57373',
+  '#fff176'
+]
+
+/**
+ * Each shown item's colour: picked from its id, so it keeps it while others come and go, and the
+ * next free one when two items would share it.
+ */
+export function highlightColors(itemIds: readonly string[]): Map<string, string> {
+  const taken = new Set<number>()
+  const result = new Map<string, string>()
+  for (const id of itemIds) {
+    let slot = [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % HIGHLIGHT_COLORS.length
+    for (let i = 0; i < HIGHLIGHT_COLORS.length && taken.has(slot); i++)
+      slot = (slot + 1) % HIGHLIGHT_COLORS.length
+    taken.add(slot)
+    result.set(id, HIGHLIGHT_COLORS[slot])
+  }
+  return result
+}

@@ -408,9 +408,13 @@ the game's install folder, or its `build` folder.
 - **Where to find them:** under each item the panel says where it can turn up on the map you're
   looking at: how many loose loot spots it can spawn at (tarkov.dev's map data) and the containers
   likeliest to hold it, with the chance one search turns one up (**Here: 6 loose spots · Technical
-  supply crate 2%, Duffle bag 0.5%**; hover for more). **Show** puts its loose spots (green) and the
-  likeliest three kinds of container (blue) on the map, and **Better on Customs** (say) opens a map
-  that gives clearly more chances to find it.
+  supply crate 2%, Duffle bag 0.5%**; hover for more). **Show** draws a transparent circle in the
+  item's own colour over the area where it turns up most on that map (its loose spots, and the
+  containers that can hold it weighted by their chance), not every spot. Show as many items as you
+  like: each gets its own circle, and hovering one shows the icons of the items that turn up there,
+  with how many loose spots and containers it covers. The items you show are remembered, follow you
+  from map to map (each map gets its own circle), and drop off when they're no longer needed.
+  **Better on Customs** (say) opens a map that gives clearly more chances to find it.
 - **Raids:** each raid's map, whether you went in as a PMC or a scav, queue and loading times, and
   how long it lasted, plus every flea sale (item, buyer, money received) and expired offer.
 

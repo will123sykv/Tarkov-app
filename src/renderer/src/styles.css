@@ -3592,11 +3592,6 @@ tr:hover .favourite-star {
   margin-left: 0;
 }
 
-.favourites-list li.picked {
-  background: rgba(127, 176, 105, 0.1);
-  box-shadow: inset 2px 0 var(--ok);
-}
-
 .favourites-where {
   display: flex;
   flex-wrap: wrap;
@@ -3604,11 +3599,47 @@ tr:hover .favourite-star {
   margin-top: 1px;
 }
 
-/* On the map: green dots for loose spots, blue for containers that can hold it. */
-.favourites-legend {
-  margin: 0;
-  padding: 4px 10px 6px;
-  border-top: 1px solid var(--border);
+/* Shown on the map: its circle's colour. */
+.find-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+/* A favourite item's area on the map: the items that turn up there, with their icons. */
+.find-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.find-tip-row + .find-tip-row {
+  margin-top: 6px;
+}
+
+.find-tip-row img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  background: var(--panel-2);
+  border: 2px solid;
+  border-radius: 4px;
+}
+
+.find-tip-row div {
+  display: grid;
+}
+
+.find-tip-row span {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .tag.cant-get {
@@ -4481,9 +4512,4 @@ tr:hover .favourite-star {
   font-family: var(--mono);
   font-size: 12px;
   white-space: pre-wrap;
-}
-
-.favourites-legend .legend-dot {
-  display: inline-block;
-  vertical-align: -1px;
 }

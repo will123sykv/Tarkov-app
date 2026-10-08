@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import { opens } from '../../../shared/keys'
 import type { GameMap, MapLabel, Vec3 } from '../../../shared/questTypes'
+import type { FindArea } from '../../../shared/whereToFind'
 import type { MapProjection } from '../lib/mapProjection'
 import {
   bossLines,
@@ -23,12 +24,13 @@ export interface KeyMarks {
   focusKey: string | null
 }
 
-/** Where a favourite item can be found on this map: loose spots, and containers that can hold it. */
-export interface FindMarks {
-  /** The item, for tooltips. */
+/** A favourite item shown on the map: a circle where it turns up most. */
+export interface FindAreaMark {
+  itemId: string
   name: string
-  loose: Vec3[]
-  containers: { name: string; chance: string; spots: Vec3[] }[]
+  icon: string | null
+  color: string
+  area: FindArea
 }
 
 export interface MapLayers {
@@ -58,8 +60,8 @@ interface Props {
   selectedQuest: string | null
   onSelectQuest: (questId: string) => void
   keyMarks?: KeyMarks | null
-  /** A favourite item's spots: the map centres on them. */
-  findMarks?: FindMarks | null
+  /** Favourite items' areas: the map fits them in view when they change. */
+  findAreas?: readonly FindAreaMark[]
   /** Waiting for a click on where a story step is; `onPlace` gets the spot in the game. */
   placing?: boolean
   onPlace?: (position: Vec3) => void
@@ -69,10 +71,7 @@ interface Props {
 export const MARKER_COLORS = {
   quest: '#e2c985',
   questOther: '#aebdcc',
-  spawn: '#c9ccce',
-  /** A favourite item's loose spots, and containers that can hold it. */
-  findLoose: '#7fb069',
-  findContainer: '#6a9fd4'
+  spawn: '#c9ccce'
 }
 
 /** A pin's tooltip: the quest, its trader, what to do there, and the keys it takes (and which are missing). */
@@ -120,6 +119,46 @@ function htmlMarker(at: L.LatLngTuple, el: HTMLElement, options: L.MarkerOptions
   })
 }
 
+const NO_AREAS: readonly FindAreaMark[] = []
+
+/** An area's tooltip: the items shown that turn up there (this one first), with their icons. */
+function findTooltip(mark: FindAreaMark, all: readonly FindAreaMark[]): HTMLElement {
+  const here = [
+    mark,
+    ...all.filter(
+      (o) =>
+        o !== mark &&
+        Math.hypot(o.area.centre.x - mark.area.centre.x, o.area.centre.z - mark.area.centre.z) <=
+          o.area.radius
+    )
+  ]
+  const tip = document.createElement('div')
+  for (const m of here) {
+    const row = document.createElement('div')
+    row.className = 'find-tip-row'
+    if (m.icon) {
+      const img = document.createElement('img')
+      img.src = m.icon
+      img.alt = ''
+      img.style.borderColor = m.color
+      row.append(img)
+    }
+    const text = document.createElement('div')
+    const name = document.createElement('strong')
+    name.textContent = m.name
+    const detail = document.createElement('span')
+    const parts = [
+      m.area.loose ? `${m.area.loose} loose spot${m.area.loose === 1 ? '' : 's'}` : null,
+      m.area.containers ? `${m.area.containers} container${m.area.containers === 1 ? '' : 's'}` : null
+    ].filter(Boolean)
+    detail.textContent = `${parts.join(' · ')} in this area`
+    text.append(name, detail)
+    row.append(text)
+    tip.append(row)
+  }
+  return tip
+}
+
 /**
  * A Leaflet map of one Tarkov map with quest objectives, and extracts, transits, bosses, snipers,
  * spawns and place names in db4tarkov's style.
@@ -137,7 +176,7 @@ export default function MapCanvas({
   selectedQuest,
   onSelectQuest,
   keyMarks = null,
-  findMarks = null,
+  findAreas = NO_AREAS,
   placing = false,
   onPlace,
   onCancelPlace
@@ -290,22 +329,25 @@ export default function MapCanvas({
         )
       }
     }
-    if (findMarks) {
-      for (const p of findMarks.loose.filter(shown))
-        add(
-          'find',
-          dot(p, MARKER_COLORS.findLoose, 6, 'mapObjectives').bindTooltip(
-            label(`${findMarks.name} can spawn here`, ['Loose loot'])
-          )
-        )
-      for (const c of findMarks.containers)
-        for (const p of c.spots.filter(shown))
-          add(
-            'find',
-            dot(p, MARKER_COLORS.findContainer, 5, 'mapObjectives').bindTooltip(
-              label(c.name, [`${c.chance} chance to hold a ${findMarks.name}`])
-            )
-          )
+    for (const mark of findAreas) {
+      const centre = at(mark.area.centre)
+      // The radius in image units: game metres scaled by the map's transform, along both axes.
+      const r = mark.area.radius
+      const along = (dx: number, dz: number): number => {
+        const [lat, lng] = at({ ...mark.area.centre, x: mark.area.centre.x + dx, z: mark.area.centre.z + dz })
+        return Math.hypot(lat - centre[0], lng - centre[1])
+      }
+      add(
+        'find',
+        L.circle(centre, {
+          radius: (along(r, 0) + along(0, r)) / 2,
+          color: mark.color,
+          weight: 2,
+          fillColor: mark.color,
+          fillOpacity: 0.2,
+          pane: 'mapObjectives'
+        }).bindTooltip(findTooltip(mark, findAreas), { direction: 'top', className: 'find-tip' })
+      )
     }
     const color = (status: string): string =>
       status === 'active' ? MARKER_COLORS.quest : MARKER_COLORS.questOther
@@ -367,7 +409,7 @@ export default function MapCanvas({
     selectedQuest,
     onSelectQuest,
     keyMarks,
-    findMarks
+    findAreas
   ])
 
   // Placing a pin: the next click on the map is where it goes; Esc cancels.
@@ -401,17 +443,25 @@ export default function MapCanvas({
     map.flyToBounds(L.latLngBounds(points).pad(0.4), { maxZoom: projection.focusZoom, duration: 0.6 })
   }, [keyMarks, maps, projection])
 
-  // Fit a favourite item's spots in view when one is picked.
+  // Fit the favourite items' areas in view when the ones shown (or the map) change.
   useEffect(() => {
     const map = mapRef.current
-    const id = findMarks ? `${findMarks.name}@${maps.map((m) => m.id).join()}` : null
+    const id = findAreas.length
+      ? `${findAreas.map((a) => a.itemId).join()}@${maps.map((m) => m.id).join()}`
+      : null
     if (!map || !id || handledFind.current === id) return
-    const points = (markersRef.current.get('find') ?? []).flatMap((l) =>
-      l instanceof L.CircleMarker ? [l.getLatLng()] : []
-    )
     handledFind.current = id
-    if (points.length) map.flyToBounds(L.latLngBounds(points).pad(0.2), { duration: 0.6 })
-  }, [findMarks, maps])
+    const circles = (markersRef.current.get('find') ?? []).filter((l): l is L.Circle => l instanceof L.Circle)
+    if (!circles.length) return
+    const bounds = circles.reduce((b, c) => b.extend(c.getBounds()), circles[0].getBounds())
+    // Clear of the favourites panel over the map's top right.
+    map.flyToBounds(bounds, {
+      paddingTopLeft: [40, 40],
+      paddingBottomRight: [340, 40],
+      maxZoom: projection.focusZoom,
+      duration: 0.6
+    })
+  }, [findAreas, maps, projection])
 
   // Centre on a focused objective (from "Show on map").
   useEffect(() => {

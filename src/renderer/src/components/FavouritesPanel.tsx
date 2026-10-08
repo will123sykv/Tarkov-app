@@ -4,8 +4,8 @@ import type { PriceState, PublicSettings } from '../../../shared/types'
 import { formatChance } from '../../../shared/whereToFind'
 import { useFavouriteNeeds, useFavourites, type FindInfo } from '../lib/useFavourites'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import { MARKER_COLORS } from './MapCanvas'
 
 const REASON: Record<FavouriteReason, { text: string; className: string; title: string }> = {
   cantGet: {
@@ -26,32 +26,42 @@ export default function FavouritesPanel({
   settings,
   priceState,
   findInfo,
-  picked,
-  onPick,
+  highlighted,
+  colors,
+  onHighlight,
   onOpenMap
 }: {
   settings: PublicSettings
   priceState: PriceState | null
   /** Where an item can be found on the map shown (null: no map yet). */
   findInfo: (itemId: string) => FindInfo | null
-  /** The item whose spots are on the map. */
-  picked: string | null
-  onPick: (itemId: string | null) => void
+  /** Items shown on the map as circles, and each one's colour. */
+  highlighted: readonly string[]
+  colors: ReadonlyMap<string, string>
+  onHighlight: (itemIds: string[]) => void
   onOpenMap: (mapKey: string) => void
 }): React.JSX.Element {
   const needs = useFavouriteNeeds(settings, priceState)
   const favourites = useFavourites(settings)
+  const loaded = useStore((s) => s.favourites[settings.gameMode] !== undefined)
+  const { questState } = useQuestRows(settings)
   const items = useItemLookup(priceState)
   const updateSettings = useStore((s) => s.updateSettings)
   const setFavourite = useStore((s) => s.setFavourite)
   const open = settings.maps.favouritesOpen
   const starred = favourites.items.length + favourites.upgrades.length + favourites.quests.length
   const toggle = (): void => void updateSettings({ maps: { ...settings.maps, favouritesOpen: !open } })
-  // An item no longer needed (found, or its star taken off) leaves the map too.
-  const stillNeeded = picked === null || needs.some((n) => n.itemId === picked)
+  const toggleItem = (itemId: string): void =>
+    onHighlight(
+      highlighted.includes(itemId) ? highlighted.filter((id) => id !== itemId) : [...highlighted, itemId]
+    )
+  // Items no longer needed (found, or their star taken off) leave the map too, once everything's loaded.
+  const ready = loaded && Boolean(questState?.dataset) && Boolean(priceState?.dataset)
+  const kept = highlighted.filter((id) => needs.some((n) => n.itemId === id))
+  const stale = ready && kept.length < highlighted.length
   useEffect(() => {
-    if (!stillNeeded) onPick(null)
-  }, [stillNeeded, onPick])
+    if (stale) onHighlight(kept)
+  }, [stale, kept, onHighlight])
 
   return (
     <aside className={`favourites-panel${open ? '' : ' closed'}`} aria-label="Favourites">
@@ -79,7 +89,7 @@ export default function FavouritesPanel({
                 const item = items.get(need.itemId)
                 const reason = REASON[need.reason]
                 return (
-                  <li key={need.itemId} className={picked === need.itemId ? 'picked' : undefined}>
+                  <li key={need.itemId}>
                     {item?.iconLink ? (
                       <img src={item.iconLink} alt="" loading="lazy" />
                     ) : (
@@ -99,8 +109,8 @@ export default function FavouritesPanel({
                       {need.reason !== 'questItem' && (
                         <Where
                           info={findInfo(need.itemId)}
-                          picked={picked === need.itemId}
-                          onPick={() => onPick(picked === need.itemId ? null : need.itemId)}
+                          color={colors.get(need.itemId) ?? null}
+                          onToggle={() => toggleItem(need.itemId)}
                           onOpenMap={onOpenMap}
                         />
                       )}
@@ -119,40 +129,29 @@ export default function FavouritesPanel({
                 )
               })}
             </ul>
-            {picked && needs.some((n) => n.itemId === picked) && (
-              <p className="hint favourites-legend">
-                <span className="legend-dot" style={{ background: MARKER_COLORS.findLoose }} aria-hidden />{' '}
-                loose spot{' '}
-                <span
-                  className="legend-dot"
-                  style={{ background: MARKER_COLORS.findContainer }}
-                  aria-hidden
-                />{' '}
-                container that can hold it (the likeliest three kinds)
-              </p>
-            )}
           </>
         ))}
     </aside>
   )
 }
 
-/** Where an item can be found on this map, a button to show it there, and a better map if there is one. */
+/** Where an item can be found on this map, a toggle to show it there, and a better map if there is one. */
 function Where({
   info,
-  picked,
-  onPick,
+  color,
+  onToggle,
   onOpenMap
 }: {
   info: FindInfo | null
-  picked: boolean
-  onPick: () => void
+  /** Its circle's colour when it's shown on the map. */
+  color: string | null
+  onToggle: () => void
   onOpenMap: (mapKey: string) => void
 }): React.JSX.Element | null {
   if (!info) return null
   const { here, better } = info
   const top = here.containers.slice(0, 2)
-  const placed = here.loose.length + here.containers.slice(0, 3).reduce((n, c) => n + c.spots.length, 0)
+  const anywhere = here.loose.length > 0 || here.containers.some((c) => c.spots.length > 0)
   const parts = [
     here.loose.length ? `${here.loose.length} loose spot${here.loose.length === 1 ? '' : 's'}` : null,
     top.length ? top.map((c) => `${c.name} ${formatChance(c.chance)}`).join(', ') : null
@@ -171,9 +170,19 @@ function Where({
       >
         {parts.length ? `Here: ${parts.join(' · ')}` : 'Not loose or in containers here'}
       </span>
-      {placed > 0 && (
-        <button className="link" aria-pressed={picked} onClick={onPick}>
-          {picked ? 'Hide' : 'Show'}
+      {(anywhere || color) && (
+        <button
+          className="link find-toggle"
+          aria-pressed={color !== null}
+          title={
+            color
+              ? 'Shown as a circle where it turns up most on this map. Click to take it off'
+              : 'Show a circle where it turns up most on this map'
+          }
+          onClick={onToggle}
+        >
+          {color && <span className="find-swatch" style={{ background: color }} aria-hidden />}
+          {color ? 'Hide' : 'Show'}
         </button>
       )}
       {better && (

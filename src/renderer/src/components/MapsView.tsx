@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
-import { formatChance } from '../../../shared/whereToFind'
+import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
-import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
+import { BOSS_ICON, highlightColors, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
 import {
   doableMarkers,
@@ -22,7 +22,7 @@ import { useWhereToFind } from '../lib/useFavourites'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import FavouritesPanel from './FavouritesPanel'
-import MapCanvas, { MARKER_COLORS, type FindMarks, type KeyMarks, type MapLayers } from './MapCanvas'
+import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -270,25 +270,39 @@ export default function MapsView({
   const mapIds = useMemo(() => new Set(maps.map((gm) => gm.id)), [maps])
   const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
   // What it takes to get onto the map, as the To do tab has it (the main version's): the Lab's keycard.
-  // A favourite item picked in the panel: where it can be found here.
-  const [findItem, setFindItem] = useState<string | null>(null)
+  // Favourite items shown on the map: a circle where each turns up most on this map.
   const mainMap = useMemo(
     () => maps.find((gm) => gm.normalizedName === config?.key) ?? maps[0] ?? null,
     [maps, config]
   )
   const findInfo = useWhereToFind(mainMap, dataset?.maps ?? NO_MAPS)
-  const findMarks = useMemo<FindMarks | null>(() => {
-    const where = findItem ? findInfo(findItem)?.here : null
-    if (!findItem || !where) return null
-    const vec = ([x, y, z]: [number, number, number]): Vec3 => ({ x, y, z })
-    return {
-      name: itemName(findItem) ?? 'the item',
-      loose: where.loose.map(vec),
-      containers: where.containers
-        .slice(0, 3)
-        .map((c) => ({ name: c.name, chance: formatChance(c.chance), spots: c.spots.map(vec) }))
-    }
-  }, [findItem, findInfo, itemName])
+  const highlighted = m.highlighted
+  const colors = useMemo(() => highlightColors(highlighted), [highlighted])
+  const findAreas = useMemo<FindAreaMark[]>(() => {
+    const radius = findRadius(config?.bounds ?? null)
+    return highlighted.flatMap((itemId) => {
+      const where = findInfo(itemId)?.here
+      const area = where ? densestArea(where, radius) : null
+      if (!area) return []
+      const item = items.get(itemId)
+      return [
+        {
+          itemId,
+          name: item?.name ?? 'Unknown item',
+          icon: item?.iconLink ?? null,
+          color: colors.get(itemId)!,
+          area
+        }
+      ]
+    })
+  }, [highlighted, colors, findInfo, items, config])
+  const setHighlighted = useCallback(
+    (ids: string[]) => {
+      const maps = useStore.getState().settings?.maps
+      if (maps) void updateSettings({ maps: { ...maps, highlighted: ids } })
+    },
+    [updateSettings]
+  )
   const accessKeys = useMemo(
     () => (maps.find((gm) => gm.normalizedName === config?.key) ?? maps[0])?.access?.keyIds ?? [],
     [maps, config]
@@ -717,7 +731,7 @@ export default function MapsView({
             selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
             keyMarks={keyMarks}
-            findMarks={findMarks}
+            findAreas={findAreas}
             placing={placing !== null}
             onPlace={onPlace}
             onCancelPlace={cancelPlace}
@@ -731,8 +745,9 @@ export default function MapsView({
           settings={settings}
           priceState={priceState}
           findInfo={findInfo}
-          picked={findItem}
-          onPick={setFindItem}
+          highlighted={highlighted}
+          colors={colors}
+          onHighlight={setHighlighted}
           onOpenMap={(mapKey) => set({ mapKey })}
         />
       </main>

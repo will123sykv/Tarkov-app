@@ -181,7 +181,8 @@ describe('sanitizeSettings', () => {
         showBosses: true,
         showSnipers: false,
         faction: 'scav',
-        favouritesOpen: true
+        favouritesOpen: true,
+        highlighted: []
       }
     })
     // Event quests from the wiki (since 1.22.0): titles, once each, trimmed.
@@ -197,6 +198,13 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps).not.toHaveProperty('style')
     expect(sanitizeSettings({ maps: {} }).maps.favouritesOpen).toBe(true)
     expect(sanitizeSettings({ maps: { favouritesOpen: false } }).maps.favouritesOpen).toBe(false)
+    // Items shown on the map: ids only, each once, at most 20.
+    expect(
+      sanitizeSettings({
+        maps: { highlighted: ['a1', 'a1', 'bad id!', 7, ...Array.from({ length: 30 }, (_, i) => `i${i}`)] }
+      }).maps.highlighted
+    ).toEqual(['a1', ...Array.from({ length: 19 }, (_, i) => `i${i}`)])
+    expect(sanitizeSettings({ maps: { highlighted: 'x' } }).maps.highlighted).toEqual([])
     expect(
       sanitizeSettings({
         view: 'nope',
