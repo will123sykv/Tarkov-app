@@ -304,6 +304,9 @@ game's logs don't say which keys you have, so tick them yourself.
 - **Show on map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
   links to the other maps it's on). **Add to To do** lists it under **Keys to get** in the To do
   tab. **Every key** lists all the game's keys, to tick ones no quest needs.
+- **Map** (in the sidebar) shows only the keys used on one map: a lock there, a quest that needs it
+  there, or getting you onto it (the Lab's keycard); where a key spawns doesn't count. It's
+  remembered, and **Show on map** then opens that map.
 - **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
   your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
   stash pages with loose keys); add them all with **Use latest screenshot**, **Open picture…**, paste

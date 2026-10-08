@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items'
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
-  keys: { scope: 'all', list: 'needed', tab: 'list' },
+  keys: { scope: 'all', list: 'needed', tab: 'list', map: null },
   sidebars: {}
 }
 
@@ -306,7 +306,8 @@ function sanitizeKeys(raw: unknown): KeysSettings {
   return {
     scope: r.scope === 'active' || r.scope === 'available' ? r.scope : 'all',
     list: r.list === 'all' ? 'all' : 'needed',
-    tab: r.tab === 'scan' ? 'scan' : 'list'
+    tab: r.tab === 'scan' ? 'scan' : 'list',
+    map: typeof r.map === 'string' && /^[a-z0-9-]{1,40}$/.test(r.map) ? r.map : null
   }
 }
 

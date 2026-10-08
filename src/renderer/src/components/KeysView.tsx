@@ -6,6 +6,7 @@ import type { KeysSettings, PriceState, PublicSettings } from '../../../shared/t
 import { formatRub } from '../lib/format'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
+import { keyUsedOn } from '../lib/keyMaps'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
@@ -73,7 +74,8 @@ function KeyRow({
   owned,
   toDo,
   lockReason,
-  onOpenQuest
+  onOpenQuest,
+  pickedMapKey = null
 }: {
   keyIds: string[]
   uses: KeyNeed['uses']
@@ -82,14 +84,17 @@ function KeyRow({
   toDo: ReadonlySet<string>
   lockReason: (questId: string) => string | null
   onOpenQuest: (id: string) => void
+  /** The map the list is filtered to (its Maps tab key), which Show on map opens. */
+  pickedMapKey?: string | null
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
   const showKeyOnMap = useStore((s) => s.showKeyOnMap)
   const keys = keyIds.map(info)
   const have = opens(keyIds, owned)
-  // On the map: where its lock is, else where it spawns, else where the quest needs it.
+  // On the map: the one the list is filtered to, else where its lock is, else where it spawns.
   const first = keys[0]
   const mapKey =
+    pickedMapKey ??
     first.locks.find((l) => l.group.mapKey)?.group.mapKey ??
     first.spawns.find((s) => s.group.mapKey)?.group.mapKey ??
     null
@@ -232,7 +237,7 @@ export default function KeysView({
   const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
   const selectQuest = useStore((s) => s.selectQuest)
   const updateSettings = useStore((s) => s.updateSettings)
-  const { info, keyIds } = useKeyInfo(settings, priceState)
+  const { info, keyIds, groups } = useKeyInfo(settings, priceState)
   const items = useItemLookup(priceState)
   const hideout = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const [search, setSearch] = useState('')
@@ -246,13 +251,27 @@ export default function KeysView({
     [rows, objectives, k.scope]
   )
   const term = search.trim().toLowerCase()
-  const matches = (ids: string[]): boolean =>
+  // The maps to filter by, one per map image (Night Factory with Factory).
+  const mapChoices = useMemo(
+    () =>
+      [...new Map([...groups.values()].map((g) => [g.key, g])).values()].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [groups]
+  )
+  const picked = mapChoices.find((g) => g.key === k.map) ?? null
+  const searched = (ids: string[]): boolean =>
     !term || ids.some((id) => info(id).name.toLowerCase().includes(term))
-  const missingAll = needs.filter((n) => !opens(n.keyIds, owned))
-  const missing = missingAll.filter((n) => matches(n.keyIds))
-  const neededHave = needs.filter((n) => opens(n.keyIds, owned) && matches(n.keyIds))
   const needed = new Set(needs.flatMap((n) => n.keyIds))
   const usesOf = new Map(needs.flatMap((n) => n.keyIds.map((id) => [id, n.uses])))
+  // Keys used on the map picked: a lock there, a quest needing it there, or getting you onto it.
+  const onMap = (ids: string[]): boolean =>
+    ids.some((id) => keyUsedOn(info(id), usesOf.get(id) ?? [], groups, picked?.key ?? null))
+  const matches = (ids: string[]): boolean => searched(ids) && onMap(ids)
+  const inView = needs.filter((n) => onMap(n.keyIds))
+  const missingAll = inView.filter((n) => !opens(n.keyIds, owned))
+  const missing = missingAll.filter((n) => searched(n.keyIds))
+  const neededHave = inView.filter((n) => opens(n.keyIds, owned) && searched(n.keyIds))
   // Keys the player has that no quest in scope needs, and (to tick) every other key.
   const otherOwned = inventory.owned.filter((id) => !needed.has(id) && matches([id]))
   const everyOther =
@@ -271,7 +290,14 @@ export default function KeysView({
     selectQuest(questId)
     void updateSettings({ view: 'quests' })
   }
-  const rowProps = { info, owned, toDo, lockReason, onOpenQuest: openQuest }
+  const rowProps = {
+    info,
+    owned,
+    toDo,
+    lockReason,
+    onOpenQuest: openQuest,
+    pickedMapKey: picked?.mapKey ?? null
+  }
   const dataset = questState?.dataset ?? null
 
   return (
@@ -301,6 +327,24 @@ export default function KeysView({
             The keys come from the quests: each objective not yet done that has a lock to open, and
             tarkov.dev&rsquo;s list of each quest&rsquo;s keys. Quests you can&rsquo;t start yet say why (your
             level, a trader&rsquo;s loyalty or another quest).
+          </p>
+        </SidebarSection>
+        <SidebarSection title="Map">
+          <select
+            value={picked?.key ?? ''}
+            onChange={(e) => set({ map: e.target.value || null })}
+            aria-label="Only keys used on this map"
+          >
+            <option value="">Every map</option>
+            {mapChoices.map((g) => (
+              <option key={g.key} value={g.key}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <p className="hint">
+            Only the keys used on a map: a lock there, a quest that needs it there, or getting you onto it
+            (the Lab&rsquo;s keycard). Where a key spawns doesn&rsquo;t count.
           </p>
         </SidebarSection>
         <SidebarSection title="Show">
@@ -345,13 +389,14 @@ export default function KeysView({
             <strong>Keys</strong>
             <span className="muted">
               {dataset
-                ? `${plural(needs.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
-                  (needs.length
-                    ? ` · ${needs.length - missingAll.length} you have · ${missingAll.length} to get`
+                ? `${plural(inView.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
+                  (picked ? ` on ${picked.name}` : '') +
+                  (inView.length
+                    ? ` · ${inView.length - missingAll.length} you have · ${missingAll.length} to get`
                     : '') +
                   (buyable ? ` (${buyable} you can buy now)` : '') +
                   // Keys no quest here needs are ticked too.
-                  (inventory.owned.length > needs.length - missingAll.length
+                  (!picked && inventory.owned.length > needs.length - missingAll.length
                     ? ` · ${plural(inventory.owned.length, 'key')} ticked in all`
                     : '')
                 : questState?.error
@@ -424,7 +469,9 @@ export default function KeysView({
                   <p>
                     {term
                       ? 'No key matches the search.'
-                      : 'None of these quests needs a key. Show every key to tick the ones you have.'}
+                      : picked
+                        ? `No key here is used on ${picked.name}.`
+                        : 'None of these quests needs a key. Show every key to tick the ones you have.'}
                   </p>
                 </div>
               )}

@@ -180,6 +180,8 @@ export interface KeysSettings {
   list: 'needed' | 'all'
   /** The key list, or reading keys from screenshots (since 1.18.0). */
   tab: 'list' | 'scan'
+  /** Only keys used on this map (its group's key, e.g. `customs`), or null for every map (since 1.31.0). */
+  map: string | null
 }
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */

@@ -320,18 +320,21 @@ describe('sanitizeSettings', () => {
     // Settings saved before 1.17.0: every quest's keys listed, no map layer.
     const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
     expect(old.view).toBe('keys')
-    expect(old.keys).toEqual({ scope: 'all', list: 'needed', tab: 'list' })
+    expect(old.keys).toEqual({ scope: 'all', list: 'needed', tab: 'list', map: null })
     expect(old.maps.showKeys).toBe(false)
     const chosen = sanitizeSettings({
-      keys: { scope: 'available', list: 'all', tab: 'scan' },
+      keys: { scope: 'available', list: 'all', tab: 'scan', map: 'customs' },
       maps: { showKeys: true }
     })
-    expect(chosen.keys).toEqual({ scope: 'available', list: 'all', tab: 'scan' })
+    expect(chosen.keys).toEqual({ scope: 'available', list: 'all', tab: 'scan', map: 'customs' })
     expect(chosen.maps.showKeys).toBe(true)
-    expect(sanitizeSettings({ keys: { scope: 'some', list: 'x', tab: 'y' } }).keys).toEqual({
+    expect(
+      sanitizeSettings({ keys: { scope: 'some', list: 'x', tab: 'y', map: 'No Such Map!' } }).keys
+    ).toEqual({
       scope: 'all',
       list: 'needed',
-      tab: 'list'
+      tab: 'list',
+      map: null
     })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope
