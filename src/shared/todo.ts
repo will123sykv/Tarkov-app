@@ -488,3 +488,44 @@ export function questSummary(
   }
   return { lines: lines.slice(0, max), more: Math.max(0, lines.length - max) }
 }
+
+/** A kill objective still to do, for the banner over the map. */
+export interface KillToDo {
+  quest: Quest
+  objective: QuestObjective
+  done: number
+  total: number
+  /** It counts on any map (it names none). */
+  anyMap: boolean
+}
+
+/**
+ * The kill objectives of active quests left to do on a map (`mapIds`: its group's, Night Factory with
+ * Factory), then the ones that count on any map. The ones naming the fewest maps come first (tarkov.dev
+ * lists most maps for many "on any location" ones), then by quest name. `blocked` leaves out quests
+ * held up by a key the player doesn't have ("Only quests I can do").
+ */
+export function killObjectives(
+  rows: readonly { quest: Quest; status: QuestStatus }[],
+  objectives: ObjectiveProgress | undefined,
+  mapIds: ReadonlySet<string>,
+  blocked?: (quest: Quest) => boolean
+): KillToDo[] {
+  const here: KillToDo[] = []
+  const anywhere: KillToDo[] = []
+  for (const { quest, status } of rows) {
+    if (status !== 'active' || blocked?.(quest)) continue
+    for (const objective of quest.objectives) {
+      if (objective.optional || objectiveCategory(objective) !== 'kill' || !inRaid(objective)) continue
+      const done = objectiveValue(objective, quest.id, objectives)
+      const total = objectiveTarget(objective)
+      if (done >= total) continue
+      const maps = objectiveMapIds(objective)
+      if (!maps.length) anywhere.push({ quest, objective, done, total, anyMap: true })
+      else if (maps.some((id) => mapIds.has(id))) here.push({ quest, objective, done, total, anyMap: false })
+    }
+  }
+  const byQuest = (a: KillToDo, b: KillToDo): number => a.quest.name.localeCompare(b.quest.name)
+  const maps = (k: KillToDo): number => objectiveMapIds(k.objective).length
+  return [...here.sort((a, b) => maps(a) - maps(b) || byQuest(a, b)), ...anywhere.sort(byQuest)]
+}

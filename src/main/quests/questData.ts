@@ -23,6 +23,7 @@ import type {
   TraderRequirement,
   Vec3
 } from '../../shared/questTypes'
+import { objectiveMapIds } from '../../shared/todo'
 import type { DataMode } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, type FetchFn } from '../pricing/http'
@@ -621,7 +622,7 @@ export function normalizeQuestData(
     if (id && name && !known.has(id)) otherQuestNames[id] = name
   }
 
-  return {
+  return withoutTutorial({
     dataMode,
     fetchedAt,
     quests,
@@ -633,6 +634,40 @@ export function normalizeQuestData(
     otherQuestNames,
     // Filled in from the wiki by fetchQuestData.
     storyChapters: []
+  })
+}
+
+/** The Ground Zero tutorial, a map of its own in tarkov.dev's data that's played once at most. */
+export const isTutorialMap = (map: Pick<GameMap, 'normalizedName' | 'nameId'>): boolean =>
+  map.nameId.toLowerCase() === 'sandbox_start' || /tutorial/i.test(map.normalizedName)
+
+/**
+ * The data without the Ground Zero tutorial: the map goes, and so does every mention of it in quests
+ * (objectives on it alone too, rather than becoming objectives for any map). Since 1.33.0.
+ */
+export function withoutTutorial(data: QuestDataset): QuestDataset {
+  const gone = new Set(data.maps.filter(isTutorialMap).map((m) => m.id))
+  if (!gone.size) return data
+  const kept = (id: string): boolean => !gone.has(id)
+  return {
+    ...data,
+    maps: data.maps.filter((m) => kept(m.id)),
+    quests: data.quests.map((q) => ({
+      ...q,
+      map: q.map && kept(q.map) ? q.map : null,
+      neededKeys: q.neededKeys.filter((k) => kept(k.map)),
+      objectives: q.objectives
+        .filter((o) => {
+          const maps = objectiveMapIds(o)
+          return !maps.length || maps.some(kept)
+        })
+        .map((o) => ({
+          ...o,
+          maps: o.maps.filter(kept),
+          zones: o.zones.filter((z) => kept(z.map)),
+          locations: o.locations.filter((l) => kept(l.map))
+        }))
+    }))
   }
 }
 
@@ -815,7 +850,7 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
     let state = states.get(dataMode)
     if (!state) {
       const raw = (await readJsonFile(cacheFile(dataMode))) as QuestDataset | undefined
-      const cached = raw?.quests ? upgradeCache(raw) : undefined
+      const cached = raw?.quests ? withoutTutorial(upgradeCache(raw)) : undefined
       state = {
         dataset: cached ?? null,
         fromCache: Boolean(cached?.quests),

@@ -4567,3 +4567,80 @@ tr:hover .favourite-star {
   font-size: 12px;
   white-space: pre-wrap;
 }
+
+/* Kill objectives over the top of the map, between the zoom buttons and the favourites panel. */
+.kill-banner {
+  position: absolute;
+  z-index: 1000;
+  top: 12px;
+  left: 56px;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 56px - 324px);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--bad);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+
+.kill-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kill-banner-icon {
+  color: var(--bad);
+}
+
+.kill-banner-fold {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--muted);
+}
+
+.kill-banner-list {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: 12px;
+  max-height: 156px;
+  margin: 0;
+  padding: 4px 10px 6px;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--border);
+}
+
+.kill-banner-list li {
+  display: contents;
+}
+
+.kill-banner-list li > * {
+  padding: 3px 0;
+}
+
+.kill-banner-quest {
+  justify-self: start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.kill-banner-text .tag {
+  margin-left: 6px;
+}
+
+.kill-banner-count {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

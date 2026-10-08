@@ -388,13 +388,20 @@ the game's install folder, or its `build` folder.
   basement, first and second floors side by side. Each marker is drawn on the floor, deck or inset
   it's on (the Ground Zero underground, the Shoreline resort's floors, Reserve's bunkers,
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
-  open a map and kept, so they work offline afterwards.
+  open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
+  lists as a map of its own, is left out everywhere in the app.
 - **Only quests I can do on the maps:** the same filter as the To do tab (switching it on either tab
   switches both). With **Show all**, a pin whose objective needs a key you don't have shows its key
   in amber on dark, like a lock you have no key for, and its tooltip says **(you don't have it)**;
   **Only quests I can do** takes the whole quest off the map (all its objectives, on every map,
   until you have the key or have done the locked part), and the sidebar says how many it hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
   out. A quest opened with **Show on map** is shown anyway.
+- **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner
+  across the top of the map lists your active quests' kills left on that map, the ones naming the
+  fewest maps first, then the ones for any map (marked **any map**). Each gives the quest, what to
+  kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.
+  Click a quest to open its panel; click the banner's heading to fold it (it's remembered).
+  **Only quests I can do** leaves out quests a key you don't have holds up.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many

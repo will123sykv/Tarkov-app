@@ -245,6 +245,8 @@ export interface MapSettings {
   favouritesOpen: boolean
   /** Favourite items shown on the map as a circle where they turn up most, in the order picked. */
   highlighted: string[]
+  /** The banner of kill objectives over the map is open (since 1.33.0). */
+  killsOpen: boolean
 }
 
 export interface TrendSettings {

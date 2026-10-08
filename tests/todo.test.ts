@@ -4,6 +4,7 @@ import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import {
   inRaid,
+  killObjectives,
   mapOverview,
   objectiveCategory,
   objectiveMapIds,
@@ -398,5 +399,41 @@ describe('quest summaries', () => {
       more: 0
     })
     expect(questSummary(q, progress, customs.steps, customs.group, ['Customs'], 2).more).toBe(1)
+  })
+})
+
+describe('kill objectives for the banner over the map', () => {
+  it('lists the active quests’ kills left on this map (Night Factory with Factory), fewest maps first, then any-map ones', () => {
+    const b = quest('b', [
+      objective('kill', 'shoot', { maps: [NIGHT_FACTORY], count: 5 }),
+      objective('visit', 'visit', { maps: [FACTORY] }),
+      objective('woods', 'shoot', { maps: [WOODS] })
+    ])
+    const a = quest('a', [
+      objective('kill', 'shoot', { maps: [FACTORY], count: 3 }),
+      objective('anywhere', 'shoot', { maps: [], count: 10 }),
+      objective('optional', 'shoot', { maps: [FACTORY], optional: true })
+    ])
+    const c = quest('c', [objective('many', 'shoot', { maps: [WOODS, CUSTOMS, FACTORY], count: 8 })])
+    const done = quest('done', [objective('kill', 'shoot', { maps: [FACTORY], count: 2 })])
+    const available = quest('avail', [objective('kill', 'shoot', { maps: [FACTORY] })])
+    const kills = killObjectives(
+      [row(c), row(b), row(a), row(done), row(available, 'available')],
+      { b: { kill: 2 }, a: { anywhere: 4 }, done: { kill: 2 } },
+      new Set(GROUPS.factory.mapIds)
+    )
+    expect(kills.map((k) => [k.quest.id, k.objective.id, k.done, k.total, k.anyMap])).toEqual([
+      ['a', 'kill', 0, 3, false],
+      ['b', 'kill', 2, 5, false],
+      ['c', 'many', 0, 8, false],
+      ['a', 'anywhere', 4, 10, true]
+    ])
+  })
+
+  it('leaves out quests a missing key holds up', () => {
+    const a = quest('a', [objective('kill', 'shoot', { maps: [WOODS] })])
+    const b = quest('b', [objective('kill', 'shoot', { maps: [WOODS] })])
+    const kills = killObjectives([row(a), row(b)], {}, new Set([WOODS]), (q) => q.id === 'a')
+    expect(kills.map((k) => k.quest.id)).toEqual(['b'])
   })
 })

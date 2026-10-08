@@ -182,7 +182,8 @@ describe('sanitizeSettings', () => {
         showSnipers: false,
         faction: 'scav',
         favouritesOpen: true,
-        highlighted: []
+        highlighted: [],
+        killsOpen: true
       }
     })
     // Event quests from the wiki (since 1.22.0): titles, once each, trimmed.
@@ -198,6 +199,9 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps).not.toHaveProperty('style')
     expect(sanitizeSettings({ maps: {} }).maps.favouritesOpen).toBe(true)
     expect(sanitizeSettings({ maps: { favouritesOpen: false } }).maps.favouritesOpen).toBe(false)
+    // The kill banner over the map (since 1.33.0): open unless folded.
+    expect(sanitizeSettings({ maps: {} }).maps.killsOpen).toBe(true)
+    expect(sanitizeSettings({ maps: { killsOpen: false } }).maps.killsOpen).toBe(false)
     // Items shown on the map: ids only, each once, at most 20.
     expect(
       sanitizeSettings({

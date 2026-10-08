@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createQuestDataService, normalizeQuestData } from '../src/main/quests/questData'
+import { createQuestDataService, normalizeQuestData, withoutTutorial } from '../src/main/quests/questData'
 import { jsonResponse, mockFetch, tempDir } from './helpers'
 import { writeFile } from 'node:fs/promises'
 import {
@@ -592,5 +592,62 @@ describe('createQuestDataService', () => {
     expect(checking.startRewards.items).toEqual([])
     expect(checking.objectives.every((o) => Array.isArray(o.requiredKeys))).toBe(true)
     expect(offline.dataset!.traders.every((t) => t.imageLink === null)).toBe(true)
+  })
+})
+
+describe('withoutTutorial', () => {
+  it('drops the Ground Zero tutorial map and every mention of it, objectives on it alone too', () => {
+    const data = normalizeQuestData(RAW_QUEST_DATA, 'pvp', 42)
+    const TUTORIAL = '68236e8153654e8c1200798a'
+    const base = data.quests[0]
+    const objective = base.objectives[0]
+    const zone = { id: 'z', map: TUTORIAL, position: { x: 0, y: 0, z: 0 }, outline: [] }
+    const withTutorial = {
+      ...data,
+      maps: [
+        ...data.maps,
+        {
+          ...data.maps[0],
+          id: TUTORIAL,
+          name: 'Ground Zero Tutorial',
+          normalizedName: 'ground-zero-tutorial',
+          nameId: 'Sandbox_start'
+        }
+      ],
+      quests: [
+        {
+          ...base,
+          map: TUTORIAL,
+          neededKeys: [
+            { map: TUTORIAL, keyIds: ['k'] },
+            { map: CUSTOMS, keyIds: ['k2'] }
+          ],
+          objectives: [
+            { ...objective, id: 'alone', maps: [TUTORIAL], zones: [zone], locations: [] },
+            {
+              ...objective,
+              id: 'shared',
+              maps: [TUTORIAL, CUSTOMS],
+              zones: [zone],
+              locations: [{ map: TUTORIAL, positions: [] }]
+            },
+            { ...objective, id: 'anywhere', maps: [], zones: [], locations: [] }
+          ]
+        },
+        ...data.quests.slice(1)
+      ]
+    }
+    const result = withoutTutorial(withTutorial)
+    expect(result.maps.map((m) => m.id)).toEqual(data.maps.map((m) => m.id))
+    const quest = result.quests[0]
+    expect(quest.map).toBeNull()
+    expect(quest.neededKeys).toEqual([{ map: CUSTOMS, keyIds: ['k2'] }])
+    expect(quest.objectives.map((o) => [o.id, o.maps, o.zones.length, o.locations.length])).toEqual([
+      ['shared', [CUSTOMS], 0, 0],
+      ['anywhere', [], 0, 0]
+    ])
+    expect(result.quests.slice(1)).toEqual(data.quests.slice(1))
+    // Data without it is left as it is.
+    expect(withoutTutorial(data)).toBe(data)
   })
 })

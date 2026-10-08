@@ -77,7 +77,8 @@ export const DEFAULT_SETTINGS: Settings = {
     showKeys: false,
     faction: 'pmc',
     favouritesOpen: true,
-    highlighted: []
+    highlighted: [],
+    killsOpen: true
   },
   hideout: {
     scope: 'all',
@@ -146,6 +147,7 @@ function sanitizeMaps(raw: unknown): MapSettings {
     showKeys: r.showKeys === true,
     faction: r.faction === 'scav' ? 'scav' : 'pmc',
     favouritesOpen: r.favouritesOpen !== false,
+    killsOpen: r.killsOpen !== false,
     highlighted: Array.isArray(r.highlighted)
       ? [
           ...new Set(

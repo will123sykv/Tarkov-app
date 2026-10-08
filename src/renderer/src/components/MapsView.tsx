@@ -3,6 +3,7 @@ import { blockedByKeys, EMPTY_KEYS, keysNeeded, opens } from '../../../shared/ke
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
+import { killObjectives } from '../../../shared/todo'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
@@ -22,6 +23,7 @@ import { useWhereToFind } from '../lib/useFavourites'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import FavouritesPanel from './FavouritesPanel'
+import KillBanner from './KillBanner'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
@@ -343,6 +345,13 @@ export default function MapsView({
     [doable, inScope, owned, shut, focus, blocked]
   )
   const objectives = shown.markers
+  // Kill objectives left here and on any map, in the banner over the map (most have nowhere to pin).
+  // "Only quests I can do" on a map the player can't get onto keeps just the ones for any map.
+  const kills = useMemo(() => {
+    const all = killObjectives(rows, done, mapIds, doable ? blocked : undefined)
+    return doable && shut ? all.filter((k) => k.anyMap) : all
+  }, [rows, done, mapIds, doable, blocked, shut])
+  const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
   const storySteps = useMemo<StepHere[]>(() => {
@@ -717,6 +726,15 @@ export default function MapsView({
               Cancel
             </button>
           </div>
+        )}
+        {!placing && (
+          <KillBanner
+            kills={kills}
+            mapNames={mapNames}
+            open={m.killsOpen}
+            onToggle={() => set({ killsOpen: !m.killsOpen })}
+            onSelectQuest={onSelectQuest}
+          />
         )}
         {projection && maps.length ? (
           <MapCanvas
