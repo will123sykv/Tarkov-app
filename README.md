@@ -15,8 +15,8 @@ prices, your PMC level and the game mode you play. It also has:
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
   buy or craft back later), and the items not to sell (rare ones flagged) marked in the loot list;
-- **Keys:** the keys you have (ticked by hand) and the ones your quests still need, with how to get
-  each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
+- **Keys:** the keys to buy and the keys you own (ticked by hand), each split into the ones your
+  quests need and the rest, with how to get each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
 - **Maps:** 2D maps with your quests (named, with their trader) and story chapter steps,
   extracts, transits, spawns, the locks and spawn spots of the keys you need, and what your starred
   items, upgrades and quests still need from raids;
@@ -171,7 +171,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - **Keys:** with **Show all**, objectives behind a lock none of your keys open are marked **Needs …
   (you don't have it)**, and a quest with nothing else to do there is marked **Needs a key**; **Only
   quests I can do** leaves them out (the summary line says how many quests that hides). **Keys to
-  get** lists the keys that would open them up, with how to get each, plus any you added from the
+  buy** lists the keys that would open them up, with how to get each, plus any you added from the
   Keys tab.
 
 The game's logs only say when a quest starts and finishes, not its objectives, so the ranking is as
@@ -287,23 +287,26 @@ screenshots; other resolutions and UI scales are scaled to match.
 
 ### Keys
 
-The **Keys** tab lists the keys your quests still need and the ones you have, per game mode. The
+The **Keys** tab lists the keys to buy and the keys you own, per game mode. The
 game's logs don't say which keys you have, so tick them yourself.
 
-- **Needed keys** come from the quests: every objective not yet done that has a lock to open, and
-  tarkov.dev's list of each quest's keys. Choose whose: **Active**, **Active + available** (quests
-  you could start too) or **Every quest left**. The summary says how many keys those quests need,
-  how many you have and how many are left to get. Each key says which quests need it and their status;
-  quests you can't start yet say why (**Needs level 25**, a trader's loyalty level or another
-  quest). A lock that takes any of several keys is one row.
+- **Keys to buy** and **Keys owned** each have two parts. **For quests** comes from the quests:
+  every objective not yet done that has a lock to open, and tarkov.dev's list of each quest's keys.
+  Choose whose in **Keys for**: **Active**, **Active + available** (quests you could start too) or
+  **Every quest left**. **Other** is every other key: under Keys to buy it's folded (click it to
+  list them, to tick ones no quest needs); under Keys owned it's the keys you have that none of
+  those quests need. The summary says how many keys those quests need, how many you own and how
+  many are left to buy. Each key says which quests need it and their status; quests you can't start
+  yet say why (**Needs level 25**, a trader's loyalty level or another quest). A lock that takes any
+  of several keys is one row. Ticking a key moves it from Keys to buy to Keys owned.
 - **How to get it:** the cheapest way to buy it now at your level and trader loyalty, or **Can't buy
   yet** with what's in the way (the flea's level for that key, a loyalty level, a quest); a quest
   that gives it as a reward or when you accept it; and the maps where it can spawn as loose loot
   (how many spots, and whether one only ever has keys). Keys also spawn in containers, which the
   data doesn't list, and it doesn't say how likely a key is at a spot.
 - **Show on map** opens the Maps tab on the key's map with its locks and spawn spots highlighted (and
-  links to the other maps it's on). **Add to To do** lists it under **Keys to get** in the To do
-  tab. **Every key** lists all the game's keys, to tick ones no quest needs.
+  links to the other maps it's on). **Add to To do** lists it under **Keys to buy** in the To do
+  tab.
 - **Map** (in the sidebar) shows only the keys used on one map: a lock there, a quest that needs it
   there, or getting you onto it (the Lab's keycard); where a key spawns doesn't count. It's
   remembered, and **Show on map** then opens that map.
@@ -315,7 +318,7 @@ game's logs don't say which keys you have, so tick them yourself.
   keys** makes the keys found your keys: ones you'd ticked that aren't in any screenshot are unticked
   (it asks first), and **Undo** puts your old list back. The screenshots are shared with Items to
   collect's scanner, so stash pages read there can tick your keys too.
-- **Keys you have** stop the To do tab from leaving out what they open. The key list comes from
+- **Keys owned** stop the To do tab from leaving out what they open. The key list comes from
   tarkov.dev, so keys a patch adds or removes follow with the next data refresh.
 
 The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing

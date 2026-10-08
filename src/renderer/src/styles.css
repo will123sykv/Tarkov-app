@@ -3986,12 +3986,43 @@ tr:hover .favourite-star {
   padding: 4px 16px 24px;
 }
 
-.key-section h3 {
-  margin: 14px 0 6px;
+.key-group + .key-group {
+  margin-top: 10px;
+}
+
+.key-group h3 {
+  margin: 14px 0 2px;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--accent);
+}
+
+.key-group-empty {
+  margin: 4px 0 0;
+}
+
+.key-section h4 {
+  margin: 8px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.key-section h4 .muted {
+  font-weight: 400;
+}
+
+.key-fold {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.key-fold:hover {
   color: var(--accent);
 }
 

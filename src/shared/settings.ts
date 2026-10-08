@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items'
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
-  keys: { scope: 'all', list: 'needed', tab: 'list', map: null },
+  keys: { scope: 'all', otherOpen: false, tab: 'list', map: null },
   sidebars: {}
 }
 
@@ -305,7 +305,8 @@ function sanitizeKeys(raw: unknown): KeysSettings {
   const r = isRecord(raw) ? raw : {}
   return {
     scope: r.scope === 'active' || r.scope === 'available' ? r.scope : 'all',
-    list: r.list === 'all' ? 'all' : 'needed',
+    // Before 1.32.0 "Every key" (`list: 'all'`) showed the other keys; they're now a folded section.
+    otherOpen: typeof r.otherOpen === 'boolean' ? r.otherOpen : r.list === 'all',
     tab: r.tab === 'scan' ? 'scan' : 'list',
     map: typeof r.map === 'string' && /^[a-z0-9-]{1,40}$/.test(r.map) ? r.map : null
   }
@@ -314,6 +315,11 @@ function sanitizeKeys(raw: unknown): KeysSettings {
 /** Far more sections than any sidebar has, and longer than any heading. */
 const MAX_HIDDEN_SECTIONS = 40
 const MAX_SECTION_TITLE = 60
+
+/** Sidebar sections renamed since they could be hidden (old heading → new), per tab. */
+const RENAMED_SECTIONS: Partial<Record<AppView, Record<string, string>>> = {
+  todo: { 'Keys to get': 'Keys to buy' } // 1.32.0
+}
 
 function sanitizeSidebars(raw: unknown): Partial<Record<AppView, SidebarSettings>> {
   const r = isRecord(raw) ? raw : {}
@@ -331,7 +337,9 @@ function sanitizeSidebars(raw: unknown): Partial<Record<AppView, SidebarSettings
         ].slice(0, MAX_HIDDEN_SECTIONS)
       : []
     const collapsed = v.collapsed === true
-    if (hidden.length || collapsed) result[view] = { hidden, collapsed }
+    // Sections are remembered by heading: renamed ones keep their place.
+    const renamed = hidden.map((t) => RENAMED_SECTIONS[view]?.[t] ?? t)
+    if (renamed.length || collapsed) result[view] = { hidden: [...new Set(renamed)], collapsed }
   }
   return result
 }

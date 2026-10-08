@@ -164,8 +164,8 @@ function KeyRow({
             className={`button small ${wanted ? 'active' : ''}`}
             title={
               wanted
-                ? 'Listed under Keys to get in the To do tab: click to take it off'
-                : 'List it under Keys to get in the To do tab'
+                ? 'Listed under Keys to buy in the To do tab: click to take it off'
+                : 'List it under Keys to buy in the To do tab'
             }
             onClick={() => void setKey(first.id, 'toDo', !wanted)}
           >
@@ -177,43 +177,80 @@ function KeyRow({
   )
 }
 
+/** A group of key lists ("Keys to buy", "Keys owned"), or a line saying why it's empty. */
+function KeyGroup({
+  title,
+  empty,
+  children
+}: {
+  title: string
+  /** Shown when none of its lists has a key. */
+  empty: string | null
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <section className="key-group">
+      <h3>{title}</h3>
+      {empty ? <p className="hint key-group-empty">{empty}</p> : children}
+    </section>
+  )
+}
+
 function KeyTable({
   title,
   rows,
+  open = true,
+  onToggle,
   ...rest
 }: {
   title: string
   rows: { keyIds: string[]; uses: KeyNeed['uses'] }[]
+  /** Folded lists show just their heading and count; `onToggle` opens or folds them. */
+  open?: boolean
+  onToggle?: () => void
 } & Omit<Parameters<typeof KeyRow>[0], 'keyIds' | 'uses'>): React.JSX.Element | null {
   if (!rows.length) return null
+  const heading = (
+    <>
+      {title} <span className="muted">{rows.length}</span>
+    </>
+  )
   return (
     <section className="key-section">
-      <h3>
-        {title} <span className="muted">{rows.length}</span>
-      </h3>
-      <table className="values-table key-table">
-        <colgroup>
-          <col className="key-col-have" />
-          <col className="key-col-name" />
-          <col className="key-col-for" />
-          <col className="key-col-get" />
-          <col className="key-col-actions" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th title="Tick the keys you have">Have</th>
-            <th>Key</th>
-            <th>Needed for</th>
-            <th>How to get it</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <KeyRow key={r.keyIds.join()} keyIds={r.keyIds} uses={r.uses} {...rest} />
-          ))}
-        </tbody>
-      </table>
+      <h4>
+        {onToggle ? (
+          <button className="key-fold" aria-expanded={open} onClick={onToggle}>
+            <span aria-hidden>{open ? '▾' : '▸'}</span> {heading}
+          </button>
+        ) : (
+          heading
+        )}
+      </h4>
+      {open && (
+        <table className="values-table key-table">
+          <colgroup>
+            <col className="key-col-have" />
+            <col className="key-col-name" />
+            <col className="key-col-for" />
+            <col className="key-col-get" />
+            <col className="key-col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th title="Tick the keys you have">Have</th>
+              <th>Key</th>
+              <th>Needed for</th>
+              <th>How to get it</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <KeyRow key={r.keyIds.join()} keyIds={r.keyIds} uses={r.uses} {...rest} />
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   )
 }
@@ -272,14 +309,16 @@ export default function KeysView({
   const missingAll = inView.filter((n) => !opens(n.keyIds, owned))
   const missing = missingAll.filter((n) => searched(n.keyIds))
   const neededHave = inView.filter((n) => opens(n.keyIds, owned) && searched(n.keyIds))
-  // Keys the player has that no quest in scope needs, and (to tick) every other key.
+  // Keys the player has that no quest in scope needs, and every other key they don't have.
   const otherOwned = inventory.owned.filter((id) => !needed.has(id) && matches([id]))
-  const everyOther =
-    k.list === 'all'
-      ? [...keyIds]
-          .filter((id) => !needed.has(id) && !owned.has(id) && matches([id]))
-          .sort((a, b) => info(a).name.localeCompare(info(b).name))
-      : []
+  const otherToBuy = [...keyIds]
+    .filter((id) => !needed.has(id) && !owned.has(id) && matches([id]))
+    .sort((a, b) => info(a).name.localeCompare(info(b).name))
+  const filtered = term
+    ? 'No key matches the search.'
+    : picked
+      ? `No key here is used on ${picked.name}.`
+      : null
   const buyable = missingAll.filter((n) => n.keyIds.some((id) => info(id).buy?.options.length)).length
 
   const lockReason = (questId: string): string | null => {
@@ -328,6 +367,10 @@ export default function KeysView({
             tarkov.dev&rsquo;s list of each quest&rsquo;s keys. Quests you can&rsquo;t start yet say why (your
             level, a trader&rsquo;s loyalty or another quest).
           </p>
+          <p className="hint">
+            Tick the keys you own (per game mode), or read them from screenshots with{' '}
+            <strong>Read from screenshots</strong>. Keys no quest needs are under <strong>Other</strong>.
+          </p>
         </SidebarSection>
         <SidebarSection title="Map">
           <select
@@ -347,34 +390,10 @@ export default function KeysView({
             (the Lab&rsquo;s keycard). Where a key spawns doesn&rsquo;t count.
           </p>
         </SidebarSection>
-        <SidebarSection title="Show">
-          <div className="mini-toggle wide" role="radiogroup" aria-label="Keys to show">
-            {(
-              [
-                ['needed', 'Keys quests need'],
-                ['all', 'Every key']
-              ] as const
-            ).map(([id, text]) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={k.list === id}
-                className={k.list === id ? 'active' : ''}
-                onClick={() => set({ list: id })}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          <p className="hint">
-            Tick the keys you have (per game mode), or read them from screenshots with{' '}
-            <strong>Read from screenshots</strong>. <strong>Every key</strong> lists keys no quest needs too.
-          </p>
-        </SidebarSection>
         <SidebarSection title="In the To do tab">
           <p className="hint">
             Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto) don&rsquo;t
-            count towards which map to raid. The keys for them are under <strong>Keys to get</strong>, with
+            count towards which map to raid. The keys for them are under <strong>Keys to buy</strong>, with
             any you add here.
           </p>
           <p className="hint">
@@ -392,7 +411,7 @@ export default function KeysView({
                 ? `${plural(inView.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
                   (picked ? ` on ${picked.name}` : '') +
                   (inView.length
-                    ? ` · ${inView.length - missingAll.length} you have · ${missingAll.length} to get`
+                    ? ` · ${inView.length - missingAll.length} owned · ${missingAll.length} to buy`
                     : '') +
                   (buyable ? ` (${buyable} you can buy now)` : '') +
                   // Keys no quest here needs are ticked too.
@@ -446,35 +465,39 @@ export default function KeysView({
           />
         ) : (
           <div className="key-lists">
-            <KeyTable title="Needed keys" rows={missing} {...rowProps} />
-            <KeyTable title="Keys you have" rows={neededHave} {...rowProps} />
-            <KeyTable
-              title="Other keys you have"
-              rows={otherOwned.map((id) => ({ keyIds: [id], uses: usesOf.get(id) ?? [] }))}
-              {...rowProps}
-            />
-            {k.list === 'all' && (
-              <KeyTable
-                title="Every other key"
-                rows={everyOther.map((id) => ({ keyIds: [id], uses: [] }))}
-                {...rowProps}
-              />
+            {dataset && (
+              <>
+                <KeyGroup
+                  title="Keys to buy"
+                  empty={!missing.length && !otherToBuy.length ? (filtered ?? 'You own every key.') : null}
+                >
+                  <KeyTable title="For quests" rows={missing} {...rowProps} />
+                  <KeyTable
+                    title="Other"
+                    rows={otherToBuy.map((id) => ({ keyIds: [id], uses: [] }))}
+                    open={k.otherOpen}
+                    onToggle={() => set({ otherOpen: !k.otherOpen })}
+                    {...rowProps}
+                  />
+                </KeyGroup>
+                <KeyGroup
+                  title="Keys owned"
+                  empty={
+                    !neededHave.length && !otherOwned.length
+                      ? (filtered ??
+                        'You own no keys yet: tick them under Keys to buy, or read them from screenshots.')
+                      : null
+                  }
+                >
+                  <KeyTable title="For quests" rows={neededHave} {...rowProps} />
+                  <KeyTable
+                    title="Other"
+                    rows={otherOwned.map((id) => ({ keyIds: [id], uses: usesOf.get(id) ?? [] }))}
+                    {...rowProps}
+                  />
+                </KeyGroup>
+              </>
             )}
-            {dataset &&
-              !missing.length &&
-              !neededHave.length &&
-              !otherOwned.length &&
-              k.list === 'needed' && (
-                <div className="empty">
-                  <p>
-                    {term
-                      ? 'No key matches the search.'
-                      : picked
-                        ? `No key here is used on ${picked.name}.`
-                        : 'None of these quests needs a key. Show every key to tick the ones you have.'}
-                  </p>
-                </div>
-              )}
           </div>
         )}
       </main>

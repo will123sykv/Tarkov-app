@@ -861,7 +861,7 @@ export default function TodoView({
       }),
     [rows, objectives, groups, progress.have, owned, t.show, t.kinds]
   )
-  // Keys to get: the ones holding up active quests, then the ones added from the Keys tab.
+  // Keys to buy: the ones holding up active quests, then the ones added from the Keys tab.
   const ownedAll = new Set(inventory.owned)
   const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
   const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !ownedAll.has(id))
@@ -1013,7 +1013,7 @@ export default function TodoView({
             Hand-overs and upgrades count what you&rsquo;ve put aside in Items to collect.
           </p>
         </SidebarSection>
-        <SidebarSection title="Keys to get">
+        <SidebarSection title="Keys to buy">
           {keysCount === 0 ? (
             <p className="hint">None: you have a key for every lock your active quests need opened.</p>
           ) : (
@@ -1101,10 +1101,10 @@ export default function TodoView({
                       ? ` · ${plural(plan.hidden, 'quest')} with objectives hidden behind keys you don’t have`
                       : '') +
                     (plan.keysToGet.length
-                      ? ` · ${plural(plan.keysToGet.length, 'key')} to get` +
+                      ? ` · ${plural(plan.keysToGet.length, 'key')} to buy` +
                         (addedKeys.length ? ` (+${addedKeys.length} you added)` : '')
                       : addedKeys.length
-                        ? ` · ${plural(addedKeys.length, 'key')} you added to get`
+                        ? ` · ${plural(addedKeys.length, 'key')} you added to buy`
                         : '') +
                     (beforeCount ? ` · ${beforeCount} to do before you raid` : '')}
             </span>
@@ -1188,7 +1188,7 @@ export default function TodoView({
             </p>
             {plan.hidden ? (
               <p className="hint">
-                The keys are listed under Keys to get; Show all lists those objectives too.
+                The keys are listed under Keys to buy; Show all lists those objectives too.
               </p>
             ) : (
               plan.maps.length > 0 && (

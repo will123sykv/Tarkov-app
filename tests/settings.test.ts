@@ -295,10 +295,15 @@ describe('sanitizeSettings', () => {
         }
       }).sidebars
     ).toEqual({
-      todo: { hidden: ['Keys to get'], collapsed: false },
+      todo: { hidden: ['Keys to buy'], collapsed: false },
       maps: { hidden: [], collapsed: true }
     })
     // One tab's change leaves the others.
+    // A section hidden under its old name stays hidden under its new one.
+    expect(
+      sanitizeSettings({ sidebars: { todo: { hidden: ['Keys to get', 'On any map'], collapsed: false } } })
+        .sidebars.todo?.hidden
+    ).toEqual(['Keys to buy', 'On any map'])
     const before = sanitizeSettings({ sidebars: { maps: { hidden: ['Map layers'], collapsed: false } } })
     expect(mergeSettings(before, { sidebars: { todo: { hidden: [], collapsed: true } } }).sidebars).toEqual({
       maps: { hidden: ['Map layers'], collapsed: false },
@@ -320,19 +325,22 @@ describe('sanitizeSettings', () => {
     // Settings saved before 1.17.0: every quest's keys listed, no map layer.
     const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
     expect(old.view).toBe('keys')
-    expect(old.keys).toEqual({ scope: 'all', list: 'needed', tab: 'list', map: null })
+    expect(old.keys).toEqual({ scope: 'all', otherOpen: false, tab: 'list', map: null })
     expect(old.maps.showKeys).toBe(false)
     const chosen = sanitizeSettings({
-      keys: { scope: 'available', list: 'all', tab: 'scan', map: 'customs' },
+      keys: { scope: 'available', otherOpen: true, tab: 'scan', map: 'customs' },
       maps: { showKeys: true }
     })
-    expect(chosen.keys).toEqual({ scope: 'available', list: 'all', tab: 'scan', map: 'customs' })
+    expect(chosen.keys).toEqual({ scope: 'available', otherOpen: true, tab: 'scan', map: 'customs' })
+    // Before 1.32.0 "Every key" showed the other keys: they start unfolded.
+    expect(sanitizeSettings({ keys: { list: 'all' } }).keys.otherOpen).toBe(true)
+    expect(sanitizeSettings({ keys: { list: 'needed' } }).keys.otherOpen).toBe(false)
     expect(chosen.maps.showKeys).toBe(true)
     expect(
-      sanitizeSettings({ keys: { scope: 'some', list: 'x', tab: 'y', map: 'No Such Map!' } }).keys
+      sanitizeSettings({ keys: { scope: 'some', otherOpen: 'x', tab: 'y', map: 'No Such Map!' } }).keys
     ).toEqual({
       scope: 'all',
-      list: 'needed',
+      otherOpen: false,
       tab: 'list',
       map: null
     })

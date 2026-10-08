@@ -176,8 +176,8 @@ export interface TodoSettings {
 export interface KeysSettings {
   /** Keys for active quests, also ones you could start, or every quest left. */
   scope: 'active' | 'available' | 'all'
-  /** The keys quests need, or every key (to tick the ones you have). */
-  list: 'needed' | 'all'
+  /** "Keys to buy · Other" (every key no quest needs that you don't have) unfolded (since 1.32.0). */
+  otherOpen: boolean
   /** The key list, or reading keys from screenshots (since 1.18.0). */
   tab: 'list' | 'scan'
   /** Only keys used on this map (its group's key, e.g. `customs`), or null for every map (since 1.31.0). */

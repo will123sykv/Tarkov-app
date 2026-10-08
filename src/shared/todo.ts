@@ -143,7 +143,7 @@ export interface TodoPlan {
   /** Active quests with every objective done: hand them in. */
   turnIn: Quest[]
   handOvers: HandOverReady[]
-  /** Keys the player doesn't have that would open up objectives of active quests. */
+  /** Keys the player doesn't have that would open up objectives of active quests ("Keys to buy"). */
   keysToGet: KeyToGet[]
   /** How many quests are active. */
   active: number
