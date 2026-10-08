@@ -20,7 +20,10 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: node scripts/probe.mjs
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npx tsx scripts/probe.ts
 
   test:
     name: Typecheck, test and build
