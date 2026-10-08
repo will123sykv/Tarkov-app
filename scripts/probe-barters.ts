@@ -14,33 +14,18 @@ async function wiki(): Promise<void> {
   for (const k of Object.keys(map))
     if (!['categories', 'markers', 'description'].includes(k))
       console.log(`  ${k}:`, JSON.stringify(map[k]).slice(0, 600))
-  const markers = map.markers as unknown
-  const dump = (v: unknown, depth = 0): void => {
-    if (Array.isArray(v)) {
-      console.log(`${'  '.repeat(depth)}[array ${v.length}]`)
-      for (const x of v) dump(x, depth + 1)
-      return
-    }
-    if (v && typeof v === 'object') {
-      const o = v as Raw
-      const flat: Raw = {}
-      const nested: [string, unknown][] = []
-      for (const [k, x] of Object.entries(o)) {
-        if (k === 'description' || k === 'image') continue
-        if (x && typeof x === 'object' && !(Array.isArray(x) && x.every((n) => typeof n === 'number')))
-          nested.push([k, x])
-        else flat[k] = x
-      }
-      console.log(`${'  '.repeat(depth)}M ${JSON.stringify(flat).slice(0, 260)}`)
-      for (const [k, x] of nested) {
-        console.log(`${'  '.repeat(depth + 1)}.${k}:`)
-        dump(x, depth + 2)
-      }
-      return
-    }
-    console.log(`${'  '.repeat(depth)}${JSON.stringify(v)}`)
+  const markers = (map.markers as Raw[]) ?? []
+  const wanted = /exfil|spawn|locked|lever|loot_key|boss|scav/
+  const counts = new Map<string, number>()
+  for (const m of markers) {
+    const cat = String(m.categoryId)
+    counts.set(cat, (counts.get(cat) ?? 0) + 1)
+    if (!wanted.test(cat)) continue
+    const pos = m.position as number[]
+    const title = (m.popup as Raw | undefined)?.title
+    console.log(`W ${cat} ${pos.map((n) => Math.round(n * 10) / 10).join(' ')} ${JSON.stringify(title)}`)
   }
-  dump(markers)
+  console.log('counts', JSON.stringify([...counts]))
 }
 
 async function main(): Promise<void> {
