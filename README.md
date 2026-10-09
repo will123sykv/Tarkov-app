@@ -377,6 +377,19 @@ the game's install folder, or its `build` folder.
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
   pictures of where to go (click one to see it full size). Guides are kept for a week, so ones
   you've opened work offline.
+- **Corrected from the wiki:** tarkov.dev's quest data and the
+  [wiki](https://escapefromtarkov.fandom.com) don't always agree, so each quest's wiki page is read
+  with the quest data, and where they differ the wiki's is used: the level the quest needs (only
+  ever raised), whether Kappa needs it, the quests before it (when the wiki names them all and they
+  must all be done), an objective's count and wording where the wiki states the number (in PvE, a
+  page noting PvE differences keeps tarkov.dev's PvE counts), and steps tarkov.dev leaves out, like
+  Slaughterhouse's kills on Woods, Interchange and Customs (tick these off yourself). Conditions
+  ("Do not harm Kaban") and hand-overs or maps only the wiki has are noted rather than added. The
+  quest's panel shows **From the wiki** with a list of what changed, objectives marked **from the
+  wiki** or **corrected** (point at one for tarkov.dev's version), and the quest list a **W**.
+  Quests and objectives keep tarkov.dev's ids, so progress and the game's logs work as before.
+  Untick **Correct quests from the wiki** in the Quests tab's sidebar to see tarkov.dev's data as
+  it is. The last pages read are kept for when the wiki can't be reached.
 - **Event quests:** limited-time event quests (Fog of War, Number Temporarily Unavailable…) aren't
   on tarkov.dev, so the app can't list them by itself. Under **Event quests** in the Quests tab's
   sidebar, **Add event quests…** lists the wiki's event quests (this event's first; tick **Show

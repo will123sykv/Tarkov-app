@@ -64,6 +64,9 @@ function likeness(a: string, b: string): number {
 const CONDITION =
   /^(do not|don't|you must not|must not|without|survive and extract|you must survive|you can't|you cannot)\b/i
 
+/** "Reach the required Bolt-action Rifles skill level of 10": not something done in raid. */
+const SKILL_OR_LEVEL = /^reach\b.*\b(skill|level)\b/i
+
 const count = (o: { count: number | null }): number => o.count ?? 1
 
 /**
@@ -172,7 +175,7 @@ function correct(quest: Quest, facts: WikiQuestFacts, ctx: CorrectionContext): Q
         const at = objectiveMapIds(x)
         return !where.length || !at.length || at.some((id) => where.includes(id))
       })
-      if (step.handOver || /^hand over\b/i.test(step.text) || !inRaid(o))
+      if (step.handOver || /^hand over\b/i.test(step.text) || SKILL_OR_LEVEL.test(step.text) || !inRaid(o))
         notes.push(`The wiki also has: ${step.text}`)
       else if (!listed) {
         added.push({ ...o, id: `wiki:${step.id}`, wiki: { added: true } })

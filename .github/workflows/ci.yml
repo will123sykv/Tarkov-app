@@ -12,19 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  probe:
-    name: Probe
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - run: npm ci
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
-      - run: npx tsx scripts/probe.ts
-
   test:
     name: Typecheck, test and build
     runs-on: ubuntu-latest

@@ -237,7 +237,7 @@ describe('correcting tarkov.dev’s quests from the wiki', () => {
     expect(out[1]).toBe(pageless)
   })
 
-  it('takes only counts a step states up front, and notes hand-overs tarkov.dev doesn’t have', () => {
+  it('takes only counts a step states up front, and notes hand-overs and skill levels tarkov.dev doesn’t have', () => {
     const step = (text: string, count: number | null): WikiQuestFacts['objectives'][number] => ({
       id: text.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       text,
@@ -265,7 +265,8 @@ describe('correcting tarkov.dev’s quests from the wiki', () => {
       objectives: [
         step('Hand over Secure Folder 0052 to Skier', 52),
         step('Eliminate 5 PMC operatives on Customs', 5),
-        step('Hand over 2 Power cords to Mechanic', 2)
+        step('Hand over 2 Power cords to Mechanic', 2),
+        step('Reach the required Bolt-action Rifles skill level of 10', 10)
       ]
     }
     const q = quest('sabotage', 'Kind of Sabotage', [
@@ -277,6 +278,9 @@ describe('correcting tarkov.dev’s quests from the wiki', () => {
       ['folder', 1],
       ['kill', 5]
     ])
-    expect(fixed.corrections!.notes).toEqual(['The wiki also has: Hand over 2 Power cords to Mechanic'])
+    expect(fixed.corrections!.notes).toEqual([
+      'The wiki also has: Hand over 2 Power cords to Mechanic',
+      'The wiki also has: Reach the required Bolt-action Rifles skill level of 10'
+    ])
   })
 })
