@@ -105,6 +105,46 @@ async function main(): Promise<void> {
     .filter(({ quest }) => !seen.has(norm(quest.title)))
     .map(({ quest }) => `${quest.title}${quest.event ? ' [event]' : ''}${quest.past ? ' [historical]' : ''}`)
   console.log(`matched: ${matched.length}`)
+  // Raw values behind the noisier comparisons.
+  const kappaRaw = new Map<string, number>()
+  for (const { content } of matched) {
+    const v = (infoboxFields(content)?.reqkappa ?? '(none)').slice(0, 30)
+    kappaRaw.set(v, (kappaRaw.get(v) ?? 0) + 1)
+  }
+  console.log('reqkappa values:', JSON.stringify([...kappaRaw.entries()]))
+  const kappaDevTrue = matched.filter(({ q }) => q.kappaRequired).length
+  const kappaWikiTrue = matched.filter(({ w }) => w.kappa).length
+  console.log(`kappa: tarkov.dev ${kappaDevTrue} · wiki ${kappaWikiTrue}`)
+  for (const name of [
+    'Chemical - Part 3',
+    'Audit',
+    'Dandies',
+    'The Tarkov Shooter - Part 4',
+    'Vacate the Premises',
+    'First in Line'
+  ]) {
+    const hit = matched.find(({ q }) => q.name === name)
+    if (!hit) continue
+    const req = /==\s*Requirements\s*==([\s\S]*?)(\n==[^=]|$)/i.exec(hit.content)?.[1] ?? ''
+    const obj = /==\s*Objectives\s*==([\s\S]*?)(\n==[^=]|$)/i.exec(hit.content)?.[1] ?? ''
+    console.log(
+      `\n--- ${name} (tarkov.dev level ${hit.q.minPlayerLevel}, kappa ${hit.q.kappaRequired}; objectives ${hit.q.objectives.map((o) => `${o.description} x${o.count ?? 1}`).join(' | ')})`
+    )
+    console.log('requirements:', req.trim().slice(0, 400))
+    console.log('objectives:', obj.trim().slice(0, 500))
+    console.log('reqkappa:', infoboxFields(hit.content)?.reqkappa)
+  }
+  const missingCats = new Map<string, number>()
+  for (const p of pages) {
+    const key = norm(p.title)
+    const w = wiki.get(key)
+    if (!w || seen.has(norm(w.quest.title)) || w.quest.event || w.quest.past) continue
+    for (const c of p.categories) missingCats.set(c, (missingCats.get(c) ?? 0) + 1)
+  }
+  console.log(
+    'categories of wiki-only current quests:',
+    JSON.stringify([...missingCats.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15))
+  )
   report('On tarkov.dev, no wiki page found', onlyDev)
   report(
     'On the wiki, not on tarkov.dev (current, not event/historical)',
