@@ -11,6 +11,7 @@ import type {
   AppView,
   GameMode,
   HideoutSettings,
+  KeyFriend,
   KeysSettings,
   TodoSettings,
   MapSettings,
@@ -92,7 +93,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items'
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
-  keys: { scope: 'all', otherOpen: false, tab: 'list', map: null },
+  keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
   sidebars: {}
 }
 
@@ -310,8 +311,32 @@ function sanitizeKeys(raw: unknown): KeysSettings {
     // Before 1.32.0 "Every key" (`list: 'all'`) showed the other keys; they're now a folded section.
     otherOpen: typeof r.otherOpen === 'boolean' ? r.otherOpen : r.list === 'all',
     tab: r.tab === 'scan' ? 'scan' : 'list',
-    map: typeof r.map === 'string' && /^[a-z0-9-]{1,40}$/.test(r.map) ? r.map : null
+    map: typeof r.map === 'string' && /^[a-z0-9-]{1,40}$/.test(r.map) ? r.map : null,
+    shareName: typeof r.shareName === 'string' ? r.shareName.trim().slice(0, MAX_FRIEND_NAME) : '',
+    friends: sanitizeFriends(r.friends)
   }
+}
+
+export const MAX_FRIENDS = 12
+export const MAX_FRIEND_NAME = 32
+const KEY_ID = /^[0-9a-f]{24}$/
+
+/** Friends' keys: named, at most `MAX_FRIENDS`, each name once (the last kept), valid key ids once each. */
+function sanitizeFriends(raw: unknown): KeyFriend[] {
+  if (!Array.isArray(raw)) return []
+  const byName = new Map<string, KeyFriend>()
+  for (const f of raw) {
+    if (!isRecord(f) || typeof f.name !== 'string' || !Array.isArray(f.keyIds)) continue
+    const name = f.name.trim().slice(0, MAX_FRIEND_NAME)
+    if (!name || !isGameMode(f.gameMode)) continue
+    const keyIds = [
+      ...new Set(f.keyIds.filter((id): id is string => typeof id === 'string' && KEY_ID.test(id)))
+    ]
+    const importedAt = typeof f.importedAt === 'number' && Number.isFinite(f.importedAt) ? f.importedAt : 0
+    byName.delete(name.toLowerCase())
+    byName.set(name.toLowerCase(), { name, gameMode: f.gameMode, keyIds, importedAt })
+  }
+  return [...byName.values()].slice(-MAX_FRIENDS)
 }
 
 /** Far more sections than any sidebar has, and longer than any heading. */

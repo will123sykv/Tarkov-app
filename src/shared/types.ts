@@ -182,6 +182,19 @@ export interface KeysSettings {
   tab: 'list' | 'scan'
   /** Only keys used on this map (its group's key, e.g. `customs`), or null for every map (since 1.31.0). */
   map: string | null
+  /** The name put in the code you share your keys with (since 1.34.0). */
+  shareName: string
+  /** Friends' keys, read from the codes they shared (since 1.34.0). */
+  friends: KeyFriend[]
+}
+
+/** A friend's keys, from the code they shared: shown beside yours, never changing them. */
+export interface KeyFriend {
+  name: string
+  gameMode: GameMode
+  keyIds: string[]
+  /** When the code was added (ms since the epoch). */
+  importedAt: number
 }
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */

@@ -329,13 +329,27 @@ describe('sanitizeSettings', () => {
     // Settings saved before 1.17.0: every quest's keys listed, no map layer.
     const old = sanitizeSettings({ view: 'keys', maps: { mapKey: 'woods' } })
     expect(old.view).toBe('keys')
-    expect(old.keys).toEqual({ scope: 'all', otherOpen: false, tab: 'list', map: null })
+    expect(old.keys).toEqual({
+      scope: 'all',
+      otherOpen: false,
+      tab: 'list',
+      map: null,
+      shareName: '',
+      friends: []
+    })
     expect(old.maps.showKeys).toBe(false)
     const chosen = sanitizeSettings({
-      keys: { scope: 'available', otherOpen: true, tab: 'scan', map: 'customs' },
+      keys: { scope: 'available', otherOpen: true, tab: 'scan', map: 'customs', shareName: ' Will ' },
       maps: { showKeys: true }
     })
-    expect(chosen.keys).toEqual({ scope: 'available', otherOpen: true, tab: 'scan', map: 'customs' })
+    expect(chosen.keys).toEqual({
+      scope: 'available',
+      otherOpen: true,
+      tab: 'scan',
+      map: 'customs',
+      shareName: 'Will',
+      friends: []
+    })
     // Before 1.32.0 "Every key" showed the other keys: they start unfolded.
     expect(sanitizeSettings({ keys: { list: 'all' } }).keys.otherOpen).toBe(true)
     expect(sanitizeSettings({ keys: { list: 'needed' } }).keys.otherOpen).toBe(false)
@@ -346,11 +360,39 @@ describe('sanitizeSettings', () => {
       scope: 'all',
       otherOpen: false,
       tab: 'list',
-      map: null
+      map: null,
+      shareName: '',
+      friends: []
     })
     expect(
       mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope
     ).toBe('active')
+  })
+
+  it('keeps friends’ keys: named, valid ids once each, each name once, at most 12 (since 1.34.0)', () => {
+    const a = 'a'.repeat(24)
+    const b = 'b'.repeat(24)
+    const friends = sanitizeSettings({
+      keys: {
+        friends: [
+          { name: ' Alex ', gameMode: 'pvp', keyIds: [a, a, 'nope', 3, b], importedAt: 5 },
+          { name: '', gameMode: 'pvp', keyIds: [a] },
+          { name: 'Sam', gameMode: 'arena', keyIds: [a] },
+          { name: 'Sam', gameMode: 'pve', keyIds: 'x' },
+          { name: 'Jo', gameMode: 'pve', keyIds: [b], importedAt: 'x' },
+          { name: 'alex', gameMode: 'pve', keyIds: [b], importedAt: 7 },
+          'Bob'
+        ]
+      }
+    }).keys.friends
+    expect(friends).toEqual([
+      { name: 'Jo', gameMode: 'pve', keyIds: [b], importedAt: 0 },
+      { name: 'alex', gameMode: 'pve', keyIds: [b], importedAt: 7 }
+    ])
+    const many = Array.from({ length: 15 }, (_, i) => ({ name: `F${i}`, gameMode: 'pvp', keyIds: [] }))
+    const kept = sanitizeSettings({ keys: { friends: many } }).keys.friends
+    expect(kept.map((f) => f.name)).toEqual(many.slice(3).map((f) => f.name))
+    expect(sanitizeSettings({ keys: { shareName: 'x'.repeat(50) } }).keys.shareName).toHaveLength(32)
   })
 
   it('keeps the To do filters and view (since 1.19.0), and the map overview or list (since 1.20.0)', () => {

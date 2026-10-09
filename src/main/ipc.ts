@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import { TREND_INTERVALS } from '../shared/settings'
@@ -100,6 +100,8 @@ function requireOcrJobs(value: unknown): OcrJob[] {
 
 /** Most counts one call may set (more items than the hideout could ever need). */
 const MAX_COUNT_CHANGES = 2000
+/** Far longer than a key code for every key in the game. */
+const MAX_COPY_LENGTH = 100_000
 
 const PROGRESS_STATUSES: ProgressEntry['status'][] = ['active', 'completed', 'failed']
 
@@ -243,6 +245,10 @@ export function registerIpc(deps: {
     if (typeof id !== 'string' || !/^[\w:-]{1,80}$/.test(id)) throw new Error('Invalid favourite id')
     if (typeof on !== 'boolean') throw new Error('Invalid favourite state')
     return player.setFavourite(requireGameMode(gameMode), kind, id, on)
+  })
+  ipcMain.handle(IPC.copyText, (_e, text: unknown) => {
+    if (typeof text !== 'string' || text.length > MAX_COPY_LENGTH) throw new Error('Invalid text')
+    clipboard.writeText(text)
   })
   ipcMain.handle(IPC.keysSetOwned, (_e, gameMode: unknown, keyIds: unknown) => {
     if (!Array.isArray(keyIds) || keyIds.length > MAX_KEYS) throw new Error('Invalid keys')

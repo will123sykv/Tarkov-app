@@ -53,6 +53,7 @@ export const IPC = {
   keysGet: 'keys:get',
   keysSet: 'keys:set',
   keysSetOwned: 'keys:set-owned',
+  copyText: 'clipboard:copy-text',
   favouritesGet: 'favourites:get',
   favouritesSet: 'favourites:set',
   scanReadText: 'scan:read-text',
@@ -137,6 +138,8 @@ export interface TarkovApi {
   setKey(gameMode: GameMode, keyId: string, list: keyof KeyInventory, on: boolean): Promise<KeyInventory>
   /** Replace the keys the player has (e.g. read from screenshots). */
   setOwnedKeys(gameMode: GameMode, keyIds: string[]): Promise<KeyInventory>
+  /** Put text on the clipboard (a key code to share). Since 1.34.0. */
+  copyText(text: string): Promise<void>
   /** Items, upgrades and quests the player starred (per game mode). */
   getFavourites(gameMode: GameMode): Promise<Favourites>
   /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */

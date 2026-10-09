@@ -309,7 +309,14 @@ game's logs don't say which keys you have, so tick them yourself.
   tab.
 - **Map** (in the sidebar) shows only the keys used on one map: a lock there, a quest that needs it
   there, or getting you onto it (the Lab's keycard); where a key spawns doesn't count. It's
-  remembered, and **Show on map** then opens that map.
+  remembered, and **Show on map** then opens that map. The **Map** column in the lists says the
+  same for every key: each map it's used on, with how (**2 locks**, **entry**, **quest**).
+- **Share keys** (in the sidebar) lets a squad see each other's keys. **Copy my keys code** puts a
+  short code for the keys you have (in this game mode, with **Your name**) on the clipboard, to
+  paste in Discord. Paste a friend's code and click **Add friend**: their keys show as tags in the
+  lists (**Alex has it**), and the summary says how many of the keys you need a friend has. Your own
+  keys never change. Adding a newer code from the same friend updates their keys; **Remove** takes
+  them off. A friend's keys for another game mode show when you switch to it.
 - **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
   your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
   stash pages with loose keys); add them all with **Use latest screenshot**, **Open picture…**, paste

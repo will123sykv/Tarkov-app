@@ -6,10 +6,12 @@ import type { KeysSettings, PriceState, PublicSettings } from '../../../shared/t
 import { formatRub } from '../lib/format'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
-import { keyUsedOn } from '../lib/keyMaps'
+import { keyMapsUsed, keyUsedOn } from '../lib/keyMaps'
+import type { Group } from '../lib/mapGroups'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import KeyShare from './KeyShare'
 import ScavScan from './ScavScan'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -75,11 +77,17 @@ function KeyRow({
   toDo,
   lockReason,
   onOpenQuest,
+  groups,
+  friendsWith,
   pickedMapKey = null
 }: {
   keyIds: string[]
   uses: KeyNeed['uses']
   info: (keyId: string) => KeyInfo
+  /** Map groups by map id, for the maps it's used on. */
+  groups: ReadonlyMap<string, Group>
+  /** Friends (in this game mode) who have one of these keys. */
+  friendsWith: (keyIds: string[]) => string[]
   owned: ReadonlySet<string>
   toDo: ReadonlySet<string>
   lockReason: (questId: string) => string | null
@@ -99,6 +107,8 @@ function KeyRow({
     first.spawns.find((s) => s.group.mapKey)?.group.mapKey ??
     null
   const wanted = keyIds.some((id) => toDo.has(id))
+  const usedOn = keyMapsUsed(first, uses, groups)
+  const friends = friendsWith(keyIds)
   return (
     <tr className={have ? 'done' : ''}>
       <td className="key-have">
@@ -121,12 +131,35 @@ function KeyRow({
               {k.name}
             </span>
           ))}
-          {first.locks.length > 0 && (
-            <span className="muted key-opens">
-              Opens {first.locks.map((l) => `${plural(l.count, 'lock')} on ${l.group.name}`).join(', ')}
+          {friends.length > 0 && (
+            <span className="key-friends" title="From the key codes your friends shared">
+              {friends.map((name) => (
+                <span key={name} className="tag friend">
+                  {name}
+                </span>
+              ))}{' '}
+              {friends.length === 1 ? 'has it' : 'have it'}
             </span>
           )}
         </span>
+      </td>
+      <td className="key-maps">
+        {usedOn.map((m) => (
+          <span key={m.key}>
+            {m.name}{' '}
+            <span className="muted">
+              ·{' '}
+              {[m.locks ? plural(m.locks, 'lock') : null, m.access ? 'entry' : null, m.quest ? 'quest' : null]
+                .filter(Boolean)
+                .join(', ')}
+            </span>
+          </span>
+        ))}
+        {!usedOn.length && (
+          <span className="muted" title="No lock, quest or way in uses it">
+            —
+          </span>
+        )}
       </td>
       <td className="uses">
         {uses.map((u) => {
@@ -231,6 +264,7 @@ function KeyTable({
           <colgroup>
             <col className="key-col-have" />
             <col className="key-col-name" />
+            <col className="key-col-map" />
             <col className="key-col-for" />
             <col className="key-col-get" />
             <col className="key-col-actions" />
@@ -239,6 +273,7 @@ function KeyTable({
             <tr>
               <th title="Tick the keys you have">Have</th>
               <th>Key</th>
+              <th title="Where it opens a lock, a quest needs it, or it gets you onto the map">Map</th>
               <th>Needed for</th>
               <th>How to get it</th>
               <th />
@@ -319,6 +354,17 @@ export default function KeysView({
     : picked
       ? `No key here is used on ${picked.name}.`
       : null
+  // Friends' keys (from their codes) in this game mode, to tag the keys they have.
+  const friendKeys = useMemo(
+    () =>
+      k.friends
+        .filter((f) => f.gameMode === settings.gameMode)
+        .map((f) => ({ name: f.name, keys: new Set(f.keyIds) })),
+    [k.friends, settings.gameMode]
+  )
+  const friendsWith = (ids: string[]): string[] =>
+    friendKeys.filter((f) => ids.some((id) => f.keys.has(id))).map((f) => f.name)
+  const friendsHave = friendKeys.length ? missingAll.filter((n) => friendsWith(n.keyIds).length).length : 0
   const buyable = missingAll.filter((n) => n.keyIds.some((id) => info(id).buy?.options.length)).length
 
   const lockReason = (questId: string): string | null => {
@@ -335,6 +381,8 @@ export default function KeysView({
     toDo,
     lockReason,
     onOpenQuest: openQuest,
+    groups,
+    friendsWith,
     pickedMapKey: picked?.mapKey ?? null
   }
   const dataset = questState?.dataset ?? null
@@ -390,6 +438,9 @@ export default function KeysView({
             (the Lab&rsquo;s keycard). Where a key spawns doesn&rsquo;t count.
           </p>
         </SidebarSection>
+        <SidebarSection title="Share keys">
+          <KeyShare keys={k} gameMode={settings.gameMode} owned={inventory.owned} onChange={set} />
+        </SidebarSection>
         <SidebarSection title="In the To do tab">
           <p className="hint">
             Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto) don&rsquo;t
@@ -414,6 +465,7 @@ export default function KeysView({
                     ? ` · ${inView.length - missingAll.length} owned · ${missingAll.length} to buy`
                     : '') +
                   (buyable ? ` (${buyable} you can buy now)` : '') +
+                  (friendsHave ? ` · ${friendsHave} of those a friend has` : '') +
                   // Keys no quest here needs are ticked too.
                   (!picked && inventory.owned.length > needs.length - missingAll.length
                     ? ` · ${plural(inventory.owned.length, 'key')} ticked in all`
