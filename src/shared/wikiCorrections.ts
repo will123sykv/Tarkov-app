@@ -18,6 +18,8 @@ export interface CorrectionContext extends Pick<WikiQuestContext, 'itemIds' | 't
 
 /** How alike two steps' wordings must be (shared words over all words) to be the same step. */
 const SAME_STEP = 0.34
+/** Alike enough that a step the wiki has may be one tarkov.dev words differently: not added. */
+const MAYBE_SAME = 0.2
 const FILLER = new Set(
   'the a an on in of to at any and or from with while using by for is are be all your you its it this that'.split(
     ' '
@@ -31,14 +33,17 @@ const words = (text: string): Set<string> =>
       .replace(/[^a-z\s]+/g, ' ')
       .split(/\s+/)
       .filter((w) => w.length > 1 && !FILLER.has(w))
-      // "teapots" and "teapot" alike.
+      // "teapots" and "teapot" alike, and "neutralize" and "kill" as "eliminate".
       .map((w) => (w.length > 3 ? w.replace(/s$/, '') : w))
+      .map((w) => (/^(neutrali[sz]e|kill)$/.test(w) ? 'eliminate' : w))
   )
 
 /** What a step has you do, by its first word: steps of different kinds are rarely the same step. */
 function kind(text: string): string {
-  const first = text.trim().toLowerCase().split(/\s+/)[0] ?? ''
-  if (/^(eliminate|kill|neutrali[sz]e|shoot)$/.test(first)) return 'kill'
+  const start = text.trim().toLowerCase().split(/\s+/)
+  const first = start[0] ?? ''
+  // "Locate and eliminate Knight" is a kill.
+  if (start.slice(0, 3).some((w) => /^(eliminate|kill|neutrali[sz]e|shoot)$/.test(w))) return 'kill'
   if (/^(hand|give|transfer)$/.test(first)) return 'hand'
   if (/^(stash|plant|hide|place|leave)$/.test(first)) return 'stash'
   if (/^(find|obtain|pick|retrieve|collect|get)$/.test(first)) return 'find'
@@ -158,9 +163,18 @@ function correct(quest: Quest, facts: WikiQuestFacts, ctx: CorrectionContext): Q
     else if (/^find\b/i.test(step.text) && handsOver) continue
     else if (!oneSide) {
       const o = wikiObjective(step, ctx)
-      // Something to do in raid is added; a hand-over only noted, as tarkov.dev may list it in other
-      // words, and an extra one would have items kept for nothing.
-      if (inRaid(o)) {
+      // Something to do in raid is added, unless tarkov.dev seems to list it in other words; a
+      // hand-over is only noted, as an extra one would have items kept for nothing.
+      // A step on a map tarkov.dev's like objective isn't on is one more (Slaughterhouse on Woods).
+      const where = objectiveMapIds(o)
+      const listed = own.some((x) => {
+        if (likeness(x.description, step.text) < MAYBE_SAME) return false
+        const at = objectiveMapIds(x)
+        return !where.length || !at.length || at.some((id) => where.includes(id))
+      })
+      if (step.handOver || /^hand over\b/i.test(step.text) || !inRaid(o))
+        notes.push(`The wiki also has: ${step.text}`)
+      else if (!listed) {
         added.push({ ...o, id: `wiki:${step.id}`, wiki: { added: true } })
         changes.push(`Added: ${short(step.text)}`)
       } else notes.push(`The wiki also has: ${step.text}`)
