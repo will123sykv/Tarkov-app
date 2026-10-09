@@ -23,7 +23,9 @@ async function main(): Promise<void> {
       traderIds: new Map()
     })
     const kinds = new Map<string, string[]>()
-    const add = (kind: string, line: string): void => kinds.set(kind, [...(kinds.get(kind) ?? []), line])
+    const add = (kind: string, line: string): void => {
+      kinds.set(kind, [...(kinds.get(kind) ?? []), line])
+    }
     for (const q of fixed) {
       for (const c of q.corrections?.changes ?? []) {
         const kind = /^Level/.test(c)
