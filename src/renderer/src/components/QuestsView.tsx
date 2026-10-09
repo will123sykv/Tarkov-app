@@ -92,12 +92,15 @@ function Sidebar({
   counts,
   traders,
   maps,
+  wikiOnly,
   onAddEventQuests
 }: {
   settings: PublicSettings
   counts: Record<QuestStatus, number>
   traders: { id: string; name: string }[]
   maps: GameMap[]
+  /** How many quests only the wiki has. */
+  wikiOnly: number
   onAddEventQuests: () => void
 }): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
@@ -189,6 +192,19 @@ function Sidebar({
           before it, objective counts, steps left out), the wiki&rsquo;s is used, and the quest&rsquo;s panel
           says what changed.
         </p>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={q.wikiOnlyQuests}
+            onChange={(e) => set({ wikiOnlyQuests: e.target.checked })}
+          />
+          Add quests only the wiki has
+        </label>
+        <p className="hint">
+          {wikiOnly
+            ? `${wikiOnly} quests tarkov.dev doesn’t list yet (Black Division, To the Light…), marked Wiki. The Arena’s are left out.`
+            : 'Quests tarkov.dev doesn’t list yet are added from the wiki, marked Wiki.'}
+        </p>
       </SidebarSection>
       <SidebarSection title="Event quests">
         <p className="hint">
@@ -233,17 +249,18 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const dataset = questState?.dataset ?? null
   const q = settings.quests
   const level = settings.playerLevels[settings.gameMode]
-  const traders = useMemo(
-    () => [
+  // From every quest listed (the wiki's too: the BTR Driver gives only those).
+  const traders = useMemo(() => {
+    const giving = new Set(all.map((row) => row.quest.traderId))
+    return [
       ...(dataset?.storyChapters.length ? [STORY_TRADER] : []),
-      ...(dataset?.traders.filter((t) => dataset.quests.some((quest) => quest.traderId === t.id)) ?? [])
-    ],
-    [dataset]
-  )
+      ...(dataset?.traders.filter((t) => giving.has(t.id)) ?? [])
+    ]
+  }, [dataset, all])
   const questMapList = useMemo(() => {
-    const used = new Set((dataset?.quests ?? []).flatMap((quest) => [...questMaps(quest)]))
+    const used = new Set(all.flatMap((row) => [...questMaps(row.quest)]))
     return (dataset?.maps ?? []).filter((m) => used.has(m.id)).sort((a, b) => a.name.localeCompare(b.name))
-  }, [dataset])
+  }, [dataset, all])
 
   const counts = useMemo(() => {
     const c: Record<QuestStatus, number> = { available: 0, active: 0, locked: 0, completed: 0, failed: 0 }
@@ -337,6 +354,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         counts={counts}
         traders={traders}
         maps={questMapList}
+        wikiOnly={all.filter((row) => row.quest.wiki?.listed).length}
         onAddEventQuests={() => setPicking(true)}
       />
       {picking && (

@@ -11,7 +11,7 @@ import {
   titleFromInput,
   wikiFacts
 } from '../src/main/quests/wikiQuests'
-import { nextWikiQuests, wikiQuestId, wikiQuests } from '../src/shared/wikiQuests'
+import { gameQuestIds, nextWikiQuests, wikiQuestId, wikiQuests } from '../src/shared/wikiQuests'
 import { jsonResponse, tempDir } from './helpers'
 
 // Quest pages from the Escape from Tarkov wiki (CC BY-SA), as of October 2026: Fog of War and
@@ -434,10 +434,89 @@ describe('quests only the wiki has', () => {
     })
   })
 
+  it('lists them as quests: with the game’s id when the name is the game’s, the level, and what unlocks them', () => {
+    const gameIds = gameQuestIds({
+      'game-buyout': 'Make Amends - Buyout',
+      'game-a': 'New Beginning',
+      'game-b': 'New Beginning',
+      'game-tour': 'Tour'
+    })
+    // A name two quests share is no use.
+    expect([...gameIds.keys()]).toEqual(['make amends - buyout', 'tour'])
+    const buyout = parseWikiQuest('Make Amends - Buyout', withPrevious('', '20'), [], MAPS)!
+    const equipment = parseWikiQuest('Make Amends - Equipment', withPrevious('[[Make Amends - Buyout]]'), [])!
+    const either = parseWikiQuest('Make Amends', withPrevious('[[A]]<br/>or<br/>[[B]]'), [])!
+    const guests = parseWikiQuest('Uninvited Guests', withPrevious('Accept [[Tour]]'), [])!
+    const questIds = new Map([
+      ['make amends - buyout', 'game-buyout'],
+      ['tour', 'game-tour'],
+      ['a', 'a-id'],
+      ['b', 'b-id']
+    ])
+    const [b, e, m, g] = wikiQuests(
+      [buyout, equipment, either, guests],
+      { itemIds: new Map(), traderIds: new Map([['prapor', 'prapor-id']]), questIds, gameIds },
+      { listed: true }
+    )
+    expect(b).toMatchObject({
+      id: 'game-buyout',
+      traderId: 'prapor-id',
+      minPlayerLevel: 20,
+      requires: [],
+      wiki: { listed: true, logged: true }
+    })
+    expect(e).toMatchObject({
+      id: 'wiki-make-amends-equipment',
+      minPlayerLevel: 0,
+      requires: [{ questId: 'game-buyout', status: ['complete'] }]
+    })
+    expect(e.wiki).toEqual(expect.not.objectContaining({ logged: true }))
+    // "A or B" can't be required both: left open. "Accept Tour": Tour started is enough.
+    expect(m.requires).toEqual([])
+    expect(g.requires).toEqual([{ questId: 'game-tour', status: ['active'] }])
+    // Event quests the player adds aren't marked listed.
+    expect(wikiQuests([equipment], { itemIds: new Map(), traderIds: new Map(), questIds })[0].wiki).toEqual(
+      expect.not.objectContaining({ listed: true })
+    )
+  })
+
+  it('reads a quest only in the seasonal mode, and one with no map', () => {
+    const SHORELINE = { id: 'shoreline-id', name: 'Shoreline', normalizedName: 'shoreline' }
+    const guests = parseWikiQuest(
+      'Uninvited Guests - Part 1',
+      page('uninvited-guests-part-1'),
+      [],
+      [...MAPS, SHORELINE]
+    )
+    expect(guests).toMatchObject({
+      trader: 'Prapor',
+      maps: ['shoreline-id'],
+      previous: ['Tour'],
+      previousMode: 'all',
+      leadsTo: ['Uninvited Guests - Part 2', 'Unanswered Calls'],
+      level: null,
+      kappa: false,
+      season: true
+    })
+    expect(guests!.objectives.map((o) => [o.depth, o.optional])).toEqual([
+      [0, false],
+      [1, true],
+      [1, true],
+      [1, true]
+    ])
+    const buyout = parseWikiQuest('Make Amends - Buyout', page('make-amends-buyout'), [], MAPS)
+    expect(buyout).toMatchObject({ trader: 'Mechanic', maps: [], previous: [], season: false })
+    expect(buyout!.objectives.map((o) => [o.text, o.count, o.handOver])).toEqual([
+      ['Hand over 1,000,000 RUB to Mechanic', 1_000_000, true]
+    ])
+  })
+
   it('lists the wiki’s quests, leaving out known, event, historical and Arena ones', async () => {
     const pages: Record<string, string> = {
       'Make Amends - Buyout': withPrevious('', '20'),
       'Immunity (quest)': withPrevious('[[Make Amends - Buyout]]'),
+      'Uninvited Guests - Part 1': page('uninvited-guests-part-1'),
+      'Cast the Net': withPrevious('[[Uninvited Guests - Part 1]]'),
       'First Introduction': ARENA,
       Dandies: page('dandies')
     }
@@ -455,7 +534,9 @@ describe('quests only the wiki has', () => {
                 { title: 'Dandies' },
                 { title: 'Fog of War', categories: [cat('Category:Event content')] },
                 { title: 'Party Preparations', categories: [cat('Category:Historical content')] },
-                { title: 'Make Amends - Buyout' }
+                { title: 'Make Amends - Buyout' },
+                { title: 'Uninvited Guests - Part 1' },
+                { title: 'Cast the Net' }
               ]
             }
           })
@@ -477,10 +558,19 @@ describe('quests only the wiki has', () => {
     }) as unknown as FetchFn
     const quests = await fetchWikiOnlyQuests(fetchFn, new Set(['dandies']), MAPS)
     // Known and event pages aren't fetched; the Arena's is, and left out.
-    expect(asked).toEqual(['Make Amends - Buyout', 'Immunity (quest)', 'First Introduction'])
-    expect(quests.map((q) => [q.title, q.name, q.trader, q.level, q.previous])).toEqual([
-      ['Immunity (quest)', 'Immunity', 'Prapor', null, ['Make Amends - Buyout']],
-      ['Make Amends - Buyout', 'Make Amends - Buyout', 'Prapor', 20, []]
+    expect(asked).toEqual([
+      'Make Amends - Buyout',
+      'Uninvited Guests - Part 1',
+      'Cast the Net',
+      'Immunity (quest)',
+      'First Introduction'
+    ])
+    // A quest after a seasonal one is seasonal too.
+    expect(quests.map((q) => [q.title, q.name, q.trader, q.level, q.season])).toEqual([
+      ['Cast the Net', 'Cast the Net', 'Prapor', null, true],
+      ['Immunity (quest)', 'Immunity', 'Prapor', null, false],
+      ['Make Amends - Buyout', 'Make Amends - Buyout', 'Prapor', 20, false],
+      ['Uninvited Guests - Part 1', 'Uninvited Guests - Part 1', 'Prapor', null, true]
     ])
   })
 })

@@ -343,6 +343,8 @@ export interface WikiQuest {
   leadsTo: string[]
   /** "Must be level N to start this quest". Since 1.37.0. */
   level?: number | null
+  /** Only in the seasonal mode (PvP Season), or after a quest that is. Since 1.37.0. */
+  season?: boolean
   kappa: boolean
   /** What the trader says when giving it. */
   description: string

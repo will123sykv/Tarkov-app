@@ -773,12 +773,17 @@ function QuestPanel({
                 ? 'Only given during an event. '
                 : ''}
             tarkov.dev doesn&rsquo;t list it, so this is read from its page on the wiki: there are no map pins
-            or keys, and the game&rsquo;s logs don&rsquo;t name it, so set its status here yourself.
+            or keys
+            {quest.wiki.logged
+              ? '. The game’s logs tick it off like any quest.'
+              : ', and the game’s logs don’t name it, so set its status here yourself.'}
           </p>
           {quest.wiki.description && <blockquote>{quest.wiki.description}</blockquote>}
-          <button className="link small" onClick={() => void removeWikiQuest(quest.wiki!.title)}>
-            Remove from my quests
-          </button>
+          {!quest.wiki.listed && (
+            <button className="link small" onClick={() => void removeWikiQuest(quest.wiki!.title)}>
+              Remove from my quests
+            </button>
+          )}
         </section>
       )}
 

@@ -198,6 +198,10 @@ describe('sanitizeSettings', () => {
     expect(DEFAULT_SETTINGS.quests.wikiCorrections).toBe(true)
     expect(sanitizeSettings({ quests: {} }).quests.wikiCorrections).toBe(true)
     expect(sanitizeSettings({ quests: { wikiCorrections: false } }).quests.wikiCorrections).toBe(false)
+    // So are the quests only the wiki has (since 1.37.0).
+    expect(DEFAULT_SETTINGS.quests.wikiOnlyQuests).toBe(true)
+    expect(sanitizeSettings({ quests: {} }).quests.wikiOnlyQuests).toBe(true)
+    expect(sanitizeSettings({ quests: { wikiOnlyQuests: false } }).quests.wikiOnlyQuests).toBe(false)
     // The 2D maps are the only ones since 1.27.0: an old style setting is dropped. The favourites panel
     // over the map is open unless closed.
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps).not.toHaveProperty('style')

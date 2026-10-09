@@ -24,6 +24,21 @@ export interface WikiQuestContext {
   traderIds: ReadonlyMap<string, string>
   /** Quests the app knows (tarkov.dev's and the wiki ones), by name (lowercase), for "after". */
   questIds: ReadonlyMap<string, string>
+  /**
+   * The game's ids of quests tarkov.dev doesn't list, by name (lowercase; see `gameQuestIds`): a wiki
+   * quest with one takes it, so the game's logs tick it off.
+   */
+  gameIds?: ReadonlyMap<string, string>
+}
+
+/** The game's quest ids by name (lowercase), leaving out names more than one quest has. */
+export function gameQuestIds(names: Readonly<Record<string, string>>): Map<string, string> {
+  const ids = new Map<string, string | null>()
+  for (const [id, name] of Object.entries(names)) {
+    const key = name.trim().toLowerCase()
+    ids.set(key, ids.has(key) ? null : id)
+  }
+  return new Map([...ids].filter((e): e is [string, string] => e[1] !== null))
 }
 
 /** What a step has you do, from how it starts: the objective type tarkov.dev would give it. */
@@ -108,22 +123,41 @@ const NO_REWARDS: QuestRewards = {
   other: []
 }
 
-/** Event quests from the wiki as quests. A trader the app doesn't know leaves them under "Other". */
-export function wikiQuests(quests: readonly WikiQuest[], ctx: WikiQuestContext): Quest[] {
+/** A wiki quest's id: the game's, when its name is the game's name for a quest, or its own. */
+export function wikiQuestIdIn(quest: WikiQuest, ctx: Pick<WikiQuestContext, 'gameIds'>): string {
+  return ctx.gameIds?.get(quest.name.toLowerCase()) ?? wikiQuestId(quest.title)
+}
+
+/**
+ * Quests from the wiki (event quests the player added, or ones only the wiki has: `listed`) as
+ * quests. A trader the app doesn't know leaves them under "Other".
+ */
+export function wikiQuests(
+  quests: readonly WikiQuest[],
+  ctx: WikiQuestContext,
+  opts: { listed?: boolean } = {}
+): Quest[] {
   return quests.map((w) => {
-    const id = wikiQuestId(w.title)
+    const id = wikiQuestIdIn(w, ctx)
     const traderId = (w.trader && ctx.traderIds.get(w.trader.toLowerCase())) ?? 'wiki'
+    // "A or B" before it can't be said as requirements (each must be met): it's left open.
+    const mode = w.previousMode ?? 'all'
+    // "Accept [[A]]": A started is enough (as tarkov.dev says it, 'active' counts it done too).
+    const status = mode === 'accept' ? ('active' as const) : ('complete' as const)
     return {
       id,
       name: w.name,
       normalizedName: id,
       traderId,
       wikiLink: w.wikiLink,
-      minPlayerLevel: 0,
-      requires: w.previous.flatMap((name) => {
-        const questId = ctx.questIds.get(name.toLowerCase())
-        return questId && questId !== id ? [{ questId, status: ['complete' as const] }] : []
-      }),
+      minPlayerLevel: w.level ?? 0,
+      requires:
+        mode === 'any'
+          ? []
+          : w.previous.flatMap((name) => {
+              const questId = ctx.questIds.get(name.toLowerCase())
+              return questId && questId !== id ? [{ questId, status: [status] }] : []
+            }),
       traderRequirements:
         traderId !== 'wiki' && w.loyaltyLevel
           ? [{ traderId, type: 'level' as const, compareMethod: '>=', value: w.loyaltyLevel }]
@@ -138,7 +172,14 @@ export function wikiQuests(quests: readonly WikiQuest[], ctx: WikiQuestContext):
       rewards: rewards(w, ctx),
       startRewards: NO_REWARDS,
       imageLink: null,
-      wiki: { title: w.title, event: w.event, past: w.past, description: w.description }
+      wiki: {
+        title: w.title,
+        event: w.event,
+        past: w.past,
+        description: w.description,
+        ...(opts.listed ? { listed: true } : {}),
+        ...(id !== wikiQuestId(w.title) ? { logged: true } : {})
+      }
     }
   })
 }

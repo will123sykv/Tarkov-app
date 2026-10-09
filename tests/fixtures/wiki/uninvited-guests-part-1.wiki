@@ -1,0 +1,76 @@
+{{Infobox quest
+|icon         =
+|image        =Uninvited Guests - Part 1 Banner.png
+|location     =[[Shoreline]]
+|given by     =[[Prapor]]
+|reward       =
+|reputation   =
+|quest number =
+|previous     =[[Tour]]
+|leads to     =[[Uninvited Guests - Part 2]]<br/>[[Unanswered Calls]]
+|related      =
+|related2     =
+|reqkappa     =<font color="red">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Ah, it's you. Good to see you're still alive... Someone's been taking out my men, whole squads at a time, you get me? They just drop off the grid. And nobody's made any demands! I'll find the bastards responsible, no doubt about that. But right now I've got business that can't wait. Can you help me out? The most urgen thing is a piece of technical equipment I was supposed to get from the coast to a client up north. The plan was for my boys to pick it up from a contact at the port and hand it off to the BTR driver. But we've heard nothing from them! Can you look for my men, or at least the package? I figure they were hit somewhere along the shore, so that's where you should start looking.}}
+
+==Requirements==
+* Must reach Loyalty Level 2 with [[Prapor]] to obtain this quest.
+* Must be playing in the [[Seasons#Season 1: KORD BREACH|Seasonal mode]].
+
+==Objectives==
+* Locate and obtain the [[Case with military equipment|case with military equipment]]
+** (''Optional'') Investigate the shack next to the sordi tower on [[Shoreline]]
+** (''Optional'') Investigate the second floor of the weather station building on [[Shoreline]]
+** (''Optional'') Investigate the hydroelectric power station on [[Shoreline]]
+
+==Rewards==
+* +6,000 [[EXP]]
+* 18,000 Roubles
+** 18,900 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 20,700 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* 1× [[RPK-16 5.45x39 light machine gun]]
+* 3× [[AK-74 5.45x39 6L23 30-round magazine]]
+* 1× [[5.45x39mm PP gs ammo pack (120 pcs)]]
+{{quote|Thanks for finishing the job. The client had been waiting on that equipment. Now we can move on to the second part of this mess and find whoever's hunting my boys.}}
+
+==Guide==
+{|class="wikitable"
+! colspan="6" |Related Quest Items
+|-
+!Icon
+!Item name
+!Amount
+!Requirement
+!'''[[Found in raid|Find in raid]]'''
+!Notes
+|-
+|[[File:Case with military equipment icon.png|link=Case with military equipment]]
+|[[Case with military equipment]]
+|1
+|Required
+!<font color="red">Yes</font>
+|''This [[Quests#Quest_items|quest item]] can only be found if the quest is active.''<br>''When picked up, this item is transferred to the player's quest item inventory.''<br>''If the player fails to extract with this item, they will lose it.''
+|}
+In this quest you have to obtain a case with military equipment on [[Shoreline]]
+<li style="display: inline-block;"><gallery widths="300" heights="169" mode="packed">
+File:Uninvited Guests - Part 1 Map.png|Location of the case spawns on the map.
+</gallery></li>
+
+The case is located at one of the 3 locations.
+<li style="display: inline-block;"><gallery widths="300" heights="169" mode="packed">
+File:Uninvited Guests - Part 1 Spawn 1.png|The case inside the sordi tower bunkhouse
+File:Uninvited Guests - Part 1 Spawn 2.png|The case on the second floor of the weather station in a corner next to drawers
+File:Uninvited Guests - Part 1 Spawn 3.png|The case inside the hydroelectric power station next to [[HEP station storage room key]] door
+</gallery></li>
+
+After picking up the case, it will be placed in your quest items inventory. You must successfully extract with the case to hand it in. If you die before reaching the [[BTR Driver]], you will have to retrieve it again. Hand the case over to the [[BTR Driver]] in [[Uninvited Guests - Part 2]] to complete the quest.
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[ru:Незваные гости. Часть 1]]

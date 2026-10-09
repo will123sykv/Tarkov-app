@@ -241,6 +241,8 @@ export interface QuestSettings {
   wikiQuests: string[]
   /** Correct tarkov.dev's quests from their wiki pages (since 1.36.0). */
   wikiCorrections: boolean
+  /** List the quests only the wiki has (since 1.37.0). */
+  wikiOnlyQuests: boolean
 }
 
 export interface MapSettings {

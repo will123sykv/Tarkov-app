@@ -105,7 +105,8 @@ export function parseWikiQuest(
   const at = [...new Set(links('location').flatMap((name) => namer.byName(name) ?? []))]
   const loyalty = /\d+/.exec(plainText(fields['ll requirement'] ?? ''))
   const trader = links('given by')[0] ?? (plainText(fields['given by'] ?? '') || null)
-  const level = /must be level\s*(\d+)/i.exec(section(wikitext, 'Requirements'))
+  const requirements = section(wikitext, 'Requirements')
+  const level = /must be level\s*(\d+)/i.exec(requirements)
   const previous = fields.previous ?? ''
   const objectives = parseObjectives(wikitext, maps).map((o) => ({
     ...o,
@@ -133,6 +134,8 @@ export function parseWikiQuest(
         : 'all',
     leadsTo: links('leads to'),
     level: level ? Number(level[1]) : null,
+    // "Must be playing in the [[Seasons#…|Seasonal mode]]".
+    season: /\[\[Seasons\b|seasonal mode/i.test(requirements),
     kappa: /^yes\b/i.test(plainText(fields.reqkappa ?? '')),
     description: dialogue(wikitext),
     objectives,
@@ -286,6 +289,16 @@ export async function fetchWikiOnlyQuests(
     const at = linkTargets(infoboxFields(page.wikitext)?.location ?? '')
     if ((quest.trader && ARENA.test(quest.trader)) || at.some((name) => ARENA.test(name))) continue
     quests.push(quest)
+  }
+  // A quest after a seasonal one is only in the seasonal mode too (the wiki says so on the first).
+  const season = new Set(quests.filter((q) => q.season).map((q) => q.title.toLowerCase()))
+  for (let grew = true; grew;) {
+    grew = false
+    for (const q of quests)
+      if (!q.season && q.previous.some((p) => season.has(p.toLowerCase()))) {
+        q.season = grew = true
+        season.add(q.title.toLowerCase())
+      }
   }
   return quests.sort((a, b) => a.title.localeCompare(b.title))
 }

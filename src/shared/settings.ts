@@ -65,7 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
     lightkeeperOnly: false,
     faction: null,
     wikiQuests: [],
-    wikiCorrections: true
+    wikiCorrections: true,
+    wikiOnlyQuests: true
   },
   maps: {
     mapKey: 'customs',
@@ -124,7 +125,8 @@ function sanitizeQuests(raw: unknown): QuestSettings {
           )
         ].slice(0, MAX_WIKI_QUESTS)
       : [],
-    wikiCorrections: r.wikiCorrections !== false
+    wikiCorrections: r.wikiCorrections !== false,
+    wikiOnlyQuests: r.wikiOnlyQuests !== false
   }
 }
 

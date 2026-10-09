@@ -1,0 +1,54 @@
+{{Infobox quest
+|icon         =
+|image        =InsiderIcon.png
+|location     =
+|given by     =[[Mechanic]]
+|reward       =
+|reputation   =
+|time limit   =
+|quest number =
+|previous     =
+|leads to     =[[Make Amends - Equipment]]
+|related      =
+|related2     =
+|reqkappa     =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|I hear you've pissed off Lightkeeper. Friend, I won't get involved in your personal affairs, but be very careful, okay? Stay out of trouble. You've seen for yourself what this man is capable of. Well, we can still make up for it. Remember the situation with the ransom and the extortion of the traders? I remember it well. I think we can at least bribe Lightkeeper.}}
+
+==Requirements==
+* Getting the [[Digital secure DSP radio transmitter]] <font color="red">decoded</font> the first time.
+
+==Objectives==
+* Hand over 1,000,000 [[Roubles|RUB]] to [[Mechanic]]
+
+==Rewards==
+*[[Lightkeeper]] Rep <font color="green">'''+0.01'''</font>
+{{quote|Okay, we're all set. I'll let you know how it goes.}}
+
+==Guide==
+{|class="wikitable"
+! colspan="5" |Related Quest Items
+|-
+!Icon
+!Item name
+!Amount
+!Requirement
+!'''[[Found in raid|Find in raid]]'''
+|-
+|[[File:roublesicon.png|link=Roubles]]
+|[[Roubles]]
+|1,000,000
+|Handover item
+!<font color="green">No</font>
+|}
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[cs:Náhrada škody - Vykoupení se]]
+[[fr:Faire amende honorable - Rachat]]
+[[ru:Загладить вину. Подкуп]]

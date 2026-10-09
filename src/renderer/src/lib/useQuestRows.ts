@@ -14,7 +14,7 @@ import type { PublicSettings } from '../../../shared/types'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { storyQuests } from '../../../shared/storyQuests'
 import { applyWikiCorrections } from '../../../shared/wikiCorrections'
-import { wikiQuestId, wikiQuests } from '../../../shared/wikiQuests'
+import { gameQuestIds, wikiQuestId, wikiQuestIdIn, wikiQuests } from '../../../shared/wikiQuests'
 import { useStore } from '../store'
 import { mapPlaces, raidMapLookup } from './storyMaps'
 
@@ -107,21 +107,38 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
       traderIds
     })
   }, [dataset, correct, gameMode, itemIds, traderIds])
+  const withWikiOnly = settings.quests.wikiOnlyQuests
   const quests = useMemo(() => {
     const listed = corrected
+    const story = storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins })
     // Event quests added from the wiki, unless tarkov.dev lists them by now.
     const names = new Set(listed.map((q) => q.name.toLowerCase()))
     const pages = (wikiState?.quests ?? []).filter((w) => !names.has(w.name.toLowerCase()))
+    // Quests only the wiki has, unless tarkov.dev or an added event quest has them; the seasonal
+    // mode's only in it.
+    for (const w of pages) names.add(w.name.toLowerCase())
+    const only = withWikiOnly
+      ? (dataset?.wikiOnlyQuests ?? []).filter(
+          (w) => !names.has(w.name.toLowerCase()) && (!w.season || gameMode === 'season')
+        )
+      : []
+    const gameIds = gameQuestIds(dataset?.otherQuestNames ?? {})
+    // For "after": by name, and by page title for the wiki's.
     const questIds = new Map([
-      ...listed.map((q) => [q.name.toLowerCase(), q.id] as const),
-      ...pages.map((w) => [w.title.toLowerCase(), wikiQuestId(w.title)] as const)
+      ...[...listed, ...story].map((q) => [q.name.toLowerCase(), q.id] as const),
+      ...pages.map((w) => [w.title.toLowerCase(), wikiQuestId(w.title)] as const),
+      ...only.flatMap((w) => {
+        const id = wikiQuestIdIn(w, { gameIds })
+        return [[w.title.toLowerCase(), id] as const, [w.name.toLowerCase(), id] as const]
+      })
     ])
     return [
       ...listed,
-      ...storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins }),
-      ...wikiQuests(pages, { itemIds, traderIds, questIds })
+      ...story,
+      ...wikiQuests(pages, { itemIds, traderIds, questIds }),
+      ...wikiQuests(only, { itemIds, traderIds, questIds, gameIds }, { listed: true })
     ]
-  }, [dataset, corrected, itemIds, traderIds, places, pins, wikiState])
+  }, [dataset, corrected, itemIds, traderIds, places, pins, wikiState, withWikiOnly, gameMode])
   const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
   const rows = useMemo<QuestRow[]>(
