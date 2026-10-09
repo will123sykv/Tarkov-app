@@ -1,6 +1,6 @@
 import type { GameMode } from './types'
 import type { Quest, QuestObjective, StoryObjective, WikiQuestFacts } from './questTypes'
-import { objectiveMapIds } from './todo'
+import { inRaid, objectiveMapIds } from './todo'
 import { wikiObjective, type WikiQuestContext } from './wikiQuests'
 
 // tarkov.dev's quests corrected from their pages on the wiki, where the two disagree: the level the
@@ -60,6 +60,16 @@ const CONDITION =
   /^(do not|don't|you must not|must not|without|survive and extract|you must survive|you can't|you cannot)\b/i
 
 const count = (o: { count: number | null }): number => o.count ?? 1
+
+/**
+ * Whether a step's count is one it states as such, near its start ("Eliminate 5 …", "Hand over the
+ * 20 …", "Eliminate any 15 …"), not a number in a name ("Dorm room 303", "Secure Folder 0052").
+ */
+function statedCount(step: StoryObjective): boolean {
+  if (step.count === null) return false
+  const near = /^(?:\S+\s+){1,3}?(\d[\d,]*)\b/.exec(step.text)
+  return near !== null && Number(near[1].replace(/,/g, '')) === step.count
+}
 
 /** A step's wording, short, for the list of what changed. */
 const short = (text: string): string => (text.length > 60 ? `${text.slice(0, 57).trimEnd()}…` : text)
@@ -128,7 +138,7 @@ function correct(quest: Quest, facts: WikiQuestFacts, ctx: CorrectionContext): Q
   const keepCounts = ctx.gameMode === 'pve' && facts.pveNote
   const corrected = new Map<QuestObjective, QuestObjective>()
   for (const [step, o] of pairs) {
-    if (keepCounts || step.count === null || count(step) === count(o)) continue
+    if (keepCounts || !statedCount(step) || count(step) === count(o)) continue
     changes.push(`${short(step.text)}: ${count(o)} → ${count(step)}`)
     corrected.set(o, {
       ...o,
@@ -147,8 +157,13 @@ function correct(quest: Quest, facts: WikiQuestFacts, ctx: CorrectionContext): Q
     // "Find 3 … in raid" next to tarkov.dev's hand-over of them is the same step, in two.
     else if (/^find\b/i.test(step.text) && handsOver) continue
     else if (!oneSide) {
-      added.push({ ...wikiObjective(step, ctx), id: `wiki:${step.id}`, wiki: { added: true } })
-      changes.push(`Added: ${short(step.text)}`)
+      const o = wikiObjective(step, ctx)
+      // Something to do in raid is added; a hand-over only noted, as tarkov.dev may list it in other
+      // words, and an extra one would have items kept for nothing.
+      if (inRaid(o)) {
+        added.push({ ...o, id: `wiki:${step.id}`, wiki: { added: true } })
+        changes.push(`Added: ${short(step.text)}`)
+      } else notes.push(`The wiki also has: ${step.text}`)
     }
   }
   if (corrected.size || added.length)

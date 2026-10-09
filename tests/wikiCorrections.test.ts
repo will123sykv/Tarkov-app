@@ -236,4 +236,47 @@ describe('correcting tarkov.dev’s quests from the wiki', () => {
     expect(out[0]).toBe(story)
     expect(out[1]).toBe(pageless)
   })
+
+  it('takes only counts a step states up front, and notes hand-overs tarkov.dev doesn’t have', () => {
+    const step = (text: string, count: number | null): WikiQuestFacts['objectives'][number] => ({
+      id: text.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      text,
+      optional: false,
+      depth: 0,
+      count,
+      itemNames: [],
+      handOver: /^hand over/i.test(text),
+      foundInRaid: false,
+      branch: null,
+      maps: [],
+      guide: '',
+      visits: false,
+      loyalty: null
+    })
+    const f: WikiQuestFacts = {
+      title: 'Kind of Sabotage',
+      level: null,
+      kappa: null,
+      previous: [],
+      previousLoose: false,
+      maps: [],
+      byFaction: false,
+      pveNote: false,
+      objectives: [
+        step('Hand over Secure Folder 0052 to Skier', 52),
+        step('Eliminate 5 PMC operatives on Customs', 5),
+        step('Hand over 2 Power cords to Mechanic', 2)
+      ]
+    }
+    const q = quest('sabotage', 'Kind of Sabotage', [
+      objective('folder', 'giveQuestItem', 'Hand over Secure Folder 0052 to Skier'),
+      objective('kill', 'shoot', 'Eliminate PMC operatives on Customs', { count: 8, maps: ['customs'] })
+    ])
+    const [fixed] = applyWikiCorrections([q], { sabotage: f }, ctx())
+    expect(fixed.objectives.map((o) => [o.id, o.count])).toEqual([
+      ['folder', 1],
+      ['kill', 5]
+    ])
+    expect(fixed.corrections!.notes).toEqual(['The wiki also has: Hand over 2 Power cords to Mechanic'])
+  })
 })
