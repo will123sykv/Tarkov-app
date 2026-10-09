@@ -409,8 +409,8 @@ the game's install folder, or its `build` folder.
   **Only quests I can do** takes the whole quest off the map (all its objectives, on every map,
   until you have the key or have done the locked part), and the sidebar says how many it hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
   out. A quest opened with **Show on map** is shown anyway.
-- **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner
-  across the top of the map lists your active quests' kills left on that map, the ones naming the
+- **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner at
+  the top right of the map, above **★ Favourites**, lists your active quests' kills left on that map, the ones naming the
   fewest maps first, then the ones for any map (marked **any map**: ones naming no map, saying "any
   location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills). Each gives the quest, what to
   kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.

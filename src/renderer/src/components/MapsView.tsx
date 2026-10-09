@@ -742,15 +742,6 @@ export default function MapsView({
             </button>
           </div>
         )}
-        {!placing && (
-          <KillBanner
-            kills={kills}
-            mapNames={mapNames}
-            open={m.killsOpen}
-            onToggle={() => set({ killsOpen: !m.killsOpen })}
-            onSelectQuest={onSelectQuest}
-          />
-        )}
         {projection && maps.length ? (
           <MapCanvas
             projection={projection}
@@ -781,15 +772,26 @@ export default function MapsView({
             </p>
           </div>
         )}
-        <FavouritesPanel
-          settings={settings}
-          priceState={priceState}
-          findInfo={findInfo}
-          highlighted={highlighted}
-          colors={colors}
-          onHighlight={setHighlighted}
-          onOpenMap={(mapKey) => set({ mapKey })}
-        />
+        <div className="map-side">
+          {!placing && (
+            <KillBanner
+              kills={kills}
+              mapNames={mapNames}
+              open={m.killsOpen}
+              onToggle={() => set({ killsOpen: !m.killsOpen })}
+              onSelectQuest={onSelectQuest}
+            />
+          )}
+          <FavouritesPanel
+            settings={settings}
+            priceState={priceState}
+            findInfo={findInfo}
+            highlighted={highlighted}
+            colors={colors}
+            onHighlight={setHighlighted}
+            onOpenMap={(mapKey) => set({ mapKey })}
+          />
+        </div>
       </main>
       {selected && dataset && (
         <QuestDetail

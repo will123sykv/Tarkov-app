@@ -3541,15 +3541,11 @@ tr:hover .favourite-star {
 }
 
 .favourites-panel {
-  position: absolute;
-  z-index: 1000;
-  top: 12px;
-  right: 12px;
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
-  width: 300px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 24px);
+  width: 100%;
+  min-height: 0;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -4664,21 +4660,42 @@ tr:hover .favourite-star {
   white-space: pre-wrap;
 }
 
-/* Kill objectives over the top of the map, between the zoom buttons and the favourites panel. */
-.kill-banner {
+/* The kill objectives and the favourites panel, stacked at the top right of the map. */
+.map-side {
   position: absolute;
   z-index: 1000;
   top: 12px;
-  left: 56px;
+  right: 12px;
   display: flex;
   flex-direction: column;
-  max-width: calc(100% - 56px - 324px);
+  align-items: flex-end;
+  gap: 8px;
+  width: 320px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  pointer-events: none;
+}
+
+.map-side > * {
+  pointer-events: auto;
+}
+
+/* Kill objectives left on the map shown, above the favourites. */
+.kill-banner {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 100%;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-left: 3px solid var(--bad);
   border-radius: var(--radius);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   font-size: 12px;
+}
+
+.kill-banner.closed {
+  width: auto;
 }
 
 .kill-banner-head {
@@ -4706,29 +4723,42 @@ tr:hover .favourite-star {
 }
 
 .kill-banner-list {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  column-gap: 12px;
-  max-height: 156px;
+  max-height: 210px;
   margin: 0;
-  padding: 4px 10px 6px;
+  padding: 2px 10px 6px;
   overflow-y: auto;
   list-style: none;
   border-top: 1px solid var(--border);
 }
 
+/* Each kill: the quest and how many are done, then what to kill (and with what). */
 .kill-banner-list li {
-  display: contents;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'quest count'
+    'text text';
+  column-gap: 8px;
+  padding: 4px 0;
 }
 
-.kill-banner-list li > * {
-  padding: 3px 0;
+.kill-banner-list li + li {
+  border-top: 1px solid var(--border);
 }
 
 .kill-banner-quest {
+  grid-area: quest;
   justify-self: start;
+  overflow: hidden;
   text-align: left;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+}
+
+.kill-banner-text {
+  grid-area: text;
+  color: var(--muted);
 }
 
 .kill-banner-text .tag {
@@ -4736,6 +4766,7 @@ tr:hover .favourite-star {
 }
 
 .kill-banner-count {
+  grid-area: count;
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
