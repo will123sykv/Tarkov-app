@@ -440,15 +440,27 @@ describe('createQuestDataService', () => {
     expect(offline.dataset!.maps[0]).toMatchObject({ looseLoot: { spots: [], items: {} }, containers: {} })
   })
 
+  it('upgrades a 1.36 cache without the quests only the wiki has, and refetches it', async () => {
+    const cacheDir = await tempDir()
+    const now = Date.UTC(2026, 9, 9)
+    const { wikiOnlyQuests: _, ...old } = normalizeQuestData(RAW_QUEST_DATA, 'pvp', now - 60_000)
+    await writeFile(join(cacheDir, 'quests-pvp.json'), JSON.stringify(old))
+    const offline = await createQuestDataService({ fetchFn: serve(true), cacheDir, now: () => now }).get(
+      'pvp'
+    )
+    expect(offline).toMatchObject({ fromCache: true, dataset: { fetchedAt: 0, wikiOnlyQuests: [] } })
+  })
+
   it('reuses fresh data and shares one request between callers', async () => {
     const fetchFn = serve()
     const service = createQuestDataService({ fetchFn, cacheDir: join(await tempDir(), 'c'), now: () => 5 })
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
-    // Ten tarkov.dev files, the wiki's list of story chapters and one batch of quest pages.
-    expect(fetchFn).toHaveBeenCalledTimes(12)
+    // Ten tarkov.dev files, the wiki's list of story chapters, one batch of quest pages and its list
+    // of quests (for the ones only it has).
+    expect(fetchFn).toHaveBeenCalledTimes(13)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(24)
+    expect(fetchFn).toHaveBeenCalledTimes(26)
   })
 
   it('keeps the story chapters it had when the wiki can’t be reached', async () => {

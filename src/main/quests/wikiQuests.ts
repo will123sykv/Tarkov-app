@@ -105,6 +105,8 @@ export function parseWikiQuest(
   const at = [...new Set(links('location').flatMap((name) => namer.byName(name) ?? []))]
   const loyalty = /\d+/.exec(plainText(fields['ll requirement'] ?? ''))
   const trader = links('given by')[0] ?? (plainText(fields['given by'] ?? '') || null)
+  const level = /must be level\s*(\d+)/i.exec(section(wikitext, 'Requirements'))
+  const previous = fields.previous ?? ''
   const objectives = parseObjectives(wikitext, maps).map((o) => ({
     ...o,
     // Links to maps and traders in a step aren't items.
@@ -114,7 +116,8 @@ export function parseWikiQuest(
   }))
   return {
     title,
-    name: title,
+    // "Immunity (quest)": the page's title tells it apart from the skill's; the quest's name doesn't.
+    name: title.replace(/\s*\(quest\)$/i, ''),
     wikiLink: `${WIKI_PAGE}${encodeURIComponent(title.replace(/ /g, '_'))}`,
     event: cats.has(EVENT) || /\{\{\s*event content\s*\}\}/i.test(wikitext),
     past: cats.has(PAST) || /\{\{\s*historical content\s*\}\}/i.test(wikitext),
@@ -122,7 +125,14 @@ export function parseWikiQuest(
     maps: at,
     loyaltyLevel: loyalty ? Number(loyalty[0]) : null,
     previous: links('previous'),
+    // "A<br/>or<br/>B": any one of them; "Accept [[A]]": A needs only accepting.
+    previousMode: /(^|[\s>\]])or([\s<[]|$)/i.test(previous)
+      ? 'any'
+      : /\baccept\b/i.test(previous)
+        ? 'accept'
+        : 'all',
     leadsTo: links('leads to'),
+    level: level ? Number(level[1]) : null,
     kappa: /^yes\b/i.test(plainText(fields.reqkappa ?? '')),
     description: dialogue(wikitext),
     objectives,
@@ -144,16 +154,14 @@ export function wikiFacts(
   if (!quest) return null
   const wikitext = page.replace(/\r\n?/g, '\n')
   const fields = infoboxFields(wikitext) ?? {}
-  const level = /must be level\s*(\d+)/i.exec(section(wikitext, 'Requirements'))
   const kappa = plainText(fields.reqkappa ?? '').trim()
-  const previous = fields.previous ?? ''
   return {
     title,
-    level: level ? Number(level[1]) : null,
+    level: quest.level ?? null,
     kappa: /^yes\b/i.test(kappa) ? true : /^no\b/i.test(kappa) ? false : null,
     previous: quest.previous,
-    // "A<br/>or<br/>B", or "Accept [[A]]": the quests before it needn't all be completed.
-    previousLoose: /(^|[\s>\]])or([\s<[]|$)/i.test(previous) || /\baccept\b/i.test(previous),
+    // The quests before it needn't all be completed.
+    previousLoose: quest.previousMode !== 'all',
     maps: quest.maps,
     byFaction: /\b(BEAR|USEC)\s*:/.test(fields.location ?? ''),
     pveNote: /\bPvE\b/.test(section(wikitext, 'Objectives')),
@@ -162,23 +170,21 @@ export function wikiFacts(
 }
 
 /** Most titles one request reads (the wiki's limit for page content). */
-const FACTS_BATCH = 50
+const PAGE_BATCH = 50
 
-/**
- * The wiki's facts for tarkov.dev's quests (`titles`: each quest id's page title), 50 pages a request.
- * Pages that are missing or aren't a quest's are left out.
- */
-export async function fetchWikiFacts(
-  fetchFn: FetchFn,
-  titles: ReadonlyMap<string, string>,
-  maps: readonly StoryMap[]
-): Promise<Record<string, WikiQuestFacts>> {
-  const byTitle = new Map<string, string[]>()
-  for (const [questId, title] of titles) byTitle.set(title, [...(byTitle.get(title) ?? []), questId])
-  const all = [...byTitle.keys()]
-  const result: Record<string, WikiQuestFacts> = {}
-  for (let i = 0; i < all.length; i += FACTS_BATCH) {
-    const asked = all.slice(i, i + FACTS_BATCH)
+interface Page {
+  /** The title it was asked by (before the wiki's normalising and redirects). */
+  asked: string
+  title: string
+  wikitext: string
+  categories: string[]
+}
+
+/** Pages' wikitext and categories, 50 a request. Missing pages are left out. */
+async function fetchPages(fetchFn: FetchFn, titles: readonly string[]): Promise<Page[]> {
+  const pages: Page[] = []
+  for (let i = 0; i < titles.length; i += PAGE_BATCH) {
+    const asked = titles.slice(i, i + PAGE_BATCH)
     const body = await wikiApi(fetchFn, {
       action: 'query',
       prop: 'revisions|categories',
@@ -200,15 +206,88 @@ export async function fetchWikiFacts(
       const revision = (Array.isArray(page.revisions) ? (page.revisions as Raw[]) : [])[0]
       const content = ((revision?.slots as Raw | undefined)?.main as Raw | undefined)?.content
       if (typeof content !== 'string') continue
-      const cats = (Array.isArray(page.categories) ? (page.categories as Raw[]) : [])
-        .map((c) => c.title)
-        .filter((c): c is string => typeof c === 'string')
-      const facts = wikiFacts(page.title, content, cats, maps)
-      const title = askedAs.get(page.title) ?? page.title
-      if (facts) for (const questId of byTitle.get(title) ?? []) result[questId] = facts
+      pages.push({
+        asked: askedAs.get(page.title) ?? page.title,
+        title: page.title,
+        wikitext: content,
+        categories: (Array.isArray(page.categories) ? (page.categories as Raw[]) : [])
+          .map((c) => c.title)
+          .filter((c): c is string => typeof c === 'string')
+      })
     }
   }
+  return pages
+}
+
+/**
+ * The wiki's facts for tarkov.dev's quests (`titles`: each quest id's page title), 50 pages a request.
+ * Pages that are missing or aren't a quest's are left out.
+ */
+export async function fetchWikiFacts(
+  fetchFn: FetchFn,
+  titles: ReadonlyMap<string, string>,
+  maps: readonly StoryMap[]
+): Promise<Record<string, WikiQuestFacts>> {
+  const byTitle = new Map<string, string[]>()
+  for (const [questId, title] of titles) byTitle.set(title, [...(byTitle.get(title) ?? []), questId])
+  const result: Record<string, WikiQuestFacts> = {}
+  for (const page of await fetchPages(fetchFn, [...byTitle.keys()])) {
+    const facts = wikiFacts(page.title, page.wikitext, page.categories, maps)
+    if (facts) for (const questId of byTitle.get(page.asked) ?? []) result[questId] = facts
+  }
   return result
+}
+
+/** The Arena's quests (given by Ref) are for another game. */
+const ARENA = /^(ref|arena)$/i
+
+/**
+ * Quests only the wiki has: pages in its quests category that aren't `known` (tarkov.dev's quests and
+ * story chapters, by name or title in lower case), event or historical content, or the Arena's.
+ */
+export async function fetchWikiOnlyQuests(
+  fetchFn: FetchFn,
+  known: ReadonlySet<string>,
+  maps: readonly StoryMap[]
+): Promise<WikiQuest[]> {
+  const listed = new Map<string, Set<string>>()
+  let more: Record<string, string> = {}
+  for (let batch = 0; batch < 20; batch++) {
+    const body = await wikiApi(fetchFn, {
+      action: 'query',
+      generator: 'categorymembers',
+      gcmtitle: 'Category:Quests',
+      gcmnamespace: '0',
+      gcmlimit: '500',
+      prop: 'categories',
+      clcategories: 'Category:Event_content|Category:Historical_content',
+      cllimit: 'max',
+      ...more
+    })
+    const list = (body.query as Raw | undefined)?.pages
+    for (const page of Array.isArray(list) ? (list as Raw[]) : []) {
+      if (typeof page.title !== 'string') continue
+      const cats = listed.get(page.title) ?? new Set<string>()
+      for (const c of Array.isArray(page.categories) ? (page.categories as Raw[]) : [])
+        if (typeof c.title === 'string') cats.add(category(c.title))
+      listed.set(page.title, cats)
+    }
+    if (!body.continue || typeof body.continue !== 'object') break
+    more = Object.fromEntries(Object.entries(body.continue as Raw).map(([k, v]) => [k, String(v)]))
+  }
+  const titles = [...listed]
+    .filter(([title, cats]) => !known.has(title.toLowerCase()) && !cats.has(EVENT) && !cats.has(PAST))
+    .map(([title]) => title)
+  const quests: WikiQuest[] = []
+  for (const page of await fetchPages(fetchFn, titles)) {
+    if (known.has(page.title.toLowerCase())) continue
+    const quest = parseWikiQuest(page.title, page.wikitext, page.categories, maps)
+    if (!quest || quest.event || quest.past || known.has(quest.name.toLowerCase())) continue
+    const at = linkTargets(infoboxFields(page.wikitext)?.location ?? '')
+    if ((quest.trader && ARENA.test(quest.trader)) || at.some((name) => ARENA.test(name))) continue
+    quests.push(quest)
+  }
+  return quests.sort((a, b) => a.title.localeCompare(b.title))
 }
 
 /**

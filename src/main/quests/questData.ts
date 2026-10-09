@@ -30,7 +30,7 @@ import { errorMessage, type FetchFn } from '../pricing/http'
 import { fetchJsonData, translator, values, type Collection } from '../pricing/tarkovDevJson'
 import { wikiTitle } from './questGuide'
 import { fetchStoryChapters } from './storyChapters'
-import { fetchWikiFacts } from './wikiQuests'
+import { fetchWikiFacts, fetchWikiOnlyQuests } from './wikiQuests'
 
 type Raw = Record<string, unknown>
 type Dict = Record<string, string>
@@ -636,7 +636,8 @@ export function normalizeQuestData(
     otherQuestNames,
     // Filled in from the wiki by fetchQuestData.
     storyChapters: [],
-    wikiFacts: {}
+    wikiFacts: {},
+    wikiOnlyQuests: []
   })
 }
 
@@ -709,7 +710,17 @@ export async function fetchQuestData(
   // reached (the service keeps the last ones).
   const titles = new Map(dataset.quests.map((q) => [q.id, wikiTitle(q.wikiLink) ?? q.name]))
   const wikiFacts = await fetchWikiFacts(fetchFn, titles, dataset.maps).catch(() => ({}))
-  return { ...dataset, storyChapters, wikiFacts }
+  // Quests only the wiki has: every quest page that isn't one of the above (by name or page title).
+  const known = new Set(
+    [
+      ...dataset.quests.flatMap((q) => [q.name, q.name.replace(/\s*\[(pvp|pve) zone\]$/i, '')]),
+      ...titles.values(),
+      ...Object.values(wikiFacts).map((f) => f.title),
+      ...storyChapters.map((c) => c.name)
+    ].map((name) => name.toLowerCase())
+  )
+  const wikiOnlyQuests = await fetchWikiOnlyQuests(fetchFn, known, dataset.maps).catch(() => [])
+  return { ...dataset, storyChapters, wikiFacts, wikiOnlyQuests }
 }
 
 /**
@@ -816,6 +827,8 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.storyChapters) result = { ...result, fetchedAt: 0, storyChapters: [] }
   // 1.36.0: what each quest's wiki page says.
   if (!result.wikiFacts) result = { ...result, fetchedAt: 0, wikiFacts: {} }
+  // 1.37.0: quests only the wiki has.
+  if (!result.wikiOnlyQuests) result = { ...result, fetchedAt: 0, wikiOnlyQuests: [] }
   // 1.12.0: objectives' level and quest-status checks, and the maps story steps are on.
   if (result.quests.some((q) => q.objectives.some((o) => o.playerLevel === undefined)))
     result = {
@@ -879,7 +892,10 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
         storyChapters: fresh.storyChapters.length
           ? fresh.storyChapters
           : (state.dataset?.storyChapters ?? []),
-        wikiFacts: Object.keys(fresh.wikiFacts).length ? fresh.wikiFacts : (state.dataset?.wikiFacts ?? {})
+        wikiFacts: Object.keys(fresh.wikiFacts).length ? fresh.wikiFacts : (state.dataset?.wikiFacts ?? {}),
+        wikiOnlyQuests: fresh.wikiOnlyQuests.length
+          ? fresh.wikiOnlyQuests
+          : (state.dataset?.wikiOnlyQuests ?? [])
       }
       await writeJsonFileAtomic(cacheFile(dataMode), dataset)
       state = { dataset, fromCache: false, error: null, loading: false }

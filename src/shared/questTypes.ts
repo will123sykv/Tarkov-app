@@ -123,7 +123,16 @@ export interface Quest {
   /** For a story chapter: its blurb and what starts it. */
   story?: { description: string; howItStarts: string }
   /** For a quest read from the wiki (an event quest tarkov.dev doesn't list). Since 1.22.0. */
-  wiki?: { title: string; event: boolean; past: boolean; description: string }
+  wiki?: {
+    title: string
+    event: boolean
+    past: boolean
+    description: string
+    /** Listed by itself: a quest only the wiki has, not one the player added. Since 1.37.0. */
+    listed?: boolean
+    /** Has the game's own id (its name matched the game's), so the logs tick it off. Since 1.37.0. */
+    logged?: boolean
+  }
   /** What the wiki corrected in tarkov.dev's data, and its notes (conditions, other maps). Since 1.36.0. */
   corrections?: { changes: string[]; notes: string[] }
 }
@@ -326,7 +335,14 @@ export interface WikiQuest {
   loyaltyLevel: number | null
   /** Pages of the quests before and after it. */
   previous: string[]
+  /**
+   * How the quests before it unlock it: all completed, any one ("A or B"), or just accepted ("Accept
+   * [[A]]"). Since 1.37.0 (missing: all).
+   */
+  previousMode?: 'all' | 'any' | 'accept'
   leadsTo: string[]
+  /** "Must be level N to start this quest". Since 1.37.0. */
+  level?: number | null
   kappa: boolean
   /** What the trader says when giving it. */
   description: string
@@ -370,6 +386,8 @@ export interface QuestDataset {
   storyChapters: StoryChapter[]
   /** What each quest's wiki page says, by quest id, to correct tarkov.dev's data with. Since 1.36.0. */
   wikiFacts: Record<string, WikiQuestFacts>
+  /** Quests only the wiki has (not events, not the Arena's), read from their pages. Since 1.37.0. */
+  wikiOnlyQuests: WikiQuest[]
 }
 
 /** A tarkov.dev quest's page on the wiki, read for what can correct tarkov.dev's data. Since 1.36.0. */

@@ -6,6 +6,7 @@ import {
   createWikiQuestService,
   fetchEventQuests,
   fetchWikiFacts,
+  fetchWikiOnlyQuests,
   parseWikiQuest,
   titleFromInput,
   wikiFacts
@@ -394,5 +395,92 @@ describe('what a quest’s wiki page says, to correct tarkov.dev with', () => {
     expect(calls[0].searchParams.get('titles')!.split('|')).toHaveLength(50)
     expect(Object.keys(facts)).toEqual(['dandies-id'])
     expect(facts['dandies-id']).toMatchObject({ title: 'Dandies (quest)', level: 33 })
+  })
+})
+
+describe('quests only the wiki has', () => {
+  // Debut's page, as a quest tarkov.dev doesn't list, with other quests before it.
+  const withPrevious = (previous: string, level = ''): string =>
+    DEBUT.replace(/\|previous {8}=/, `|previous        =${previous}`).replace(
+      '==Objectives==',
+      `${level ? `==Requirements==\n* Must be level ${level} to start this quest.\n\n` : ''}==Objectives==`
+    )
+  const ARENA = `{{Infobox quest
+|location     =[[Arena]]
+|given by     =[[Ref]]
+|previous     =
+}}
+
+==Objectives==
+* Win a match on Fort
+`
+
+  it('reads the level it needs and how the quests before it unlock it, and drops "(quest)" from its name', () => {
+    expect(parseWikiQuest('Debut (quest)', withPrevious('[[Tour]]', '15'), [], MAPS)).toMatchObject({
+      title: 'Debut (quest)',
+      name: 'Debut',
+      level: 15,
+      previous: ['Tour'],
+      previousMode: 'all'
+    })
+    expect(parseWikiQuest('A', withPrevious('[[B]]<br/>or<br/>[[C]]'), [])).toMatchObject({
+      level: null,
+      previous: ['B', 'C'],
+      previousMode: 'any'
+    })
+    expect(parseWikiQuest('A', withPrevious('Accept [[B]]'), [])).toMatchObject({
+      previous: ['B'],
+      previousMode: 'accept'
+    })
+  })
+
+  it('lists the wiki’s quests, leaving out known, event, historical and Arena ones', async () => {
+    const pages: Record<string, string> = {
+      'Make Amends - Buyout': withPrevious('', '20'),
+      'Immunity (quest)': withPrevious('[[Make Amends - Buyout]]'),
+      'First Introduction': ARENA,
+      Dandies: page('dandies')
+    }
+    const cat = (title: string) => ({ ns: 14, title })
+    const asked: string[] = []
+    const fetchFn = vi.fn(async (input: string) => {
+      const params = new URL(input).searchParams
+      if (params.get('generator') === 'categorymembers') {
+        expect(params.get('gcmtitle')).toBe('Category:Quests')
+        if (!params.get('gcmcontinue'))
+          return jsonResponse({
+            continue: { gcmcontinue: 'page|2', continue: 'gcmcontinue||' },
+            query: {
+              pages: [
+                { title: 'Dandies' },
+                { title: 'Fog of War', categories: [cat('Category:Event content')] },
+                { title: 'Party Preparations', categories: [cat('Category:Historical content')] },
+                { title: 'Make Amends - Buyout' }
+              ]
+            }
+          })
+        return jsonResponse({
+          query: { pages: [{ title: 'Immunity (quest)' }, { title: 'First Introduction' }] }
+        })
+      }
+      const titles = params.get('titles')!.split('|')
+      asked.push(...titles)
+      return jsonResponse({
+        query: {
+          pages: titles.map((title) =>
+            pages[title]
+              ? { title, revisions: [{ slots: { main: { content: pages[title] } } }], categories: [] }
+              : { title, missing: true }
+          )
+        }
+      })
+    }) as unknown as FetchFn
+    const quests = await fetchWikiOnlyQuests(fetchFn, new Set(['dandies']), MAPS)
+    // Known and event pages aren't fetched; the Arena's is, and left out.
+    expect(asked).toEqual(['Make Amends - Buyout', 'Immunity (quest)', 'First Introduction'])
+    expect(quests.map((q) => [q.title, q.name, q.trader, q.level, q.previous])).toEqual([
+      ['Immunity (quest)', 'Immunity', 'Prapor', null, ['Make Amends - Buyout']],
+      ['Make Amends - Buyout', 'Make Amends - Buyout', 'Prapor', 20, []]
+    ])
   })
 })
