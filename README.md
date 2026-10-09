@@ -390,6 +390,14 @@ the game's install folder, or its `build` folder.
   Quests and objectives keep tarkov.dev's ids, so progress and the game's logs work as before.
   Untick **Correct quests from the wiki** in the Quests tab's sidebar to see tarkov.dev's data as
   it is. The last pages read are kept for when the wiki can't be reached.
+- **Quests only the wiki has:** quests tarkov.dev doesn't list yet (Make Amends, To the Light, the
+  BTR Driver's and Lightkeeper's later quests, New Beginning…) are added from their wiki pages by
+  themselves, under their trader with a **Wiki** tag: their objectives (each with its map), the level
+  and quests they need, and their rewards. The KORD BREACH season's quests (Uninvited Guests, the
+  Black Division chain…) only show in **PvP Season**, and the Arena's are left out. Where the game's
+  own name for a quest matches (Make Amends, for one), the game's logs tick it off like any quest;
+  otherwise set its status in its panel. Untick **Add quests only the wiki has** in the Quests tab's
+  sidebar to hide them.
 - **Event quests:** limited-time event quests (Fog of War, Number Temporarily Unavailable…) aren't
   on tarkov.dev, so the app can't list them by itself. Under **Event quests** in the Quests tab's
   sidebar, **Add event quests…** lists the wiki's event quests (this event's first; tick **Show
