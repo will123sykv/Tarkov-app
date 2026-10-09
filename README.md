@@ -1,5 +1,7 @@
 # Tarkov Loot Optimiser
 
+![Tarkov Loot Optimiser: the Maps tab with quest pins, kill objectives and favourite items, plus the To do, Keys, Items to collect and Loot tabs](docs/feature-overview.png)
+
 A Windows desktop app that tells you which Escape from Tarkov items are worth the space in your
 bag. Every item is ranked by **roubles per inventory slot**, using live flea market and trader
 prices, your PMC level and the game mode you play. It also has:
