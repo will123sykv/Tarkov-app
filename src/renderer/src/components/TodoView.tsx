@@ -27,11 +27,14 @@ import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/que
 import type { Group } from '../lib/mapGroups'
 import { formatRub } from '../lib/format'
 import { formatMoney, formatStanding } from '../lib/questSummary'
+import { useFriendKeys } from '../lib/useFriendKeys'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import LoadError from './LoadError'
+import { FriendTags, SquadToggle } from './FriendKeys'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -742,12 +745,15 @@ function KeyToGetRow({
   quests,
   access,
   added,
+  friends,
   info,
   onOpenQuest
 }: Partial<Pick<KeyToGet, 'quests' | 'access'>> & {
   keyIds: string[]
   /** Added from the Keys tab. */
   added: boolean
+  /** Friends who have it (from the codes they shared). */
+  friends: string[]
   info: (keyId: string) => KeyInfo
   onOpenQuest: (questId: string) => void
 }): React.JSX.Element {
@@ -766,6 +772,7 @@ function KeyToGetRow({
       <Icon path={mdiKeyVariant} className="key" />
       <div>
         <strong>{keys.map((k) => k.name).join(' or ')}</strong>
+        <FriendTags names={friends} />
         <div className="muted">
           {quests?.length ? (
             <>
@@ -848,7 +855,9 @@ export default function TodoView({
   const [detail, setDetail] = useState<string | null>(null)
   const todoMap = useStore((s) => s.todoMap)
   const openTodoMap = useStore((s) => s.openTodoMap)
-  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
+  // Your keys, plus friends' with "Count friends' keys" on.
+  const friendKeys = useFriendKeys(settings)
+  const { owned, friendsWith } = friendKeys
   const keyName = (keyId: string): string => info(keyId).name
 
   const plan = useMemo(
@@ -862,9 +871,8 @@ export default function TodoView({
     [rows, objectives, groups, progress.have, owned, t.show, t.kinds]
   )
   // Keys to buy: the ones holding up active quests, then the ones added from the Keys tab.
-  const ownedAll = new Set(inventory.owned)
   const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
-  const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !ownedAll.has(id))
+  const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !owned.has(id))
   const traders = useMemo(() => new Map((dataset?.traders ?? []).map((t) => [t.id, t])), [dataset])
   const traderOf = (quest: Quest): QuestTrader | undefined =>
     quest.story ? STORY_TRADER : traders.get(quest.traderId)
@@ -1025,12 +1033,20 @@ export default function TodoView({
                   quests={k.quests}
                   access={k.access}
                   added={false}
+                  friends={friendsWith(k.keyIds)}
                   info={info}
                   onOpenQuest={openQuest}
                 />
               ))}
               {addedKeys.map((id) => (
-                <KeyToGetRow key={id} keyIds={[id]} added info={info} onOpenQuest={openQuest} />
+                <KeyToGetRow
+                  key={id}
+                  keyIds={[id]}
+                  added
+                  friends={friendsWith([id])}
+                  info={info}
+                  onOpenQuest={openQuest}
+                />
               ))}
             </ul>
           )}
@@ -1089,24 +1105,28 @@ export default function TodoView({
           <div className="summary-title">
             <strong>To do</strong>
             <span className="muted">
-              {!dataset
-                ? questState?.error
-                  ? `Couldn't load quests: ${questState.error}`
-                  : 'Loading quests…'
-                : plan.active === 0
-                  ? 'No active quests: start them in the Quests tab, or let the game’s logs say.'
-                  : `${plural(plan.active, 'active quest')} · ${plural(raidSteps, t.kinds === 'kill' ? 'kill objective' : t.kinds === 'locate' ? 'locate objective' : 'objective')} left in raid on ${plural(ranked.length, 'map')}` +
-                    (plan.anyMap.length ? ` · ${plan.anyMap.length} on any map` : '') +
-                    (plan.hidden
-                      ? ` · ${plural(plan.hidden, 'quest')} with objectives hidden behind keys you don’t have`
-                      : '') +
-                    (plan.keysToGet.length
-                      ? ` · ${plural(plan.keysToGet.length, 'key')} to buy` +
-                        (addedKeys.length ? ` (+${addedKeys.length} you added)` : '')
-                      : addedKeys.length
-                        ? ` · ${plural(addedKeys.length, 'key')} you added to buy`
-                        : '') +
-                    (beforeCount ? ` · ${beforeCount} to do before you raid` : '')}
+              {!dataset ? (
+                questState?.error ? (
+                  <LoadError what="quests" error={questState.error} />
+                ) : (
+                  'Loading quests…'
+                )
+              ) : plan.active === 0 ? (
+                'No active quests: start them in the Quests tab, or let the game’s logs say.'
+              ) : (
+                `${plural(plan.active, 'active quest')} · ${plural(raidSteps, t.kinds === 'kill' ? 'kill objective' : t.kinds === 'locate' ? 'locate objective' : 'objective')} left in raid on ${plural(ranked.length, 'map')}` +
+                (plan.anyMap.length ? ` · ${plan.anyMap.length} on any map` : '') +
+                (plan.hidden
+                  ? ` · ${plural(plan.hidden, 'quest')} with objectives hidden behind keys you don’t have`
+                  : '') +
+                (plan.keysToGet.length
+                  ? ` · ${plural(plan.keysToGet.length, 'key')} to buy` +
+                    (addedKeys.length ? ` (+${addedKeys.length} you added)` : '')
+                  : addedKeys.length
+                    ? ` · ${plural(addedKeys.length, 'key')} you added to buy`
+                    : '') +
+                (beforeCount ? ` · ${beforeCount} to do before you raid` : '')
+              )}
             </span>
           </div>
           <div className="summary-stats todo-filters">
@@ -1136,6 +1156,11 @@ export default function TodoView({
               ] as const,
               (show) => setTodo({ show })
             )}
+            <SquadToggle
+              friendKeys={friendKeys}
+              on={t.squadKeys}
+              onChange={(squadKeys) => setTodo({ squadKeys })}
+            />
             {segmented(
               'Which objectives',
               t.kinds,

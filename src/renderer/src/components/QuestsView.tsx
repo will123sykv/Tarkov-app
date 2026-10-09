@@ -13,6 +13,7 @@ import type { PriceState, PublicSettings, QuestSettings, QuestStatusFilter } fro
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useQuestRows, type QuestRow } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import LoadError from './LoadError'
 import EventQuestPicker from './EventQuestPicker'
 import FavouriteStar from './FavouriteStar'
 import LogStatusPanel from './LogStatusPanel'
@@ -328,14 +329,16 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           <div className="summary-title">
             <strong>Quests</strong>
             <span className="muted">
-              {dataset
-                ? `Level ${level} · ${counts.active} active · ${counts.available} available · ${counts.completed} of ${all.length} completed` +
-                  (kappa.length
-                    ? ` · Kappa ${kappa.filter((r) => r.status === 'completed').length} of ${kappa.length}`
-                    : '')
-                : questState?.error
-                  ? `Couldn't load quests: ${questState.error}`
-                  : 'Loading quests…'}
+              {dataset ? (
+                `Level ${level} · ${counts.active} active · ${counts.available} available · ${counts.completed} of ${all.length} completed` +
+                (kappa.length
+                  ? ` · Kappa ${kappa.filter((r) => r.status === 'completed').length} of ${kappa.length}`
+                  : '')
+              ) : questState?.error ? (
+                <LoadError what="quests" error={questState.error} />
+              ) : (
+                'Loading quests…'
+              )}
             </span>
           </div>
           <div className="summary-stats">

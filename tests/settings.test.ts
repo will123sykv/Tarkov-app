@@ -396,12 +396,20 @@ describe('sanitizeSettings', () => {
   })
 
   it('keeps the To do filters and view (since 1.19.0), and the map overview or list (since 1.20.0)', () => {
-    expect(DEFAULT_SETTINGS.todo).toEqual({ show: 'all', kinds: 'all', view: 'summary', layout: 'maps' })
+    expect(DEFAULT_SETTINGS.todo).toEqual({
+      show: 'all',
+      kinds: 'all',
+      view: 'summary',
+      layout: 'maps',
+      squadKeys: false
+    })
     // 1.17–1.18's key switch gives way to the filters' defaults.
     expect(sanitizeSettings({ todo: { keys: true } }).todo).toEqual(DEFAULT_SETTINGS.todo)
-    const chosen = { show: 'doable', kinds: 'kill', view: 'full', layout: 'list' } as const
+    const chosen = { show: 'doable', kinds: 'kill', view: 'full', layout: 'list', squadKeys: true } as const
     expect(sanitizeSettings({ todo: chosen }).todo).toEqual(chosen)
     expect(sanitizeSettings({ todo: { kinds: 'locate' } }).todo.kinds).toBe('locate')
+    // Friends' keys count only when switched on (since 1.35.0).
+    expect(sanitizeSettings({ todo: { squadKeys: 'yes' } }).todo.squadKeys).toBe(false)
     // 1.19 had no overview: it opens on it.
     expect(sanitizeSettings({ todo: { show: 'doable', kinds: 'kill', view: 'full' } }).todo.layout).toBe(
       'maps'

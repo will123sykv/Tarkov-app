@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { consistencyShare, hasPattern, type TrendRow } from '../../../shared/fleaTrends'
 import type { DataMode, TrendAnalysis } from '../../../shared/types'
+import { friendlyError } from '../lib/errors'
 import { formatHour, formatPercent, formatRub, formatRubShort, formatSlot } from '../lib/format'
 import { trendSeriesKey, useStore } from '../store'
 import LineChart, { type ChartPoint } from './LineChart'
@@ -169,7 +170,7 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
           ) : (
             <div className="chart-empty">
               {series?.dailyError
-                ? `Couldn't load the daily history: ${series.dailyError}`
+                ? `Couldn't load the daily history: ${friendlyError(series.dailyError)}`
                 : series
                   ? 'No daily history for this item.'
                   : 'Loading…'}

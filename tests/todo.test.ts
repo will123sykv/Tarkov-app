@@ -403,6 +403,27 @@ describe('quest summaries', () => {
 })
 
 describe('kill objectives for the banner over the map', () => {
+  it('counts kills naming most maps, or "any location", as for any map, and skips ones not naming this map', () => {
+    const many = ['m1', 'm2', 'm3', 'm4', FACTORY, NIGHT_FACTORY]
+    const q = quest('q', [
+      objective('six', 'shoot', { maps: [...many, 'm6'], description: 'Eliminate Scavs with headshots' }),
+      // Factory and Night Factory are one map: five groups, so still this map's.
+      objective('five', 'shoot', { maps: many, description: 'Eliminate Scavs' }),
+      objective('aug', 'shoot', {
+        maps: [FACTORY, WOODS],
+        description: 'Eliminate Scavs using an AUG on any location'
+      }),
+      objective('woods', 'shoot', { maps: [WOODS, CUSTOMS], description: 'Eliminate PMCs' })
+    ])
+    const groupKey = (id: string): string | undefined => groupOf(id)?.key
+    const kills = killObjectives([row(q)], {}, new Set(GROUPS.factory.mapIds), { groupOf: groupKey })
+    expect(kills.map((k) => [k.objective.id, k.anyMap])).toEqual([
+      ['five', false],
+      ['six', true],
+      ['aug', true]
+    ])
+  })
+
   it('lists the active quests’ kills left on this map (Night Factory with Factory), fewest maps first, then any-map ones', () => {
     const b = quest('b', [
       objective('kill', 'shoot', { maps: [NIGHT_FACTORY], count: 5 }),
@@ -433,7 +454,7 @@ describe('kill objectives for the banner over the map', () => {
   it('leaves out quests a missing key holds up', () => {
     const a = quest('a', [objective('kill', 'shoot', { maps: [WOODS] })])
     const b = quest('b', [objective('kill', 'shoot', { maps: [WOODS] })])
-    const kills = killObjectives([row(a), row(b)], {}, new Set([WOODS]), (q) => q.id === 'a')
+    const kills = killObjectives([row(a), row(b)], {}, new Set([WOODS]), { blocked: (q) => q.id === 'a' })
     expect(kills.map((k) => k.quest.id)).toEqual(['b'])
   })
 })

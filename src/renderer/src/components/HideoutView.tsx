@@ -34,6 +34,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import LoadError from './LoadError'
 import FavouriteStar from './FavouriteStar'
 import { craftText, GetCell } from './GetCell'
 import ScarceBadge from './ScarceBadge'
@@ -707,7 +708,11 @@ export default function HideoutView({
           </ul>
           {!stations.length && (
             <p className="hint">
-              {questState?.error ? `Couldn't load the hideout: ${questState.error}` : 'Loading the hideout…'}
+              {questState?.error ? (
+                <LoadError what="the hideout" error={questState.error} />
+              ) : (
+                'Loading the hideout…'
+              )}
             </p>
           )}
         </SidebarSection>
@@ -826,26 +831,28 @@ export default function HideoutView({
           <div className="summary-title">
             <strong>Items to collect</strong>
             <span className="muted">
-              {dataset
-                ? `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ` +
-                  (readyCount ? `${readyCount} ready to build · ` : '') +
-                  (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
-                  `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
-                  (h.source === 'hideout'
-                    ? ' for the hideout'
-                    : h.source === 'quests'
-                      ? ' for quests'
-                      : questCount
-                        ? ` (${questCount} for quests)`
-                        : '') +
-                  (firCount ? ` · ${firCount} to find in raid` : '') +
-                  (sellCount ? ` · ${sellCount} you could sell` : '') +
-                  (money.length
-                    ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`
-                    : '')
-                : questState?.error
-                  ? `Couldn't load the hideout: ${questState.error}`
-                  : 'Loading the hideout…'}
+              {dataset ? (
+                `${upgrades.length} station${upgrades.length === 1 ? '' : 's'} to upgrade · ` +
+                (readyCount ? `${readyCount} ready to build · ` : '') +
+                (buyableCount ? `${buyableCount} ready once you buy the rest · ` : '') +
+                `${missing.length} item${missing.length === 1 ? '' : 's'} missing` +
+                (h.source === 'hideout'
+                  ? ' for the hideout'
+                  : h.source === 'quests'
+                    ? ' for quests'
+                    : questCount
+                      ? ` (${questCount} for quests)`
+                      : '') +
+                (firCount ? ` · ${firCount} to find in raid` : '') +
+                (sellCount ? ` · ${sellCount} you could sell` : '') +
+                (money.length
+                  ? ` · plus ${money.map((n) => formatMoney(n.itemId, n.missing)).join(' and ')}`
+                  : '')
+              ) : questState?.error ? (
+                <LoadError what="the hideout" error={questState.error} />
+              ) : (
+                'Loading the hideout…'
+              )}
             </span>
           </div>
           <div className="summary-stats">

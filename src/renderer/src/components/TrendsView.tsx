@@ -9,6 +9,7 @@ import type {
   TrendAnalysis,
   TrendSettings
 } from '../../../shared/types'
+import { friendlyError } from '../lib/errors'
 import { formatAgo, formatPercent, formatRub, formatSlot } from '../lib/format'
 import { useNow } from '../lib/useNow'
 import type { TrendRanking } from '../lib/useTrendRanking'
@@ -448,7 +449,9 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
               prices move, and the listing fee is charged when you list.
             </span>
           </div>
-          {trendsError && <div className="hint error">Couldn't load the price history: {trendsError}</div>}
+          {trendsError && (
+            <div className="hint error">Couldn't load the price history: {friendlyError(trendsError)}</div>
+          )}
         </div>
 
         <div className="trends-table-wrap">

@@ -8,9 +8,12 @@ import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { keyMapsUsed, keyUsedOn } from '../lib/keyMaps'
 import type { Group } from '../lib/mapGroups'
+import { useFriendKeys } from '../lib/useFriendKeys'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import LoadError from './LoadError'
+import { FriendTags } from './FriendKeys'
 import KeyShare from './KeyShare'
 import ScavScan from './ScavScan'
 import Sidebar, { SidebarSection } from './Sidebar'
@@ -131,16 +134,7 @@ function KeyRow({
               {k.name}
             </span>
           ))}
-          {friends.length > 0 && (
-            <span className="key-friends" title="From the key codes your friends shared">
-              {friends.map((name) => (
-                <span key={name} className="tag friend">
-                  {name}
-                </span>
-              ))}{' '}
-              {friends.length === 1 ? 'has it' : 'have it'}
-            </span>
-          )}
+          <FriendTags names={friends} />
         </span>
       </td>
       <td className="key-maps">
@@ -355,15 +349,7 @@ export default function KeysView({
       ? `No key here is used on ${picked.name}.`
       : null
   // Friends' keys (from their codes) in this game mode, to tag the keys they have.
-  const friendKeys = useMemo(
-    () =>
-      k.friends
-        .filter((f) => f.gameMode === settings.gameMode)
-        .map((f) => ({ name: f.name, keys: new Set(f.keyIds) })),
-    [k.friends, settings.gameMode]
-  )
-  const friendsWith = (ids: string[]): string[] =>
-    friendKeys.filter((f) => ids.some((id) => f.keys.has(id))).map((f) => f.name)
+  const { friends: friendKeys, friendsWith } = useFriendKeys(settings)
   const friendsHave = friendKeys.length ? missingAll.filter((n) => friendsWith(n.keyIds).length).length : 0
   const buyable = missingAll.filter((n) => n.keyIds.some((id) => info(id).buy?.options.length)).length
 
@@ -458,21 +444,23 @@ export default function KeysView({
           <div className="summary-title">
             <strong>Keys</strong>
             <span className="muted">
-              {dataset
-                ? `${plural(inView.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
-                  (picked ? ` on ${picked.name}` : '') +
-                  (inView.length
-                    ? ` · ${inView.length - missingAll.length} owned · ${missingAll.length} to buy`
-                    : '') +
-                  (buyable ? ` (${buyable} you can buy now)` : '') +
-                  (friendsHave ? ` · ${friendsHave} of those a friend has` : '') +
-                  // Keys no quest here needs are ticked too.
-                  (!picked && inventory.owned.length > needs.length - missingAll.length
-                    ? ` · ${plural(inventory.owned.length, 'key')} ticked in all`
-                    : '')
-                : questState?.error
-                  ? `Couldn't load quests: ${questState.error}`
-                  : 'Loading quests…'}
+              {dataset ? (
+                `${plural(inView.length, 'key')} your ${SCOPE_WORDS[k.scope]}quests need` +
+                (picked ? ` on ${picked.name}` : '') +
+                (inView.length
+                  ? ` · ${inView.length - missingAll.length} owned · ${missingAll.length} to buy`
+                  : '') +
+                (buyable ? ` (${buyable} you can buy now)` : '') +
+                (friendsHave ? ` · ${friendsHave} of those a friend has` : '') +
+                // Keys no quest here needs are ticked too.
+                (!picked && inventory.owned.length > needs.length - missingAll.length
+                  ? ` · ${plural(inventory.owned.length, 'key')} ticked in all`
+                  : '')
+              ) : questState?.error ? (
+                <LoadError what="quests" error={questState.error} />
+              ) : (
+                'Loading quests…'
+              )}
             </span>
           </div>
           <div className="summary-stats">

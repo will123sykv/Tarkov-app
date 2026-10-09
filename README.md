@@ -51,7 +51,8 @@ next time you close the app.
   website uses (`json.tarkov.dev`) and falls back to tarkov.dev's GraphQL API if they're down.
   The status bar shows where prices came from and how old they are.
 - **Works offline.** The last good prices are saved locally. If a refresh fails, the app keeps
-  using them and shows a banner.
+  using them and shows a banner saying why in plain words (**no internet connection**), with
+  **Retry**; **×** hides it until something changes.
 - **Flea access by level.** Enter your PMC level (1–62). Each item is marked **Sellable**,
   **Locked · Lv N** (the flea opens at 15, and some categories unlock later) or **Flea banned**.
   Items you can't sell on the flea are valued at the best trader price. You can hide them.
@@ -316,7 +317,10 @@ game's logs don't say which keys you have, so tick them yourself.
   paste in Discord. Paste a friend's code and click **Add friend**: their keys show as tags in the
   lists (**Alex has it**), and the summary says how many of the keys you need a friend has. Your own
   keys never change. Adding a newer code from the same friend updates their keys; **Remove** takes
-  them off. A friend's keys for another game mode show when you switch to it.
+  them off. A friend's keys for another game mode show when you switch to it. The To do tab's **Keys
+  to buy** and the locks on the maps say which friends have a key too, and **Count friends' keys**
+  (next to **Only quests I can do** in the To do and Maps tabs) counts their keys as yours, for
+  raiding together.
 - **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
   your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
   stash pages with loose keys); add them all with **Use latest screenshot**, **Open picture…**, paste
@@ -405,7 +409,8 @@ the game's install folder, or its `build` folder.
   out. A quest opened with **Show on map** is shown anyway.
 - **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner
   across the top of the map lists your active quests' kills left on that map, the ones naming the
-  fewest maps first, then the ones for any map (marked **any map**). Each gives the quest, what to
+  fewest maps first, then the ones for any map (marked **any map**: ones naming no map, saying "any
+  location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills). Each gives the quest, what to
   kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.
   Click a quest to open its panel; click the banner's heading to fold it (it's remembered).
   **Only quests I can do** leaves out quests a key you don't have holds up.

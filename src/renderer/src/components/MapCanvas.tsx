@@ -18,7 +18,15 @@ import { questPins, type ObjectiveMarker, type QuestPin } from '../lib/questPins
 
 /** Locks and key spawn spots to draw: one key's (focused), or those of the keys quests need. */
 export interface KeyMarks {
-  locks: { position: Vec3; kind: string; name: string; focused: boolean; have: boolean }[]
+  locks: {
+    position: Vec3
+    kind: string
+    name: string
+    focused: boolean
+    have: boolean
+    /** Friends who have the key (from the codes they shared). */
+    friends: string[]
+  }[]
   spawns: { position: Vec3; names: string[]; items: number; focused: boolean }[]
   /** The key shown from the Keys tab: the map centres on its marks. */
   focusKey: string | null
@@ -307,7 +315,13 @@ export default function MapCanvas({
             riseOnHover: true,
             zIndexOffset: l.focused ? 500 : 0
           }).bindTooltip(
-            label(what, [`Opens with the ${l.name}`, l.have ? 'You have the key' : "You don't have the key"]),
+            label(what, [
+              `Opens with the ${l.name}`,
+              l.have ? 'You have the key' : "You don't have the key",
+              ...(l.friends.length
+                ? [`${l.friends.join(', ')} ${l.friends.length === 1 ? 'has' : 'have'} it`]
+                : [])
+            ]),
             { direction: 'top', offset: [0, -14] }
           )
         )

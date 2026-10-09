@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { blockedByKeys, EMPTY_KEYS, keysNeeded, opens } from '../../../shared/keys'
+import { blockedByKeys, keysNeeded, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
@@ -17,12 +17,16 @@ import {
   ROUGH_ICON,
   type ObjectiveMarker
 } from '../lib/questPins'
+import { mapGroups } from '../lib/mapGroups'
 import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useWhereToFind } from '../lib/useFavourites'
+import { useFriendKeys } from '../lib/useFriendKeys'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
+import { SquadToggle } from './FriendKeys'
 import KillBanner from './KillBanner'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
@@ -232,7 +236,6 @@ export default function MapsView({
   const setStoryPin = useStore((s) => s.setStoryPin)
   const keyFocus = useStore((s) => s.keyFocus)
   const showKeyOnMap = useStore((s) => s.showKeyOnMap)
-  const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
   const m = settings.maps
   const set = (patch: Partial<MapSettings>): void => void updateSettings({ maps: { ...m, ...patch } })
   const dataset = questState?.dataset ?? null
@@ -270,7 +273,9 @@ export default function MapsView({
     [dataset, config]
   )
   const mapIds = useMemo(() => new Set(maps.map((gm) => gm.id)), [maps])
-  const owned = useMemo(() => new Set(inventory.owned), [inventory.owned])
+  // Your keys, plus friends' with "Count friends' keys" on.
+  const friendKeys = useFriendKeys(settings)
+  const { owned, friendsWith } = friendKeys
   // What it takes to get onto the map, as the To do tab has it (the main version's): the Lab's keycard.
   // Favourite items shown on the map: a circle where each turns up most on this map.
   const mainMap = useMemo(
@@ -345,12 +350,16 @@ export default function MapsView({
     [doable, inScope, owned, shut, focus, blocked]
   )
   const objectives = shown.markers
+  const groupOf = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
   // Kill objectives left here and on any map, in the banner over the map (most have nowhere to pin).
   // "Only quests I can do" on a map the player can't get onto keeps just the ones for any map.
   const kills = useMemo(() => {
-    const all = killObjectives(rows, done, mapIds, doable ? blocked : undefined)
+    const all = killObjectives(rows, done, mapIds, {
+      blocked: doable ? blocked : undefined,
+      groupOf: (id) => groupOf.get(id)?.key
+    })
     return doable && shut ? all.filter((k) => k.anyMap) : all
-  }, [rows, done, mapIds, doable, blocked, shut])
+  }, [rows, done, mapIds, doable, blocked, shut, groupOf])
   const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
@@ -421,7 +430,8 @@ export default function MapsView({
             kind: l.kind,
             name: itemName(l.keyId) ?? 'key',
             focused,
-            have: owned.has(l.keyId)
+            have: owned.has(l.keyId),
+            friends: friendsWith([l.keyId])
           })
       }
       for (const spot of map.keySpawns ?? []) {
@@ -437,7 +447,7 @@ export default function MapsView({
       }
     }
     return { locks, spawns, focusKey: keyFocus }
-  }, [keyFocus, m.showKeys, maps, neededKeys, owned, itemName])
+  }, [keyFocus, m.showKeys, maps, neededKeys, owned, itemName, friendsWith])
   // Where else the key looked at has locks or spawns, to switch to.
   const focusElsewhere = useMemo(() => {
     if (!keyFocus) return []
@@ -529,6 +539,11 @@ export default function MapsView({
                   </button>
                 ))}
               </div>
+              <SquadToggle
+                friendKeys={friendKeys}
+                on={settings.todo.squadKeys}
+                onChange={(squadKeys) => void updateSettings({ todo: { ...settings.todo, squadKeys } })}
+              />
               <p className="hint">
                 {hiddenNote && <>{hiddenNote} </>}
                 The To do tab shares this filter.
@@ -757,7 +772,13 @@ export default function MapsView({
           />
         ) : (
           <div className="empty">
-            <p>{questState?.error ? `Couldn't load map data: ${questState.error}` : 'Loading map data…'}</p>
+            <p>
+              {questState?.error ? (
+                <LoadError what="map data" error={questState.error} />
+              ) : (
+                'Loading map data…'
+              )}
+            </p>
           </div>
         )}
         <FavouritesPanel

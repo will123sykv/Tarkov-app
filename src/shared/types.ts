@@ -171,6 +171,8 @@ export interface TodoSettings {
   view: 'summary' | 'full'
   /** A tile per map to click into, or every map with its quests (since 1.20.0). */
   layout: 'maps' | 'list'
+  /** Friends' keys (from their codes) count as yours for what you can do: a squad's keys (since 1.35.0). */
+  squadKeys: boolean
 }
 
 export interface KeysSettings {

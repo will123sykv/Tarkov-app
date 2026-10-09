@@ -284,9 +284,37 @@ select {
 }
 
 .banner {
-  padding: 8px 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 12px 6px 20px;
   font-size: 13px;
   border-left: 3px solid;
+}
+
+.banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-action {
+  flex: none;
+}
+
+.banner-close {
+  flex: none;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.banner-close:hover {
+  color: var(--text);
 }
 
 .banner.warn {
@@ -4041,15 +4069,15 @@ tr:hover .favourite-star {
 }
 
 .key-col-name {
-  width: 24%;
+  width: 21%;
 }
 
 .key-col-map {
-  width: 16%;
+  width: 14%;
 }
 
 .key-col-for {
-  width: 20%;
+  width: 18%;
 }
 
 .key-maps > span {
@@ -4057,7 +4085,7 @@ tr:hover .favourite-star {
 }
 
 .key-col-actions {
-  width: 200px;
+  width: 118px;
 }
 
 .key-table tr.done td {
@@ -4156,13 +4184,18 @@ tr:hover .favourite-star {
   color: var(--warn);
 }
 
+/* The row's buttons stacked, so How to get it keeps its room in a narrow window. */
 .key-actions {
   white-space: nowrap;
-  text-align: right;
+}
+
+.key-actions .button {
+  display: block;
+  width: 100%;
 }
 
 .key-actions .button + .button {
-  margin-left: 6px;
+  margin-top: 4px;
 }
 
 .button.active {
@@ -4706,4 +4739,15 @@ tr:hover .favourite-star {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+/* "Count friends' keys", next to "Only quests I can do" (To do and Maps). */
+.squad-toggle {
+  align-items: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.squad-toggle input {
+  margin-top: 0;
 }

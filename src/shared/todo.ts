@@ -499,17 +499,25 @@ export interface KillToDo {
   anyMap: boolean
 }
 
+/** Maps an objective must name, counted as map groups, to count as one for any map. */
+export const ANY_MAP_GROUPS = 6
+
 /**
  * The kill objectives of active quests left to do on a map (`mapIds`: its group's, Night Factory with
- * Factory), then the ones that count on any map. The ones naming the fewest maps come first (tarkov.dev
- * lists most maps for many "on any location" ones), then by quest name. `blocked` leaves out quests
- * held up by a key the player doesn't have ("Only quests I can do").
+ * Factory): the ones for this map, then the ones for any map, each set by quest name (the ones naming
+ * the fewest maps first). An objective counts for any map when it names no map, says "any location", or
+ * names `ANY_MAP_GROUPS` map groups or more (tarkov.dev lists most maps for many "any location" kills;
+ * `groupOf` gives a map id's group). One that names maps but not this one isn't listed. `blocked` leaves
+ * out quests held up by a key the player doesn't have ("Only quests I can do").
  */
 export function killObjectives(
   rows: readonly { quest: Quest; status: QuestStatus }[],
   objectives: ObjectiveProgress | undefined,
   mapIds: ReadonlySet<string>,
-  blocked?: (quest: Quest) => boolean
+  {
+    blocked,
+    groupOf
+  }: { blocked?: (quest: Quest) => boolean; groupOf?: (mapId: string) => string | undefined } = {}
 ): KillToDo[] {
   const here: KillToDo[] = []
   const anywhere: KillToDo[] = []
@@ -521,8 +529,11 @@ export function killObjectives(
       const total = objectiveTarget(objective)
       if (done >= total) continue
       const maps = objectiveMapIds(objective)
-      if (!maps.length) anywhere.push({ quest, objective, done, total, anyMap: true })
-      else if (maps.some((id) => mapIds.has(id))) here.push({ quest, objective, done, total, anyMap: false })
+      if (maps.length && !maps.some((id) => mapIds.has(id))) continue
+      const groups = new Set(maps.map((id) => groupOf?.(id) ?? id)).size
+      const anyMap =
+        !maps.length || /\bany (location|map)\b/i.test(objective.description) || groups >= ANY_MAP_GROUPS
+      ;(anyMap ? anywhere : here).push({ quest, objective, done, total, anyMap })
     }
   }
   const byQuest = (a: KillToDo, b: KillToDo): number => a.quest.name.localeCompare(b.quest.name)

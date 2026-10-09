@@ -92,7 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
     scanSellBuyable: true,
     tab: 'items'
   },
-  todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps' },
+  todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
   sidebars: {}
 }
@@ -300,7 +300,8 @@ function sanitizeTodo(raw: unknown): TodoSettings {
     show: r.show === 'doable' ? 'doable' : 'all',
     kinds: r.kinds === 'kill' || r.kinds === 'locate' ? r.kinds : 'all',
     view: r.view === 'full' ? 'full' : 'summary',
-    layout: r.layout === 'list' ? 'list' : 'maps'
+    layout: r.layout === 'list' ? 'list' : 'maps',
+    squadKeys: r.squadKeys === true
   }
 }
 

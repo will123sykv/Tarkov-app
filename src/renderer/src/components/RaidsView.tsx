@@ -10,6 +10,9 @@ import Sidebar, { SidebarSection } from './Sidebar'
 
 const MAX_ROWS = 200
 
+/** Maps the quest data leaves out, by the game's location id: the Ground Zero tutorial (since 1.33.0). */
+const OTHER_MAP_NAMES: Record<string, string> = { sandbox_start: 'Ground Zero Tutorial' }
+
 const when = (t: number): string =>
   new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
@@ -46,7 +49,9 @@ export default function RaidsView({
     () => new Map((questState?.dataset?.maps ?? []).map((m) => [m.nameId.toLowerCase(), m.name])),
     [questState]
   )
-  const mapName = (raid: RaidRecord): string => mapNames.get(raid.map.toLowerCase()) ?? raid.map
+  const nameOf = (id: string): string =>
+    mapNames.get(id.toLowerCase()) ?? OTHER_MAP_NAMES[id.toLowerCase()] ?? id
+  const mapName = (raid: RaidRecord): string => nameOf(raid.map)
   const raids = history?.raids ?? []
   const flea = history?.flea ?? []
 
@@ -88,7 +93,7 @@ export default function RaidsView({
             <ul className="map-counts">
               {stats.byMap.map(([id, count]) => (
                 <li key={id}>
-                  <span>{mapNames.get(id) ?? id}</span>
+                  <span>{nameOf(id)}</span>
                   <span className="muted">{count}</span>
                 </li>
               ))}
