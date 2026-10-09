@@ -314,6 +314,16 @@ function Objective({
         <span className="objective-text">
           {objective.description || objective.type}
           {objective.optional && <span className="tag">optional</span>}
+          {objective.wiki &&
+            ('added' in objective.wiki ? (
+              <span className="tag wiki" title="tarkov.dev leaves this step out: tick it off yourself">
+                from the wiki
+              </span>
+            ) : (
+              <span className="tag wiki" title={`tarkov.dev: ${objective.wiki.was}`}>
+                corrected
+              </span>
+            ))}
           {detected && !completed && (
             <span className="tag auto" title={detected.why}>
               auto
@@ -732,6 +742,25 @@ function QuestPanel({
         <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
           Mark this and everything before it done
         </button>
+      )}
+
+      {quest.corrections && (
+        <section className="quest-section wiki-corrections">
+          <p className="wiki-note">
+            <span className="badge info">From the wiki</span> Its page on the wiki differs from
+            tarkov.dev&rsquo;s data, so this quest uses the wiki&rsquo;s:
+          </p>
+          <ul>
+            {quest.corrections.changes.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+            {quest.corrections.notes.map((n) => (
+              <li key={n} className="wiki-note-line">
+                {n}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {quest.wiki && (

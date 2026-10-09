@@ -51,6 +51,11 @@ export interface QuestObjective {
   depth?: number
   /** Story chapters: the path it's on, when the chapter branches (e.g. "If you kept the armored case"). */
   branch?: string | null
+  /**
+   * From the wiki (since 1.36.0): `added` for a step tarkov.dev leaves out (ticked by hand), or what
+   * tarkov.dev had before the wiki corrected it.
+   */
+  wiki?: { added: true } | { was: string }
 }
 
 /** An item and how many of it. */
@@ -119,6 +124,8 @@ export interface Quest {
   story?: { description: string; howItStarts: string }
   /** For a quest read from the wiki (an event quest tarkov.dev doesn't list). Since 1.22.0. */
   wiki?: { title: string; event: boolean; past: boolean; description: string }
+  /** What the wiki corrected in tarkov.dev's data, and its notes (conditions, other maps). Since 1.36.0. */
+  corrections?: { changes: string[]; notes: string[] }
 }
 
 export interface MapExtract {
@@ -361,6 +368,28 @@ export interface QuestDataset {
   otherQuestNames: Record<string, string>
   /** The main story's chapters, from the wiki (empty when it couldn't be reached). Since 1.11.0. */
   storyChapters: StoryChapter[]
+  /** What each quest's wiki page says, by quest id, to correct tarkov.dev's data with. Since 1.36.0. */
+  wikiFacts: Record<string, WikiQuestFacts>
+}
+
+/** A tarkov.dev quest's page on the wiki, read for what can correct tarkov.dev's data. Since 1.36.0. */
+export interface WikiQuestFacts {
+  title: string
+  /** "Must be level N to start this quest". */
+  level: number | null
+  /** Needed for Kappa, when the page says. */
+  kappa: boolean | null
+  /** Pages of the quests before it. */
+  previous: string[]
+  /** The quests before it are alternatives ("A or B") or need only accepting: not all to complete. */
+  previousLoose: boolean
+  /** Map ids from the infobox's location. */
+  maps: string[]
+  /** The location differs by faction ("BEAR: Reserve, USEC: Lighthouse"). */
+  byFaction: boolean
+  /** A note says the objectives differ in PvE. */
+  pveNote: boolean
+  objectives: StoryObjective[]
 }
 
 /** A picture in a quest's guide on the Escape from Tarkov wiki. */

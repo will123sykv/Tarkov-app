@@ -194,6 +194,10 @@ describe('sanitizeSettings', () => {
       }).quests.wikiQuests
     ).toEqual(['Fog of War', 'Duck Hunt'])
     expect(sanitizeSettings({ quests: { wikiQuests: 'Fog of War' } }).quests.wikiQuests).toEqual([])
+    // Corrections from the wiki (since 1.36.0): on unless switched off.
+    expect(DEFAULT_SETTINGS.quests.wikiCorrections).toBe(true)
+    expect(sanitizeSettings({ quests: {} }).quests.wikiCorrections).toBe(true)
+    expect(sanitizeSettings({ quests: { wikiCorrections: false } }).quests.wikiCorrections).toBe(false)
     // The 2D maps are the only ones since 1.27.0: an old style setting is dropped. The favourites panel
     // over the map is open unless closed.
     expect(sanitizeSettings({ maps: { style: 'tarkov-dev' } }).maps).not.toHaveProperty('style')

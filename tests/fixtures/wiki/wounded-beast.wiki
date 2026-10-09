@@ -1,0 +1,47 @@
+{{Infobox quest
+|icon         =
+|image        =Wounded Beast.png
+|location     =Any
+|given by     =[[Jaeger]]
+|reward       =
+|reputation   =
+|quest number =
+|previous     =[[The Survivalist Path - Zhivchik]]
+|leads to     =[[The Survivalist Path - Tough Guy]]<br/>[[The Survivalist Path - Cold Blooded]]
+|related      =
+|related2     =
+|reqkappa     =<font color="red">Yes</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Hello there. Has it ever happened to you that you got into trouble, but there is no time to take care of the wound as you have to save your skin? Self-control in the most difficult situations is the key to survival. This is a very important skill in these difficult days for our city. Show me how well you handle pain.}}
+
+==Objectives==
+*Eliminate 3 [[Scavs]] while suffering from pain effect
+
+==Rewards==
+* +5,800 [[EXP]]
+* +1 [[Stress Resistance|Stress resistance skill]] level
+* [[Jaeger]] Rep <font color="green">'''+0.02'''</font>
+* 65,000 Roubles
+** 68,250 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 74,750 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* Unlocks purchase of [[Benelli M3 Super 90 12ga dual-mode shotgun]] at [[Jaeger]] LL2
+* Unlocks Bear [[Hideout]] shooting range target style
+{{quote|Handled it? Nicely done. Your training is almost done. If we keep it that way, we may start taking care of the order in the city earlier than planned.}}
+
+==Guide==
+* Dehydration and broken bones cause pain. Easiest way to break your leg bones is to fall a few meters or to intentionally fail the [[Hideout#Gym|Hideout gym]] training to break your arm.
+** Using a [[Jar of DevilDog mayo]] is an easy way to achieve pain through dehydration, although it comes with the side effect of constant damage over time.
+* Using painkillers, morphine and/or similar medication will remove the status effect, and as such kills will not count towards the quest.
+
+{{Navbox quests}}
+
+[[Category:Quests]]
+
+[[cs:Cesta přeživšího - Zraněné zvíře]]
+[[de:Pfad des Überlebenskünstler - Verletzte Bestie]]
+[[fr:La voie du survivaliste - Animal blessé]]
+[[ru:Путь выживальщика. Раненый зверь]]

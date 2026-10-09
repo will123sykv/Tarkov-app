@@ -5,15 +5,19 @@ import type { FetchFn } from '../src/main/pricing/http'
 import {
   createWikiQuestService,
   fetchEventQuests,
+  fetchWikiFacts,
   parseWikiQuest,
-  titleFromInput
+  titleFromInput,
+  wikiFacts
 } from '../src/main/quests/wikiQuests'
 import { nextWikiQuests, wikiQuestId, wikiQuests } from '../src/shared/wikiQuests'
 import { jsonResponse, tempDir } from './helpers'
 
 // Quest pages from the Escape from Tarkov wiki (CC BY-SA), as of October 2026: Fog of War and
 // Number Temporarily Unavailable (this event's), Party Preparations (an old event's, trimmed, with a
-// skill reward added) and Debut (a regular quest).
+// skill reward added) and Debut (a regular quest); and regular quests whose pages differ from
+// tarkov.dev's data: Dandies, Vacate the Premises, Slaughterhouse, Create a Distraction - Part 2,
+// Dragnet, Antique Enthusiast and The Survivalist Path - Wounded Beast.
 const page = (name: string): string =>
   readFileSync(fileURLToPath(new URL(`./fixtures/wiki/${name}.wiki`, import.meta.url)), 'utf8')
 const FOG = page('fog-of-war')
@@ -315,5 +319,80 @@ describe('event quests as quests', () => {
       'All-Inclusive Support'
     ])
     expect(nextWikiQuests([fog], ['Fog of War'])).toEqual(['Number Temporarily Unavailable'])
+  })
+})
+
+describe('what a quest’s wiki page says, to correct tarkov.dev with', () => {
+  const MORE_MAPS = [
+    ...MAPS,
+    { id: 'streets-id', name: 'Streets of Tarkov', normalizedName: 'streets-of-tarkov' },
+    { id: 'labyrinth-id', name: 'The Labyrinth', normalizedName: 'the-labyrinth' },
+    { id: 'factory-id', name: 'Factory', normalizedName: 'factory' },
+    { id: 'shoreline-id', name: 'Shoreline', normalizedName: 'shoreline' },
+    { id: 'reserve-id', name: 'Reserve', normalizedName: 'reserve' }
+  ]
+
+  it('reads the level, Kappa (in its coloured font), the quests before it and the steps', () => {
+    expect(wikiFacts('Dandies', page('dandies'), ['Quests'], MORE_MAPS)).toMatchObject({
+      title: 'Dandies',
+      level: 33,
+      kappa: false,
+      previous: ['Ballet Lover'],
+      previousLoose: false,
+      maps: ['streets-id'],
+      byFaction: false,
+      pveNote: false
+    })
+    const beast = wikiFacts('The Survivalist Path - Wounded Beast', page('wounded-beast'), ['Quests'])!
+    expect(beast).toMatchObject({ level: null, kappa: true, previous: ['The Survivalist Path - Zhivchik'] })
+    expect(beast.objectives.map((o) => o.text)).toEqual([
+      'Eliminate 3 Scavs while suffering from pain effect'
+    ])
+  })
+
+  it('notes a PvE difference, quests before it that are alternatives, and several maps', () => {
+    const vacate = wikiFacts('Vacate the Premises', page('vacate-the-premises'), ['Quests'], MORE_MAPS)!
+    expect(vacate).toMatchObject({ pveNote: true, maps: ['labyrinth-id'] })
+    expect(vacate.objectives.map((o) => [o.text, o.count])).toEqual([
+      ['Eliminate 24 PMC operatives inside The Labyrinth', 24]
+    ])
+    expect(wikiFacts('Dragnet', page('dragnet'), ['Quests'])).toMatchObject({
+      previous: ['One Less Loose End', 'A Healthy Alternative'],
+      previousLoose: true
+    })
+    const slaughter = wikiFacts('Slaughterhouse', page('slaughterhouse'), ['Quests'], MORE_MAPS)!
+    expect(slaughter).toMatchObject({ level: 40, previousLoose: false })
+    expect(slaughter.previous).toHaveLength(2)
+    expect(slaughter.objectives).toHaveLength(9)
+    expect(slaughter.objectives.every((o) => o.count === 10)).toBe(true)
+  })
+
+  it('fetches pages 50 at a time, through redirects, by quest id; leaving out missing ones', async () => {
+    const titles = new Map<string, string>(Array.from({ length: 51 }, (_, i) => [`q${i}`, `Quest ${i}`]))
+    titles.set('dandies-id', 'dandies')
+    const calls: URL[] = []
+    const fetchFn = vi.fn(async (input: string) => {
+      const url = new URL(input)
+      calls.push(url)
+      const asked = url.searchParams.get('titles')!.split('|')
+      const query: Record<string, unknown> = {
+        pages: asked.filter((t) => t !== 'dandies').map((t) => ({ title: t, missing: true }))
+      }
+      if (asked.includes('dandies')) {
+        query.normalized = [{ from: 'dandies', to: 'Dandies' }]
+        query.redirects = [{ from: 'Dandies', to: 'Dandies (quest)' }]
+        ;(query.pages as unknown[]).push({
+          title: 'Dandies (quest)',
+          revisions: [{ slots: { main: { content: page('dandies') } } }],
+          categories: [{ title: 'Category:Quests' }]
+        })
+      }
+      return jsonResponse({ query })
+    }) as unknown as FetchFn
+    const facts = await fetchWikiFacts(fetchFn, titles, MORE_MAPS)
+    expect(calls).toHaveLength(2)
+    expect(calls[0].searchParams.get('titles')!.split('|')).toHaveLength(50)
+    expect(Object.keys(facts)).toEqual(['dandies-id'])
+    expect(facts['dandies-id']).toMatchObject({ title: 'Dandies (quest)', level: 33 })
   })
 })

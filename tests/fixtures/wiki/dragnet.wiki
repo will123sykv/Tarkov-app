@@ -1,0 +1,75 @@
+{{Infobox quest
+|icon         = 
+|image        =Dragnet Banner.png
+|location     =[[Factory]]
+|given by     =[[Jaeger]]
+|reward       =
+|quest number =
+|previous     =[[One Less Loose End]]<br/>or<br/>[[A Healthy Alternative]]
+|leads to     =
+|related      = 
+|related2     =
+|reqkappa     =<font color="red">Yes</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Hello, soldier. Everyone seems to be flocking to Polikhim, running around looking for secrets... I found out something interesting, too. It turns out that the TerraGroup fucks had their own warehouse in the basement for extra important cargo, and there's a vial of some rare nasty stuff in there. You know what's gonna happen when people find out about this. One will ask to retrieve it, another will try to intercept it. Now imagine it falls into the wrong hands. It's best if you and I take this stuff before anyone else and keep it under wraps. The job's important. Will you help me?}}
+
+==Objectives==
+* Locate and obtain the [[Chemical container|chemical container]] at the [[TerraGroup storage room keycard|TerraGroup warehouse]] on [[Factory]]
+* Hand over the [[Chemical container|chemical container]]
+
+==Rewards==
+* +17,300 [[EXP]]
+* [[Jaeger]] Rep <font color="green">'''+0.02'''</font>
+* 92,000 Roubles
+** 96,600 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 105,800 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* 1× [[Springfield Armory M1A 7.62x51 rifle]]
+* 3× [[M14 7.62x51 30-round magazine]]
+* 6× [[7.62x51mm M62 Tracer ammo pack (20 pcs)]]
+{{quote|You're a good kid. My comrade will find a good stash spot for this thingie where no one will ever find it.}}
+
+==Guide==
+{|class="wikitable"
+! colspan="6" |Related Quest Items
+|-
+!Icon
+!Item name
+!Amount
+!Requirement
+!'''[[Found in raid|Find in raid]]'''
+!Notes
+|-
+|[[File:TerraGroup storage room keycard icon.png|link=TerraGroup storage room keycard]]
+|[[TerraGroup storage room keycard]]
+|1
+|Required
+!N/A
+|Unlocks the door to the TerraGroup storage room on [[Factory]] where the chemical container is located
+|-
+|[[File:Chemical-Container icon.png|link=Chemical container]]
+|[[Chemical container]]
+|1
+|Handover item
+!<font color="red">Yes</font>
+|''This [[Quests#Quest items|quest item]] can only be found if the quest is active.''<br>''When picked up, this item is transferred to the player's quest item inventory.''<br>''If the player fails to extract with this item, they will lose it.''
+|}
+The chemical container can be found in the TerraGroup storage room on [[Factory]], which is located in the underground tunnels right next to the "Camera Bunker Door" Scav extraction. A [[TerraGroup storage room keycard]] is required to enter it. There are multiple spawns throughout the room. 
+<li style="display: inline-block;"><gallery widths="300" heights="169" mode="packed">
+File:TerraGroup storage room keycard map.png|Room location marked on map
+File:TerraGroup storage room keycard door.png|Door to the room
+File:Dragnet spawn location 1.png|First spawn: On the packages to the right after entering
+File:Dragnet spawn location 4.png|Second spawn: In the middle compartment of the left industrial shelf
+File:Dragnet spawn location 2.png|Third spawn: On the table
+File:Dragnet spawn location 3.png|Fourth spawn: On the shelf to the left after entering
+</gallery></li>
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[cs:Dragnet]]
+[[fr:Coup de filet]]
+[[ru:План «Перехват»]]

@@ -1,0 +1,45 @@
+{{Infobox quest
+|icon         =
+|image        =Vacate the Premises Banner.png
+|location     =[[The Labyrinth]]
+|given by     =[[Ragman]]
+|reward       =
+|reputation   =
+|quest number =
+|previous     =[[Offensive Reconnaissance]]
+|leads to     =[[Keeper's Word]]
+|related      =
+|related2     =
+|reqkappa     =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|That whole health resort thing went massive, didn't it? Thing is, as I told you, I had business there with Ref, in those cellars. I used to think Ref took all the equipment outta there, but now it turns out there's still tons of tech still down there. So I figured, what's the harm in taking some of it? Nah, you don't have to bring me those TVs and cameras, don't worry. Those need careful inspection and good packing. I got my own people for that. But I can't just send them out there right now! They're good with tech, but they're dogshit with guns. If a real professional, wink-wink, would make it down there and chase all the other mercs out of there, then we'd be in business. So just when I thought of that, I remembered you, brother! You ready to help with a good cause? Obviously, if you do the job properly, I'll give you some goodies in return!}}
+
+==Objectives==
+* Eliminate 24 PMC operatives inside [[The Labyrinth]]
+'''Note:''' The objective in the [[Game_modes#PvE_and_PvE_Co-op_game_mode|PvE mode]] is to eliminate any 36 targets in [[The Labyrinth]] instead.
+
+==Rewards==
+* +20,400 [[EXP]]
+* [[Ragman]] Rep <font color="green">'''+0.03'''</font>
+* 208,000 Roubles
+** 218,400 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 239,200 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* 3× [[Atomic Defense CQCM ballistic mask (Black)]]
+* 1× [[Last Breath poster]]
+{{quote|Good thing I asked you to do this. Alrighty then, I'll pass it on to my guys. If we're lucky, we'll be swimming in tech sales for a long time. Here's your share, Ragman always rewards good deeds!}}
+
+==Guide==
+In this quest you have to kill 24 PMСs in [[The Labyrinth]].
+
+'''Note:''' The objective in the [[Game_modes#PvE_and_PvE_Co-op_game_mode|PvE mode]] is to eliminate any 36 targets in [[The Labyrinth]] instead.
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[fr:Quitter les lieux]]
+[[ru:Освободить помещение]]
+[[zh:驅趕住民]]

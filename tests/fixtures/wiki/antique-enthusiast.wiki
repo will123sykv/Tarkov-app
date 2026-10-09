@@ -1,0 +1,93 @@
+{{Infobox quest
+|icon         =
+|image        =Only businessBanner.png
+|location     =
+|given by     =[[Ragman]]
+|reward       =
+|previous     =
+|leads to     =
+|related      =
+|related2     =
+|reqkappa     =<font color="red">Yes</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Hey, brother! There's only one true connoisseur left in all of Tarkov. My favorite client! And now he's decided it's time to expand his collection. He's looking for antique vases and teapots. Between you and me, I can understand the vases, but why anyone would need that many collectible teapots is beyond me... Still, an order's an order, and he pays well. Everything has to be found by your own hand, as pristine as antiques can possibly be, so get out there and track them down yourself.}}
+
+==Requirements==
+* Must reach Loyalty Level 4 with [[Ragman]] to obtain this quest.
+
+==Objectives==
+* Find 3 [[Antique teapot]]s [[Found in raid|<font color="red">in raid</font>]]
+* Find 3 [[Antique vase]]s [[Found in raid|<font color="red">in raid</font>]]
+* Find 2 [[Axel parrot figurine]]s [[Found in raid|<font color="red">in raid</font>]]
+* Find 2 [[Raven figurine]]s [[Found in raid|<font color="red">in raid</font>]]
+* Find 5 [[Gold skull ring]]s [[Found in raid|<font color="red">in raid</font>]]
+* Hand over 3 [[Antique teapot]]s to [[Ragman]]
+* Hand over 3 [[Antique vase]]s to [[Ragman]]
+* Hand over 2 [[Axel parrot figurine]]s to [[Ragman]]
+* Hand over 2 [[Raven figurine]]s to [[Ragman]]
+* Hand over 5 [[Gold skull ring]]s to [[Ragman]]
+
+==Rewards==
+* +65,000 [[EXP]]
+* +4 [[Charisma|Charisma skill]] levels
+* [[Ragman]] Rep <font color="green">'''+1.5'''</font>
+* 400,000 Roubles
+** 420,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 460,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* Unlocks barter for [[Granit Br4 ballistic plate]] at [[Ragman]] LL4
+* Unlocks Bricks [[Hideout]] wall style
+* Unlocks White ceiling [[Hideout]] ceiling style
+{{quote|Do you have it? Great. I wonder what's he gonna ask next time, a diamond-coated toilet? But hey, if he does ask for it, you actually will have to look for it. Thanks for the help, brother.}}
+
+==Guide==
+{|class="wikitable"
+! colspan="6" |Related Quest Items
+|-
+!Icon
+!Item name
+!Amount
+!Requirement
+!'''[[Found in raid|Find in raid]]'''
+|-
+![[File:Teapot icon.png|link=Antique teapot]]
+|[[Antique teapot]]
+|3
+|Handover item
+!<font color="red">Yes</font>
+|-
+![[File:Vaseicon.png|link=Antique vase]]
+|[[Antique vase]]
+|3
+|Handover item
+!<font color="red">Yes</font>
+|-
+![[File:Axel parrot icon.png|link=Axel parrot figurine]]
+|[[Axel parrot figurine]]
+|2
+|Handover item
+!<font color="red">Yes</font>
+|-
+![[File:Raven figurine icon.png|link=Raven figurine]]
+|[[Raven figurine]]
+|2
+|Handover item
+!<font color="red">Yes</font>
+|-
+![[File:SkullRing Icon.png|link=Gold skull ring]]
+|[[Gold skull ring]]
+|5
+|Handover item
+!<font color="red">Yes</font>
+|}
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[cs:Žít blaze, není zločin - Část 2]]
+[[de:Im Überfluss zu leben ist kein Verbrechen - Teil 2]]
+[[fr:La richesse n'est pas un crime - Partie 2]]
+[[ru:Красиво жить не запретишь. Часть 2]]

@@ -239,6 +239,8 @@ export interface QuestSettings {
   faction: 'USEC' | 'BEAR' | null
   /** Event quests added from the wiki, by page title (since 1.22.0). */
   wikiQuests: string[]
+  /** Correct tarkov.dev's quests from their wiki pages (since 1.36.0). */
+  wikiCorrections: boolean
 }
 
 export interface MapSettings {

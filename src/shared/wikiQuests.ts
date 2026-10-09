@@ -37,7 +37,11 @@ const TYPES: [RegExp, string][] = [
   [/^(scout|locate|visit|reach|check|explore|inspect|search|observe|go)\b/i, 'visit']
 ]
 
-function objective(step: StoryObjective, ctx: WikiQuestContext): QuestObjective {
+/** A wiki step as an objective, with a type guessed from its wording and its items matched by name. */
+export function wikiObjective(
+  step: StoryObjective,
+  ctx: Pick<WikiQuestContext, 'itemIds' | 'traderIds'>
+): QuestObjective {
   const items = step.itemNames.flatMap((name) => {
     const id = ctx.itemIds.get(name.toLowerCase())
     return id ? [id] : []
@@ -124,7 +128,7 @@ export function wikiQuests(quests: readonly WikiQuest[], ctx: WikiQuestContext):
         traderId !== 'wiki' && w.loyaltyLevel
           ? [{ traderId, type: 'level' as const, compareMethod: '>=', value: w.loyaltyLevel }]
           : [],
-      objectives: w.objectives.map((o) => objective(o, ctx)),
+      objectives: w.objectives.map((o) => wikiObjective(o, ctx)),
       map: w.maps.length === 1 ? w.maps[0] : null,
       kappaRequired: w.kappa,
       lightkeeperRequired: false,

@@ -28,7 +28,9 @@ import type { DataMode } from '../../shared/types'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, type FetchFn } from '../pricing/http'
 import { fetchJsonData, translator, values, type Collection } from '../pricing/tarkovDevJson'
+import { wikiTitle } from './questGuide'
 import { fetchStoryChapters } from './storyChapters'
+import { fetchWikiFacts } from './wikiQuests'
 
 type Raw = Record<string, unknown>
 type Dict = Record<string, string>
@@ -633,7 +635,8 @@ export function normalizeQuestData(
     barters: traderBarters(input.barters ?? []),
     otherQuestNames,
     // Filled in from the wiki by fetchQuestData.
-    storyChapters: []
+    storyChapters: [],
+    wikiFacts: {}
   })
 }
 
@@ -702,7 +705,11 @@ export async function fetchQuestData(
   const storyChapters = await fetchStoryChapters(fetchFn, dataset.otherQuestNames, dataset.maps).catch(
     () => []
   )
-  return { ...dataset, storyChapters }
+  // What each quest's wiki page says, to correct tarkov.dev's data with: none when the wiki can't be
+  // reached (the service keeps the last ones).
+  const titles = new Map(dataset.quests.map((q) => [q.id, wikiTitle(q.wikiLink) ?? q.name]))
+  const wikiFacts = await fetchWikiFacts(fetchFn, titles, dataset.maps).catch(() => ({}))
+  return { ...dataset, storyChapters, wikiFacts }
 }
 
 /**
@@ -807,6 +814,8 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
       }))
     }
   if (!result.storyChapters) result = { ...result, fetchedAt: 0, storyChapters: [] }
+  // 1.36.0: what each quest's wiki page says.
+  if (!result.wikiFacts) result = { ...result, fetchedAt: 0, wikiFacts: {} }
   // 1.12.0: objectives' level and quest-status checks, and the maps story steps are on.
   if (result.quests.some((q) => q.objectives.some((o) => o.playerLevel === undefined)))
     result = {
@@ -864,10 +873,14 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
     if (!force && (fresh || recentCache)) return state
     try {
       const fresh = await fetchQuestData(deps.fetchFn, dataMode, now())
-      // When the wiki couldn't be reached, keep the story chapters from last time.
-      const dataset = fresh.storyChapters.length
-        ? fresh
-        : { ...fresh, storyChapters: state.dataset?.storyChapters ?? [] }
+      // When the wiki couldn't be reached, keep the story chapters and quest pages from last time.
+      const dataset = {
+        ...fresh,
+        storyChapters: fresh.storyChapters.length
+          ? fresh.storyChapters
+          : (state.dataset?.storyChapters ?? []),
+        wikiFacts: Object.keys(fresh.wikiFacts).length ? fresh.wikiFacts : (state.dataset?.wikiFacts ?? {})
+      }
       await writeJsonFileAtomic(cacheFile(dataMode), dataset)
       state = { dataset, fromCache: false, error: null, loading: false }
     } catch (err) {

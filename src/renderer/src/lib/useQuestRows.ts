@@ -13,6 +13,7 @@ import type { GameMap, Quest, QuestDataState } from '../../../shared/questTypes'
 import type { PublicSettings } from '../../../shared/types'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { storyQuests } from '../../../shared/storyQuests'
+import { applyWikiCorrections } from '../../../shared/wikiCorrections'
 import { wikiQuestId, wikiQuests } from '../../../shared/wikiQuests'
 import { useStore } from '../store'
 import { mapPlaces, raidMapLookup } from './storyMaps'
@@ -84,8 +85,30 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
     [dataset]
   )
   const places = useMemo(() => mapPlaces(dataset?.maps ?? []), [dataset])
-  const quests = useMemo(() => {
+  // tarkov.dev's quests, corrected from their wiki pages unless that's switched off.
+  const correct = settings.quests.wikiCorrections
+  const gameMode = settings.gameMode
+  const corrected = useMemo(() => {
     const listed = dataset?.quests ?? []
+    if (!correct || !dataset?.wikiFacts) return listed
+    const questIds = new Map(
+      listed.flatMap((q) => {
+        const name = q.name.toLowerCase()
+        // tarkov.dev marks some with the zone ("… [PVP ZONE]"); the wiki doesn't.
+        const bare = name.replace(/\s*\[(pvp|pve) zone\]$/, '')
+        return [[name, q.id] as const, [bare, q.id] as const]
+      })
+    )
+    return applyWikiCorrections(listed, dataset.wikiFacts, {
+      gameMode,
+      questIds,
+      mapNames: new Map(dataset.maps.map((m) => [m.id, m.name])),
+      itemIds,
+      traderIds
+    })
+  }, [dataset, correct, gameMode, itemIds, traderIds])
+  const quests = useMemo(() => {
+    const listed = corrected
     // Event quests added from the wiki, unless tarkov.dev lists them by now.
     const names = new Set(listed.map((q) => q.name.toLowerCase()))
     const pages = (wikiState?.quests ?? []).filter((w) => !names.has(w.name.toLowerCase()))
@@ -98,7 +121,7 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
       ...storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins }),
       ...wikiQuests(pages, { itemIds, traderIds, questIds })
     ]
-  }, [dataset, itemIds, traderIds, places, pins, wikiState])
+  }, [dataset, corrected, itemIds, traderIds, places, pins, wikiState])
   const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
   const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
   const rows = useMemo<QuestRow[]>(

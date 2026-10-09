@@ -1,0 +1,53 @@
+{{Infobox quest
+|icon         =
+|image        =Create a Distraction - Part 2 Banner.png
+|location     =[[Streets of Tarkov]]
+|given by     =[[Ref]]
+|reward       =
+|reputation   =
+|time limit   =
+|quest number =
+|previous     =[[Create a Distraction - Part 1]]
+|leads to     =
+|related      =
+|related2     =
+|reqkappa     =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Kaban and Kollontay shit themselves alright, but that wasn't good enough for me. I'd like to finish them off. You don't have to help me with that, of course, but... I already have a plan. You need to go down to their places and shoot their bodyguards or whatever they're called. Everyone in there is a trusted person for those two, so they're the perfect targets. BUT! Make sure Kaban and Kollontay themselves are unharmed!}}
+
+==Objectives==
+* Eliminate 2 of [[Kaban]]'s or [[Kollontay]]'s guards on [[Streets of Tarkov]]
+* Do not harm [[Kaban]] or [[Kollontay]]
+
+==Rewards==
+* +10,000 [[EXP]]
+* [[Ref]] Rep <font color="green">'''+0.07'''</font>
+* 1× [[Degtyarev RPDN 7.62x39 machine gun]]
+* 1× [[RPD 7.62x39 Buben 100-round box]]
+* 10× [[7.62x39mm FMJ ammo pack (20 pcs)]]
+* 1× [[Lega Medal]]
+{{quote|Good work! Kaban and Kollontay are already kicking up a storm. I think soon enough they'll come to me trying to leave this business. Here's your well deserved reward.}}
+
+==Failure Dialogue==
+{{quote|Can't you see who you're shooting at?! I had such high hopes for you.}}
+
+==Guide==
+In this quest you have to kill 2 guards from [[Kaban]] or [[Kollontay]] without harming either of the main bosses. Harming them while the quest is active will cause it to fail.
+
+Be aware that the premises of the LexOs car dealership where Kaban is located are riddled with [[Claymores]].
+<li style="display: inline-block;"><gallery widths="300" heights="169" mode="packed">
+File:KabanSpawnsStreets.png|Kaban's spawn location marked on map
+File:LexOsClaymoreOverview.png|LexOs complex overview
+File:KollontaySpawnsStreets.png|Kollontay's spawn locations marked on map
+</gallery></li>
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[fr:Créer une diversion - Partie 2]]
+[[cs:Odvedení pozornosti - Část 2]]
+[[ru:Отвлекающий маневр. Часть 2]]

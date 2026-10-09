@@ -4782,3 +4782,18 @@ tr:hover .favourite-star {
 .squad-toggle input {
   margin-top: 0;
 }
+
+/* What the wiki corrected in a quest (quest panel). */
+.wiki-corrections ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+
+.wiki-corrections .wiki-note-line {
+  color: var(--warn);
+}
+
+.tag.wiki {
+  color: var(--info);
+}

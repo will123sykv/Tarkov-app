@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import type { WikiQuest, WikiQuestEntry } from '../../shared/questTypes'
+import type { WikiQuest, WikiQuestEntry, WikiQuestFacts } from '../../shared/questTypes'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, type FetchFn } from '../pricing/http'
 import { plainText, WIKI_PAGE, wikiApi } from './questGuide'
@@ -128,6 +128,87 @@ export function parseWikiQuest(
     objectives,
     rewards: parseRewards(wikitext)
   }
+}
+
+/**
+ * What a tarkov.dev quest's wiki page says that can correct tarkov.dev's data: its level, whether
+ * Kappa needs it, the quests before it, where it is and its steps. Null when the page isn't a quest's.
+ */
+export function wikiFacts(
+  title: string,
+  page: string,
+  categories: readonly string[],
+  maps: readonly StoryMap[] = []
+): WikiQuestFacts | null {
+  const quest = parseWikiQuest(title, page, categories, maps)
+  if (!quest) return null
+  const wikitext = page.replace(/\r\n?/g, '\n')
+  const fields = infoboxFields(wikitext) ?? {}
+  const level = /must be level\s*(\d+)/i.exec(section(wikitext, 'Requirements'))
+  const kappa = plainText(fields.reqkappa ?? '').trim()
+  const previous = fields.previous ?? ''
+  return {
+    title,
+    level: level ? Number(level[1]) : null,
+    kappa: /^yes\b/i.test(kappa) ? true : /^no\b/i.test(kappa) ? false : null,
+    previous: quest.previous,
+    // "A<br/>or<br/>B", or "Accept [[A]]": the quests before it needn't all be completed.
+    previousLoose: /(^|[\s>\]])or([\s<[]|$)/i.test(previous) || /\baccept\b/i.test(previous),
+    maps: quest.maps,
+    byFaction: /\b(BEAR|USEC)\s*:/.test(fields.location ?? ''),
+    pveNote: /\bPvE\b/.test(section(wikitext, 'Objectives')),
+    objectives: quest.objectives
+  }
+}
+
+/** Most titles one request reads (the wiki's limit for page content). */
+const FACTS_BATCH = 50
+
+/**
+ * The wiki's facts for tarkov.dev's quests (`titles`: each quest id's page title), 50 pages a request.
+ * Pages that are missing or aren't a quest's are left out.
+ */
+export async function fetchWikiFacts(
+  fetchFn: FetchFn,
+  titles: ReadonlyMap<string, string>,
+  maps: readonly StoryMap[]
+): Promise<Record<string, WikiQuestFacts>> {
+  const byTitle = new Map<string, string[]>()
+  for (const [questId, title] of titles) byTitle.set(title, [...(byTitle.get(title) ?? []), questId])
+  const all = [...byTitle.keys()]
+  const result: Record<string, WikiQuestFacts> = {}
+  for (let i = 0; i < all.length; i += FACTS_BATCH) {
+    const asked = all.slice(i, i + FACTS_BATCH)
+    const body = await wikiApi(fetchFn, {
+      action: 'query',
+      prop: 'revisions|categories',
+      rvprop: 'content',
+      rvslots: 'main',
+      cllimit: 'max',
+      redirects: '1',
+      titles: asked.join('|')
+    })
+    const query = (body.query ?? {}) as Raw
+    // The title each page was asked by: through the wiki's normalising and redirects.
+    const askedAs = new Map(asked.map((t) => [t, t]))
+    for (const key of ['normalized', 'redirects'])
+      for (const r of Array.isArray(query[key]) ? (query[key] as Raw[]) : [])
+        if (typeof r.from === 'string' && typeof r.to === 'string')
+          askedAs.set(r.to, askedAs.get(r.from) ?? r.from)
+    for (const page of Array.isArray(query.pages) ? (query.pages as Raw[]) : []) {
+      if (typeof page.title !== 'string' || page.missing) continue
+      const revision = (Array.isArray(page.revisions) ? (page.revisions as Raw[]) : [])[0]
+      const content = ((revision?.slots as Raw | undefined)?.main as Raw | undefined)?.content
+      if (typeof content !== 'string') continue
+      const cats = (Array.isArray(page.categories) ? (page.categories as Raw[]) : [])
+        .map((c) => c.title)
+        .filter((c): c is string => typeof c === 'string')
+      const facts = wikiFacts(page.title, content, cats, maps)
+      const title = askedAs.get(page.title) ?? page.title
+      if (facts) for (const questId of byTitle.get(title) ?? []) result[questId] = facts
+    }
+  }
+  return result
 }
 
 /**

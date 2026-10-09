@@ -1,0 +1,55 @@
+{{Infobox quest
+|icon         =
+|image        =Wounded Beast.png
+|location     =[[Factory|Daytime Factory]], [[Streets of Tarkov]], [[Lighthouse]], [[Woods]], [[Shoreline]], [[Interchange]], [[Customs]], [[Reserve]], [[Ground Zero]]
+|given by     =[[Jaeger]]
+|reward       =
+|reputation   =
+|time limit   =
+|quest number =
+|previous     =[[The Huntsman Path - Administrator]]<br/>[[Broadcast - Part 4]]
+|leads to     =
+|related      =
+|related2     =
+|reqkappa     =<font color="green">No</font>
+}}
+
+'''{{PAGENAME}}''' is a [[Quests|Quest]] in ''[[Escape from Tarkov]]''.
+
+==Dialogue==
+{{quote|Well, hello there, mercenary. Come to see the old man? Sit down, would you like some tea? No? All right, then. Listen, a gang of looters showed up in the area again. We've got to get them away from this place for good, so that even those who come after them would have a heart attack. So I'm thinking, why don't you take an axe and chop them the fuck up, eh? Can you do that? I don't think any bastard's gonna dare get into that bloodbath afterwards.}}
+
+==Requirements== 
+* Must be level 40 to start this quest.
+
+==Objectives==
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on daytime [[Factory]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Streets of Tarkov]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Lighthouse]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Woods]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Shoreline]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Interchange]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Customs]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Reserve]]
+* Eliminate 10 [[Scavs]] while using [[Weapons#Melee_weapons|melee weapons]] on [[Ground Zero]]
+
+==Rewards == 
+* +34,700 [[EXP]]
+* [[Jaeger]] Rep <font color="green">'''+0.03'''</font>
+* 100,000 Roubles
+** 105,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 1
+** 115,000 Roubles with [[Hideout#Modules|Intelligence Center]] Level 2
+* Unlocks barter for [[SOG Voodoo Hawk tactical tomahawk]] at [[Jaeger]] LL4
+{{quote|Why the hell did you not clean yourself up before showing up in here? Here, take your reward and off you go. Jesus Christ, what's with the kids these days. Take your showers!}}
+
+==Guide==
+To ease the killing process it is recommended to use [[Weapons#Stun_grenades|stun grenades]].
+
+'''Bug:''' The [[Miller Bros. Blades M-2 Tactical Sword (Brown)]] and the [[NKVD Finka knife]] do not currently work for this quest.
+
+{{Navbox quests}}
+[[Category:Quests]]
+
+[[cs:Jatka]]
+[[ru:Потрошитель]]
+[[fr:Abattoir]]

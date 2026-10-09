@@ -71,6 +71,13 @@ const QuestListRow = memo(function QuestListRow({
               {quest.wiki.event ? 'Event' : 'Wiki'}
             </abbr>
           )}
+          {quest.corrections && (
+            <abbr
+              title={`Corrected from the wiki: ${[...quest.corrections.changes, ...quest.corrections.notes].join('; ')}`}
+            >
+              W
+            </abbr>
+          )}
           {quest.kappaRequired && <abbr title="Needed for Kappa">K</abbr>}
           {quest.lightkeeperRequired && <abbr title="Needed for Lightkeeper">LK</abbr>}
         </span>
@@ -167,6 +174,21 @@ function Sidebar({
           />
           Needed for Lightkeeper
         </label>
+      </SidebarSection>
+      <SidebarSection title="From the wiki">
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={q.wikiCorrections}
+            onChange={(e) => set({ wikiCorrections: e.target.checked })}
+          />
+          Correct quests from the wiki
+        </label>
+        <p className="hint">
+          Where a quest&rsquo;s wiki page differs from tarkov.dev&rsquo;s data (its level, Kappa, the quests
+          before it, objective counts, steps left out), the wiki&rsquo;s is used, and the quest&rsquo;s panel
+          says what changed.
+        </p>
       </SidebarSection>
       <SidebarSection title="Event quests">
         <p className="hint">

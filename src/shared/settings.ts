@@ -64,7 +64,8 @@ export const DEFAULT_SETTINGS: Settings = {
     kappaOnly: false,
     lightkeeperOnly: false,
     faction: null,
-    wikiQuests: []
+    wikiQuests: [],
+    wikiCorrections: true
   },
   maps: {
     mapKey: 'customs',
@@ -122,7 +123,8 @@ function sanitizeQuests(raw: unknown): QuestSettings {
               .filter((t) => t && t.length <= MAX_WIKI_TITLE)
           )
         ].slice(0, MAX_WIKI_QUESTS)
-      : []
+      : [],
+    wikiCorrections: r.wikiCorrections !== false
   }
 }
 
