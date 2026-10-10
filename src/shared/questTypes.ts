@@ -417,6 +417,8 @@ export interface GuideImage {
   /** The wiki's file name. */
   file: string
   caption: string
+  /** The guide's heading it's under ("Customs"…), or empty. Since 1.38.0. */
+  heading: string
   /** At most 800 px wide. */
   thumb: string
   full: string

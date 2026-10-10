@@ -143,10 +143,16 @@ function fileLinks(text: string): { start: number; end: number; inner: string }[
 /** A guide's text and the pictures in it (gallery entries and framed or large inline pictures). */
 export function parseGuide(wikitext: string): {
   blocks: GuideBlock[]
-  images: { file: string; caption: string }[]
+  images: { file: string; caption: string; heading: string }[]
 } {
   // Tables list the quest's items (shown from tarkov.dev's data instead), with their icons.
   let section = stripNested(guideSection(wikitext), '{|', '|}')
+  // The heading each picture is under ("Customs", "Part 2"…), for which map it's of.
+  const headings = [...section.matchAll(/^=+\s*(.*?)\s*=+\s*$/gm)].map((h) => ({
+    at: h.index,
+    text: plainText(h[1])
+  }))
+  const headingAt = (at: number): string => headings.filter((h) => h.at < at).pop()?.text ?? ''
   const found: { at: number; file: string; caption: string }[] = []
   const cut: { start: number; end: number }[] = []
   for (const gallery of section.matchAll(/<gallery[^>]*>([\s\S]*?)<\/gallery>/gi)) {
@@ -172,10 +178,11 @@ export function parseGuide(wikitext: string): {
   }
   for (const { start, end } of cut.sort((a, b) => b.start - a.start))
     section = `${section.slice(0, start)}\n${section.slice(end)}`
-  const images: { file: string; caption: string }[] = []
-  for (const { file, caption } of found.sort((a, b) => a.at - b.at)) {
+  const images: { file: string; caption: string; heading: string }[] = []
+  for (const { at, file, caption } of found.sort((a, b) => a.at - b.at)) {
     const key = fileKey(file)
-    if (key && !images.some((i) => i.file === key)) images.push({ file: key, caption: plainText(caption) })
+    if (key && !images.some((i) => i.file === key))
+      images.push({ file: key, caption: plainText(caption), heading: headingAt(at) })
   }
 
   section = section
@@ -225,8 +232,8 @@ export async function wikiApi(fetchFn: FetchFn, params: Record<string, string>):
 export async function imageInfo(
   fetchFn: FetchFn,
   files: string[]
-): Promise<Map<string, Omit<GuideImage, 'caption'>>> {
-  const result = new Map<string, Omit<GuideImage, 'caption'>>()
+): Promise<Map<string, Omit<GuideImage, 'caption' | 'heading'>>> {
+  const result = new Map<string, Omit<GuideImage, 'caption' | 'heading'>>()
   for (let i = 0; i < files.length; i += 50) {
     const body = await wikiApi(fetchFn, {
       action: 'query',
@@ -273,7 +280,7 @@ export async function fetchQuestGuide(fetchFn: FetchFn, title: string, now: numb
     blocks,
     images: images.flatMap((i) => {
       const found = info.get(i.file)
-      return found ? [{ ...found, caption: i.caption }] : []
+      return found ? [{ ...found, caption: i.caption, heading: i.heading }] : []
     }),
     fetchedAt: now
   }
@@ -295,7 +302,9 @@ export function createQuestGuideService(deps: { fetchFn: FetchFn; cacheDir: stri
       const raw = (await readJsonFile(cacheFile(title))) as QuestGuide | undefined
       if (raw?.blocks && raw.images) cached = raw
     }
-    if (cached && now() - cached.fetchedAt < MAX_AGE_MS) {
+    // Saved before 1.38.0, without the heading each picture is under: refetched (kept when offline).
+    const current = cached?.images.every((i) => typeof i.heading === 'string')
+    if (cached && current && now() - cached.fetchedAt < MAX_AGE_MS) {
       memory.set(title, cached)
       return { guide: cached, error: null }
     }

@@ -1,3 +1,5 @@
+import { readdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { FetchFn } from '../src/main/pricing/http'
 import {
@@ -71,12 +73,14 @@ describe('quest guides', () => {
       { kind: 'p', text: 'Use the key.' }
     ])
     expect(images).toEqual([
-      { file: 'Customs.PNG', caption: 'Dead Scav and cabin marked on map' },
+      { file: 'Customs.PNG', caption: 'Dead Scav and cabin marked on map', heading: '' },
       {
         file: 'The bush where the hidden body is.png',
-        caption: 'The dead Scav is located in a bush behind garages'
+        caption: 'The dead Scav is located in a bush behind garages',
+        heading: ''
       },
-      { file: 'Stash spot.jpg', caption: 'Under the bed' }
+      // Under its heading, for which map it's of.
+      { file: 'Stash spot.jpg', caption: 'Under the bed', heading: 'Where to stash' }
     ])
   })
 })
@@ -159,6 +163,27 @@ describe('createQuestGuideService', () => {
     const stale = await createQuestGuideService({ fetchFn: wiki(true), cacheDir, now: () => clock }).get(LINK)
     expect(stale.guide).toEqual(first.guide)
     expect(stale.error).toMatch(/^Couldn't load the guide from the wiki: HTTP 503/)
+  })
+
+  it('refetches a guide saved before pictures had headings, and keeps it when offline', async () => {
+    const cacheDir = await tempDir()
+    const fresh = await createQuestGuideService({ fetchFn: wiki(), cacheDir, now: () => 1_000 }).get(LINK)
+    // As 1.37 saved it: no headings.
+    const [file] = await readdir(join(cacheDir, 'quest-guides'))
+    const old = {
+      ...fresh.guide!,
+      images: fresh.guide!.images.map(({ heading: _, ...i }) => i)
+    }
+    await writeFile(join(cacheDir, 'quest-guides', file), JSON.stringify(old))
+    const offline = await createQuestGuideService({ fetchFn: wiki(true), cacheDir, now: () => 2_000 }).get(
+      LINK
+    )
+    expect(offline.guide).toEqual(old)
+    expect(offline.error).toMatch(/HTTP 503/)
+    const fetchFn = wiki()
+    const online = await createQuestGuideService({ fetchFn, cacheDir, now: () => 2_000 }).get(LINK)
+    expect(fetchFn).toHaveBeenCalled()
+    expect(online.guide!.images.every((i) => typeof i.heading === 'string')).toBe(true)
   })
 
   it('says when there is no page', async () => {
