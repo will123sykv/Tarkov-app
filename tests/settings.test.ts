@@ -173,7 +173,8 @@ describe('sanitizeSettings', () => {
       },
       maps: {
         mapKey: 'streets-of-tarkov',
-        questScope: 'available',
+        // Active + available went in 1.40.0.
+        questScope: 'active',
         showExtracts: true,
         showSpawns: true,
         showTransits: true,
@@ -351,7 +352,8 @@ describe('sanitizeSettings', () => {
       maps: { showKeys: true }
     })
     expect(chosen.keys).toEqual({
-      scope: 'available',
+      // Active + available went in 1.40.0.
+      scope: 'active',
       otherOpen: true,
       tab: 'scan',
       map: 'customs',
@@ -375,6 +377,23 @@ describe('sanitizeSettings', () => {
     expect(
       mergeSettings(DEFAULT_SETTINGS, { keys: { ...DEFAULT_SETTINGS.keys, scope: 'active' } }).keys.scope
     ).toBe('active')
+  })
+
+  it('turns Active + available into Active, and keeps the global settings moved to Settings (1.40.0)', () => {
+    const old = sanitizeSettings({
+      maps: { questScope: 'available' },
+      keys: { scope: 'available' },
+      todo: { show: 'doable', squadKeys: false, view: 'full' },
+      trends: { intervalHours: 3, days: 30 },
+      quests: { wikiCorrections: false, wikiOnlyQuests: false }
+    })
+    expect(old.maps.questScope).toBe('active')
+    expect(old.keys.scope).toBe('active')
+    expect(old.todo).toMatchObject({ show: 'doable', squadKeys: false, view: 'full' })
+    expect(old.trends).toMatchObject({ intervalHours: 3, days: 30 })
+    expect(old.quests).toMatchObject({ wikiCorrections: false, wikiOnlyQuests: false })
+    expect(sanitizeSettings({ maps: { questScope: 'none' } }).maps.questScope).toBe('none')
+    expect(sanitizeSettings({ keys: { scope: 'all' } }).keys.scope).toBe('all')
   })
 
   it('keeps friends’ keys: named, valid ids once each, each name once, at most 12 (since 1.34.0)', () => {

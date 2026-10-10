@@ -39,6 +39,7 @@ import FavouriteStar from './FavouriteStar'
 import { craftText, GetCell } from './GetCell'
 import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
+import SettingsLink from './SettingsLink'
 import Sidebar, { SidebarSection } from './Sidebar'
 
 type Items = ReadonlyMap<string, LootItem>
@@ -580,7 +581,6 @@ export default function HideoutView({
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
   const cc = useCraftContext(settings, priceState)
-  const setTraderLevel = useStore((s) => s.setTraderLevel)
   const [search, setSearch] = useState('')
   const h = settings.hideout
   const set = (patch: Partial<HideoutSettings>): void => void updateSettings({ hideout: { ...h, ...patch } })
@@ -723,36 +723,12 @@ export default function HideoutView({
               ? `, the flea market opens at level ${ctx.fleaMinLevel}.`
               : ', the flea market is open.'}{' '}
             {sellers.length
-              ? 'Set your loyalty with the traders who sell what the hideout needs.'
-              : 'No trader sells what the hideout still needs.'}
+              ? `The traders who sell what the hideout needs: ${sellers
+                  .map((t) => `${t.name} LL${ctx.traderLevels[t.id] ?? 1}`)
+                  .join(', ')}.`
+              : 'No trader sells what the hideout still needs.'}{' '}
+            <SettingsLink section="loyalty">Set your loyalty in Settings</SettingsLink>
           </p>
-          {sellers.length > 0 && (
-            <ul className="station-levels">
-              {sellers.map((t) => (
-                <li key={t.id}>
-                  {t.imageLink ? (
-                    <img className="station-icon" src={t.imageLink} alt="" loading="lazy" />
-                  ) : (
-                    <span className="station-icon" aria-hidden>
-                      {t.name.slice(0, 2)}
-                    </span>
-                  )}
-                  <span className="station-name">{t.name}</span>
-                  <select
-                    value={ctx.traderLevels[t.id] ?? 1}
-                    aria-label={`${t.name} loyalty level`}
-                    onChange={(e) => void setTraderLevel(t.id, Number(e.target.value))}
-                  >
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n} value={n}>
-                        LL{n}
-                      </option>
-                    ))}
-                  </select>
-                </li>
-              ))}
-            </ul>
-          )}
         </SidebarSection>
         <SidebarSection title="Count items for">
           <span className="toggle-label">Hideout levels</span>

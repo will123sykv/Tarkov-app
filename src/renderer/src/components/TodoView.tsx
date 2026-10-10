@@ -34,7 +34,8 @@ import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
-import { FriendTags, SquadToggle } from './FriendKeys'
+import { FriendTags } from './FriendKeys'
+import SettingsLink from './SettingsLink'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -1103,8 +1104,8 @@ export default function TodoView({
           )}
           <p className="hint">
             Objectives behind a lock none of your keys open (tick yours in the Keys tab), or on a map you
-            can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> leaves out the whole quest
-            a missing key holds up, and the maps you can&rsquo;t get onto.
+            can&rsquo;t get onto, are marked; <strong>Only quests I can do</strong> (in Settings) leaves out
+            the whole quest a missing key holds up, and the maps you can&rsquo;t get onto.
           </p>
         </SidebarSection>
         <SidebarSection title="On any map">
@@ -1179,6 +1180,12 @@ export default function TodoView({
                 (beforeCount ? ` · ${beforeCount} to do before you raid` : '')
               )}
             </span>
+            <span className="muted small settings-note">
+              {t.show === 'doable' ? 'Only quests I can do' : 'Showing all quests'}
+              {t.squadKeys && friendKeys.friends.length > 0 ? ' · counting friends’ keys' : ''}
+              {' · '}
+              <SettingsLink section="quests" />
+            </span>
           </div>
           <div className="summary-stats todo-filters">
             {segmented(
@@ -1195,24 +1202,6 @@ export default function TodoView({
               }
             )}
             {segmented(
-              'Which quests',
-              t.show,
-              [
-                ['all', 'Show all', 'Every objective, with the ones behind keys you don’t have marked'],
-                [
-                  'doable',
-                  'Only quests I can do',
-                  'Leave out quests that need a key you don’t have, and maps you can’t get onto'
-                ]
-              ] as const,
-              (show) => setTodo({ show })
-            )}
-            <SquadToggle
-              friendKeys={friendKeys}
-              on={t.squadKeys}
-              onChange={(squadKeys) => setTodo({ squadKeys })}
-            />
-            {segmented(
               'Which objectives',
               t.kinds,
               [
@@ -1222,17 +1211,6 @@ export default function TodoView({
               ] as const,
               (kinds) => setTodo({ kinds })
             )}
-            {/* The overview's tiles don't list quests: this is for a map opened from it, or the list. */}
-            {(t.layout === 'list' || openedName) &&
-              segmented(
-                'How to show quests',
-                t.view,
-                [
-                  ['summary', 'Summary', 'Each quest in a few lines'],
-                  ['full', 'Full', 'Every objective, to tick off as you go']
-                ] as const,
-                (view) => setTodo({ view })
-              )}
           </div>
         </div>
         {openedName && todoMap ? (
@@ -1245,7 +1223,7 @@ export default function TodoView({
                 <p>Nothing left to do on {openedName} that the filters show.</p>
                 <p className="hint">
                   {plan.hidden
-                    ? 'Show all lists objectives behind keys you don’t have too.'
+                    ? 'Show all (in Settings) lists objectives behind keys you don’t have too.'
                     : 'Other filters, or quests you pick up, may have some.'}
                 </p>
               </div>
@@ -1264,7 +1242,7 @@ export default function TodoView({
             </p>
             {plan.hidden ? (
               <p className="hint">
-                The keys are listed under Keys to buy; Show all lists those objectives too.
+                The keys are listed under Keys to buy; Show all (in Settings) lists those objectives too.
               </p>
             ) : (
               plan.maps.length > 0 && (

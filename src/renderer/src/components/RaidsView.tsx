@@ -5,7 +5,7 @@ import { formatRub } from '../lib/format'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
-import LogStatusPanel from './LogStatusPanel'
+import { LogStatusLine } from './LogStatusPanel'
 import Sidebar, { SidebarSection } from './Sidebar'
 
 const MAX_ROWS = 200
@@ -75,7 +75,7 @@ export default function RaidsView({
   return (
     <div className="raids">
       <Sidebar view="raids">
-        <LogStatusPanel />
+        <LogStatusLine />
         <SidebarSection title="Raids">
           <dl className="stat-list">
             <dt>Raids read</dt>

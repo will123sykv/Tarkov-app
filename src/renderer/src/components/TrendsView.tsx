@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { TrendFilterKey, TrendSortKey } from '../../../shared/fleaTrends'
 import { dataModeFor } from '../../../shared/gameModes'
-import { TREND_INTERVALS } from '../../../shared/settings'
 import type {
   HistorySourceStatus,
   PriceState,
@@ -18,6 +17,7 @@ import BackgroundToggles from './BackgroundToggles'
 import NumberField from './NumberField'
 import TrendDetail from './TrendDetail'
 import TrendTableRow from './TrendTableRow'
+import SettingsLink from './SettingsLink'
 import TabSidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
@@ -243,46 +243,14 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
     <TabSidebar view="trends">
       <SidebarSection title="Price history">
         <PriceHistory analysis={analysis} loading={trendsLoading} />
+        <p className="hint">
+          {t.intervalHours}-hour parts of the day, over the last {t.days} days.{' '}
+          <SettingsLink section="trends" />
+        </p>
         <BackgroundToggles settings={settings} />
         <button className="button small" onClick={() => void loadTrends()} disabled={trendsLoading}>
           {trendsLoading ? 'Analysing…' : 'Re-analyse now'}
         </button>
-      </SidebarSection>
-
-      <SidebarSection title="Split the day into">
-        <div className="mini-toggle wide" role="radiogroup" aria-label="Interval length">
-          {TREND_INTERVALS.map((hours) => (
-            <button
-              key={hours}
-              role="radio"
-              aria-checked={t.intervalHours === hours}
-              className={t.intervalHours === hours ? 'active' : ''}
-              onClick={() => set({ intervalHours: hours })}
-            >
-              {hours} h
-            </button>
-          ))}
-        </div>
-        <p className="hint">
-          {24 / t.intervalHours} parts of {t.intervalHours} hours. Shorter parts are more precise; longer ones
-          are steadier. tarkov.dev checks prices about every 2 hours.
-        </p>
-      </SidebarSection>
-
-      <SidebarSection title="Look back">
-        <div className="mini-toggle wide" role="radiogroup" aria-label="Look back">
-          {([7, 14, 30] as const).map((days) => (
-            <button
-              key={days}
-              role="radio"
-              aria-checked={t.days === days}
-              className={t.days === days ? 'active' : ''}
-              onClick={() => set({ days })}
-            >
-              {days} days
-            </button>
-          ))}
-        </div>
       </SidebarSection>
 
       <SidebarSection title="Filters">

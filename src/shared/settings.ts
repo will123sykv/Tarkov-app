@@ -142,7 +142,8 @@ function sanitizeMaps(raw: unknown): MapSettings {
   const r = isRecord(raw) ? raw : {}
   return {
     mapKey: typeof r.mapKey === 'string' && /^[a-z0-9-]{1,40}$/.test(r.mapKey) ? r.mapKey : d.mapKey,
-    questScope: r.questScope === 'available' || r.questScope === 'none' ? r.questScope : 'active',
+    // 'available' (Active + available) went in 1.40.0: it's Active now.
+    questScope: r.questScope === 'none' ? 'none' : 'active',
     showExtracts: typeof r.showExtracts === 'boolean' ? r.showExtracts : d.showExtracts,
     showSpawns: typeof r.showSpawns === 'boolean' ? r.showSpawns : d.showSpawns,
     showTransits: typeof r.showTransits === 'boolean' ? r.showTransits : d.showTransits,
@@ -312,7 +313,8 @@ function sanitizeTodo(raw: unknown): TodoSettings {
 function sanitizeKeys(raw: unknown): KeysSettings {
   const r = isRecord(raw) ? raw : {}
   return {
-    scope: r.scope === 'active' || r.scope === 'available' ? r.scope : 'all',
+    // 'available' (Active + available) went in 1.40.0: it's Active now.
+    scope: r.scope === 'active' || r.scope === 'available' ? 'active' : 'all',
     // Before 1.32.0 "Every key" (`list: 'all'`) showed the other keys; they're now a folded section.
     otherOpen: typeof r.otherOpen === 'boolean' ? r.otherOpen : r.list === 'all',
     tab: r.tab === 'scan' ? 'scan' : 'list',

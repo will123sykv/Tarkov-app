@@ -2,6 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { UpdaterStatus } from '../../../shared/types'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
+import {
+  LoyaltySettingsSection,
+  QuestSettingsSection,
+  TrendSettingsSection,
+  WikiSettingsSection
+} from './GlobalSettings'
 import LogStatusPanel from './LogStatusPanel'
 
 const REFRESH_OPTIONS = [1, 2, 5, 10, 15, 30, 60]
@@ -29,7 +35,10 @@ function describeUpdater(status: UpdaterStatus): string {
 
 export default function SettingsDialog(): React.JSX.Element | null {
   const open = useStore((s) => s.settingsOpen)
+  const section = useStore((s) => s.settingsSection)
   const setOpen = useStore((s) => s.setSettingsOpen)
+  const loadQuestData = useStore((s) => s.loadQuestData)
+  const loadPlayerData = useStore((s) => s.loadPlayerData)
   const settings = useStore((s) => s.settings)
   const updateSettings = useStore((s) => s.updateSettings)
   const updater = useStore((s) => s.updater)
@@ -43,6 +52,16 @@ export default function SettingsDialog(): React.JSX.Element | null {
     if (open && !dialog.open) dialog.showModal()
     if (!open && dialog.open) dialog.close()
   }, [open])
+  // The traders (for loyalty) come with the quest data, and the levels set with the player's.
+  useEffect(() => {
+    if (!open) return
+    void loadQuestData()
+    void loadPlayerData()
+  }, [open, loadQuestData, loadPlayerData])
+  // Opened from a page's "Settings" link: straight to its section.
+  useEffect(() => {
+    if (open && section) document.getElementById(`settings-${section}`)?.scrollIntoView({ block: 'start' })
+  }, [open, section])
 
   if (!settings) return null
 
@@ -82,7 +101,12 @@ export default function SettingsDialog(): React.JSX.Element | null {
         </label>
       </section>
 
-      <div className="dialog-logs">
+      <QuestSettingsSection settings={settings} />
+      <WikiSettingsSection settings={settings} />
+      <LoyaltySettingsSection settings={settings} />
+      <TrendSettingsSection settings={settings} />
+
+      <div className="dialog-logs" id="settings-logs">
         <LogStatusPanel />
       </div>
 

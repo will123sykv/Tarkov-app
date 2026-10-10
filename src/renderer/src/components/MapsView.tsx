@@ -5,7 +5,7 @@ import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../sh
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
 import { killObjectives } from '../../../shared/todo'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
-import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
+import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
 import { BOSS_ICON, highlightColors, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from '../lib/mapMarkers'
 import { posterFor } from '../lib/posterMap'
@@ -26,26 +26,15 @@ import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
-import { SquadToggle } from './FriendKeys'
 import KillBanner from './KillBanner'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
+import SettingsLink from './SettingsLink'
 import Sidebar, { SidebarSection } from './Sidebar'
 
 const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'active', label: 'Active' },
-  { id: 'available', label: 'Active + available' },
   { id: 'none', label: 'None' }
-]
-
-// The To do tab's filter, shared with it.
-const WHICH: { id: TodoSettings['show']; label: string; title: string }[] = [
-  { id: 'all', label: 'Show all', title: 'Every objective, with keys you don’t have marked' },
-  {
-    id: 'doable',
-    label: 'Only quests I can do',
-    title: 'Leave out quests that need a key you don’t have, and maps you can’t get onto'
-  }
 ]
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -97,18 +86,10 @@ function BadgeLegend({ kind, children }: { kind: keyof typeof BADGE_ICON; childr
 }
 
 /** A legend row with a quest pin: a coloured name box over an icon tile. */
-function QuestPinLegend({
-  other,
-  icon,
-  children
-}: {
-  other?: boolean
-  icon: string
-  children: React.ReactNode
-}): React.JSX.Element {
+function QuestPinLegend({ icon, children }: { icon: string; children: React.ReactNode }): React.JSX.Element {
   return (
     <li>
-      <span className={`legend-pin map-pin quest ${other ? 'other' : ''}`} aria-hidden>
+      <span className={'legend-pin map-pin quest'} aria-hidden>
         <span className="map-pin-icons">
           <span className="map-pin-icon">
             <Icon path={icon} />
@@ -316,17 +297,14 @@ export default function MapsView({
   )
   const shut = accessKeys.length > 0 && !opens(accessKeys, owned)
   const doable = settings.todo.show === 'doable'
-  const setShow = (show: TodoSettings['show']): void =>
-    void updateSettings({ todo: { ...settings.todo, show } })
 
   const inScope = useMemo<ObjectiveMarker[]>(() => {
     if (m.questScope === 'none') return []
-    const wanted = new Set(m.questScope === 'available' ? ['active', 'available'] : ['active'])
     const traders = new Map((dataset?.traders ?? []).map((t) => [t.id, t]))
     const result: ObjectiveMarker[] = []
     for (const { quest, status } of rows) {
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
-      if (!wanted.has(status) && !focused) continue
+      if (status !== 'active' && !focused) continue
       const trader = quest.story ? STORY_TRADER : traders.get(quest.traderId)
       // A story chapter's later steps wait for the ones before them.
       const reachable = reachableSteps(quest, done)
@@ -367,12 +345,11 @@ export default function MapsView({
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
   const storySteps = useMemo<StepHere[]>(() => {
-    const wanted = new Set(m.questScope === 'available' ? ['active', 'available'] : ['active'])
     const result: StepHere[] = []
     for (const { quest, status } of rows) {
       if (!quest.story) continue
       const chosen = placing?.questId === quest.id || selectedQuest === quest.id
-      if (!chosen && (m.questScope === 'none' || !wanted.has(status))) continue
+      if (!chosen && (m.questScope === 'none' || status !== 'active')) continue
       const reachable = reachableSteps(quest, done)
       for (const objective of quest.objectives) {
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
@@ -410,7 +387,7 @@ export default function MapsView({
   const neededKeys = useMemo(
     () =>
       m.showKeys
-        ? new Set(keysNeeded(rows, done, new Set(['active', 'available'])).flatMap((n) => n.keyIds))
+        ? new Set(keysNeeded(rows, done, new Set(['active'])).flatMap((n) => n.keyIds))
         : new Set<string>(),
     [m.showKeys, rows, done]
   )
@@ -575,39 +552,16 @@ export default function MapsView({
             ))}
           </div>
           {m.questScope !== 'none' && (
-            <>
-              <div className="mini-toggle wide" role="radiogroup" aria-label="Which quests">
-                {WHICH.map((w) => (
-                  <button
-                    key={w.id}
-                    role="radio"
-                    aria-checked={settings.todo.show === w.id}
-                    className={settings.todo.show === w.id ? 'active' : ''}
-                    title={w.title}
-                    onClick={() => setShow(w.id)}
-                  >
-                    {w.label}
-                  </button>
-                ))}
-              </div>
-              <SquadToggle
-                friendKeys={friendKeys}
-                on={settings.todo.squadKeys}
-                onChange={(squadKeys) => void updateSettings({ todo: { ...settings.todo, squadKeys } })}
-              />
-              <p className="hint">
-                {hiddenNote && <>{hiddenNote} </>}
-                The To do tab shares this filter.
-              </p>
-            </>
+            <p className="hint">
+              {hiddenNote ?? 'Showing all quests, with keys you don’t have marked.'}
+              {settings.todo.squadKeys && friendKeys.friends.length > 0
+                ? ' Counting friends’ keys.'
+                : ''}{' '}
+              <SettingsLink section="quests" />
+            </p>
           )}
           <ul className="legend">
             <QuestPinLegend icon={OBJECTIVE_ICONS.visit}>Active quest</QuestPinLegend>
-            {m.questScope === 'available' && (
-              <QuestPinLegend other icon={OBJECTIVE_ICONS.visit}>
-                Available (not started)
-              </QuestPinLegend>
-            )}
           </ul>
           <ul className="legend legend-kinds">
             <KindLegend icon={ROUGH_ICON}>Story step, roughly here</KindLegend>
@@ -730,8 +684,8 @@ export default function MapsView({
                 ? 'Quest objectives are hidden.'
                 : shown.hidden
                   ? shut
-                    ? `Getting onto this map takes a ${accessName}: Show all lists its objectives.`
-                    : 'What your quests have here is behind keys you don’t have: Show all lists it.'
+                    ? `Getting onto this map takes a ${accessName}: Show all (in Settings) lists its objectives.`
+                    : 'What your quests have here is behind keys you don’t have: Show all (in Settings) lists it.'
                   : 'None of your active quests have marked spots here.'}
             </p>
           ) : (

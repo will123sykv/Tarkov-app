@@ -46,6 +46,12 @@ next time you close the app.
   line at the bottom of the sidebar lists what's hidden, to bring a section back (or **Show all**).
   **«** folds a tab's whole sidebar away so the page gets the full width, and **»** brings it back.
   Each tab remembers its own.
+- **One place for settings that span tabs.** **Settings** (⚙ at the top right) holds what applies
+  across the app: **Show all** or **Only quests I can do** (To do, Maps and Quests), **Count friends'
+  keys**, **Summary** or **Full** quests on the To do tab, the wiki's quest corrections and extra
+  quests, your **Trader loyalty** with each trader (per game mode), how flea trends are read (**Split
+  the day into**, **Look back**) and the **Game logs** folder. A tab these change says so, with a
+  **Settings** link that opens Settings at that part.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
   also sort by worth, flea price, trader price, size or name.
 - **Live prices.** Flea and trader prices from [tarkov.dev](https://tarkov.dev), refreshed every
@@ -95,7 +101,7 @@ time and sell at the other.
   skipping a refresh when tarkov.dev hasn't checked any of their prices again. The sidebar shows
   which hours it has recorded.
 
-**Split the day into** 2-, 3-, 4- or 6-hour parts (3 by default). Shorter parts are more precise;
+**Split the day into** 2-, 3-, 4- or 6-hour parts (3 by default, in Settings). Shorter parts are more precise;
 longer ones are steadier, and tarkov.dev only checks a price about every 2 hours. Each day is
 compared with itself (each part's lowest price against that day's middle), so a price that rises
 or falls over the week isn't mistaken for a time of day. An item gets buy and sell times once it
@@ -122,8 +128,8 @@ or mistaken listings (under 2/3 or over 1.5× the current price) are ignored.
 The default filters show items that swing 15% or more on a usual day, have at least 25 offers up,
 cost ₽10,000 or more, make ₽2,000 or more per unit after the fee, worked on at least 60% of days,
 and that you can trade at your level. All of these can be loosened in the sidebar, and when the
-list is short it says which filter left out the most and offers to loosen it. Look back 7, 14 or
-30 days. Weapon presets are left out.
+list is short it says which filter left out the most and offers to loosen it. **Look back** 7, 14 or
+30 days (in Settings). Weapon presets are left out.
 
 "High volume" means **many offers up**: sales volume isn't published anywhere, so the number of
 active listings stands in for how quickly an item sells. To keep recording while the window is
@@ -149,7 +155,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
   what to **Bring** (markers, items to stash, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; a kill on any map adds its gun to every map, marked **any map**). **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
-- **Summary** (the default) shows each quest in a few lines: up to three objectives, each kill with
+- **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
   what its items are worth now, experience and reputation). **Full** lists every objective to tick off
@@ -157,10 +163,11 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - **Details ▶** (or a quest's name) opens the quest's full details beside the maps, as in the Quests
   tab: status, what unlocks it and what it unlocks, every objective with its progress and **Show on
   map**, the keys and items it takes, its rewards and the wiki's guide. **✕** goes back.
-- **Filters**, kept until you change them: **Show all** or **Only quests I can do** (leaves out
-  every quest held up by a lock none of your keys open, on any map, while still listing the keys
-  to get, and maps you can't get onto, like the Lab without its access keycard; the Maps tab shares
-  it), and **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
+- **Only quests I can do** (in Settings, for the To do, Maps and Quests tabs) leaves out every
+  quest held up by a lock none of your keys open, on any map, while still listing the keys to get,
+  and maps you can't get onto, like the Lab without its access keycard. The top right says which is
+  on, with a **Settings** link.
+- **Filters**, kept until you change them: **Both**, **Kill** (objectives to eliminate enemies) or **Locate** (going
   to, marking, finding, stashing, extracting). A quest with both kinds shows just the ones asked for,
   and the maps are ranked by what's shown.
 - **Also here, if you pick them up** names quests you haven't started yet that have objectives on
@@ -229,8 +236,8 @@ station's level in the sidebar (the Stash starts at level 1).
   cheapest way to buy one at your PMC level and trader loyalty: the flea (once it's open to you:
   level 15, or later for some items) or a trader's offer (at your loyalty level, and after the
   quest that unlocks it, if any), or **Can't buy yet** with what would open it up. Set your
-  loyalty with the traders who sell what the hideout needs under **Trader loyalty** in the sidebar
-  (per game mode; unset is LL1). The Quests tab's **Items to hand over** has the same column.
+  loyalty with each trader under **Trader loyalty** in Settings (per game mode; unset is LL1); the
+  sidebar lists the traders who sell what the hideout needs, at the levels set. The Quests tab's **Items to hand over** has the same column.
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
   sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
@@ -295,8 +302,7 @@ game's logs don't say which keys you have, so tick them yourself.
 
 - **Keys to buy** and **Keys owned** each have two parts. **For quests** comes from the quests:
   every objective not yet done that has a lock to open, and tarkov.dev's list of each quest's keys.
-  Choose whose in **Keys for**: **Active**, **Active + available** (quests you could start too) or
-  **Every quest left**. **Other** is every other key: under Keys to buy it's folded (click it to
+  Choose whose in **Keys for**: **Active** or **Every quest left**. **Other** is every other key: under Keys to buy it's folded (click it to
   list them, to tick ones no quest needs); under Keys owned it's the keys you have that none of
   those quests need. The summary says how many keys those quests need, how many you own and how
   many are left to buy. Each key says which quests need it and their status; quests you can't start
@@ -321,7 +327,7 @@ game's logs don't say which keys you have, so tick them yourself.
   keys never change. Adding a newer code from the same friend updates their keys; **Remove** takes
   them off. A friend's keys for another game mode show when you switch to it. The To do tab's **Keys
   to buy** and the locks on the maps say which friends have a key too, and **Count friends' keys**
-  (next to **Only quests I can do** in the To do and Maps tabs) counts their keys as yours, for
+  (in Settings, under **Quests and maps**) counts their keys as yours, for
   raiding together.
 - **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
   your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
@@ -336,7 +342,8 @@ game's logs don't say which keys you have, so tick them yourself.
 
 The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing
 is uploaded. It finds the game's `Logs` folder by itself (launcher and Steam installs); if it
-can't, choose it in the **Game logs** panel (in the Quests and Raids views, and Settings). It's in
+can't, choose it under **Game logs** in Settings (the Raids tab says how reading is going, with a
+link there). It's in
 the game's install folder, or its `build` folder.
 
 - **Quests:** every quest, grouped by trader, marked **Available**, **Active**, **Locked** (with
@@ -345,8 +352,10 @@ the game's install folder, or its `build` folder.
   so to catch up on older progress, open a quest you've reached and use **Mark this and everything
   before it done**, which also completes everything that had to come before it. You can set any
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
-  trader, map, faction, and Kappa or Lightkeeper. **Items to hand over** lists what your **Active**
-  (or **Active + available**) quests still want handed over or planted, flagging found-in-raid
+  trader, map, faction, and Kappa or Lightkeeper. With **Only quests I can do** (Settings), quests a
+  key you don't have holds up leave the list, and a line above it says how many (a search still
+  finds them). **Items to hand over** lists what your active
+  quests still want handed over or planted, flagging found-in-raid
   items, with how many you've put aside in Items to collect (**Have**, ticked when it's enough).
 - **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
   the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
@@ -395,7 +404,7 @@ the game's install folder, or its `build` folder.
   quest's panel shows **From the wiki** with a list of what changed, objectives marked **from the
   wiki** or **corrected** (point at one for tarkov.dev's version), and the quest list a **W**.
   Quests and objectives keep tarkov.dev's ids, so progress and the game's logs work as before.
-  Untick **Correct quests from the wiki** in the Quests tab's sidebar to see tarkov.dev's data as
+  Untick **Correct quests from the wiki** in Settings (under **From the wiki**) to see tarkov.dev's data as
   it is. The last pages read are kept for when the wiki can't be reached.
 - **Quests only the wiki has:** quests tarkov.dev doesn't list yet (Make Amends, To the Light, the
   BTR Driver's and Lightkeeper's later quests, New Beginning…) are added from their wiki pages by
@@ -403,8 +412,8 @@ the game's install folder, or its `build` folder.
   and quests they need, and their rewards. The KORD BREACH season's quests (Uninvited Guests, the
   Black Division chain…) only show in **PvP Season**, and the Arena's are left out. Where the game's
   own name for a quest matches (Make Amends, for one), the game's logs tick it off like any quest;
-  otherwise set its status in its panel. Untick **Add quests only the wiki has** in the Quests tab's
-  sidebar to hide them.
+  otherwise set its status in its panel. Untick **Add quests only the wiki has** in Settings to hide
+  them.
 - **Event quests:** limited-time event quests (Fog of War, Number Temporarily Unavailable…) aren't
   on tarkov.dev, so the app can't list them by itself. Under **Event quests** in the Quests tab's
   sidebar, **Add event quests…** lists the wiki's event quests (this event's first; tick **Show
@@ -417,7 +426,7 @@ the game's install folder, or its `build` folder.
   one leads to are offered next (in the sidebar and the picker). Pages are refreshed twice a day and
   kept for when the wiki can't be reached. If tarkov.dev starts listing a quest, its own version is
   shown instead.
-- **Maps:** your active (or available) quests as pins with the quest's name and trader, the
+- **Maps:** your active quests as pins (or none: **Quest objectives**, in the sidebar) with the quest's name and trader, the
   trader's portrait and an icon for each thing to do there (go to, pick up, stash, mark, eliminate,
   extract, and a key when one's needed); click one to open the quest's panel on the right, the same
   as in Quests. **Double-click** a pin (or a dot, or a zone) to tick off what's there: it leaves the
@@ -434,11 +443,11 @@ the game's install folder, or its `build` folder.
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
   lists as a map of its own, is left out everywhere in the app.
-- **Only quests I can do on the maps:** the same filter as the To do tab (switching it on either tab
-  switches both). With **Show all**, a pin whose objective needs a key you don't have shows its key
+- **Only quests I can do on the maps:** the same setting as the To do tab (in Settings). With **Show all**, a pin whose objective needs a key you don't have shows its key
   in amber on dark, like a lock you have no key for, and its tooltip says **(you don't have it)**;
   **Only quests I can do** takes the whole quest off the map (all its objectives, on every map,
-  until you have the key or have done the locked part), and the sidebar says how many it hid. On a map you can't get onto (the Lab without its access keycard) every objective is left
+  until you have the key or have done the locked part), and the sidebar says how many it hid, with
+  a **Settings** link. On a map you can't get onto (the Lab without its access keycard) every objective is left
   out. A quest opened with **Show on map** is shown anyway.
 - **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner at
   the top right of the map, above **★ Favourites**, lists your active quests' kills left on that map, the ones naming the

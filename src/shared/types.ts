@@ -176,8 +176,8 @@ export interface TodoSettings {
 }
 
 export interface KeysSettings {
-  /** Keys for active quests, also ones you could start, or every quest left. */
-  scope: 'active' | 'available' | 'all'
+  /** Keys for active quests, or every quest left ('available' went in 1.40.0). */
+  scope: 'active' | 'all'
   /** "Keys to buy · Other" (every key no quest needs that you don't have) unfolded (since 1.32.0). */
   otherOpen: boolean
   /** The key list, or reading keys from screenshots (since 1.18.0). */
@@ -248,8 +248,8 @@ export interface QuestSettings {
 export interface MapSettings {
   /** The map shown, by its normalized name (e.g. `customs`). */
   mapKey: string
-  /** Which quests' objectives to mark: active ones, or active and available. */
-  questScope: 'active' | 'available' | 'none'
+  /** Which quests' objectives to mark: active ones, or none ('available' went in 1.40.0). */
+  questScope: 'active' | 'none'
   showExtracts: boolean
   showSpawns: boolean
   showTransits: boolean

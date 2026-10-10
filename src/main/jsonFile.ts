@@ -10,11 +10,28 @@ export async function readJsonFile(path: string): Promise<unknown> {
   }
 }
 
+// Writes to the same file wait for the one before, so the last one asked for is the one kept (and two in
+// the same millisecond don't share a temp file).
+const writing = new Map<string, Promise<void>>()
+let count = 0
+
 /** Write JSON via a temp file + rename so a crash mid-write never leaves a truncated file. */
-export async function writeJsonFileAtomic(path: string, data: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
+export function writeJsonFileAtomic(path: string, data: unknown): Promise<void> {
   const json = JSON.stringify(data)
-  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`
+  const before = writing.get(path) ?? Promise.resolve()
+  const done = before.catch(() => undefined).then(() => write(path, json))
+  writing.set(path, done)
+  void done
+    .finally(() => {
+      if (writing.get(path) === done) writing.delete(path)
+    })
+    .catch(() => undefined)
+  return done
+}
+
+async function write(path: string, json: string): Promise<void> {
+  await mkdir(dirname(path), { recursive: true })
+  const tmp = `${path}.${process.pid}.${Date.now()}.${++count}.tmp`
   await writeFile(tmp, json, 'utf8')
   try {
     await rename(tmp, path)

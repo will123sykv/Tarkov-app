@@ -23,7 +23,6 @@ import Sidebar, { SidebarSection } from './Sidebar'
 
 const SCOPE_STATUSES: Record<KeysSettings['scope'], QuestStatus[]> = {
   active: ['active'],
-  available: ['active', 'available'],
   all: ['active', 'available', 'locked']
 }
 
@@ -287,7 +286,6 @@ function KeyTable({
 /** Which quests the counts are for, as words before "quests". */
 const SCOPE_WORDS: Record<KeysSettings['scope'], string> = {
   active: 'active ',
-  available: 'active and available ',
   all: ''
 }
 
@@ -381,7 +379,6 @@ export default function KeysView({
             {(
               [
                 ['active', 'Active'],
-                ['available', 'Active + available'],
                 ['all', 'Every quest left']
               ] as const
             ).map(([id, text]) => (

@@ -4838,3 +4838,13 @@ tr:hover .favourite-star {
 .tag.wiki {
   color: var(--info);
 }
+
+/* Which global settings shape a page, with a link to them (since 1.40.0). */
+.settings-note {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.quest-list-note {
+  margin: 4px 16px 6px;
+}

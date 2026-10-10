@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { howToGet } from '../../../shared/hideout'
 import { neededItems, type ObjectiveProgress } from '../../../shared/questProgress'
 import type { PriceState, PublicSettings } from '../../../shared/types'
@@ -11,7 +11,7 @@ import { GetCell } from './GetCell'
 const NO_HAVE: Record<string, number> = {}
 
 /**
- * Items still to hand over or plant for active (and optionally available) quests, with what's put aside
+ * Items still to hand over or plant for active quests, with what's put aside
  * for them in Items to collect.
  */
 export default function NeededItems({
@@ -26,7 +26,6 @@ export default function NeededItems({
   settings: PublicSettings
   priceState: PriceState | null
 }) {
-  const [includeAvailable, setIncludeAvailable] = useState(false)
   const selectQuest = useStore((s) => s.selectQuest)
   const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
   const items = useItemLookup(priceState)
@@ -35,40 +34,22 @@ export default function NeededItems({
   const { items: needed, anyOf } = useMemo(
     () =>
       neededItems(
-        rows
-          .filter((r) => r.status === 'active' || (includeAvailable && r.status === 'available'))
-          .map((r) => r.quest),
+        rows.filter((r) => r.status === 'active').map((r) => r.quest),
         objectives
       ),
-    [rows, includeAvailable, objectives]
+    [rows, objectives]
   )
 
   return (
     <div className="needed-items">
       <div className="needed-items-bar">
-        <div className="segmented small" role="radiogroup" aria-label="Quests">
-          {(
-            [
-              [false, 'Active'],
-              [true, 'Active + available']
-            ] as const
-          ).map(([on, text]) => (
-            <button
-              key={text}
-              role="radio"
-              aria-checked={includeAvailable === on}
-              className={includeAvailable === on ? 'active' : ''}
-              onClick={() => setIncludeAvailable(on)}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
-        <span className="hint">Have is what you&rsquo;ve put aside in Items to collect.</span>
+        <span className="hint">
+          For your active quests. Have is what you&rsquo;ve put aside in Items to collect.
+        </span>
       </div>
       {needed.length === 0 && anyOf.length === 0 ? (
         <div className="empty">
-          <p>Nothing to hand over for {includeAvailable ? 'these' : 'your active'} quests.</p>
+          <p>Nothing to hand over for your active quests.</p>
         </div>
       ) : (
         <table className="values-table needed-table">

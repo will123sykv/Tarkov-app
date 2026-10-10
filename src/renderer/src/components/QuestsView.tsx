@@ -7,18 +7,20 @@ import {
   type QuestStatus
 } from '../../../shared/questProgress'
 import { STORY_TRADER } from '../../../shared/storyQuests'
+import { blockedByKeys } from '../../../shared/keys'
 import { nextWikiQuests } from '../../../shared/wikiQuests'
 import type { GameMap, Quest } from '../../../shared/questTypes'
 import type { PriceState, PublicSettings, QuestSettings, QuestStatusFilter } from '../../../shared/types'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
+import { useFriendKeys } from '../lib/useFriendKeys'
 import { useQuestRows, type QuestRow } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
 import EventQuestPicker from './EventQuestPicker'
 import FavouriteStar from './FavouriteStar'
-import LogStatusPanel from './LogStatusPanel'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
+import SettingsLink from './SettingsLink'
 import TabSidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
@@ -92,15 +94,12 @@ function Sidebar({
   counts,
   traders,
   maps,
-  wikiOnly,
   onAddEventQuests
 }: {
   settings: PublicSettings
   counts: Record<QuestStatus, number>
   traders: { id: string; name: string }[]
   maps: GameMap[]
-  /** How many quests only the wiki has. */
-  wikiOnly: number
   onAddEventQuests: () => void
 }): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
@@ -115,7 +114,6 @@ function Sidebar({
 
   return (
     <TabSidebar view="quests">
-      <LogStatusPanel />
       <SidebarSection title="Show">
         {STATUSES.map((status) => (
           <label key={status} className="check">
@@ -177,34 +175,6 @@ function Sidebar({
           />
           Needed for Lightkeeper
         </label>
-      </SidebarSection>
-      <SidebarSection title="From the wiki">
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={q.wikiCorrections}
-            onChange={(e) => set({ wikiCorrections: e.target.checked })}
-          />
-          Correct quests from the wiki
-        </label>
-        <p className="hint">
-          Where a quest&rsquo;s wiki page differs from tarkov.dev&rsquo;s data (its level, Kappa, the quests
-          before it, objective counts, steps left out), the wiki&rsquo;s is used, and the quest&rsquo;s panel
-          says what changed.
-        </p>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={q.wikiOnlyQuests}
-            onChange={(e) => set({ wikiOnlyQuests: e.target.checked })}
-          />
-          Add quests only the wiki has
-        </label>
-        <p className="hint">
-          {wikiOnly
-            ? `${wikiOnly} quests tarkov.dev doesn’t list yet (Black Division, To the Light…), marked Wiki. The Arena’s are left out.`
-            : 'Quests tarkov.dev doesn’t list yet are added from the wiki, marked Wiki.'}
-        </p>
       </SidebarSection>
       <SidebarSection title="Event quests">
         <p className="hint">
@@ -269,9 +239,13 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   }, [all])
 
   const term = search.trim().toLowerCase()
-  const shown = useMemo(() => {
+  // "Only quests I can do" (Settings) leaves out quests still to do that a key the player doesn't have
+  // holds up (friends' keys count when that's on). A search, and the quest opened, still find them.
+  const { owned } = useFriendKeys(settings)
+  const doable = settings.todo.show === 'doable' && term === ''
+  const { shown, keyHidden } = useMemo(() => {
     // A search looks through every status, so a quest is found wherever it is.
-    return all.filter(
+    const listed = all.filter(
       ({ quest, status }) =>
         (term !== '' || q.statuses.includes(status)) &&
         (!q.traderId || quest.traderId === q.traderId) &&
@@ -280,7 +254,16 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         (!q.lightkeeperOnly || quest.lightkeeperRequired) &&
         (!term || quest.name.toLowerCase().includes(term))
     )
-  }, [all, q, term])
+    if (!doable) return { shown: listed, keyHidden: 0 }
+    const shown = listed.filter(
+      ({ quest, status }) =>
+        status === 'completed' ||
+        status === 'failed' ||
+        quest.id === selected ||
+        blockedByKeys(quest, owned, objectives).length === 0
+    )
+    return { shown, keyHidden: listed.length - shown.length }
+  }, [all, q, term, doable, owned, objectives, selected])
 
   // Quests the logs mention that tarkov.dev doesn't list (story chapters, new or event quests).
   const fromLogs = useMemo(() => {
@@ -354,7 +337,6 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         counts={counts}
         traders={traders}
         maps={questMapList}
-        wikiOnly={all.filter((row) => row.quest.wiki?.listed).length}
         onAddEventQuests={() => setPicking(true)}
       />
       {picking && (
@@ -421,6 +403,12 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         ) : (
           <div className="quests-main">
             <div className="quest-list">
+              {keyHidden > 0 && (
+                <p className="hint quest-list-note">
+                  {keyHidden === 1 ? '1 quest hidden: it needs' : `${keyHidden} quests hidden: they need`} a
+                  key you don&rsquo;t have (Only quests I can do). <SettingsLink section="quests" />
+                </p>
+              )}
               {groups.map((group) => (
                 <section key={group.traderId}>
                   <h3>
@@ -467,7 +455,11 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
               )}
               {dataset && shown.length === 0 && fromLogs.named.length === 0 && (
                 <div className="empty">
-                  <p>No quests match. Tick more statuses on the left, or clear the filters.</p>
+                  <p>
+                    {keyHidden
+                      ? 'Every quest that matches needs a key you don’t have.'
+                      : 'No quests match. Tick more statuses on the left, or clear the filters.'}
+                  </p>
                 </div>
               )}
             </div>

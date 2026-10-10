@@ -974,7 +974,7 @@ function QuestPanel({
             From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
             and finishes: tick the steps off yourself. Greyed steps wait for the ones before them: they show
             on the map and the To do tab once those are done. Steps like &ldquo;visit Customs 3 times&rdquo;
-            count your raids from the logs, and loyalty steps use the levels set in the Items to collect tab.
+            count your raids from the logs, and loyalty steps use the levels set in Settings.
           </p>
         )}
       </section>

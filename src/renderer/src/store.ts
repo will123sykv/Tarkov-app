@@ -62,6 +62,8 @@ interface AppStore {
   updater: UpdaterStatus
   appVersion: string
   settingsOpen: boolean
+  /** The Settings section to show when it opens (a page's "Settings" link). */
+  settingsSection: string | null
 
   init(): Promise<void>
   updateSettings(patch: SettingsPatch): Promise<void>
@@ -105,7 +107,7 @@ interface AppStore {
   setPlacing(placing: AppStore['placing']): void
   setStoryPin(questId: string, objectiveId: string, pin: StoryPin | null): Promise<void>
   setSearch(search: string): void
-  setSettingsOpen(open: boolean): void
+  setSettingsOpen(open: boolean, section?: string): void
 }
 
 let unsubscribers: (() => void)[] = []
@@ -163,6 +165,7 @@ export const useStore = create<AppStore>((set, get) => ({
   updater: { state: 'idle' },
   appVersion: '',
   settingsOpen: false,
+  settingsSection: null,
 
   async init() {
     const { api } = window
@@ -512,5 +515,5 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ storyPins: await window.api.setStoryPin(questId, objectiveId, pin) })
   },
   setSearch: (search) => set({ search }),
-  setSettingsOpen: (settingsOpen) => set({ settingsOpen })
+  setSettingsOpen: (settingsOpen, section) => set({ settingsOpen, settingsSection: section ?? null })
 }))
