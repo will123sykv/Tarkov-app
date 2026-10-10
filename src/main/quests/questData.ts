@@ -493,7 +493,8 @@ export function normalizeQuestData(
         traderLevel: traderLevel(obj),
         playerLevel: obj.type === 'playerLevel' ? num(obj.playerLevel) : null,
         questStatus: questStatus(obj),
-        requiredKeys: requiredKeys(obj.requiredKeys)
+        requiredKeys: requiredKeys(obj.requiredKeys),
+        weapons: ids(obj.usingWeapon)
       }
     })
     quests.push({
@@ -829,6 +830,16 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.wikiFacts) result = { ...result, fetchedAt: 0, wikiFacts: {} }
   // 1.37.0: quests only the wiki has.
   if (!result.wikiOnlyQuests) result = { ...result, fetchedAt: 0, wikiOnlyQuests: [] }
+  // 1.39.0: the weapons kills are to be made with (until refetched, none).
+  if (result.quests.some((q) => q.objectives.some((o) => !o.weapons)))
+    result = {
+      ...result,
+      fetchedAt: 0,
+      quests: result.quests.map((q) => ({
+        ...q,
+        objectives: q.objectives.map((o) => ({ ...o, weapons: o.weapons ?? [] }))
+      }))
+    }
   // 1.12.0: objectives' level and quest-status checks, and the maps story steps are on.
   if (result.quests.some((q) => q.objectives.some((o) => o.playerLevel === undefined)))
     result = {

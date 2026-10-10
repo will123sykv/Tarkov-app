@@ -119,6 +119,8 @@ export interface MapPlan {
   keys: string[][]
   /** Items the steps here use up (to mark, plant or use), with how many. */
   bring: { itemId: string; count: number }[]
+  /** Weapons kills here are to be made with: any one of each list (an AKM or an AKMN), and for which quests. */
+  weapons: { itemIds: string[]; quests: Quest[] }[]
   /** Quest items to take in and plant, given when the quest started. */
   questItems: { name: string; questId: string }[]
 }
@@ -206,6 +208,7 @@ export function todoPlan(
         noAccess: shut ? group.accessKeys! : null,
         keys: [],
         bring: [],
+        weapons: [],
         questItems: []
       }
       plans.set(group.key, p)
@@ -342,6 +345,12 @@ export function todoPlan(
           if (entry) entry.count += left
           else p.bring.push({ itemId, count: left })
         }
+        if (objective.weapons?.length) {
+          const key = [...objective.weapons].sort().join()
+          const entry = p.weapons.find((w) => [...w.itemIds].sort().join() === key)
+          if (!entry) p.weapons.push({ itemIds: objective.weapons, quests: [quest] })
+          else if (!entry.quests.includes(quest)) entry.quests.push(quest)
+        }
         if (objective.type === 'plantQuestItem' && objective.questItem)
           p.questItems.push({ name: objective.questItem.name, questId: quest.id })
       }
@@ -419,7 +428,7 @@ export function mapOverview(plan: MapPlan, owned: ReadonlySet<string> | null = n
     blocked: plan.blocked.length,
     keys: plan.keys.length,
     missingKeys: owned ? plan.keys.filter((k) => !opens(k, owned)).length : 0,
-    bring: plan.bring.length + plan.questItems.length,
+    bring: plan.bring.length + plan.questItems.length + plan.weapons.length,
     pickUp: plan.available.length
   }
 }

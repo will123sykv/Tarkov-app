@@ -47,6 +47,8 @@ export interface QuestObjective {
   visits?: boolean
   /** Keys it needs: one list per lock, any key in a list opens it. */
   requiredKeys: string[][]
+  /** A kill to make with one of these weapons (item ids), when it says. Since 1.39.0. */
+  weapons?: string[]
   /** Story chapters: how deep in the list it sits (0: a step of its own, 1: part of the step above). */
   depth?: number
   /** Story chapters: the path it's on, when the chapter branches (e.g. "If you kept the armored case"). */

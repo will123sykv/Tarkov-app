@@ -65,7 +65,9 @@ export const RAW_QUEST_DATA: QuestDataInput = {
             count: 5,
             optional: false,
             zones: [],
-            maps: [CUSTOMS]
+            maps: [CUSTOMS],
+            // An MP-133, or an MP-153 (as ids, and as tarkov.dev's GraphQL gives them).
+            usingWeapon: ['54491c4f4bdc2db1078b4568', { id: '56dee2bdd2720bc8328b4567' }]
           },
           {
             id: 'o-debut-give',

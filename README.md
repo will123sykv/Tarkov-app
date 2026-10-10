@@ -147,7 +147,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   bring, with **◀ All maps** to go back and the maps before and after it in the ranking either side.
   **List** shows every map with its quests on one page instead.
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
-  what to **Bring** (markers, items to stash, quest items to plant). **Show on map** opens the map in
+  what to **Bring** (markers, items to stash, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; a kill on any map adds its gun to every map, marked **any map**). **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
 - **Summary** (the default) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
@@ -378,9 +378,11 @@ the game's install folder, or its `build` folder.
   an **I have it** link to tick it), the keys and items it takes, what it gives when you accept
   it, its rewards (experience, reputation, items and money, trader and craft unlocks, skills) and
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
-  pictures of where to go (click one to see it full size). When the pictures are of several maps,
-  buttons above them pick one map's (**All · Customs (5) · Woods (4)**), starting on the map you're
-  looking at: the Maps tab's, the Quests tab's **Map** filter or the map opened on the To do tab.
+  pictures of where to go (click one to see it full size), then its text. A quest on several maps
+  has buttons above its objectives (**All maps · Customs · Woods**) that show one map's objectives
+  (and any that aren't on a map, like hand-overs) and the guide's pictures of it, starting on the
+  map you're looking at: the Maps tab's, the Quests tab's **Map** filter or the map opened on the To
+  do tab.
   Guides are kept for a week, so ones you've opened work offline.
 - **Corrected from the wiki:** tarkov.dev's quest data and the
   [wiki](https://escapefromtarkov.fandom.com) don't always agree, so each quest's wiki page is read

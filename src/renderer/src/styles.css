@@ -2042,9 +2042,13 @@ button.link.small {
   color: var(--accent);
 }
 
-.guide-maps {
+.quest-maps {
   flex-wrap: wrap;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
+}
+
+.guide-filter {
+  margin: 0 0 8px;
 }
 
 .guide-gallery {

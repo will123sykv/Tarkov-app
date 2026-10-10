@@ -494,3 +494,26 @@ describe('story chapters on the To do tab', () => {
     expect(blockedByKeys(keyed, new Set(), progress)).toEqual([])
   })
 })
+
+describe('weapons to bring for kills', () => {
+  it('lists the weapons each map’s kills are to be made with, once per set, with their quests', () => {
+    const shotgun = objective('shotgun', 'shoot', { count: 5, weapons: ['mp133', 'mp153'] })
+    const again = objective('again', 'shoot', { count: 3, weapons: ['mp153', 'mp133'] })
+    const svd = objective('svd', 'shoot', { maps: [WOODS], weapons: ['svds'] })
+    const any = objective('any', 'shoot', { weapons: [] })
+    const plan = todoPlan([row(quest('a', [shotgun, svd])), row(quest('b', [again, any]))], {}, groupOf)
+    const byMap = Object.fromEntries(
+      plan.maps.map((p) => [p.group.key, p.weapons.map((w) => [w.itemIds, w.quests.map((q) => q.id)])])
+    )
+    expect(byMap).toEqual({
+      customs: [
+        [
+          ['mp133', 'mp153'],
+          ['a', 'b']
+        ]
+      ],
+      woods: [[['svds'], ['a']]]
+    })
+    expect(mapOverview(plan.maps.find((p) => p.group.key === 'woods')!).bring).toBe(1)
+  })
+})

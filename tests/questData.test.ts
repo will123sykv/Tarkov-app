@@ -60,6 +60,11 @@ describe('normalizeQuestData', () => {
   })
 
   it('keeps objectives with their items, quest items, zones and spawn locations', () => {
+    // The weapons a kill is to be made with: any of them.
+    expect(quest(Q.debut).objectives[0].weapons).toEqual([
+      '54491c4f4bdc2db1078b4568',
+      '56dee2bdd2720bc8328b4567'
+    ])
     expect(quest(Q.debut).objectives[1]).toMatchObject({
       type: 'giveItem',
       description: 'Hand over 2 MP-133 shotguns',
@@ -603,6 +608,7 @@ describe('createQuestDataService', () => {
     expect(checking).toMatchObject({ neededKeys: [], imageLink: null, rewards: { items: [], skills: [] } })
     expect(checking.startRewards.items).toEqual([])
     expect(checking.objectives.every((o) => Array.isArray(o.requiredKeys))).toBe(true)
+    expect(checking.objectives.every((o) => Array.isArray(o.weapons))).toBe(true)
     expect(offline.dataset!.traders.every((t) => t.imageLink === null)).toBe(true)
   })
 })

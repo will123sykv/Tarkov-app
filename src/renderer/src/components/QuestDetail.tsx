@@ -15,7 +15,9 @@ import {
 } from '../../../shared/questProgress'
 import { guideImageMaps, mapAliases } from '../../../shared/guideMaps'
 import { STORY_TRADER, reachableSteps } from '../../../shared/storyQuests'
+import { objectiveMapIds } from '../../../shared/todo'
 import type {
+  QuestGuideState,
   GameMap,
   GuideImage,
   Quest,
@@ -591,34 +593,24 @@ function Lightbox({
 /** What the wiki's guide says, and its pictures of where to go. */
 function Guide({
   wikiLink,
-  mapsById,
-  mapIds
+  state,
+  placed,
+  chosen,
+  chosenName,
+  onShowAll
 }: {
   wikiLink: string | null
-  mapsById: ReadonlyMap<string, GameMap>
-  /** The map being looked at (the Maps tab's, the Quests tab's filter…): its pictures come first. */
-  mapIds?: readonly string[]
+  state: QuestGuideState | null
+  /** Which maps each picture is of (by map key). */
+  placed: string[][]
+  /** The map picked in the panel: only its pictures show. */
+  chosen: string | null
+  chosenName: string | null
+  onShowAll: () => void
 }): React.JSX.Element | null {
-  const state = useQuestGuide(wikiLink)
   const [open, setOpen] = useState<{ link: string; index: number } | null>(null)
-  const [pick, setPick] = useState<{ link: string; key: string | null } | null>(null)
   const guide = state?.guide
-  // Which map each picture is of, for guides with pictures of several.
-  const groups = useMemo(() => mapGroups([...mapsById.values()]), [mapsById])
-  const placed = useMemo(() => {
-    const names = [...new Map([...groups.values()].map((g) => [g.key, g])).values()].map((g) => ({
-      key: g.key,
-      names: mapAliases(g.name)
-    }))
-    return guide ? guideImageMaps(guide.images, names) : []
-  }, [guide, groups])
-  const counts = new Map<string, number>()
-  for (const keys of placed) for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1)
-  const chips = [...counts].sort((a, b) => b[1] - a[1])
-  const preferred = mapIds?.map((id) => groups.get(id)?.key).find((key) => key && counts.has(key)) ?? null
-  const chosen = chips.length >= 2 ? (pick?.link === wikiLink ? pick.key : preferred) : null
   const shown = (guide?.images ?? []).filter((_, i) => !chosen || placed[i]?.includes(chosen))
-  const nameOf = (key: string): string => [...groups.values()].find((g) => g.key === key)?.name ?? key
   if (!wikiLink) return null
   const index = open?.link === wikiLink ? open.index : null
   return (
@@ -630,6 +622,26 @@ function Guide({
         <>
           {guide.blocks.length === 0 && guide.images.length === 0 && (
             <p className="hint">The wiki has no guide for this quest yet.</p>
+          )}
+          {chosen && (
+            <p className="hint guide-filter">
+              Pictures of {chosenName} ({shown.length} of {guide.images.length}).{' '}
+              <button className="link small" onClick={onShowAll}>
+                Show all
+              </button>
+            </p>
+          )}
+          {shown.length > 0 && (
+            <ul className="guide-gallery">
+              {shown.map((image, i) => (
+                <li key={image.file}>
+                  <button onClick={() => setOpen({ link: wikiLink, index: i })} title="Enlarge">
+                    <img src={image.thumb} alt={image.caption} loading="lazy" />
+                  </button>
+                  {image.caption && <span>{image.caption}</span>}
+                </li>
+              ))}
+            </ul>
           )}
           <div className="guide-text">
             {guide.blocks.map((b, i) =>
@@ -644,39 +656,6 @@ function Guide({
               )
             )}
           </div>
-          {chips.length >= 2 && (
-            <div className="segmented small guide-maps" role="tablist" aria-label="Pictures of">
-              <button
-                role="tab"
-                className={chosen === null ? 'active' : ''}
-                onClick={() => setPick({ link: wikiLink, key: null })}
-              >
-                All ({guide.images.length})
-              </button>
-              {chips.map(([key, n]) => (
-                <button
-                  key={key}
-                  role="tab"
-                  className={chosen === key ? 'active' : ''}
-                  onClick={() => setPick({ link: wikiLink, key })}
-                >
-                  {nameOf(key)} ({n})
-                </button>
-              ))}
-            </div>
-          )}
-          {shown.length > 0 && (
-            <ul className="guide-gallery">
-              {shown.map((image, i) => (
-                <li key={image.file}>
-                  <button onClick={() => setOpen({ link: wikiLink, index: i })} title="Enlarge">
-                    <img src={image.thumb} alt={image.caption} loading="lazy" />
-                  </button>
-                  {image.caption && <span>{image.caption}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
           <p className="hint credit">
             From the{' '}
             <a href={guide.url} target="_blank" rel="noreferrer">
@@ -731,6 +710,41 @@ function QuestPanel({
   const completed = status === 'completed'
   const summary = objectiveSummary(quest, objectives, completed)
   const reachable = reachableSteps(quest, objectives)
+  // A quest on several maps shows one map's objectives and guide pictures at a time when picked (at
+  // first, the map being looked at).
+  const guideState = useQuestGuide(quest.wikiLink)
+  const groups = useMemo(() => mapGroups([...mapsById.values()]), [mapsById])
+  const groupList = useMemo(
+    () => [...new Map([...groups.values()].map((g) => [g.key, g])).values()],
+    [groups]
+  )
+  const objectiveMaps = useMemo(
+    () =>
+      quest.objectives.map((o) => [
+        ...new Set(objectiveMapIds(o).flatMap((id) => groups.get(id)?.key ?? []))
+      ]),
+    [quest, groups]
+  )
+  const placed = useMemo(
+    () =>
+      guideState?.guide
+        ? guideImageMaps(
+            guideState.guide.images,
+            groupList.map((g) => ({ key: g.key, names: mapAliases(g.name) }))
+          )
+        : [],
+    [guideState, groupList]
+  )
+  const mapKeys = [...new Set([...objectiveMaps.flat(), ...placed.flat()])]
+  const [pickedMap, setPickedMap] = useState<string | null | undefined>(undefined)
+  const preferredMap = mapIds?.map((id) => groups.get(id)?.key).find((k) => k && mapKeys.includes(k)) ?? null
+  const chosenMap = mapKeys.length >= 2 ? (pickedMap === undefined ? preferredMap : pickedMap) : null
+  const mapName = (key: string): string => groupList.find((g) => g.key === key)?.name ?? key
+  // Objectives on the map picked, and those on no map in particular (hand-overs).
+  const listed = quest.objectives.filter(
+    (_, i) => !chosenMap || !objectiveMaps[i].length || objectiveMaps[i].includes(chosenMap)
+  )
+  const elsewhere = quest.objectives.length - listed.length
   const requirements = requirementLabels(quest, questsById, ctx.traders)
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
@@ -902,10 +916,31 @@ function QuestPanel({
             </span>
           )}
         </h4>
+        {mapKeys.length >= 2 && (
+          <div className="segmented small quest-maps" role="tablist" aria-label="Show what's on">
+            <button
+              role="tab"
+              className={chosenMap === null ? 'active' : ''}
+              onClick={() => setPickedMap(null)}
+            >
+              All maps
+            </button>
+            {mapKeys.map((key) => (
+              <button
+                key={key}
+                role="tab"
+                className={chosenMap === key ? 'active' : ''}
+                onClick={() => setPickedMap(key)}
+              >
+                {mapName(key)}
+              </button>
+            ))}
+          </div>
+        )}
         <ol className="objectives">
-          {quest.objectives.map((o, i) => {
+          {listed.map((o, i) => {
             const waiting = Boolean(quest.story) && !completed && !reachable.has(o.id)
-            const previous = quest.objectives[i - 1]?.branch ?? null
+            const previous = listed[i - 1]?.branch ?? null
             const branch = o.branch ?? null
             return (
               <Fragment key={o.id}>
@@ -926,6 +961,14 @@ function QuestPanel({
             )
           })}
         </ol>
+        {elsewhere > 0 && (
+          <p className="hint">
+            {elsewhere === 1 ? '1 more objective' : `${elsewhere} more objectives`} on other maps.{' '}
+            <button className="link small" onClick={() => setPickedMap(null)}>
+              Show all
+            </button>
+          </p>
+        )}
         {quest.story && (
           <p className="hint">
             From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
@@ -950,7 +993,16 @@ function QuestPanel({
         traders={traders}
         items={items}
       />
-      <Guide key={quest.id} wikiLink={quest.wikiLink} mapsById={mapsById} mapIds={mapIds} />
+      <Guide
+        key={quest.id}
+        wikiLink={quest.wikiLink}
+        state={guideState}
+        placed={placed}
+        // A map with no pictures of its own shows them all.
+        chosen={chosenMap && placed.some((p) => p.includes(chosenMap)) ? chosenMap : null}
+        chosenName={chosenMap ? mapName(chosenMap) : null}
+        onShowAll={() => setPickedMap(null)}
+      />
       {quest.wikiLink && (
         <a className="wiki-link" href={quest.wikiLink} target="_blank" rel="noreferrer">
           Open on the wiki ↗

@@ -280,6 +280,29 @@ function QuestCard({
 }
 
 /** What a raid on one map would get done, and what to take. */
+type WeaponsToBring = MapPlan['weapons'][number] & { anyMap?: boolean }
+
+/** A weapon a kill needs: the first of the ones that will do, and how many others would. */
+function WeaponChoice({ weapon, items }: { weapon: WeaponsToBring; items: Items }): React.JSX.Element {
+  const names = weapon.itemIds.map((id) => items.get(id)?.name ?? 'Unknown weapon')
+  const first = items.get(weapon.itemIds[0])
+  const others = weapon.itemIds.length - 1
+  const title = [
+    `For ${weapon.quests.map((q) => q.name).join(', ')}${weapon.anyMap ? ' (a kill on any map)' : ''}:`,
+    others ? `any of ${names.join(', ')}` : names[0]
+  ].join(' ')
+  return (
+    <span className="item-chip weapon" title={title}>
+      {first?.iconLink && <img src={first.iconLink} alt="" loading="lazy" />}
+      <span>
+        {names[0]}
+        {others > 0 && <span className="muted"> or {plural(others, 'other')}</span>}
+        {weapon.anyMap && <span className="muted"> (any map)</span>}
+      </span>
+    </span>
+  )
+}
+
 function MapCard({
   plan,
   rank,
@@ -296,7 +319,8 @@ function MapCard({
   onDetails,
   onOpenQuest,
   onOpenMap,
-  wide = false
+  wide = false,
+  anyMapWeapons = []
 }: {
   plan: MapPlan
   rank: number
@@ -317,7 +341,15 @@ function MapCard({
   onOpenMap: (mapKey: string) => void
   /** Across the page, its quests side by side (as the map to raid next is). */
   wide?: boolean
+  /** Weapons for kills on any map, which can be done here too. */
+  anyMapWeapons?: WeaponsToBring[]
 }): React.JSX.Element {
+  const weapons: WeaponsToBring[] = [
+    ...plan.weapons,
+    ...anyMapWeapons.filter(
+      (w) => !plan.weapons.some((p) => [...p.itemIds].sort().join() === [...w.itemIds].sort().join())
+    )
+  ]
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
   const reason = [
@@ -421,7 +453,10 @@ function MapCard({
           ))}
         </ul>
       )}
-      {(plan.keys.length > 0 || plan.bring.length > 0 || plan.questItems.length > 0) && (
+      {(plan.keys.length > 0 ||
+        plan.bring.length > 0 ||
+        plan.questItems.length > 0 ||
+        weapons.length > 0) && (
         <div className="todo-take">
           {plan.keys.length > 0 && (
             <div>
@@ -443,10 +478,13 @@ function MapCard({
               </span>
             </div>
           )}
-          {(plan.bring.length > 0 || plan.questItems.length > 0) && (
+          {(plan.bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
             <div>
               <span className="todo-take-label">Bring</span>
               <span className="todo-take-list">
+                {weapons.map((w) => (
+                  <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
+                ))}
                 {plan.bring.map((b) => (
                   <ItemChip key={b.itemId} id={b.itemId} count={b.count} items={items} />
                 ))}
@@ -919,6 +957,18 @@ export default function TodoView({
       ? ([...groups.values()].find((g) => g.key === todoMap)?.name ?? null)
       : null
   const openedRank = ranked.findIndex((p) => p.group.key === todoMap)
+  // Weapons for kills on any map: they can be done on whichever map is raided.
+  const anyMapWeapons = useMemo(() => {
+    const result: WeaponsToBring[] = []
+    for (const { quest, objective } of plan.anyMap) {
+      if (!objective.weapons?.length) continue
+      const key = [...objective.weapons].sort().join()
+      const entry = result.find((w) => [...w.itemIds].sort().join() === key)
+      if (!entry) result.push({ itemIds: objective.weapons, quests: [quest], anyMap: true })
+      else if (!entry.quests.includes(quest)) entry.quests.push(quest)
+    }
+    return result
+  }, [plan])
   const mapCard = (p: MapPlan, rank: number, wide = false): React.JSX.Element => (
     <MapCard
       key={p.group.key}
@@ -938,6 +988,7 @@ export default function TodoView({
       onOpenQuest={openQuest}
       onOpenMap={openMap}
       wide={wide}
+      anyMapWeapons={anyMapWeapons}
     />
   )
   const segmented = <T extends string>(
