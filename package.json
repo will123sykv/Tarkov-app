@@ -1,7 +1,7 @@
 {
   "name": "tarkov-loot-optimiser",
   "productName": "Tarkov Loot Optimiser",
-  "version": "1.37.0",
+  "version": "1.38.0",
   "description": "Rank Escape from Tarkov loot by value per inventory slot using live flea and trader prices.",
   "author": "will123sykv",
   "private": true,
