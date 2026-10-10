@@ -6,7 +6,7 @@ import {
   parseHowItStarts,
   parseObjectives
 } from '../src/main/quests/storyChapters'
-import { storyQuests } from '../src/shared/storyQuests'
+import { reachableSteps, storyQuests } from '../src/shared/storyQuests'
 import type { FetchFn } from '../src/main/pricing/http'
 import { jsonResponse } from './helpers'
 
@@ -317,5 +317,88 @@ describe('story chapters as quests', () => {
       items: [],
       branch: 'If you kept the Armored case from Prapor in Falling Skies'
     })
+  })
+})
+
+describe('story steps in order', () => {
+  const chapter = (steps: string) =>
+    storyQuests(
+      [
+        {
+          id: 'story-test',
+          name: 'Test',
+          wikiLink: 'https://escapefromtarkov.fandom.com/wiki/Test',
+          description: '',
+          howItStarts: '',
+          imageLink: null,
+          objectives: parseObjectives(`==Objectives==\n${steps}`)
+        }
+      ],
+      {
+        itemIds: new Map([
+          ['boreas engine room keycard', 'engine-key'],
+          ['terragroup labs access keycard', 'labs-card']
+        ])
+      }
+    )[0]
+  const ids = (q: ReturnType<typeof chapter>, reachable: Set<string>) =>
+    q.objectives.filter((o) => reachable.has(o.id)).map((o) => o.description)
+
+  it('shows a step once every required step before it is done; optional ones hold nothing up after them', () => {
+    const q = chapter(`* Talk to [[Skier]]
+* (''Optional'') Read the note
+* Ensure access to [[The Lab]]
+** Access the secret facility
+** Obtain the [[TerraGroup Labs access keycard]]
+* Hand over the case to [[Prapor]]`)
+    expect(ids(q, reachableSteps(q, {}))).toEqual(['Talk to Skier'])
+    const talked = { 'story-test': { [q.objectives[0].id]: 1 } }
+    expect(ids(q, reachableSteps(q, talked))).toEqual([
+      'Talk to Skier',
+      'Read the note',
+      'Ensure access to The Lab',
+      // Sub-steps go with their step.
+      'Access the secret facility',
+      'Obtain the TerraGroup Labs access keycard'
+    ])
+    // Other quests' objectives can all be worked on.
+    const plain = { ...q, story: undefined }
+    expect(reachableSteps(plain, {}).size).toBe(q.objectives.length)
+  })
+
+  it('lets each path move on by itself once the chapter branches', () => {
+    const q = chapter(`* Talk to [[Skier]]
+===If you handed over the case===
+* Meet Prapor
+* Hand over the documents
+===If you kept the case===
+* Open the case
+* Sell the contents
+===Identical for all===
+* Report back`)
+    const steps = (done: string[]) =>
+      ids(
+        q,
+        reachableSteps(q, {
+          'story-test': Object.fromEntries(
+            q.objectives.filter((o) => done.includes(o.description)).map((o) => [o.id, 1])
+          )
+        })
+      )
+    expect(steps(['Talk to Skier'])).toEqual(['Talk to Skier', 'Meet Prapor', 'Open the case', 'Report back'])
+    expect(steps(['Talk to Skier', 'Meet Prapor'])).toEqual([
+      'Talk to Skier',
+      'Meet Prapor',
+      'Hand over the documents',
+      'Open the case',
+      'Report back'
+    ])
+  })
+
+  it('needs the keys a step links to, but not when the step is to get the key', () => {
+    const q = chapter(`* Access the [[Boreas engine room keycard|engine room]]
+* Locate and obtain the [[Boreas engine room keycard|engine room keycard]]
+* Obtain the [[TerraGroup Labs access keycard]]`)
+    expect(q.objectives.map((o) => o.requiredKeys)).toEqual([[['engine-key']], [], []])
   })
 })

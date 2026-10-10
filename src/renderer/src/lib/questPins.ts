@@ -74,6 +74,8 @@ export interface QuestPin {
   mine: boolean
   /** How many pins of other quests are already at this spot (each is drawn above the last). */
   stack: number
+  /** How many possible spots of a quest item it stands for (its dots), or 0 for one spot. */
+  spots: number
 }
 
 /** A possible spot of a quest item that has too many to pin each. */
@@ -89,8 +91,10 @@ const MERGE_RADIUS = 8
 const SAME_FLOOR = 3
 /** Pins of different quests this close stack up rather than hide each other. */
 const STACK_RADIUS = 4
-/** A quest item that can be in more places than this gets dots rather than pins. */
+/** A quest item that can be in more places than this gets dots, and a pin per group of them. */
 const MAX_PINNED_SPOTS = 3
+/** Dots within this many metres of one another (on any floor) are one group, with one pin. */
+const GROUP_RADIUS = 60
 
 const near = (a: Vec3, b: Vec3, radius: number): boolean =>
   Math.hypot(a.x - b.x, a.z - b.z) <= radius && Math.abs(a.y - b.y) <= SAME_FLOOR
@@ -114,9 +118,37 @@ export function doableMarkers(
     if (!held.has(quest.id)) held.set(quest.id, blocked(quest))
     return held.get(quest.id)!
   }
-  const kept = markers.filter((m) => keep(m) || (!shut && !isBlocked(m.quest)))
+  // A story chapter's step behind a lock none of their keys open is left out (not the whole chapter).
+  const stepShut = (m: ObjectiveMarker): boolean =>
+    Boolean(m.quest.story) && missingKeys(m.objective, owned).length > 0
+  const kept = markers.filter((m) => keep(m) || (!shut && !isBlocked(m.quest) && !stepShut(m)))
   const left = markers.filter((m) => !kept.includes(m))
   return { markers: kept, hidden: left.length, quests: new Set(left.map((m) => m.quest.id)).size }
+}
+
+/** Spots in groups: each spot within `GROUP_RADIUS` of another in its group (single link). */
+function spotGroups(spots: readonly Vec3[]): Vec3[][] {
+  const groups: Vec3[][] = []
+  for (const spot of spots) {
+    const touching = groups.filter((g) =>
+      g.some((s) => Math.hypot(s.x - spot.x, s.z - spot.z) <= GROUP_RADIUS)
+    )
+    const merged = [...touching.flat(), spot]
+    for (const g of touching) groups.splice(groups.indexOf(g), 1)
+    groups.push(merged)
+  }
+  return groups
+}
+
+/** The spot nearest all the others: where a group's pin goes (always one of its real spots). */
+function medoid(spots: readonly Vec3[]): Vec3 {
+  let best = spots[0]
+  let bestSum = Infinity
+  for (const s of spots) {
+    const sum = spots.reduce((t, o) => t + Math.hypot(o.x - s.x, o.z - s.z), 0)
+    if (sum < bestSum) [best, bestSum] = [s, sum]
+  }
+  return best
 }
 
 export function questPins(
@@ -127,11 +159,16 @@ export function questPins(
   const dots: QuestDot[] = []
   for (const { quest, status, trader, objective, zones, spots } of markers) {
     const keyMissing = owned !== null && missingKeys(objective, owned).length > 0
-    const points: Pick<QuestZone, 'position' | 'source' | 'place'>[] = [...zones]
-    if (spots.length > MAX_PINNED_SPOTS)
+    const points: (Pick<QuestZone, 'position' | 'source' | 'place'> & { spots?: number })[] = [...zones]
+    if (spots.length > MAX_PINNED_SPOTS) {
       dots.push(...spots.map((position) => ({ quest, status, objective, position })))
-    else points.push(...spots.map((position) => ({ position })))
-    for (const { position, source, place } of points) {
+      // A pin for each group of dots too, so the quest stands out among them; a lone dot far from the
+      // rest stays a dot, unless none are near one another (then one pin, in the middle of them).
+      const groups = spotGroups(spots).filter((g) => g.length > 1)
+      for (const group of groups.length ? groups : [spots])
+        points.push({ position: medoid(group), spots: group.length })
+    } else points.push(...spots.map((position) => ({ position })))
+    for (const { position, source, place, spots: count = 0 } of points) {
       const pin = pins.find((p) => p.quest.id === quest.id && near(p.position, position, MERGE_RADIUS))
       if (!pin) {
         pins.push({
@@ -146,9 +183,11 @@ export function questPins(
           rough: source === 'rough',
           places: place ? [place] : [],
           mine: source === 'mine',
-          stack: 0
+          stack: 0,
+          spots: count
         })
       } else {
+        pin.spots = Math.max(pin.spots, count)
         // Exactly here if anything at the spot is.
         pin.rough &&= source === 'rough'
         pin.mine ||= source === 'mine'

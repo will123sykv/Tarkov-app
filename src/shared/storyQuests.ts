@@ -1,3 +1,4 @@
+import { objectiveTarget, objectiveValue, type ObjectiveProgress } from './questProgress'
 import type { Quest, QuestObjective, QuestRewards, QuestZone, StoryChapter } from './questTypes'
 import { namedPlace, type MapPlace, type StoryPins } from './storyPlaces'
 
@@ -92,7 +93,11 @@ export function storyQuests(chapters: readonly StoryChapter[], ctx: StoryContext
         playerLevel: null,
         questStatus: null,
         visits: o.visits ?? false,
-        requiredKeys: [],
+        // The keys the step links to, each a lock of its own (the ones the app knows).
+        requiredKeys: (o.keyNames ?? []).flatMap((name) => {
+          const id = ctx.itemIds.get(name.toLowerCase())
+          return id ? [[id]] : []
+        }),
         depth: o.depth,
         branch: o.branch
       }
@@ -108,4 +113,34 @@ export function storyQuests(chapters: readonly StoryChapter[], ctx: StoryContext
     imageLink: chapter.imageLink,
     story: { description: chapter.description, howItStarts: chapter.howItStarts }
   }))
+}
+
+const shared = (branch: string | null | undefined): boolean => !branch || SHARED_BRANCH.test(branch)
+
+/**
+ * A story chapter's steps that can be worked on now (by id): a step waits for every required step
+ * before it on its path (steps every player takes, and the earlier ones of its own branch) to be done;
+ * optional steps never hold others up; sub-steps go with the step they're part of. Any other quest's
+ * objectives can all be worked on.
+ */
+export function reachableSteps(
+  quest: Pick<Quest, 'id' | 'objectives' | 'story'>,
+  objectives: ObjectiveProgress | undefined
+): Set<string> {
+  if (!quest.story) return new Set(quest.objectives.map((o) => o.id))
+  const result = new Set<string>()
+  // Required steps not yet done, and the path each is on.
+  const waiting: (string | null)[] = []
+  let parentOpen = true
+  for (const o of quest.objectives) {
+    if ((o.depth ?? 0) > 0) {
+      if (parentOpen) result.add(o.id)
+      continue
+    }
+    const branch = o.branch ?? null
+    parentOpen = !waiting.some((w) => shared(w) || (!shared(branch) && w === branch))
+    if (parentOpen) result.add(o.id)
+    if (!o.optional && objectiveValue(o, quest.id, objectives) < objectiveTarget(o)) waiting.push(branch)
+  }
+  return result
 }

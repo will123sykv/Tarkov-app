@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
+import { blockedByKeys } from '../src/shared/keys'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import {
@@ -456,5 +457,40 @@ describe('kill objectives for the banner over the map', () => {
     const b = quest('b', [objective('kill', 'shoot', { maps: [WOODS] })])
     const kills = killObjectives([row(a), row(b)], {}, new Set([WOODS]), { blocked: (q) => q.id === 'a' })
     expect(kills.map((k) => k.quest.id)).toEqual(['b'])
+  })
+})
+
+describe('story chapters on the To do tab', () => {
+  const STORY = { description: '', howItStarts: '' }
+  const first = objective('first', 'story', { maps: [CUSTOMS] })
+  const second = objective('second', 'story', { maps: [WOODS] })
+  const locked = objective('locked', 'story', { maps: [CUSTOMS], requiredKeys: [['engine-key']] })
+  const chapter = quest('chapter', [first, second], { story: STORY })
+
+  it('shows a later step only once the one before it is done', () => {
+    const before = todoPlan([row(chapter)], {}, groupOf)
+    expect(before.maps.map((p) => [p.group.key, p.steps.map((s) => s.objective.id)])).toEqual([
+      ['customs', ['first']]
+    ])
+    const after = todoPlan([row(chapter)], { chapter: { first: 1 } }, groupOf)
+    expect(after.maps.map((p) => [p.group.key, p.steps.map((s) => s.objective.id)])).toEqual([
+      ['woods', ['second']]
+    ])
+    // Not "hand it in" while steps are still waiting.
+    expect(before.turnIn).toEqual([])
+  })
+
+  it('leaves out only the steps behind a key the player doesn’t have, with "Only quests I can do"', () => {
+    const keyed = quest('keyed', [first, locked], { story: STORY })
+    const progress = { keyed: { first: 1 } }
+    const plan = todoPlan([row(keyed)], progress, groupOf, { owned: new Set(), hideBlocked: true })
+    expect(plan.maps.flatMap((p) => p.steps.map((s) => s.objective.id))).toEqual([])
+    // The chapter isn't held up as a whole: with the key, the step shows.
+    const withKey = todoPlan([row(keyed)], progress, groupOf, {
+      owned: new Set(['engine-key']),
+      hideBlocked: true
+    })
+    expect(withKey.maps.flatMap((p) => p.steps.map((s) => s.objective.id))).toEqual(['locked'])
+    expect(blockedByKeys(keyed, new Set(), progress)).toEqual([])
   })
 })

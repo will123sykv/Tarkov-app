@@ -1263,6 +1263,11 @@ export default function TodoView({
           priceState={priceState}
           onOpenInQuests={() => openQuest(detailRow.quest.id)}
           onClose={() => setDetail(null)}
+          mapIds={
+            t.layout === 'maps' && todoMap
+              ? [...groups.values()].find((g) => g.key === todoMap)?.mapIds
+              : undefined
+          }
         />
       )}
     </div>

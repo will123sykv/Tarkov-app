@@ -67,6 +67,8 @@ interface Props {
   /** Its pins stand out and the others fade. */
   selectedQuest: string | null
   onSelectQuest: (questId: string) => void
+  /** Double-clicking a quest's pin, dot or zone ticks off the objectives there. */
+  onTick?: (questId: string, objectiveIds: string[]) => void
   keyMarks?: KeyMarks | null
   /** Favourite items' areas: the map fits them in view when they change. */
   findAreas?: readonly FindAreaMark[]
@@ -100,7 +102,8 @@ function pinTooltip(
     ...keys,
     ...(pin.rough ? [`Roughly here: the step names ${pin.places.join(' and ')}`] : []),
     ...(pin.mine ? ['Your pin'] : []),
-    'Click for details'
+    ...(pin.spots > 1 ? [`Could be at any of ${pin.spots} spots (the dots)`] : []),
+    'Click for details · double-click to tick off'
   ])
 }
 
@@ -128,6 +131,8 @@ function htmlMarker(at: L.LatLngTuple, el: HTMLElement, options: L.MarkerOptions
 }
 
 const NO_AREAS: readonly FindAreaMark[] = []
+/** How long a click on a quest waits to open it, for a double-click to tick it off instead. */
+const SELECT_DELAY_MS = 250
 
 /** An area's tooltip: the items shown that turn up there (this one first), with their icons. */
 function findTooltip(mark: FindAreaMark, all: readonly FindAreaMark[]): HTMLElement {
@@ -183,6 +188,7 @@ export default function MapCanvas({
   focus,
   selectedQuest,
   onSelectQuest,
+  onTick,
   keyMarks = null,
   findAreas = NO_AREAS,
   placing = false,
@@ -197,6 +203,7 @@ export default function MapCanvas({
   const handledFocus = useRef<Props['focus']>(null)
   const handledKey = useRef<string | null>(null)
   const handledFind = useRef<string | null>(null)
+  const selectTimer = useRef<number | null>(null)
 
   // The map itself and its base image; rebuilt when switching maps.
   useEffect(() => {
@@ -365,6 +372,23 @@ export default function MapCanvas({
     }
     const color = (status: string): string =>
       status === 'active' ? MARKER_COLORS.quest : MARKER_COLORS.questOther
+    // A click opens the quest a moment later, so a double-click (which ticks off what's there, and
+    // doesn't zoom the map) can call it off: opening the panel narrows the map under the second click.
+    const select = (questId: string) => (): void => {
+      if (selectTimer.current) window.clearTimeout(selectTimer.current)
+      selectTimer.current = window.setTimeout(() => {
+        selectTimer.current = null
+        onSelectQuest(questId)
+      }, SELECT_DELAY_MS)
+    }
+    const tick =
+      (questId: string, objectiveIds: string[]) =>
+      (e: L.LeafletMouseEvent): void => {
+        L.DomEvent.stop(e)
+        if (selectTimer.current) window.clearTimeout(selectTimer.current)
+        selectTimer.current = null
+        onTick?.(questId, objectiveIds)
+      }
     const fade = (questId: string): boolean => selectedQuest !== null && questId !== selectedQuest
     // Zone outlines, faint, under the pins.
     for (const { quest, status, objective, zones } of objectives) {
@@ -382,7 +406,8 @@ export default function MapCanvas({
             }
           )
             .bindTooltip(label(quest.name, objective.description))
-            .on('click', () => onSelectQuest(quest.id))
+            .on('click', select(quest.id))
+            .on('dblclick', tick(quest.id, [objective.id]))
         )
       }
     }
@@ -393,7 +418,8 @@ export default function MapCanvas({
         dot(d.position, color(d.status), 4, 'mapObjectives')
           .setStyle({ opacity: fade(d.quest.id) ? 0.4 : 1, fillOpacity: fade(d.quest.id) ? 0.4 : 1 })
           .bindTooltip(label(d.quest.name, [`Could be here: ${d.objective.description}`]))
-          .on('click', () => onSelectQuest(d.quest.id))
+          .on('click', select(d.quest.id))
+          .on('dblclick', tick(d.quest.id, [d.objective.id]))
       )
     }
     for (const pin of pins) {
@@ -407,7 +433,14 @@ export default function MapCanvas({
           direction: 'top',
           offset: [0, -48 - pin.stack * 44]
         })
-        .on('click', () => onSelectQuest(pin.quest.id))
+        .on('click', select(pin.quest.id))
+        .on(
+          'dblclick',
+          tick(
+            pin.quest.id,
+            pin.objectives.map((o) => o.id)
+          )
+        )
       for (const o of pin.objectives) add(`${pin.quest.id}:${o.id}`, marker)
     }
     markersRef.current = markers
@@ -422,9 +455,18 @@ export default function MapCanvas({
     itemName,
     selectedQuest,
     onSelectQuest,
+    onTick,
     keyMarks,
     findAreas
   ])
+
+  // A quest still waiting to open when the map goes away doesn't.
+  useEffect(
+    () => () => {
+      if (selectTimer.current) window.clearTimeout(selectTimer.current)
+    },
+    []
+  )
 
   // Placing a pin: the next click on the map is where it goes; Esc cancels.
   useEffect(() => {

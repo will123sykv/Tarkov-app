@@ -287,6 +287,8 @@ export interface StoryObjective {
   count: number | null
   /** For a hand-over (or a step to stash items): the items linked in the step, by name (matched to items in the app). */
   itemNames: string[]
+  /** The keys it needs, by name: the ones its text links to (not when the step is to get one). Since 1.38.0. */
+  keyNames?: string[]
   handOver: boolean
   foundInRaid: boolean
   /** The path it's on, when the chapter branches. */

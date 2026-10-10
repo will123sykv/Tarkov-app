@@ -5,6 +5,7 @@ import type { LogEvent } from '../src/main/logs/interpret'
 import { normalizeQuestData } from '../src/main/quests/questData'
 import { createPlayerStore, MAX_PINS } from '../src/main/quests/playerStore'
 import {
+  tickAll,
   applyQuestEvent,
   forFaction,
   levelRequirement,
@@ -336,5 +337,26 @@ describe('createPlayerStore', () => {
     await expect(store.setPin('story-tour', 'one-more', pin)).rejects.toThrow('Too many pins')
     await store.setPin('story-tour', 'step-0', { ...pin, map: 'woods-id' })
     expect((await store.pins())['story-tour']['step-0'].map).toBe('woods-id')
+  })
+})
+
+describe('ticking off a pin’s objectives in one go', () => {
+  it('takes each one not done to its target, remembering the player’s own ticks', () => {
+    const objectives = [
+      { id: 'kill', count: 5 },
+      { id: 'visit', count: null },
+      { id: 'done', count: 1 },
+      { id: 'detected', count: 3 }
+    ]
+    const ticked = { q: { kill: 2, done: 1 } }
+    // The app worked out "detected" by itself.
+    const done = { q: { kill: 2, done: 1, detected: 3 } }
+    expect(tickAll(objectives, 'q', ticked, done)).toEqual([
+      { objectiveId: 'kill', value: 5, previous: 2 },
+      { objectiveId: 'visit', value: 1, previous: 0 }
+    ])
+    expect(tickAll(objectives.slice(0, 1), 'other', undefined)).toEqual([
+      { objectiveId: 'kill', value: 5, previous: 0 }
+    ])
   })
 })

@@ -843,6 +843,9 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
         }))
       }))
     }
+  // 1.38.0: the keys story steps link to: refetched (the steps are kept until then).
+  if (result.storyChapters.some((c) => c.objectives.some((o) => !o.keyNames)))
+    result = { ...result, fetchedAt: 0 }
   if (result.storyChapters.some((c) => c.objectives.some((o) => !o.maps)))
     result = {
       ...result,

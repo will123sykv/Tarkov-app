@@ -367,7 +367,10 @@ the game's install folder, or its `build` folder.
   on the wiki: optional steps, sub-steps and the paths a chapter branches into (which ending, what
   you did with the armored case) are shown as the wiki lists them, with what starts the chapter.
   Chapters start and finish from the game's logs like quests; tick their steps off yourself (or let
-  the app count the ones it can, see above). Items a
+  the app count the ones it can, see above). A step only shows on the map and the To do tab once
+  the required steps before it on its path are done (the chapter's panel lists every step, the ones
+  still waiting greyed), and a step that links to a key (an access keycard, a room key) needs it like
+  a quest's lock: **Only quests I can do** leaves out just that step until you have the key. Items a
   chapter's hand-overs take (rechargeable batteries, toolsets…) count towards **Items needed** while
   it's active, except ones on a path you may not take. The steps are refreshed with the quest data,
   and the last ones fetched are kept when the wiki can't be reached. A quest's panel shows its trader, its
@@ -375,8 +378,10 @@ the game's install folder, or its `build` folder.
   an **I have it** link to tick it), the keys and items it takes, what it gives when you accept
   it, its rewards (experience, reputation, items and money, trader and craft unlocks, skills) and
   the guide from the [Escape from Tarkov Wiki](https://escapefromtarkov.fandom.com) with its
-  pictures of where to go (click one to see it full size). Guides are kept for a week, so ones
-  you've opened work offline.
+  pictures of where to go (click one to see it full size). When the pictures are of several maps,
+  buttons above them pick one map's (**All · Customs (5) · Woods (4)**), starting on the map you're
+  looking at: the Maps tab's, the Quests tab's **Map** filter or the map opened on the To do tab.
+  Guides are kept for a week, so ones you've opened work offline.
 - **Corrected from the wiki:** tarkov.dev's quest data and the
   [wiki](https://escapefromtarkov.fandom.com) don't always agree, so each quest's wiki page is read
   with the quest data, and where they differ the wiki's is used: the level the quest needs (only
@@ -413,7 +418,10 @@ the game's install folder, or its `build` folder.
 - **Maps:** your active (or available) quests as pins with the quest's name and trader, the
   trader's portrait and an icon for each thing to do there (go to, pick up, stash, mark, eliminate,
   extract, and a key when one's needed); click one to open the quest's panel on the right, the same
-  as in Quests. Pins in the style of [db4tarkov](https://db4tarkov.com/map) show your side's extracts (flare, vehicle, co-op and secret
+  as in Quests. **Double-click** a pin (or a dot, or a zone) to tick off what's there: it leaves the
+  map, and **Undo** at the bottom of the map puts it back for a few seconds after. A quest item that
+  can be in many places shows a dot at each spot and a pin for each group of them (marked **×7**:
+  could be at any of 7 spots), so the quest stands out among them. Pins in the style of [db4tarkov](https://db4tarkov.com/map) show your side's extracts (flare, vehicle, co-op and secret
   ones marked, with what they need), transits, boss spawns, sniper scavs, place names and PMC
   spawns. Customs, Ground Zero, Woods, Shoreline, Reserve, Interchange, Lighthouse and Streets use
   the clean community 2D maps db4tarkov shows; Factory, Icebreaker, Labyrinth and Terminal use

@@ -1767,6 +1767,11 @@ button.link.active {
   min-width: 0;
 }
 
+/* A story step waiting for the ones before it. */
+.objective.waiting {
+  opacity: 0.55;
+}
+
 .objective.done > .objective-head .objective-text {
   color: var(--muted);
   text-decoration: line-through;
@@ -2035,6 +2040,11 @@ button.link.small {
   width: 10px;
   text-indent: 0;
   color: var(--accent);
+}
+
+.guide-maps {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
 
 .guide-gallery {
@@ -2743,6 +2753,15 @@ button.link.small {
 
 .map-pin.quest .map-pin-icon.key.missing svg {
   fill: var(--warn);
+}
+
+/* How many possible spots (dots) a pin stands for. */
+.map-pin.quest .map-pin-icon.count {
+  width: auto;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pin-ink);
 }
 
 .map-pin.quest.selected .map-pin-label,
@@ -3692,6 +3711,24 @@ tr:hover .favourite-star {
 .tag.cant-get {
   background: rgba(213, 99, 79, 0.16);
   color: var(--bad);
+}
+
+/* What a double-click on the map ticked off, with Undo. */
+.map-toast {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  max-width: min(640px, calc(100% - 32px));
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
 .placing-banner {

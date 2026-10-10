@@ -69,13 +69,15 @@ export function missingKeys(
 /**
  * The locks in the way of finishing a quest: those its objectives still to do (not optional ones)
  * need opened, on any map, that none of the player's keys open. Empty when nothing's in the way.
- * "Only quests I can do" leaves a quest with any out entirely.
+ * "Only quests I can do" leaves a quest with any out entirely; a story chapter is never held up as a
+ * whole (only its steps behind a lock are left out).
  */
 export function blockedByKeys(
-  quest: Pick<Quest, 'id' | 'objectives'>,
+  quest: Pick<Quest, 'id' | 'objectives' | 'story'>,
   owned: ReadonlySet<string>,
   objectives: ObjectiveProgress | undefined
 ): string[][] {
+  if (quest.story) return []
   return quest.objectives
     .filter((o) => !o.optional && objectiveValue(o, quest.id, objectives) < objectiveTarget(o))
     .flatMap((o) => missingKeys(o, owned))

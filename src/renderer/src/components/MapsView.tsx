@@ -1,8 +1,8 @@
-import { useCallback, useMemo } from 'react'
-import { blockedByKeys, keysNeeded, opens } from '../../../shared/keys'
-import { objectiveTarget, objectiveValue } from '../../../shared/questProgress'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { blockedByKeys, keysNeeded, missingKeys, opens } from '../../../shared/keys'
+import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
-import { STORY_TRADER } from '../../../shared/storyQuests'
+import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
 import { killObjectives } from '../../../shared/todo'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
@@ -328,10 +328,13 @@ export default function MapsView({
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
       if (!wanted.has(status) && !focused) continue
       const trader = quest.story ? STORY_TRADER : traders.get(quest.traderId)
+      // A story chapter's later steps wait for the ones before them.
+      const reachable = reachableSteps(quest, done)
       for (const objective of quest.objectives) {
         // Done ones (ticked off in the quest's details) leave the map, unless it's the one asked for.
         const shownAnyway = focus?.questId === quest.id && focus.objectiveId === objective.id
         if (!shownAnyway && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
+        if (!shownAnyway && !reachable.has(objective.id)) continue
         const zones = objective.zones.filter((z) => mapIds.has(z.map))
         const spots = objective.locations.filter((l) => mapIds.has(l.map)).flatMap((l) => l.positions)
         if (zones.length || spots.length) result.push({ quest, status, trader, objective, zones, spots })
@@ -370,11 +373,13 @@ export default function MapsView({
       if (!quest.story) continue
       const chosen = placing?.questId === quest.id || selectedQuest === quest.id
       if (!chosen && (m.questScope === 'none' || !wanted.has(status))) continue
+      const reachable = reachableSteps(quest, done)
       for (const objective of quest.objectives) {
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
         if (!pinning && !objective.maps.some((id) => mapIds.has(id))) continue
         if (!pinning && objectiveValue(objective, quest.id, done) >= objectiveTarget(objective)) continue
-        if (!pinning && doable && (shut || blocked(quest))) continue
+        if (!pinning && !reachable.has(objective.id)) continue
+        if (!pinning && doable && (shut || blocked(quest) || missingKeys(objective, owned).length)) continue
         const zone = objective.zones.find((z) => mapIds.has(z.map))
         result.push({ quest, objective, pin: zone?.source ?? null })
       }
@@ -484,6 +489,52 @@ export default function MapsView({
         : 'No quest here needs a key you don’t have.'
 
   const onSelectQuest = useCallback((id: string) => selectQuest(id), [selectQuest])
+  // Double-clicking a pin ticks off its objectives (they leave the map), with a few seconds to undo it.
+  const ticked = useStore((s) => s.objectiveProgress[settings.gameMode])
+  const setObjectiveProgress = useStore((s) => s.setObjectiveProgress)
+  const [lastTick, setLastTick] = useState<{ quest: Quest; changes: TickChange[] } | null>(null)
+  const apply = useCallback(
+    async (questId: string, values: { objectiveId: string; value: number }[]) => {
+      for (const { objectiveId, value } of values) await setObjectiveProgress(questId, objectiveId, value)
+    },
+    [setObjectiveProgress]
+  )
+  const onTick = useCallback(
+    (questId: string, objectiveIds: string[]) => {
+      if (placing) return
+      const quest = rows.find((r) => r.quest.id === questId)?.quest
+      if (!quest) return
+      const changes = tickAll(
+        quest.objectives.filter((o) => objectiveIds.includes(o.id)),
+        questId,
+        ticked,
+        done
+      )
+      if (!changes.length) return
+      setLastTick({ quest, changes })
+      void apply(questId, changes)
+    },
+    [placing, rows, ticked, done, apply]
+  )
+  const undoTick = (): void => {
+    if (!lastTick) return
+    void apply(
+      lastTick.quest.id,
+      lastTick.changes.map((c) => ({ objectiveId: c.objectiveId, value: c.previous }))
+    )
+    setLastTick(null)
+  }
+  useEffect(() => {
+    if (!lastTick) return
+    const timer = setTimeout(() => setLastTick(null), 8000)
+    return () => clearTimeout(timer)
+  }, [lastTick])
+  const tickedText = lastTick
+    ? lastTick.changes.length === 1
+      ? (lastTick.quest.objectives.find((o) => o.id === lastTick.changes[0].objectiveId)?.description ??
+        'an objective')
+      : `${lastTick.changes.length} objectives`
+    : ''
   const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
   // The sidebar lists each quest once, with how many of its objectives are here.
   const questsHere = useMemo(() => {
@@ -755,6 +806,7 @@ export default function MapsView({
             focus={focus}
             selectedQuest={selectedQuest}
             onSelectQuest={onSelectQuest}
+            onTick={onTick}
             keyMarks={keyMarks}
             findAreas={findAreas}
             placing={placing !== null}
@@ -770,6 +822,16 @@ export default function MapsView({
                 'Loading map data…'
               )}
             </p>
+          </div>
+        )}
+        {lastTick && (
+          <div className="map-toast" role="status">
+            <span>
+              Ticked off: {tickedText} <span className="muted">— {lastTick.quest.name}</span>
+            </span>
+            <button className="link" onClick={undoTick}>
+              Undo
+            </button>
           </div>
         )}
         <div className="map-side">
@@ -805,6 +867,7 @@ export default function MapsView({
           traders={dataset.traders}
           priceState={priceState}
           onOpenInQuests={() => void updateSettings({ view: 'quests' })}
+          mapIds={[...mapIds]}
         />
       )}
     </div>

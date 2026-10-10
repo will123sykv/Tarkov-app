@@ -49,6 +49,29 @@ export function setObjective(
   return next
 }
 
+/** One objective ticked off, and what the player had ticked before (to undo it). */
+export interface TickChange {
+  objectiveId: string
+  value: number
+  previous: number
+}
+
+/**
+ * Ticking off a quest's objectives in one go (double-clicking its pin on the map): each one not yet
+ * done (by `done`, the player's ticks with what the app worked out) goes to its target. `ticked` is the
+ * player's own ticks, which an undo puts back.
+ */
+export function tickAll(
+  objectives: readonly Pick<QuestObjective, 'id' | 'count'>[],
+  questId: string,
+  ticked: ObjectiveProgress | undefined,
+  done: ObjectiveProgress | undefined = ticked
+): TickChange[] {
+  return objectives
+    .filter((o) => objectiveValue(o, questId, done) < objectiveTarget(o))
+    .map((o) => ({ objectiveId: o.id, value: objectiveTarget(o), previous: ticked?.[questId]?.[o.id] ?? 0 }))
+}
+
 /** The quest's required objectives, and how many of them are done. */
 export function objectiveSummary(
   quest: Pick<Quest, 'id' | 'objectives'>,

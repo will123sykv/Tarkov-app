@@ -90,6 +90,13 @@ export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | nu
   if (pin.mine) icons.append(iconTile(MINE_ICON, 'map-pin-icon note'))
   for (const kind of pin.kinds) icons.append(iconTile(OBJECTIVE_ICONS[kind]))
   if (pin.needsKey) icons.append(iconTile(KEY_ICON, `map-pin-icon key${pin.keyMissing ? ' missing' : ''}`))
+  // Standing for a group of possible spots (the dots around it): how many.
+  if (pin.spots > 1) {
+    const count = document.createElement('span')
+    count.className = 'map-pin-icon count'
+    count.textContent = `×${pin.spots}`
+    icons.append(count)
+  }
   const stem = document.createElement('div')
   stem.className = 'map-pin-stem'
   stem.style.height = `${5 + pin.stack * QUEST_PIN_HEIGHT}px`

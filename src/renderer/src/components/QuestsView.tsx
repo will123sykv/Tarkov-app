@@ -482,6 +482,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                 mapsById={mapsById}
                 traders={dataset.traders}
                 priceState={priceState}
+                mapIds={q.mapId ? [q.mapId] : undefined}
               />
             ) : (
               <div className="quest-detail placeholder">

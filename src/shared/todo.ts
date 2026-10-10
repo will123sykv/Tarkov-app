@@ -7,6 +7,7 @@ import {
 } from './questProgress'
 import type { Quest, QuestObjective } from './questTypes'
 import { missingKeys, opens } from './keys'
+import { reachableSteps } from './storyQuests'
 
 // The To do tab: which map to raid next. Each map gets the unfinished objectives of active quests that
 // are done there, and maps are ranked by how many quests a raid there moves on, counting twice the ones
@@ -240,8 +241,13 @@ export function todoPlan(
 
   for (const { quest, status } of rows) {
     if (status !== 'active' && status !== 'available') continue
+    // A story chapter's later steps wait for the ones before them.
+    const reachable = reachableSteps(quest, objectives)
+    const left = quest.objectives.filter(
+      (o) => !o.optional && objectiveValue(o, quest.id, objectives) < objectiveTarget(o)
+    ).length
     const open = quest.objectives
-      .filter((o) => !o.optional)
+      .filter((o) => !o.optional && reachable.has(o.id))
       .map((o) => ({
         quest,
         objective: o,
@@ -264,7 +270,7 @@ export function todoPlan(
     }
 
     result.active++
-    if (!open.length) {
+    if (!left) {
       if (quest.objectives.some((o) => !o.optional)) result.turnIn.push(quest)
       continue
     }
@@ -291,7 +297,8 @@ export function todoPlan(
       if (step.groups.length) continue
       if (step.objective.type !== 'findItem') {
         for (const keyIds of step.missing) needKey(keyIds, quest, [], false)
-        if (!keyBlocked) result.anyMap.push(step)
+        // A story step behind a lock is left out on its own (the chapter isn't held up as a whole).
+        if (!keyBlocked && !(hideBlocked && quest.story && step.missing.length)) result.anyMap.push(step)
       } else {
         const single = step.objective.items.length === 1 ? step.objective.items[0] : null
         if (!single || (have[single] ?? 0) < step.left) result.finds.push(step)
@@ -523,8 +530,10 @@ export function killObjectives(
   const anywhere: KillToDo[] = []
   for (const { quest, status } of rows) {
     if (status !== 'active' || blocked?.(quest)) continue
+    const reachable = reachableSteps(quest, objectives)
     for (const objective of quest.objectives) {
       if (objective.optional || objectiveCategory(objective) !== 'kill' || !inRaid(objective)) continue
+      if (!reachable.has(objective.id)) continue
       const done = objectiveValue(objective, quest.id, objectives)
       const total = objectiveTarget(objective)
       if (done >= total) continue

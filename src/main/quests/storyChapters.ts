@@ -11,6 +11,10 @@ const LIST_PAGE = 'Story chapters'
 const MAIN_LINE = ['Tour', 'Falling Skies', 'The Ticket']
 /** Linked pages that aren't items in a hand-over step. */
 const NOT_ITEMS = /^(found in raid|hideout|file:|image:|category:)/i
+/** A link to a key or keycard ("Access the [[Boreas engine room keycard|engine room]]"). */
+const KEY_LINK = /\bkey(card)?\b/i
+/** A step that gets the key it names rather than needing it. */
+const GETS_KEY = /^(locate and )?(obtain|find|pick up|get|retrieve|collect)\b/i
 /** Steps that take items into a raid to leave there: their linked items are what to bring. */
 const STASH = /^(stash|plant|hide|place|leave)\b/i
 /** Steps whose number is how many of something they take. */
@@ -285,6 +289,7 @@ export function parseObjectives(wikitext: string, maps: readonly StoryMap[] = []
       depth,
       count: count >= 2 ? count : null,
       itemNames: handOver || STASH.test(text) ? linkTargets(markup).filter((t) => !NOT_ITEMS.test(t)) : [],
+      keyNames: handOver || GETS_KEY.test(text) ? [] : linkTargets(markup).filter((t) => KEY_LINK.test(t)),
       handOver,
       foundInRaid: /\bin raid\b/i.test(text),
       branch,

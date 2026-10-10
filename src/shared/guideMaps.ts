@@ -23,6 +23,8 @@ export function mapAliases(name: string): string[] {
 
 const words = (text: string): string =>
   ` ${text
+    // File names run words together: "ViewerWoodsLocation", "LabsServerRoomMap".
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .replace(/\.(png|jpe?g|gif|webp)$/i, '')
     .replace(/[^a-z0-9+]+/g, ' ')
@@ -39,4 +41,22 @@ export function imageMaps(
     if (found.length) return found
   }
   return []
+}
+
+/**
+ * Each picture's maps (see `imageMaps`); a picture naming none takes the map of the others under the
+ * same heading, when they agree ("Locate the fallen plane": the map, then a photo of the plane on Woods).
+ */
+export function guideImageMaps(
+  images: readonly Pick<GuideImage, 'heading' | 'caption' | 'file'>[],
+  maps: readonly MapNames[]
+): string[][] {
+  const own = images.map((image) => imageMaps(image, maps))
+  return own.map((found, i) => {
+    const heading = images[i].heading ?? ''
+    if (found.length || !heading) return found
+    const siblings = own.filter((o, j) => j !== i && o.length && images[j].heading === heading)
+    const first = siblings[0]?.join()
+    return first && siblings.every((o) => o.join() === first) ? siblings[0] : []
+  })
 }

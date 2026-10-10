@@ -13,7 +13,8 @@ import {
   type QuestContext,
   type QuestProgress
 } from '../../../shared/questProgress'
-import { STORY_TRADER } from '../../../shared/storyQuests'
+import { guideImageMaps, mapAliases } from '../../../shared/guideMaps'
+import { STORY_TRADER, reachableSteps } from '../../../shared/storyQuests'
 import type {
   GameMap,
   GuideImage,
@@ -24,6 +25,7 @@ import type {
 } from '../../../shared/questTypes'
 import type { PriceState } from '../../../shared/types'
 import { formatAgo } from '../lib/format'
+import { mapGroups } from '../lib/mapGroups'
 import { formatMoney, formatStanding, itemsNeeded, keysNeeded } from '../lib/questSummary'
 import { configFor, objectiveMap, STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
@@ -50,6 +52,8 @@ interface Props {
   onOpenInQuests?: () => void
   /** Closing the panel (by default, the quest stops being the selected one). */
   onClose?: () => void
+  /** The map being looked at: the guide shows its pictures first. */
+  mapIds?: readonly string[]
 }
 
 type Items = ReturnType<typeof useItemLookup>
@@ -281,7 +285,8 @@ function Objective({
   items,
   value,
   detected,
-  completed
+  completed,
+  waiting = false
 }: {
   quest: Quest
   objective: QuestObjective
@@ -290,6 +295,8 @@ function Objective({
   value: number
   detected: Detected | undefined
   completed: boolean
+  /** A story step waiting for the ones before it (not on the map or the To do tab yet). */
+  waiting?: boolean
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
   const owned = useOwnedKeys()
@@ -300,7 +307,8 @@ function Objective({
   const done = value >= objectiveTarget(objective)
   return (
     <li
-      className={`objective ${done ? 'done' : ''}`}
+      className={`objective ${done ? 'done' : ''} ${waiting && !done ? 'waiting' : ''}`}
+      title={waiting && !done ? 'Once the steps before it are done' : undefined}
       style={objective.depth ? { marginLeft: `${objective.depth * 18}px` } : undefined}
     >
       <div className="objective-head">
@@ -581,11 +589,37 @@ function Lightbox({
 }
 
 /** What the wiki's guide says, and its pictures of where to go. */
-function Guide({ wikiLink }: { wikiLink: string | null }): React.JSX.Element | null {
+function Guide({
+  wikiLink,
+  mapsById,
+  mapIds
+}: {
+  wikiLink: string | null
+  mapsById: ReadonlyMap<string, GameMap>
+  /** The map being looked at (the Maps tab's, the Quests tab's filter…): its pictures come first. */
+  mapIds?: readonly string[]
+}): React.JSX.Element | null {
   const state = useQuestGuide(wikiLink)
   const [open, setOpen] = useState<{ link: string; index: number } | null>(null)
-  if (!wikiLink) return null
+  const [pick, setPick] = useState<{ link: string; key: string | null } | null>(null)
   const guide = state?.guide
+  // Which map each picture is of, for guides with pictures of several.
+  const groups = useMemo(() => mapGroups([...mapsById.values()]), [mapsById])
+  const placed = useMemo(() => {
+    const names = [...new Map([...groups.values()].map((g) => [g.key, g])).values()].map((g) => ({
+      key: g.key,
+      names: mapAliases(g.name)
+    }))
+    return guide ? guideImageMaps(guide.images, names) : []
+  }, [guide, groups])
+  const counts = new Map<string, number>()
+  for (const keys of placed) for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1)
+  const chips = [...counts].sort((a, b) => b[1] - a[1])
+  const preferred = mapIds?.map((id) => groups.get(id)?.key).find((key) => key && counts.has(key)) ?? null
+  const chosen = chips.length >= 2 ? (pick?.link === wikiLink ? pick.key : preferred) : null
+  const shown = (guide?.images ?? []).filter((_, i) => !chosen || placed[i]?.includes(chosen))
+  const nameOf = (key: string): string => [...groups.values()].find((g) => g.key === key)?.name ?? key
+  if (!wikiLink) return null
   const index = open?.link === wikiLink ? open.index : null
   return (
     <section className="quest-section guide">
@@ -610,9 +644,30 @@ function Guide({ wikiLink }: { wikiLink: string | null }): React.JSX.Element | n
               )
             )}
           </div>
-          {guide.images.length > 0 && (
+          {chips.length >= 2 && (
+            <div className="segmented small guide-maps" role="tablist" aria-label="Pictures of">
+              <button
+                role="tab"
+                className={chosen === null ? 'active' : ''}
+                onClick={() => setPick({ link: wikiLink, key: null })}
+              >
+                All ({guide.images.length})
+              </button>
+              {chips.map(([key, n]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  className={chosen === key ? 'active' : ''}
+                  onClick={() => setPick({ link: wikiLink, key })}
+                >
+                  {nameOf(key)} ({n})
+                </button>
+              ))}
+            </div>
+          )}
+          {shown.length > 0 && (
             <ul className="guide-gallery">
-              {guide.images.map((image, i) => (
+              {shown.map((image, i) => (
                 <li key={image.file}>
                   <button onClick={() => setOpen({ link: wikiLink, index: i })} title="Enlarge">
                     <img src={image.thumb} alt={image.caption} loading="lazy" />
@@ -630,9 +685,9 @@ function Guide({ wikiLink }: { wikiLink: string | null }): React.JSX.Element | n
             , CC BY-SA 3.0.
             {state?.error && ' Offline: showing the last copy.'}
           </p>
-          {index !== null && guide.images[index] && (
+          {index !== null && shown[index] && (
             <Lightbox
-              images={guide.images}
+              images={shown}
               index={index}
               onIndex={(i) => setOpen({ link: wikiLink, index: i })}
               onClose={() => setOpen(null)}
@@ -659,7 +714,8 @@ function QuestPanel({
   objectives,
   detected,
   onOpenInQuests,
-  onClose
+  onClose,
+  mapIds
 }: Props): React.JSX.Element {
   const { quest, status } = row
   const setQuestStatus = useStore((s) => s.setQuestStatus)
@@ -674,6 +730,7 @@ function QuestPanel({
   const trader = quest.story ? STORY_TRADER : traders.find((t) => t.id === quest.traderId)
   const completed = status === 'completed'
   const summary = objectiveSummary(quest, objectives, completed)
+  const reachable = reachableSteps(quest, objectives)
   const requirements = requirementLabels(quest, questsById, ctx.traders)
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
@@ -847,6 +904,7 @@ function QuestPanel({
         </h4>
         <ol className="objectives">
           {quest.objectives.map((o, i) => {
+            const waiting = Boolean(quest.story) && !completed && !reachable.has(o.id)
             const previous = quest.objectives[i - 1]?.branch ?? null
             const branch = o.branch ?? null
             return (
@@ -862,6 +920,7 @@ function QuestPanel({
                   value={objectiveValue(o, quest.id, objectives, completed)}
                   detected={detected[quest.id]?.[o.id]}
                   completed={completed}
+                  waiting={waiting}
                 />
               </Fragment>
             )
@@ -870,8 +929,9 @@ function QuestPanel({
         {quest.story && (
           <p className="hint">
             From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
-            and finishes: tick the steps off yourself. Steps like &ldquo;visit Customs 3 times&rdquo; count
-            your raids from the logs, and loyalty steps use the levels set in the Items to collect tab.
+            and finishes: tick the steps off yourself. Greyed steps wait for the ones before them: they show
+            on the map and the To do tab once those are done. Steps like &ldquo;visit Customs 3 times&rdquo;
+            count your raids from the logs, and loyalty steps use the levels set in the Items to collect tab.
           </p>
         )}
       </section>
@@ -890,7 +950,7 @@ function QuestPanel({
         traders={traders}
         items={items}
       />
-      <Guide key={quest.id} wikiLink={quest.wikiLink} />
+      <Guide key={quest.id} wikiLink={quest.wikiLink} mapsById={mapsById} mapIds={mapIds} />
       {quest.wikiLink && (
         <a className="wiki-link" href={quest.wikiLink} target="_blank" rel="noreferrer">
           Open on the wiki ↗

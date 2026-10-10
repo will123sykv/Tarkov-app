@@ -108,9 +108,40 @@ describe('quest pins', () => {
     ])
     expect(pins.map((p) => [p.quest.id, p.status, p.stack])).toEqual([
       ['one', 'active', 0],
-      ['two', 'available', 1]
+      ['two', 'available', 1],
+      // None near another: one pin for them all, in the middle.
+      ['three', 'active', 0]
     ])
+    expect(pins[2]).toMatchObject({ position: at(50, 50), spots: 4 })
     expect(dots.map((d) => d.position)).toEqual(many)
+  })
+
+  it('pins each group of a quest item’s many spots where it’s centred, and keeps the dots', () => {
+    const find = objective('find', 'findQuestItem')
+    const plant = objective('plant', 'plantItem')
+    const q = quest('spread', [find, plant])
+    // Five spots around one building, three around another, and one far away.
+    const east = [at(0, 0), at(10, 0), at(20, 0), at(30, 0), at(40, 0)]
+    const west = [at(-300, 0), at(-310, 5), at(-320, 0)]
+    const { pins, dots } = questPins([
+      marker(q, find, [], [...east, at(500, 500), ...west]),
+      // An exact spot of the same quest by the east group's middle: one pin.
+      marker(q, plant, [at(21, 1)])
+    ])
+    expect(dots).toHaveLength(9)
+    expect(pins.map((p) => [p.position, p.spots, p.objectives.map((o) => o.id)])).toEqual([
+      [at(20, 0), 5, ['find', 'plant']],
+      [at(-310, 5), 3, ['find']]
+    ])
+  })
+
+  it('keeps pins for a quest item with only a few spots', () => {
+    const find = objective('find', 'findQuestItem')
+    const { pins, dots } = questPins([
+      marker(quest('few', [find]), find, [], [at(0, 0), at(200, 0), at(400, 0)])
+    ])
+    expect(dots).toEqual([])
+    expect(pins.map((p) => p.spots)).toEqual([0, 0, 0])
   })
 })
 
@@ -254,5 +285,20 @@ describe('quest summary', () => {
     expect(formatMoney('569668774bdc2da2298b4568', 1200)).toBe('€1,200')
     expect(formatMoney('salewa', 2)).toBeNull()
     expect([formatStanding(0.1), formatStanding(-0.05)]).toEqual(['+0.10', '−0.05'])
+  })
+})
+
+describe('story steps on the map with "Only quests I can do"', () => {
+  it('leaves out only the step behind a key the player doesn’t have, not the chapter', () => {
+    const open = objective('open', 'story')
+    const locked = objective('locked', 'story', { requiredKeys: [['engine-key']] })
+    const chapter = quest('chapter', [open, locked], { story: { description: '', howItStarts: '' } })
+    const result = doableMarkers(
+      [marker(chapter, open, [at(0, 0)]), marker(chapter, locked, [at(50, 0)])],
+      new Set(),
+      false
+    )
+    expect(result.markers.map((m) => m.objective.id)).toEqual(['open'])
+    expect(result.hidden).toBe(1)
   })
 })
