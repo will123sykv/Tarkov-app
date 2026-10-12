@@ -393,9 +393,10 @@ describe('quest summaries', () => {
     const summary = questSummary(q, progress, customs.steps, customs.group, ['Customs'])
     expect(summary).toEqual({
       lines: [
-        { kind: 'mark', text: 'Mark 3 spots', done: 1, total: 3 },
-        { kind: 'kill', text: 'Eliminate 5 Scavs', done: 2, total: 5 },
-        { kind: 'visit', text: 'Locate the hideout', done: 0, total: 1 }
+        // Marks and kills count when the squad does them; visits only when you do.
+        { kind: 'mark', text: 'Mark 3 spots', done: 1, total: 3, squad: true },
+        { kind: 'kill', text: 'Eliminate 5 Scavs', done: 2, total: 5, squad: true },
+        { kind: 'visit', text: 'Locate the hideout', done: 0, total: 1, squad: false }
       ],
       more: 0
     })

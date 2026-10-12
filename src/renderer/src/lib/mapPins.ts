@@ -1,6 +1,7 @@
 import type { MapLabel } from '../../../shared/questTypes'
 import { BOSS_ICON, LOCK_ICON, pinIcons, SNIPER_ICON, type PinKind } from './mapMarkers'
-import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, type QuestPin } from './questPins'
+import { squadShared } from '../../../shared/squad'
+import { KEY_ICON, MINE_ICON, OBJECTIVE_ICONS, ROUGH_ICON, SQUAD_ICON, type QuestPin } from './questPins'
 
 // The map's HTML markers (see mapMarkers.ts for what they show).
 
@@ -90,6 +91,8 @@ export function questPinElement(pin: QuestPin, state: 'selected' | 'dimmed' | nu
   if (pin.mine) icons.append(iconTile(MINE_ICON, 'map-pin-icon note'))
   for (const kind of pin.kinds) icons.append(iconTile(OBJECTIVE_ICONS[kind]))
   if (pin.needsKey) icons.append(iconTile(KEY_ICON, `map-pin-icon key${pin.keyMissing ? ' missing' : ''}`))
+  if (pin.objectives.some((o) => squadShared(pin.quest, o)))
+    icons.append(iconTile(SQUAD_ICON, 'map-pin-icon squad'))
   // Standing for a group of possible spots (the dots around it): how many.
   if (pin.spots > 1) {
     const count = document.createElement('span')

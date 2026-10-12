@@ -379,6 +379,25 @@ describe('sanitizeSettings', () => {
     ).toBe('active')
   })
 
+  it('keeps the quests taken off the map: valid ids once each (since 1.41.0)', () => {
+    expect(sanitizeSettings({}).maps.hiddenQuests).toEqual([])
+    expect(
+      sanitizeSettings({
+        maps: {
+          hiddenQuests: [
+            '5936d90786f7742b1420ba5b',
+            'wiki-make-amends',
+            'story:ch1',
+            5,
+            '<b>',
+            'wiki-make-amends'
+          ]
+        }
+      }).maps.hiddenQuests
+    ).toEqual(['5936d90786f7742b1420ba5b', 'wiki-make-amends', 'story:ch1'])
+    expect(sanitizeSettings({ maps: { hiddenQuests: 'all' } }).maps.hiddenQuests).toEqual([])
+  })
+
   it('turns Active + available into Active, and keeps the global settings moved to Settings (1.40.0)', () => {
     const old = sanitizeSettings({
       maps: { questScope: 'available' },

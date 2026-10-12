@@ -16,6 +16,7 @@ import {
 import { guideImageMaps, mapAliases } from '../../../shared/guideMaps'
 import { STORY_TRADER, reachableSteps } from '../../../shared/storyQuests'
 import { objectiveMapIds } from '../../../shared/todo'
+import { squadShared } from '../../../shared/squad'
 import type {
   QuestGuideState,
   GameMap,
@@ -37,6 +38,7 @@ import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
 import ErrorBoundary from './ErrorBoundary'
 import FavouriteStar from './FavouriteStar'
+import SquadIcon from './SquadIcon'
 
 interface Props {
   row: QuestRow
@@ -323,6 +325,7 @@ function Objective({
         />
         <span className="objective-text">
           {objective.description || objective.type}
+          {squadShared(quest, objective) && <SquadIcon />}
           {objective.optional && <span className="tag">optional</span>}
           {objective.wiki &&
             ('added' in objective.wiki ? (
@@ -701,6 +704,9 @@ function QuestPanel({
   const markQuestsUpTo = useStore((s) => s.markQuestsUpTo)
   const removeWikiQuest = useStore((s) => s.removeWikiQuest)
   const selectQuest = useStore((s) => s.selectQuest)
+  const mapSettings = useStore((s) => s.settings?.maps)
+  const updateSettings = useStore((s) => s.updateSettings)
+  const offMap = mapSettings?.hiddenQuests.includes(quest.id) ?? false
   const items = useItemLookup(priceState)
   const now = useNow(60_000)
   const entry = progress[quest.id]
@@ -809,6 +815,24 @@ function QuestPanel({
           )
         })}
       </div>
+      {offMap && mapSettings && (
+        <p className="hint off-map-note">
+          Taken off the map (Quests on this map), so the others stand out.{' '}
+          <button
+            className="link small"
+            onClick={() =>
+              void updateSettings({
+                maps: {
+                  ...mapSettings,
+                  hiddenQuests: mapSettings.hiddenQuests.filter((id) => id !== quest.id)
+                }
+              })
+            }
+          >
+            Put it back
+          </button>
+        </p>
+      )}
       {!quest.story && !quest.wiki && (
         <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
           Mark this and everything before it done

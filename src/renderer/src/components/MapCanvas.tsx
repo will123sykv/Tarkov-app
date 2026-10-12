@@ -1,7 +1,9 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
+import { pointInPolygon, polygonArea } from '../../../shared/geometry'
 import { opens } from '../../../shared/keys'
+import { squadShared } from '../../../shared/squad'
 import type { GameMap, MapLabel, Vec3 } from '../../../shared/questTypes'
 import type { FindArea } from '../../../shared/whereToFind'
 import type { MapProjection } from '../lib/mapProjection'
@@ -98,7 +100,9 @@ function pinTooltip(
   })
   return label(pin.quest.name, [
     ...(pin.trader ? [pin.trader.name] : []),
-    ...pin.objectives.map((o) => `• ${o.description || o.type}`),
+    ...pin.objectives.map(
+      (o) => `• ${o.description || o.type}${squadShared(pin.quest, o) ? ' (your squad can help)' : ''}`
+    ),
     ...keys,
     ...(pin.rough ? [`Roughly here: the step names ${pin.places.join(' and ')}`] : []),
     ...(pin.mine ? ['Your pin'] : []),
@@ -390,26 +394,47 @@ export default function MapCanvas({
         onTick?.(questId, objectiveIds)
       }
     const fade = (questId: string): boolean => selectedQuest !== null && questId !== selectedQuest
-    // Zone outlines, faint, under the pins.
-    for (const { quest, status, objective, zones } of objectives) {
-      for (const z of zones.filter((z) => z.outline.length > 2)) {
-        add(
-          `${quest.id}:${objective.id}`,
-          L.polygon(
-            z.outline.map((p) => at(p, z.position)),
-            {
-              color: color(status),
-              weight: quest.id === selectedQuest ? 2.5 : 1.5,
-              opacity: fade(quest.id) ? 0.35 : 0.9,
-              fillOpacity: fade(quest.id) ? 0.05 : 0.15,
-              pane: 'mapObjectives'
-            }
+    // Zone outlines, faint, under the pins. The biggest go first so smaller ones sit on top of them,
+    // and a click inside a smaller one under a big one (on another floor's layer, say) goes to it.
+    const areas = objectives
+      .flatMap(({ quest, status, objective, zones }) =>
+        zones
+          .filter((z) => z.outline.length > 2)
+          .map((z) => {
+            const outline = z.outline.map((p) => at(p, z.position))
+            return { quest, status, objective, outline, size: polygonArea(outline) }
+          })
+      )
+      .sort((a, b) => b.size - a.size)
+    const smallestAt = (point: L.LatLng, area: (typeof areas)[number]): (typeof areas)[number] =>
+      areas.reduce(
+        (best, other) =>
+          other.size < best.size && pointInPolygon([point.lat, point.lng], other.outline) ? other : best,
+        area
+      )
+    for (const area of areas) {
+      const { quest, status, objective, outline } = area
+      add(
+        `${quest.id}:${objective.id}`,
+        L.polygon(outline, {
+          color: color(status),
+          weight: quest.id === selectedQuest ? 2.5 : 1.5,
+          opacity: fade(quest.id) ? 0.35 : 0.9,
+          fillOpacity: fade(quest.id) ? 0.05 : 0.15,
+          pane: 'mapObjectives'
+        })
+          .bindTooltip(
+            label(quest.name, [
+              objective.description,
+              ...(squadShared(quest, objective) ? ['Your squad can help: their progress counts for you'] : [])
+            ])
           )
-            .bindTooltip(label(quest.name, objective.description))
-            .on('click', select(quest.id))
-            .on('dblclick', tick(quest.id, [objective.id]))
-        )
-      }
+          .on('click', (e: L.LeafletMouseEvent) => select(smallestAt(e.latlng, area).quest.id)())
+          .on('dblclick', (e: L.LeafletMouseEvent) => {
+            const under = smallestAt(e.latlng, area)
+            tick(under.quest.id, [under.objective.id])(e)
+          })
+      )
     }
     const { pins, dots } = questPins(objectives, owned)
     for (const d of dots) {
@@ -417,7 +442,14 @@ export default function MapCanvas({
         `${d.quest.id}:${d.objective.id}`,
         dot(d.position, color(d.status), 4, 'mapObjectives')
           .setStyle({ opacity: fade(d.quest.id) ? 0.4 : 1, fillOpacity: fade(d.quest.id) ? 0.4 : 1 })
-          .bindTooltip(label(d.quest.name, [`Could be here: ${d.objective.description}`]))
+          .bindTooltip(
+            label(d.quest.name, [
+              `Could be here: ${d.objective.description}`,
+              ...(squadShared(d.quest, d.objective)
+                ? ['Your squad can help: their progress counts for you']
+                : [])
+            ])
+          )
           .on('click', select(d.quest.id))
           .on('dblclick', tick(d.quest.id, [d.objective.id]))
       )

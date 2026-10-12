@@ -1,4 +1,5 @@
 import {
+  mdiAccountGroup,
   mdiApproximatelyEqual,
   mdiCrosshairsGps,
   mdiExitRun,
@@ -53,6 +54,8 @@ export const OBJECTIVE_KIND_LABEL: Record<ObjectiveKind, string> = {
 export const KEY_ICON = mdiKeyVariant
 /** A story step's pin the player put there, and one only roughly placed (where the step names a place). */
 export const MINE_ICON = mdiMapMarkerAccount
+/** An objective a squad can help with (its progress counts for everyone in the group). */
+export const SQUAD_ICON = mdiAccountGroup
 export const ROUGH_ICON = mdiApproximatelyEqual
 
 export interface QuestPin {

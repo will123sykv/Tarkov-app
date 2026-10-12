@@ -1,4 +1,6 @@
+import { squadShared } from '../../../shared/squad'
 import { shortObjective, type KillToDo } from '../../../shared/todo'
+import SquadIcon from './SquadIcon'
 
 /**
  * The kill objectives left on the map shown, and the ones that count on any map, in a strip over the top
@@ -56,6 +58,7 @@ export default function KillBanner({
               </button>
               <span className="kill-banner-text">
                 {anyMap ? objective.description : shortObjective(objective.description, mapNames)}
+                {squadShared(quest, objective) && <SquadIcon />}
                 {anyMap && <span className="tag">any map</span>}
               </span>
               <span className="kill-banner-count" title={`${done} of ${total} done`}>

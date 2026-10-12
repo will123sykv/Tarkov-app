@@ -81,6 +81,7 @@ export const DEFAULT_SETTINGS: Settings = {
     faction: 'pmc',
     favouritesOpen: true,
     highlighted: [],
+    hiddenQuests: [],
     killsOpen: true
   },
   hideout: {
@@ -136,6 +137,8 @@ export const MAX_WIKI_QUESTS = 200
 
 /** More items than anyone would show on the map at once. */
 const MAX_HIGHLIGHTED = 20
+/** Quests taken off the map: more than any player has active at once. */
+const MAX_HIDDEN_QUESTS = 500
 
 function sanitizeMaps(raw: unknown): MapSettings {
   const d = DEFAULT_SETTINGS.maps
@@ -160,6 +163,13 @@ function sanitizeMaps(raw: unknown): MapSettings {
             r.highlighted.filter((id): id is string => typeof id === 'string' && /^[\w-]{1,40}$/.test(id))
           )
         ].slice(0, MAX_HIGHLIGHTED)
+      : [],
+    hiddenQuests: Array.isArray(r.hiddenQuests)
+      ? [
+          ...new Set(
+            r.hiddenQuests.filter((id): id is string => typeof id === 'string' && /^[\w:.-]{1,80}$/.test(id))
+          )
+        ].slice(0, MAX_HIDDEN_QUESTS)
       : []
   }
 }

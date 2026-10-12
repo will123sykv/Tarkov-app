@@ -443,6 +443,19 @@ the game's install folder, or its `build` folder.
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
   lists as a map of its own, is left out everywhere in the app.
+- **Focus on some quests:** each quest under **Quests on this map** in the sidebar has an eye
+  toggle that takes it off the map (its pins, areas, story steps and kill-banner lines), on every
+  map, until you switch it back on, even after a restart. The section says how many are off, with
+  **Show all**; the quest's panel says so too, with **Put it back**. A quest opened with **Show on
+  map** shows anyway. The To do and Quests tabs still list it.
+- **Overlapping areas:** where a quest's area covers a smaller one, the smaller is drawn on top and
+  takes the click (or double-click), so the quests under a big area can still be opened and ticked.
+- **Your squad can help:** since patch 1.1.0, progress anyone in your group makes on some objectives
+  counts for you too. A small blue two-people icon marks them on map pins and their tooltips, the kill banner, the To
+  do tab's quest summaries and full lists, and every quest's panel. The game marks the exact
+  objectives, but neither tarkov.dev nor the wiki lists them, so the app goes by the kind of objective
+  the patch's write-ups name (eliminations, picking up quest items, marking), leaving out the chains
+  the patch keeps solo (The Tarkov Shooter, The Punisher).
 - **Only quests I can do on the maps:** the same setting as the To do tab (in Settings). With **Show all**, a pin whose objective needs a key you don't have shows its key
   in amber on dark, like a lock you have no key for, and its tooltip says **(you don't have it)**;
   **Only quests I can do** takes the whole quest off the map (all its objectives, on every map,

@@ -4848,3 +4848,70 @@ tr:hover .favourite-star {
 .quest-list-note {
   margin: 4px 16px 6px;
 }
+
+/* Quests on this map: each with a toggle that takes it off the map (since 1.41.0). */
+.map-objectives li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-objectives li > button.link {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-objectives li.off-map > button.link {
+  opacity: 0.45;
+}
+
+.map-objectives button.eye-toggle {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.map-objectives button.eye-toggle:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.map-objectives button.eye-toggle[aria-pressed='false'] {
+  color: var(--accent);
+}
+
+.map-objectives button.eye-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* An objective a squad can help with (since 1.41.0): on pins, and beside objective lines. */
+.map-pin.quest .map-pin-icon.squad {
+  background: #1d2228;
+  border-color: var(--info);
+}
+
+.map-pin.quest .map-pin-icon.squad svg {
+  fill: var(--info);
+}
+
+.squad-icon {
+  display: inline-flex;
+  flex: none;
+  vertical-align: -2px;
+  margin-left: 4px;
+}
+
+.squad-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--info);
+}

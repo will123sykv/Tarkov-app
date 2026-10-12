@@ -266,6 +266,8 @@ export interface MapSettings {
   highlighted: string[]
   /** The banner of kill objectives over the map is open (since 1.33.0). */
   killsOpen: boolean
+  /** Quests taken off the map to focus on the others, by id, until shown again (since 1.41.0). */
+  hiddenQuests: string[]
 }
 
 export interface TrendSettings {

@@ -22,6 +22,7 @@ import {
   type MapPlan,
   type TodoStep
 } from '../../../shared/todo'
+import { squadShared } from '../../../shared/squad'
 import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/questPins'
 import type { Group } from '../lib/mapGroups'
@@ -36,6 +37,7 @@ import { useStore } from '../store'
 import LoadError from './LoadError'
 import { FriendTags } from './FriendKeys'
 import SettingsLink from './SettingsLink'
+import SquadIcon from './SquadIcon'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -94,6 +96,7 @@ function Step({
             <Icon path={OBJECTIVE_ICONS[kind]} className="kind" />
           </span>
           {objective.description || objective.type}
+          {squadShared(quest, objective) && <SquadIcon />}
           {where && <span className="tag">{where}</span>}
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
@@ -245,7 +248,10 @@ function QuestCard({
             <span title={OBJECTIVE_KIND_LABEL[l.kind]}>
               <Icon path={OBJECTIVE_ICONS[l.kind]} className="kind" />
             </span>
-            <span className="todo-line-text">{l.text}</span>
+            <span className="todo-line-text">
+              {l.text}
+              {l.squad && <SquadIcon />}
+            </span>
             {l.total > 1 && (
               <span className={`todo-progress ${l.done >= l.total ? 'done' : ''}`}>
                 {l.done}/{l.total}

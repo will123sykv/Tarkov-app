@@ -15,6 +15,7 @@ import {
   MINE_ICON,
   OBJECTIVE_ICONS,
   ROUGH_ICON,
+  SQUAD_ICON,
   type ObjectiveMarker
 } from '../lib/questPins'
 import { mapGroups } from '../lib/mapGroups'
@@ -36,6 +37,36 @@ const SCOPES: { id: MapSettings['questScope']; label: string }[] = [
   { id: 'active', label: 'Active' },
   { id: 'none', label: 'None' }
 ]
+
+const EYE =
+  'M12 5c-5 0-9 4.5-10 7 1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z'
+const EYE_OFF =
+  'M3.3 2 2 3.3l3.2 3.2C3.6 7.8 2.5 9.6 2 12c1 2.5 5 7 10 7 1.9 0 3.6-.6 5.1-1.5l3.6 3.5 1.3-1.3L3.3 2ZM12 16a4 4 0 0 1-3.9-4.9l1.6 1.6a2 2 0 0 0 1.6 1.6l1.6 1.6c-.3.1-.6.1-.9.1Zm0-11c5 0 9 4.5 10 7-.5 1.3-1.6 2.9-3.1 4.3l-3-3a4 4 0 0 0-5.2-5.2L8.4 5.8C9.5 5.3 10.7 5 12 5Z'
+
+/** Whether a quest is on the map: off takes it off (until shown again) to focus on the others. */
+function EyeToggle({
+  on,
+  name,
+  onChange
+}: {
+  on: boolean
+  name: string
+  onChange: (on: boolean) => void
+}): React.JSX.Element {
+  return (
+    <button
+      className="eye-toggle"
+      aria-pressed={on}
+      aria-label={`${name} on the map`}
+      title={on ? 'Take it off the map, to focus on the others' : 'Put it back on the map'}
+      onClick={() => onChange(!on)}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden>
+        <path d={on ? EYE : EYE_OFF} />
+      </svg>
+    </button>
+  )
+}
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -298,6 +329,17 @@ export default function MapsView({
   const shut = accessKeys.length > 0 && !opens(accessKeys, owned)
   const doable = settings.todo.show === 'doable'
 
+  // Quests taken off the map (Quests on this map) to focus on the others; one asked for still shows.
+  const hiddenQuests = useMemo(() => new Set(m.hiddenQuests), [m.hiddenQuests])
+  const shownAnyway = useCallback(
+    (questId: string) => focus?.questId === questId || selectedQuest === questId,
+    [focus, selectedQuest]
+  )
+  const setHidden = (questId: string, hide: boolean): void =>
+    set({
+      hiddenQuests: hide ? [...m.hiddenQuests, questId] : m.hiddenQuests.filter((id) => id !== questId)
+    })
+
   const inScope = useMemo<ObjectiveMarker[]>(() => {
     if (m.questScope === 'none') return []
     const traders = new Map((dataset?.traders ?? []).map((t) => [t.id, t]))
@@ -330,7 +372,11 @@ export default function MapsView({
         : { markers: inScope, hidden: 0, quests: 0 },
     [doable, inScope, owned, shut, focus, blocked]
   )
-  const objectives = shown.markers
+  // Every quest the filters leave in (for the sidebar's list), and the ones not taken off the map.
+  const objectives = useMemo(
+    () => shown.markers.filter((mk) => !hiddenQuests.has(mk.quest.id) || shownAnyway(mk.quest.id)),
+    [shown, hiddenQuests, shownAnyway]
+  )
   const groupOf = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
   // Kill objectives left here and on any map, in the banner over the map (most have nowhere to pin).
   // "Only quests I can do" on a map the player can't get onto keeps just the ones for any map.
@@ -339,8 +385,9 @@ export default function MapsView({
       blocked: doable ? blocked : undefined,
       groupOf: (id) => groupOf.get(id)?.key
     })
-    return doable && shut ? all.filter((k) => k.anyMap) : all
-  }, [rows, done, mapIds, doable, blocked, shut, groupOf])
+    const left = all.filter((k) => !hiddenQuests.has(k.quest.id) || shownAnyway(k.quest.id))
+    return doable && shut ? left.filter((k) => k.anyMap) : left
+  }, [rows, done, mapIds, doable, blocked, shut, groupOf, hiddenQuests, shownAnyway])
   const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
@@ -349,7 +396,7 @@ export default function MapsView({
     for (const { quest, status } of rows) {
       if (!quest.story) continue
       const chosen = placing?.questId === quest.id || selectedQuest === quest.id
-      if (!chosen && (m.questScope === 'none' || status !== 'active')) continue
+      if (!chosen && (m.questScope === 'none' || status !== 'active' || hiddenQuests.has(quest.id))) continue
       const reachable = reachableSteps(quest, done)
       for (const objective of quest.objectives) {
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
@@ -362,7 +409,7 @@ export default function MapsView({
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked])
+  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked, hiddenQuests])
   const placingStep = placing
     ? (rows
         .find((r) => r.quest.id === placing.questId)
@@ -516,13 +563,14 @@ export default function MapsView({
   // The sidebar lists each quest once, with how many of its objectives are here.
   const questsHere = useMemo(() => {
     const list: { marker: ObjectiveMarker; count: number }[] = []
-    for (const marker of objectives) {
+    for (const marker of shown.markers) {
       const entry = list.find((e) => e.marker.quest.id === marker.quest.id)
       if (entry) entry.count++
       else list.push({ marker, count: 1 })
     }
     return list
-  }, [objectives])
+  }, [shown])
+  const hiddenHere = questsHere.filter((q) => hiddenQuests.has(q.marker.quest.id)).length
 
   return (
     <div className={`maps ${selected && dataset ? 'with-detail' : ''}`}>
@@ -575,6 +623,7 @@ export default function MapsView({
             <KindLegend icon={OBJECTIVE_ICONS.kill}>Eliminate</KindLegend>
             <KindLegend icon={OBJECTIVE_ICONS.extract}>Extract</KindLegend>
             <KindLegend icon={KEY_ICON}>Needs a key</KindLegend>
+            <KindLegend icon={SQUAD_ICON}>Your squad can help</KindLegend>
             <li className="legend-kind">
               <span className="legend-key-missing" aria-hidden>
                 <Icon path={KEY_ICON} />
@@ -691,7 +740,7 @@ export default function MapsView({
           ) : (
             <ul className="map-objectives">
               {questsHere.map(({ marker: { quest, trader, status }, count }) => (
-                <li key={quest.id}>
+                <li key={quest.id} className={hiddenQuests.has(quest.id) ? 'off-map' : ''}>
                   <button
                     className={`link ${selectedQuest === quest.id ? 'active' : ''}`}
                     onClick={() => void useStore.getState().showOnMap(quest.id, null, m.mapKey)}
@@ -710,9 +759,22 @@ export default function MapsView({
                       </span>
                     </span>
                   </button>
+                  <EyeToggle
+                    on={!hiddenQuests.has(quest.id)}
+                    name={quest.name}
+                    onChange={(on) => setHidden(quest.id, !on)}
+                  />
                 </li>
               ))}
             </ul>
+          )}
+          {hiddenHere > 0 && (
+            <p className="hint">
+              {hiddenHere === 1 ? '1 quest' : `${hiddenHere} quests`} taken off the map.{' '}
+              <button className="link small" onClick={() => set({ hiddenQuests: [] })}>
+                Show all
+              </button>
+            </p>
           )}
         </SidebarSection>
         <StorySteps steps={storySteps} mapKey={m.mapKey} placing={placing} />

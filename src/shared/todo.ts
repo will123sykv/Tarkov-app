@@ -7,6 +7,7 @@ import {
 } from './questProgress'
 import type { Quest, QuestObjective } from './questTypes'
 import { missingKeys, opens } from './keys'
+import { squadShared } from './squad'
 import { reachableSteps } from './storyQuests'
 
 // The To do tab: which map to raid next. Each map gets the unfinished objectives of active quests that
@@ -439,6 +440,8 @@ export interface SummaryLine {
   text: string
   done: number
   total: number
+  /** A squad's progress counts for it (all of them, for a line of several). */
+  squad: boolean
 }
 
 const KIND_PHRASE: Partial<Record<ObjectiveKind, (n: number) => string>> = {
@@ -483,7 +486,13 @@ export function questSummary(
     const value = objectiveValue(objective, quest.id, objectives)
     const target = objectiveTarget(objective)
     if (kind === 'kill') {
-      lines.push({ kind, text: shortObjective(objective.description, mapNames), done: value, total: target })
+      lines.push({
+        kind,
+        text: shortObjective(objective.description, mapNames),
+        done: value,
+        total: target,
+        squad: squadShared(quest, objective)
+      })
       continue
     }
     if (kinds.has(kind)) continue
@@ -493,13 +502,20 @@ export function questSummary(
       (o) => !o.optional && objectiveKind(o) === kind && inRaid(o) && onMap(o)
     )
     if (same.length <= 1)
-      lines.push({ kind, text: shortObjective(objective.description, mapNames), done: value, total: target })
+      lines.push({
+        kind,
+        text: shortObjective(objective.description, mapNames),
+        done: value,
+        total: target,
+        squad: squadShared(quest, objective)
+      })
     else
       lines.push({
         kind,
         text: KIND_PHRASE[kind]?.(same.length) ?? `${same.length} objectives`,
         done: same.filter((o) => objectiveValue(o, quest.id, objectives) >= objectiveTarget(o)).length,
-        total: same.length
+        total: same.length,
+        squad: same.every((o) => squadShared(quest, o))
       })
   }
   return { lines: lines.slice(0, max), more: Math.max(0, lines.length - max) }
