@@ -11,6 +11,10 @@ async function main(): Promise<void> {
       const body = await wikiApi(fetchFn as never, { action: 'parse', page: title, prop: 'wikitext' })
       const lines = String((body.parse as Raw).wikitext ?? '').split('\n')
       console.log(`== ${title}: ${lines.length} lines`)
+      if (title === 'Changelog') {
+        const at = lines.findIndex((l) => /Group-shared task progression/.test(l))
+        console.log(lines.slice(at, at + 16).join('\n'))
+      }
       lines.forEach((l, i) => {
         if (LOOK.test(l) && /task|quest|objective|progress/i.test(l)) console.log(`${i}: ${l.slice(0, 600)}`)
       })
