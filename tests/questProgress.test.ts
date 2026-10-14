@@ -18,6 +18,7 @@ import {
   questMaps,
   setObjective,
   questStatus,
+  questsBefore,
   requirementLabels,
   setQuestStatus,
   withoutLogEntries,
@@ -34,6 +35,24 @@ const ctx = (playerLevel = 15, faction: string | null = null) => ({ playerLevel,
 const status = (id: string, progress: QuestProgress, level = 15) =>
   questStatus(get(id), progress, ctx(level), byId)
 const done = (at = 1): QuestProgress[string] => ({ status: 'completed', at, source: 'log' })
+
+describe('the quests before one', () => {
+  it('names each with how it stands, and its objectives left until it’s done', () => {
+    const debut = get(Q.debut)
+    const first = debut.objectives.find((o) => !o.optional)!
+    const active: QuestProgress = { [Q.debut]: { status: 'active', at: 1, source: 'log' } }
+    const before = questsBefore(get(Q.checking), active, ctx(), byId, { [Q.debut]: { [first.id]: 1 } })
+    expect(before.map((b) => [b.quest.name, b.status])).toEqual([[debut.name, 'active']])
+    expect(before[0].left.every((l) => l.done < l.total)).toBe(true)
+    // One done of the first objective: still left when it takes more, gone when one is all it takes.
+    const firstLeft = before[0].left.find((l) => l.objective === first)
+    if (objectiveTarget(first) > 1) expect(firstLeft?.done).toBe(1)
+    else expect(firstLeft).toBeUndefined()
+    const finished = questsBefore(get(Q.checking), { [Q.debut]: done() }, ctx(), byId, {})
+    expect(finished).toEqual([{ quest: debut, status: 'completed', left: [] }])
+    expect(questsBefore(debut, {}, ctx(), byId, {})).toEqual([])
+  })
+})
 
 describe('quest status', () => {
   it('is available once level and prerequisites are met, else locked with reasons', () => {

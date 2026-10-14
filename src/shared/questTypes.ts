@@ -394,6 +394,27 @@ export interface QuestDataset {
   wikiFacts: Record<string, WikiQuestFacts>
   /** Quests only the wiki has (not events, not the Arena's), read from their pages. Since 1.37.0. */
   wikiOnlyQuests: WikiQuest[]
+  /** What each map's wiki page says about its extracts and transits, by map id. Since 1.42.0. */
+  wikiExtracts: Record<string, WikiMapExits>
+}
+
+/** One row of a map page's Extractions or Transits table on the wiki. Since 1.42.0. */
+export interface WikiExit {
+  name: string
+  /** Who can use it, as the wiki has it: PMC, Scav or All. */
+  faction: string
+  /** Whether it's always open: "Yes", "No", or per side ("PMC: No, Scav: Yes"). */
+  alwaysAvailable: string
+  singleUse: boolean
+  /** What it takes, one thing a line (empty: nothing). */
+  requirements: string[]
+  /** Anything else the wiki says about it, one line each. */
+  notes: string[]
+}
+
+export interface WikiMapExits {
+  extracts: WikiExit[]
+  transits: WikiExit[]
 }
 
 /** A tarkov.dev quest's page on the wiki, read for what can correct tarkov.dev's data. Since 1.36.0. */

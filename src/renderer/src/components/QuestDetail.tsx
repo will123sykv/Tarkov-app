@@ -7,6 +7,7 @@ import {
   objectiveSummary,
   objectiveTarget,
   objectiveValue,
+  questsBefore,
   requirementLabels,
   type ObjectiveProgress,
   type ProgressEntry,
@@ -752,6 +753,9 @@ function QuestPanel({
   )
   const elsewhere = quest.objectives.length - listed.length
   const requirements = requirementLabels(quest, questsById, ctx.traders)
+  const before = questsBefore(quest, progress, ctx, questsById, objectives)
+  const traderOf = (q: Quest): QuestTrader | undefined =>
+    q.story ? STORY_TRADER : traders.find((t) => t.id === q.traderId)
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
       <button className="link" onClick={() => selectQuest(q.id)}>
@@ -788,6 +792,45 @@ function QuestPanel({
           ✕
         </button>
       </header>
+
+      {before.map(({ quest: b, status: bStatus, left }) =>
+        bStatus === 'completed' ? (
+          <p key={b.id} className="quest-before done">
+            <span className="muted">Before this: </span>
+            {questLink(b, b.name)}{' '}
+            <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
+          </p>
+        ) : (
+          <section key={b.id} className="quest-before" aria-label={`Before this: ${b.name}`}>
+            <div className="quest-before-head">
+              <span className="muted">Before this</span>
+              <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
+            </div>
+            <div className="quest-before-name">
+              {traderOf(b)?.imageLink && (
+                <img className="portrait small" src={traderOf(b)!.imageLink!} alt="" />
+              )}
+              {questLink(b, b.name)}
+              {traderOf(b) && <span className="muted">{traderOf(b)!.name}</span>}
+            </div>
+            {left.length > 0 && (
+              <ul className="quest-before-left">
+                {left.slice(0, 4).map(({ objective: o, done, total }) => (
+                  <li key={o.id}>
+                    <span>{o.description || o.type}</span>
+                    {total > 1 && (
+                      <span className="todo-progress">
+                        {done}/{total}
+                      </span>
+                    )}
+                  </li>
+                ))}
+                {left.length > 4 && <li className="muted">+{left.length - 4} more</li>}
+              </ul>
+            )}
+          </section>
+        )
+      )}
 
       <div className="quest-status">
         <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
@@ -907,18 +950,6 @@ function QuestPanel({
         </ul>
       )}
 
-      {quest.requires.length > 0 && (
-        <p className="quest-links">
-          <span className="muted">After: </span>
-          {quest.requires.map((r, i) => (
-            <span key={r.questId}>
-              {i > 0 && ', '}
-              {questLink(questsById.get(r.questId), 'an unknown quest')}
-              {!r.status.includes('complete') && <span className="muted"> ({r.status.join(' or ')})</span>}
-            </span>
-          ))}
-        </p>
-      )}
       {unlocks.length > 0 && (
         <p className="quest-links">
           <span className="muted">Unlocks: </span>

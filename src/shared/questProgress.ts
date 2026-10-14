@@ -226,6 +226,42 @@ export function questStatus(
   return lockReasons(quest, progress, ctx, questsById).length ? 'locked' : 'available'
 }
 
+/** A quest that comes before another, how it stands, and (when not done) its objectives left. */
+export interface QuestBefore {
+  quest: Quest
+  status: QuestStatus
+  left: { objective: QuestObjective; done: number; total: number }[]
+}
+
+/** The quests a quest comes after (that the data knows), for the top of its panel. */
+export function questsBefore(
+  quest: Quest,
+  progress: QuestProgress,
+  ctx: QuestContext,
+  questsById: ReadonlyMap<string, Quest>,
+  objectives: ObjectiveProgress | undefined
+): QuestBefore[] {
+  const result: QuestBefore[] = []
+  for (const req of quest.requires) {
+    const before = questsById.get(req.questId)
+    if (!before || result.some((r) => r.quest === before)) continue
+    const status = questStatus(before, progress, ctx, questsById)
+    const left =
+      status === 'completed'
+        ? []
+        : before.objectives
+            .filter((o) => !o.optional)
+            .map((o) => ({
+              objective: o,
+              done: objectiveValue(o, before.id, objectives),
+              total: objectiveTarget(o)
+            }))
+            .filter((o) => o.done < o.total)
+    result.push({ quest: before, status, left })
+  }
+  return result
+}
+
 /** Whether the quest is offered to the player's faction. */
 export function forFaction(quest: Quest, faction: string | null): boolean {
   return !faction || quest.faction === 'Any' || quest.faction === faction

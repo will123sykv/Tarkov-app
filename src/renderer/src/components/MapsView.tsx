@@ -389,6 +389,11 @@ export default function MapsView({
     return doable && shut ? left.filter((k) => k.anyMap) : left
   }, [rows, done, mapIds, doable, blocked, shut, groupOf, hiddenQuests, shownAnyway])
   const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
+  // What the wiki says about this map's extracts and transits (its versions share a page).
+  const exits = useMemo(
+    () => maps.map((gm) => dataset?.wikiExtracts?.[gm.id]).find(Boolean) ?? null,
+    [maps, dataset]
+  )
 
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
   const storySteps = useMemo<StepHere[]>(() => {
@@ -828,6 +833,7 @@ export default function MapsView({
             placing={placing !== null}
             onPlace={onPlace}
             onCancelPlace={cancelPlace}
+            exits={exits}
           />
         ) : (
           <div className="empty">

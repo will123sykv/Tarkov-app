@@ -461,11 +461,11 @@ describe('createQuestDataService', () => {
     const service = createQuestDataService({ fetchFn, cacheDir: join(await tempDir(), 'c'), now: () => 5 })
     await Promise.all([service.get('pvp'), service.get('pvp')])
     await service.get('pvp')
-    // Ten tarkov.dev files, the wiki's list of story chapters, one batch of quest pages and its list
-    // of quests (for the ones only it has).
-    expect(fetchFn).toHaveBeenCalledTimes(13)
+    // Ten tarkov.dev files, the wiki's list of story chapters, one batch of quest pages, its list of
+    // quests (for the ones only it has) and one batch of map pages (for their extracts).
+    expect(fetchFn).toHaveBeenCalledTimes(14)
     await service.get('pvp', true)
-    expect(fetchFn).toHaveBeenCalledTimes(26)
+    expect(fetchFn).toHaveBeenCalledTimes(28)
   })
 
   it('keeps the story chapters it had when the wiki can’t be reached', async () => {

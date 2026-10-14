@@ -184,7 +184,7 @@ interface Page {
 }
 
 /** Pages' wikitext and categories, 50 a request. Missing pages are left out. */
-async function fetchPages(fetchFn: FetchFn, titles: readonly string[]): Promise<Page[]> {
+export async function fetchPages(fetchFn: FetchFn, titles: readonly string[]): Promise<Page[]> {
   const pages: Page[] = []
   for (let i = 0; i < titles.length; i += PAGE_BATCH) {
     const asked = titles.slice(i, i + PAGE_BATCH)

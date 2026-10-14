@@ -2,9 +2,10 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import { pointInPolygon, polygonArea } from '../../../shared/geometry'
+import { matchExit } from '../../../shared/extracts'
 import { opens } from '../../../shared/keys'
 import { squadShared } from '../../../shared/squad'
-import type { GameMap, MapLabel, Vec3 } from '../../../shared/questTypes'
+import type { GameMap, MapLabel, Vec3, WikiExit, WikiMapExits } from '../../../shared/questTypes'
 import type { FindArea } from '../../../shared/whereToFind'
 import type { MapProjection } from '../lib/mapProjection'
 import {
@@ -78,6 +79,8 @@ interface Props {
   placing?: boolean
   onPlace?: (position: Vec3) => void
   onCancelPlace?: () => void
+  /** What the wiki says about the map's extracts and transits, for the popup a click on one opens. */
+  exits?: WikiMapExits | null
 }
 
 export const MARKER_COLORS = {
@@ -109,6 +112,64 @@ function pinTooltip(
     ...(pin.spots > 1 ? [`Could be at any of ${pin.spots} spots (the dots)`] : []),
     'Click for details · double-click to tick off'
   ])
+}
+
+/** An extract or transit clicked on: what's known about it. */
+interface OpenExit {
+  name: string
+  /** What it is and costs, from tarkov.dev ("Vehicle extract: 5,000 ₽"). */
+  summary: string
+  wiki: WikiExit | null
+}
+
+const FACTION_WORDS: Record<string, string> = { All: 'PMCs and scavs', PMC: 'PMCs', Scav: 'scavs' }
+
+/** What a click on an extract or transit shows, in the map's corner until closed. */
+function ExitCard({ exit, onClose }: { exit: OpenExit; onClose: () => void }): React.JSX.Element {
+  const { wiki } = exit
+  return (
+    <aside className="exit-card" aria-label={`${exit.name}: what it needs`}>
+      <header>
+        <strong>{exit.name}</strong>
+        <button className="button icon small" aria-label="Close" onClick={onClose}>
+          ✕
+        </button>
+      </header>
+      <div className="muted">{exit.summary}</div>
+      {wiki ? (
+        <>
+          <div>For: {FACTION_WORDS[wiki.faction] ?? wiki.faction}</div>
+          {wiki.alwaysAvailable && <div>Always open: {wiki.alwaysAvailable}</div>}
+          {wiki.singleUse && <div>Once a raid: the first to use it closes it</div>}
+          {wiki.requirements.length ? (
+            <>
+              <div className="exit-card-heading">Needs</div>
+              <ul>
+                {wiki.requirements.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="exit-card-none">Needs nothing.</div>
+          )}
+          {wiki.notes.length > 0 && (
+            <>
+              <div className="exit-card-heading">Notes</div>
+              <ul>
+                {wiki.notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <div className="exit-card-source muted">From the wiki&rsquo;s map page.</div>
+        </>
+      ) : (
+        <div className="muted">The wiki says nothing more about it.</div>
+      )}
+    </aside>
+  )
 }
 
 /** Tooltip content as a DOM node, so names from the data are never parsed as HTML. */
@@ -197,13 +258,25 @@ export default function MapCanvas({
   findAreas = NO_AREAS,
   placing = false,
   onPlace,
-  onCancelPlace
+  onCancelPlace,
+  exits = null
 }: Props): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const overlayRef = useRef<L.LayerGroup | null>(null)
   const markersRef = useRef(new Map<string, L.Layer[]>())
   const [baseError, setBaseError] = useState<string | null>(null)
+  // The extract or transit clicked on, shown until closed (or another map is shown).
+  const [openExit, setOpenExit] = useState<OpenExit | null>(null)
+  useEffect(() => setOpenExit(null), [maps])
+  useEffect(() => {
+    if (!openExit) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpenExit(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openExit])
   const handledFocus = useRef<Props['focus']>(null)
   const handledKey = useRef<string | null>(null)
   const handledFind = useRef<string | null>(null)
@@ -303,7 +376,14 @@ export default function MapCanvas({
         seen.add(key)
         // Over an extract at the same spot (Streets' Scav Checkpoint and its Labs transit), as db4tarkov shows it.
         htmlMarker(at(t.position), pinElement('transit', t.name), { riseOnHover: true, zIndexOffset: 100 })
-          .bindTooltip(label(t.name, 'Transit to another map'), tipAbove)
+          .bindTooltip(label(t.name, ['Transit to another map', 'Click for what it needs']), tipAbove)
+          .on('click', () =>
+            setOpenExit({
+              name: t.name,
+              summary: 'Transit to another map',
+              wiki: matchExit(t.name, exits?.transits ?? [])
+            })
+          )
           .addTo(overlay)
       }
     }
@@ -313,7 +393,14 @@ export default function MapCanvas({
         faction
       ).filter((e) => shown(e.position))) {
         htmlMarker(at(e.position), pinElement(extractKind(e), e.name), { riseOnHover: true })
-          .bindTooltip(label(e.name, extractDetail(e, itemName)), tipAbove)
+          .bindTooltip(label(e.name, [extractDetail(e, itemName), 'Click for what it needs']), tipAbove)
+          .on('click', () =>
+            setOpenExit({
+              name: e.name,
+              summary: extractDetail(e, itemName),
+              wiki: matchExit(e.name, exits?.extracts ?? [])
+            })
+          )
           .addTo(overlay)
       }
     }
@@ -489,7 +576,8 @@ export default function MapCanvas({
     onSelectQuest,
     onTick,
     keyMarks,
-    findAreas
+    findAreas,
+    exits
   ])
 
   // A quest still waiting to open when the map goes away doesn't.
@@ -578,6 +666,7 @@ export default function MapCanvas({
     <div className={`map-canvas ${placing ? 'placing' : ''}`}>
       <div ref={containerRef} className="leaflet-host" />
       {baseError && <div className="map-error">{baseError}</div>}
+      {openExit && <ExitCard exit={openExit} onClose={() => setOpenExit(null)} />}
     </div>
   )
 }

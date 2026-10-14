@@ -30,6 +30,7 @@ import { errorMessage, type FetchFn } from '../pricing/http'
 import { fetchJsonData, translator, values, type Collection } from '../pricing/tarkovDevJson'
 import { wikiTitle } from './questGuide'
 import { fetchStoryChapters } from './storyChapters'
+import { fetchWikiExtracts } from './wikiExtracts'
 import { fetchWikiFacts, fetchWikiOnlyQuests } from './wikiQuests'
 
 type Raw = Record<string, unknown>
@@ -638,7 +639,8 @@ export function normalizeQuestData(
     // Filled in from the wiki by fetchQuestData.
     storyChapters: [],
     wikiFacts: {},
-    wikiOnlyQuests: []
+    wikiOnlyQuests: [],
+    wikiExtracts: {}
   })
 }
 
@@ -721,7 +723,9 @@ export async function fetchQuestData(
     ].map((name) => name.toLowerCase())
   )
   const wikiOnlyQuests = await fetchWikiOnlyQuests(fetchFn, known, dataset.maps).catch(() => [])
-  return { ...dataset, storyChapters, wikiFacts, wikiOnlyQuests }
+  // What each map's page says about its extracts and transits (none when the wiki can't be reached).
+  const wikiExtracts = await fetchWikiExtracts(fetchFn, dataset.maps).catch(() => ({}))
+  return { ...dataset, storyChapters, wikiFacts, wikiOnlyQuests, wikiExtracts }
 }
 
 /**
@@ -830,6 +834,8 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.wikiFacts) result = { ...result, fetchedAt: 0, wikiFacts: {} }
   // 1.37.0: quests only the wiki has.
   if (!result.wikiOnlyQuests) result = { ...result, fetchedAt: 0, wikiOnlyQuests: [] }
+  // 1.42.0: what the maps' pages say about their extracts.
+  if (!result.wikiExtracts) result = { ...result, fetchedAt: 0, wikiExtracts: {} }
   // 1.39.0: the weapons kills are to be made with (until refetched, none).
   if (result.quests.some((q) => q.objectives.some((o) => !o.weapons)))
     result = {
@@ -909,7 +915,10 @@ export function createQuestDataService(deps: { fetchFn: FetchFn; cacheDir: strin
         wikiFacts: Object.keys(fresh.wikiFacts).length ? fresh.wikiFacts : (state.dataset?.wikiFacts ?? {}),
         wikiOnlyQuests: fresh.wikiOnlyQuests.length
           ? fresh.wikiOnlyQuests
-          : (state.dataset?.wikiOnlyQuests ?? [])
+          : (state.dataset?.wikiOnlyQuests ?? []),
+        wikiExtracts: Object.keys(fresh.wikiExtracts).length
+          ? fresh.wikiExtracts
+          : (state.dataset?.wikiExtracts ?? {})
       }
       await writeJsonFileAtomic(cacheFile(dataMode), dataset)
       state = { dataset, fromCache: false, error: null, loading: false }

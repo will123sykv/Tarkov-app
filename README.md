@@ -352,7 +352,9 @@ the game's install folder, or its `build` folder.
   so to catch up on older progress, open a quest you've reached and use **Mark this and everything
   before it done**, which also completes everything that had to come before it. You can set any
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
-  trader, map, faction, and Kappa or Lightkeeper. With **Only quests I can do** (Settings), quests a
+  trader, map, faction, and Kappa or Lightkeeper. A quest's panel opens with the quest that comes
+  before it: its status and, until it's done, its objectives left, with a link to open it (a done
+  one is a single line). With **Only quests I can do** (Settings), quests a
   key you don't have holds up leave the list, and a line above it says how many (a search still
   finds them). **Items to hand over** lists what your active
   quests still want handed over or planted, flagging found-in-raid
@@ -443,6 +445,10 @@ the game's install folder, or its `build` folder.
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
   lists as a map of its own, is left out everywhere in the app.
+- **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
+  until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its
+  cost, and the requirements and notes from the map's page on the wiki (a key, a power switch, a
+  flare, Red Rebel and paracord, no armor vest…). Hovering still shows the short version.
 - **Focus on some quests:** each quest under **Quests on this map** in the sidebar has an eye
   toggle that takes it off the map (its pins, areas, story steps and kill-banner lines), on every
   map, until you switch it back on, even after a restart. The section says how many are off, with
