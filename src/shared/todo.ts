@@ -118,12 +118,74 @@ export interface MapPlan {
   noAccess: string[] | null
   /** Keys the steps here need: one list per lock, any key in a list opens it. */
   keys: string[][]
-  /** Items the steps here use up (to mark, plant or use), with how many. */
-  bring: { itemId: string; count: number }[]
+  /** Items the steps here use up (to mark, plant or use), with how many: any one of each list. */
+  bring: BringItem[]
   /** Weapons kills here are to be made with: any one of each list (an AKM or an AKMN), and for which quests. */
   weapons: { itemIds: string[]; quests: Quest[] }[]
   /** Quest items to take in and plant, given when the quest started. */
   questItems: { name: string; questId: string }[]
+}
+
+/** An item to take into a raid to use up there: any one of `itemIds` (an Obdolbos or an Obdolbos 2). */
+export interface BringItem {
+  itemIds: string[]
+  count: number
+  /** For an objective on any map: it can be used on whichever map is raided. */
+  anyMap?: boolean
+}
+
+/** Weapons a kill is to be made with: any one of `itemIds`, and for which quests. */
+export interface WeaponsToBring {
+  itemIds: string[]
+  quests: Quest[]
+  /** For a kill on any map. */
+  anyMap?: boolean
+}
+
+const sameItems = (a: readonly string[], b: readonly string[]): boolean =>
+  [...a].sort().join() === [...b].sort().join()
+
+/** Add an item to bring to a list, adding to the count of the same choice of items. */
+function addBring(list: BringItem[], itemIds: string[], count: number, anyMap?: boolean): void {
+  const entry = list.find((b) => sameItems(b.itemIds, itemIds) && !b.anyMap === !anyMap)
+  if (entry) entry.count += count
+  else list.push({ itemIds, count, ...(anyMap ? { anyMap } : {}) })
+}
+
+/**
+ * What objectives on any map (naming none) have you take in: the weapons kills are to be made with and
+ * the items to use up, for every map's list, as they can be done on whichever map is raided.
+ */
+export function anyMapTake(plan: Pick<TodoPlan, 'anyMap'>): {
+  weapons: WeaponsToBring[]
+  bring: BringItem[]
+} {
+  const weapons: WeaponsToBring[] = []
+  const bring: BringItem[] = []
+  for (const { quest, objective, left } of plan.anyMap) {
+    if (objective.weapons?.length) {
+      const guns = objective.weapons
+      const entry = weapons.find((w) => sameItems(w.itemIds, guns))
+      if (!entry) weapons.push({ itemIds: guns, quests: [quest], anyMap: true })
+      else if (!entry.quests.includes(quest)) entry.quests.push(quest)
+    }
+    if (BRING.has(objective.type) && objective.items.length) addBring(bring, objective.items, left, true)
+  }
+  return { weapons, bring }
+}
+
+/** A map's weapons and items to bring, with the ones for any map that aren't already listed. */
+export function takeToMap(
+  plan: Pick<MapPlan, 'weapons' | 'bring'>,
+  anyMap: { weapons: WeaponsToBring[]; bring: BringItem[] }
+): { weapons: WeaponsToBring[]; bring: BringItem[] } {
+  return {
+    weapons: [
+      ...plan.weapons,
+      ...anyMap.weapons.filter((w) => !plan.weapons.some((p) => sameItems(p.itemIds, w.itemIds)))
+    ],
+    bring: [...plan.bring, ...anyMap.bring]
+  }
 }
 
 /** A hand-over that can be done now: the items are put aside, or the quest item has been found. */
@@ -340,12 +402,8 @@ export function todoPlan(
       for (const { objective, left } of here) {
         for (const keyIds of objective.requiredKeys)
           if (keyIds.length && !p.keys.some((k) => k.join() === keyIds.join())) p.keys.push(keyIds)
-        if (BRING.has(objective.type) && objective.items.length === 1) {
-          const itemId = objective.items[0]
-          const entry = p.bring.find((b) => b.itemId === itemId)
-          if (entry) entry.count += left
-          else p.bring.push({ itemId, count: left })
-        }
+        // Any one of the items will do (an Obdolbos or an Obdolbos 2).
+        if (BRING.has(objective.type) && objective.items.length) addBring(p.bring, objective.items, left)
         if (objective.weapons?.length) {
           const key = [...objective.weapons].sort().join()
           const entry = p.weapons.find((w) => [...w.itemIds].sort().join() === key)

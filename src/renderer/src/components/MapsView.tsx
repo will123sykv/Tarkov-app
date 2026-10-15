@@ -3,7 +3,7 @@ import { blockedByKeys, keysNeeded, missingKeys, opens } from '../../../shared/k
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
-import { killObjectives } from '../../../shared/todo'
+import { anyMapTake, killObjectives, takeToMap } from '../../../shared/todo'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
@@ -24,10 +24,12 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useWhereToFind } from '../lib/useFavourites'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useQuestRows } from '../lib/useQuestRows'
+import { useTodoPlan } from '../lib/useTodoPlan'
 import { useStore } from '../store'
 import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
 import KillBanner from './KillBanner'
+import MapReminder, { hasReminder, type RaidReminder } from './MapReminder'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import SettingsLink from './SettingsLink'
@@ -220,6 +222,7 @@ function StorySteps({
 
 const NO_LABELS: MapLabel[] = []
 const NO_MAPS: GameMap[] = []
+const NO_HAVE: Record<string, number> = {}
 
 const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
   { key: 'showLabels', label: 'Place names' },
@@ -378,6 +381,31 @@ export default function MapsView({
     [shown, hiddenQuests, shownAnyway]
   )
   const groupOf = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
+
+  // What to take into a raid here, as the To do tab has it: shown each time a map is opened, until
+  // closed (Got it), when there's anything to take or look out for.
+  const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
+  const groupFor = useCallback((id: string) => groupOf.get(id), [groupOf])
+  const todo = useTodoPlan(settings, rows, done, groupFor, owned, have)
+  const reminder = useMemo<RaidReminder | null>(() => {
+    if (!mainMap) return null
+    const key = groupOf.get(mainMap.id)?.key
+    const here = todo.maps.find((p) => p.group.key === key)
+    const { weapons, bring } = takeToMap(here ?? { weapons: [], bring: [] }, anyMapTake(todo))
+    const r: RaidReminder = {
+      keys: here?.keys ?? [],
+      noAccess: here?.noAccess ?? null,
+      weapons,
+      bring,
+      questItems: here?.questItems ?? [],
+      finds: todo.finds
+    }
+    return hasReminder(r) ? r : null
+  }, [mainMap, groupOf, todo])
+  const [remindFor, setRemindFor] = useState<string | null>(m.mapKey)
+  useEffect(() => setRemindFor(m.mapKey), [m.mapKey])
+  const reminderOpen = remindFor === m.mapKey
+  const closeReminder = useCallback(() => setRemindFor(null), [])
   // Kill objectives left here and on any map, in the banner over the map (most have nowhere to pin).
   // "Only quests I can do" on a map the player can't get onto keeps just the ones for any map.
   const kills = useMemo(() => {
@@ -845,6 +873,17 @@ export default function MapsView({
               )}
             </p>
           </div>
+        )}
+        {reminder && reminderOpen && !placing && mainMap && (
+          <MapReminder
+            mapName={choices.find((c) => c.key === m.mapKey)?.name ?? mainMap.name}
+            reminder={reminder}
+            items={items}
+            owned={owned}
+            friendsWith={friendsWith}
+            have={have}
+            onClose={closeReminder}
+          />
         )}
         {lastTick && (
           <div className="map-toast" role="status">

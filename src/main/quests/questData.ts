@@ -469,7 +469,8 @@ export function normalizeQuestData(
             name: t(str(rec(questItems[questItemId]).name) ?? `${questItemId} Name`) ?? questItemId
           }
         : null
-      const items = [...arr(obj.items), obj.item, obj.markerItem]
+      // What it takes: handed over, found, planted, marked with, or used (any one of `useAny`).
+      const items = [...arr(obj.items), ...arr(obj.useAny), obj.item, obj.markerItem]
         .map((i) => str(i) ?? str(rec(i).id))
         .filter((i): i is string => i !== null)
       return {
@@ -836,6 +837,9 @@ function upgradeCache(cached: QuestDataset): QuestDataset {
   if (!result.wikiOnlyQuests) result = { ...result, fetchedAt: 0, wikiOnlyQuests: [] }
   // 1.42.0: what the maps' pages say about their extracts.
   if (!result.wikiExtracts) result = { ...result, fetchedAt: 0, wikiExtracts: {} }
+  // 1.43.0: the items use-item objectives take (tarkov.dev's useAny), read from then on.
+  if (result.quests.some((q) => q.objectives.some((o) => o.type === 'useItem' && !o.items.length)))
+    result = { ...result, fetchedAt: 0 }
   // 1.39.0: the weapons kills are to be made with (until refetched, none).
   if (result.quests.some((q) => q.objectives.some((o) => !o.weapons)))
     result = {

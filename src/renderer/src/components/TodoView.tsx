@@ -5,7 +5,7 @@ import {
   mdiHandExtended,
   mdiKeyVariant
 } from '@mdi/js'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { DetectedProgress } from '../../../shared/objectiveDetection'
 import { EMPTY_HIDEOUT, stationLevel, upgradeStatus } from '../../../shared/hideout'
 import { EMPTY_KEYS, opens } from '../../../shared/keys'
@@ -13,10 +13,11 @@ import { objectiveValue, type ObjectiveProgress } from '../../../shared/questPro
 import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../shared/questTypes'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
+  anyMapTake,
   mapOverview,
   objectiveMapIds,
   questSummary,
-  todoPlan,
+  takeToMap,
   type KeyToGet,
   type MapGroup,
   type MapPlan,
@@ -31,6 +32,7 @@ import { formatMoney, formatStanding } from '../lib/questSummary'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useTodoPlan } from '../lib/useTodoPlan'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
@@ -38,6 +40,7 @@ import LoadError from './LoadError'
 import { FriendTags } from './FriendKeys'
 import SettingsLink from './SettingsLink'
 import SquadIcon from './SquadIcon'
+import { BringChip, WeaponChoice } from './TakeChips'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -53,6 +56,8 @@ const Icon = ({ path, className }: { path: string; className?: string }): React.
     <path d={path} />
   </svg>
 )
+
+const NO_TAKE = { weapons: [], bring: [] }
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -287,29 +292,6 @@ function QuestCard({
 }
 
 /** What a raid on one map would get done, and what to take. */
-type WeaponsToBring = MapPlan['weapons'][number] & { anyMap?: boolean }
-
-/** A weapon a kill needs: the first of the ones that will do, and how many others would. */
-function WeaponChoice({ weapon, items }: { weapon: WeaponsToBring; items: Items }): React.JSX.Element {
-  const names = weapon.itemIds.map((id) => items.get(id)?.name ?? 'Unknown weapon')
-  const first = items.get(weapon.itemIds[0])
-  const others = weapon.itemIds.length - 1
-  const title = [
-    `For ${weapon.quests.map((q) => q.name).join(', ')}${weapon.anyMap ? ' (a kill on any map)' : ''}:`,
-    others ? `any of ${names.join(', ')}` : names[0]
-  ].join(' ')
-  return (
-    <span className="item-chip weapon" title={title}>
-      {first?.iconLink && <img src={first.iconLink} alt="" loading="lazy" />}
-      <span>
-        {names[0]}
-        {others > 0 && <span className="muted"> or {plural(others, 'other')}</span>}
-        {weapon.anyMap && <span className="muted"> (any map)</span>}
-      </span>
-    </span>
-  )
-}
-
 function MapCard({
   plan,
   rank,
@@ -327,7 +309,7 @@ function MapCard({
   onOpenQuest,
   onOpenMap,
   wide = false,
-  anyMapWeapons = []
+  anyMap = NO_TAKE
 }: {
   plan: MapPlan
   rank: number
@@ -349,14 +331,10 @@ function MapCard({
   /** Across the page, its quests side by side (as the map to raid next is). */
   wide?: boolean
   /** Weapons for kills on any map, which can be done here too. */
-  anyMapWeapons?: WeaponsToBring[]
+  /** What objectives on any map have you take in (kills' weapons, items to use up). */
+  anyMap?: ReturnType<typeof anyMapTake>
 }): React.JSX.Element {
-  const weapons: WeaponsToBring[] = [
-    ...plan.weapons,
-    ...anyMapWeapons.filter(
-      (w) => !plan.weapons.some((p) => [...p.itemIds].sort().join() === [...w.itemIds].sort().join())
-    )
-  ]
+  const { weapons, bring } = takeToMap(plan, anyMap)
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
   const reason = [
@@ -460,10 +438,7 @@ function MapCard({
           ))}
         </ul>
       )}
-      {(plan.keys.length > 0 ||
-        plan.bring.length > 0 ||
-        plan.questItems.length > 0 ||
-        weapons.length > 0) && (
+      {(plan.keys.length > 0 || bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
         <div className="todo-take">
           {plan.keys.length > 0 && (
             <div>
@@ -485,15 +460,15 @@ function MapCard({
               </span>
             </div>
           )}
-          {(plan.bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
+          {(bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
             <div>
               <span className="todo-take-label">Bring</span>
               <span className="todo-take-list">
                 {weapons.map((w) => (
                   <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
                 ))}
-                {plan.bring.map((b) => (
-                  <ItemChip key={b.itemId} id={b.itemId} count={b.count} items={items} />
+                {bring.map((b) => (
+                  <BringChip key={`${b.itemIds.join()}${b.anyMap ? ':any' : ''}`} item={b} items={items} />
                 ))}
                 {plan.questItems.map((q) => (
                   <span key={`${q.questId}:${q.name}`} className="item-chip">
@@ -905,16 +880,8 @@ export default function TodoView({
   const { owned, friendsWith } = friendKeys
   const keyName = (keyId: string): string => info(keyId).name
 
-  const plan = useMemo(
-    () =>
-      todoPlan(rows, objectives, (id) => groups.get(id), {
-        have: progress.have,
-        owned,
-        hideBlocked: t.show === 'doable',
-        kinds: t.kinds
-      }),
-    [rows, objectives, groups, progress.have, owned, t.show, t.kinds]
-  )
+  const groupOf = useCallback((id: string) => groups.get(id), [groups])
+  const plan = useTodoPlan(settings, rows, objectives, groupOf, owned, progress.have)
   // Keys to buy: the ones holding up active quests, then the ones added from the Keys tab.
   const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
   const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !owned.has(id))
@@ -964,18 +931,8 @@ export default function TodoView({
       ? ([...groups.values()].find((g) => g.key === todoMap)?.name ?? null)
       : null
   const openedRank = ranked.findIndex((p) => p.group.key === todoMap)
-  // Weapons for kills on any map: they can be done on whichever map is raided.
-  const anyMapWeapons = useMemo(() => {
-    const result: WeaponsToBring[] = []
-    for (const { quest, objective } of plan.anyMap) {
-      if (!objective.weapons?.length) continue
-      const key = [...objective.weapons].sort().join()
-      const entry = result.find((w) => [...w.itemIds].sort().join() === key)
-      if (!entry) result.push({ itemIds: objective.weapons, quests: [quest], anyMap: true })
-      else if (!entry.quests.includes(quest)) entry.quests.push(quest)
-    }
-    return result
-  }, [plan])
+  // Weapons and items for objectives on any map: they can be done on whichever map is raided.
+  const anyMap = useMemo(() => anyMapTake(plan), [plan])
   const mapCard = (p: MapPlan, rank: number, wide = false): React.JSX.Element => (
     <MapCard
       key={p.group.key}
@@ -995,7 +952,7 @@ export default function TodoView({
       onOpenQuest={openQuest}
       onOpenMap={openMap}
       wide={wide}
-      anyMapWeapons={anyMapWeapons}
+      anyMap={anyMap}
     />
   )
   const segmented = <T extends string>(

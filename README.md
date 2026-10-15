@@ -153,7 +153,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   bring, with **◀ All maps** to go back and the maps before and after it in the ranking either side.
   **List** shows every map with its quests on one page instead.
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
-  what to **Bring** (markers, items to stash, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; a kill on any map adds its gun to every map, marked **any map**). **Show on map** opens the map in
+  what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
 - **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
@@ -354,7 +354,9 @@ the game's install folder, or its `build` folder.
   quest's status by hand; the newest of a manual change and a log entry wins. Filter by status,
   trader, map, faction, and Kappa or Lightkeeper. A quest's panel opens with the quest that comes
   before it: its status and, until it's done, its objectives left, with a link to open it (a done
-  one is a single line). With **Only quests I can do** (Settings), quests a
+  one is a single line). When **Show** leaves out every quest a trader has (the BTR Driver's are all
+  **Locked** until you take Mechanic's A Helping Hand and work through his chain), a line at the top
+  of the list says so, with a button to show them. With **Only quests I can do** (Settings), quests a
   key you don't have holds up leave the list, and a line above it says how many (a search still
   finds them). **Items to hand over** lists what your active
   quests still want handed over or planted, flagging found-in-raid
@@ -445,6 +447,11 @@ the game's install folder, or its `build` folder.
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
   lists as a map of its own, is left out everywhere in the app.
+- **Before you raid:** opening a map (picking it, or **Show on map** from another tab) shows what a
+  raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
+  (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
+  to plant or use, quest items, guns for kills, with how many you've put aside), and found-in-raid
+  items to **Look out for**. It doesn't show when there's nothing to list.
 - **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
   until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its
   cost, and the requirements and notes from the map's page on the wiki (a key, a power switch, a

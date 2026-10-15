@@ -4,6 +4,8 @@ import { blockedByKeys } from '../src/shared/keys'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import {
+  anyMapTake,
+  takeToMap,
   inRaid,
   killObjectives,
   mapOverview,
@@ -208,7 +210,7 @@ describe('todoPlan', () => {
     )
     const [customs] = todoPlan([row(q)], {}, groupOf).maps
     expect(customs.keys).toEqual([['key1', 'key2'], ['key3']])
-    expect(customs.bring).toEqual([{ itemId: 'marker', count: 3 }])
+    expect(customs.bring).toEqual([{ itemIds: ['marker'], count: 3 }])
     expect(customs.questItems).toEqual([{ name: 'Flash drive', questId: '1' }])
   })
 
@@ -516,5 +518,31 @@ describe('weapons to bring for kills', () => {
       woods: [[['svds'], ['a']]]
     })
     expect(mapOverview(plan.maps.find((p) => p.group.key === 'woods')!).bring).toBe(1)
+  })
+})
+
+describe('items to bring', () => {
+  it('lists an objective that takes any one of several items (Invasive Therapy’s Obdolbos)', () => {
+    // As tarkov.dev has it: stash any Obdolbos cocktail injector (Obdolbos or Obdolbos 2), three times.
+    const stash = (id: string) =>
+      objective(id, 'plantItem', { maps: [WOODS], items: ['obdolbos', 'obdolbos2'] })
+    const handOver = objective('p22', 'giveItem', { maps: [], items: ['p22'], count: 5, foundInRaid: true })
+    const plan = todoPlan(
+      [row(quest('therapy', [handOver, stash('a'), stash('b'), stash('c')]))],
+      {},
+      groupOf
+    )
+    const woods = plan.maps.find((p) => p.group.key === 'woods')!
+    expect(woods.bring).toEqual([{ itemIds: ['obdolbos', 'obdolbos2'], count: 3 }])
+  })
+
+  it('adds the items objectives on any map use up to every map’s list, marked', () => {
+    const use = objective('use', 'useItem', { maps: [], items: ['stim'], count: 2 })
+    const visit = objective('visit', 'visit')
+    const plan = todoPlan([row(quest('q', [use, visit]))], {}, groupOf)
+    const anyMap = anyMapTake(plan)
+    expect(anyMap.bring).toEqual([{ itemIds: ['stim'], count: 2, anyMap: true }])
+    const customs = plan.maps.find((p) => p.group.key === 'customs')!
+    expect(takeToMap(customs, anyMap).bring).toEqual([{ itemIds: ['stim'], count: 2, anyMap: true }])
   })
 })

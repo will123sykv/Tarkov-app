@@ -211,6 +211,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const progress = useStore((s) => s.questProgress[settings.gameMode])
   const selected = useStore((s) => s.selectedQuest)
   const selectQuest = useStore((s) => s.selectQuest)
+  const updateSettings = useStore((s) => s.updateSettings)
   const [tab, setTab] = useState<'quests' | 'items'>('quests')
   const [search, setSearch] = useState('')
   const [picking, setPicking] = useState(false)
@@ -264,6 +265,31 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
     )
     return { shown, keyHidden: listed.length - shown.length }
   }, [all, q, term, doable, owned, objectives, selected])
+
+  // Traders whose every quest the Show filters leave out (the BTR Driver's are all Locked until his
+  // chain starts), with how many of each status: said under the list, so they don't seem missing.
+  const hiddenTraders = useMemo(() => {
+    if (term) return []
+    const shownTraders = new Set(shown.map((r) => r.quest.traderId))
+    const byTrader = new Map<string, Map<QuestStatus, number>>()
+    for (const { quest, status } of all) {
+      if (q.statuses.includes(status) || shownTraders.has(quest.traderId)) continue
+      if (q.traderId && quest.traderId !== q.traderId) continue
+      if ((q.mapId && !questMaps(quest).has(q.mapId)) || (q.kappaOnly && !quest.kappaRequired)) continue
+      if (q.lightkeeperOnly && !quest.lightkeeperRequired) continue
+      const counts = byTrader.get(quest.traderId) ?? new Map<QuestStatus, number>()
+      counts.set(status, (counts.get(status) ?? 0) + 1)
+      byTrader.set(quest.traderId, counts)
+    }
+    return [...byTrader].map(([traderId, counts]) => ({
+      name:
+        traderId === STORY_TRADER.id
+          ? STORY_TRADER.name
+          : (dataset?.traders.find((t) => t.id === traderId)?.name ?? 'Other'),
+      counts: [...counts]
+    }))
+  }, [all, shown, q, term, dataset])
+  const hiddenStatuses = [...new Set(hiddenTraders.flatMap((t) => t.counts.map(([status]) => status)))]
 
   // Quests the logs mention that tarkov.dev doesn't list (story chapters, new or event quests).
   const fromLogs = useMemo(() => {
@@ -408,6 +434,32 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                   {keyHidden === 1 ? '1 quest hidden: it needs' : `${keyHidden} quests hidden: they need`} a
                   key you don&rsquo;t have (Only quests I can do). <SettingsLink section="quests" />
                 </p>
+              )}
+              {hiddenTraders.length > 0 && (
+                <section className="quests-hidden-traders">
+                  <p className="hint">
+                    Hidden by <strong>Show</strong>:{' '}
+                    {hiddenTraders
+                      .map(
+                        (t) =>
+                          `${t.name} (${t.counts.map(([status, n]) => `${n} ${STATUS_LABEL[status].toLowerCase()}`).join(', ')})`
+                      )
+                      .join(' · ')}
+                  </p>
+                  <div className="button-row">
+                    {hiddenStatuses.map((status) => (
+                      <button
+                        key={status}
+                        className="button small"
+                        onClick={() =>
+                          void updateSettings({ quests: { ...q, statuses: [...q.statuses, status] } })
+                        }
+                      >
+                        Show {STATUS_LABEL[status].toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+                </section>
               )}
               {groups.map((group) => (
                 <section key={group.traderId}>

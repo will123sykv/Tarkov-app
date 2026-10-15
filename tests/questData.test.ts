@@ -331,6 +331,24 @@ describe('normalizeQuestData', () => {
   })
 })
 
+describe('the items an objective takes', () => {
+  it('reads the items a use-item objective takes (any one of tarkov.dev’s useAny)', () => {
+    const raw = structuredClone(RAW_QUEST_DATA)
+    const tasks = (raw.tasks as { tasks: Record<string, unknown>[] }).tasks
+    ;(tasks[0].objectives as Record<string, unknown>[]).push({
+      id: 'o-use',
+      description: 'Use a stimulant injector',
+      type: 'useItem',
+      count: 2,
+      optional: false,
+      maps: [],
+      useAny: ['propital', 'etg']
+    })
+    const quest = normalizeQuestData(raw, 'pvp', 1).quests[0]
+    expect(quest.objectives.find((o) => o.id === 'o-use')?.items).toEqual(['propital', 'etg'])
+  })
+})
+
 describe('createQuestDataService', () => {
   const files: Record<string, unknown> = {
     tasks: RAW_QUEST_DATA.tasks,
