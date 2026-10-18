@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { blockedByKeys, keysNeeded, missingKeys, opens } from '../../../shared/keys'
+import { blockedByKeys, EMPTY_KEYS, keysNeeded, missingKeys, opens } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
@@ -471,8 +471,25 @@ export default function MapsView({
         : new Set<string>(),
     [m.showKeys, rows, done]
   )
+  // The player's own keys (not friends'): what they can open to loot behind.
+  const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
+  const myKeys = useMemo(() => new Set(inventory.owned), [inventory.owned])
+  const myLocks = useMemo(() => {
+    const seen = new Set<string>()
+    let doors = 0
+    let containers = 0
+    for (const map of maps)
+      for (const l of map.locks ?? []) {
+        const id = `${l.keyId}@${Math.round(l.position.x)},${Math.round(l.position.y)},${Math.round(l.position.z)}`
+        if (!myKeys.has(l.keyId) || seen.has(id)) continue
+        seen.add(id)
+        if (l.kind === 'door') doors++
+        else containers++
+      }
+    return { doors, containers }
+  }, [maps, myKeys])
   const keyMarks = useMemo<KeyMarks | null>(() => {
-    if (!keyFocus && !m.showKeys) return null
+    if (!keyFocus && !m.showKeys && !m.showOwnedLocks) return null
     const locks: KeyMarks['locks'] = []
     const spawns: KeyMarks['spawns'] = []
     // Alternate versions of a map repeat its locks and spots.
@@ -486,13 +503,16 @@ export default function MapsView({
     for (const map of maps) {
       for (const l of map.locks ?? []) {
         const focused = l.keyId === keyFocus
-        if ((focused || neededKeys.has(l.keyId)) && once(l.keyId, l.position))
+        const needed = m.showKeys && neededKeys.has(l.keyId)
+        const yours = m.showOwnedLocks && myKeys.has(l.keyId)
+        if ((focused || needed || yours) && once(l.keyId, l.position))
           locks.push({
             position: l.position,
             kind: l.kind,
             name: itemName(l.keyId) ?? 'key',
             focused,
             have: owned.has(l.keyId),
+            yours,
             friends: friendsWith([l.keyId])
           })
       }
@@ -509,7 +529,7 @@ export default function MapsView({
       }
     }
     return { locks, spawns, focusKey: keyFocus }
-  }, [keyFocus, m.showKeys, maps, neededKeys, owned, itemName, friendsWith])
+  }, [keyFocus, m.showKeys, m.showOwnedLocks, myKeys, maps, neededKeys, owned, itemName, friendsWith])
   // Where else the key looked at has locks or spawns, to switch to.
   const focusElsewhere = useMemo(() => {
     if (!keyFocus) return []
@@ -750,6 +770,28 @@ export default function MapsView({
             />
             Locks for keys your quests need
           </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={m.showOwnedLocks}
+              onChange={(e) => set({ showOwnedLocks: e.target.checked })}
+            />
+            Locks you have keys for
+          </label>
+          {m.showOwnedLocks && (
+            <p className="hint">
+              {myKeys.size === 0
+                ? 'Tick the keys you have in the Keys tab to see the locks they open.'
+                : myLocks.doors + myLocks.containers === 0
+                  ? `None of your keys open a lock on ${mainMap?.name ?? 'this map'}.`
+                  : `${plural(myLocks.doors + myLocks.containers, 'lock')} on ${mainMap?.name ?? 'this map'}: ${[
+                      myLocks.doors ? plural(myLocks.doors, 'door') : null,
+                      myLocks.containers ? plural(myLocks.containers, 'container') : null
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}. Loot behind them.`}
+            </p>
+          )}
           <ul className="legend">
             <BadgeLegend kind="lock">Locked door or container (green: you have the key)</BadgeLegend>
             <BadgeLegend kind="key">Where a key you don&rsquo;t have can spawn</BadgeLegend>

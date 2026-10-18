@@ -27,6 +27,8 @@ export interface KeyMarks {
     name: string
     focused: boolean
     have: boolean
+    /** Shown because it's one of the player's own keys (Locks you have keys for). */
+    yours?: boolean
     /** Friends who have the key (from the codes they shared). */
     friends: string[]
   }[]
@@ -415,7 +417,7 @@ export default function MapCanvas({
           }).bindTooltip(
             label(what, [
               `Opens with the ${l.name}`,
-              l.have ? 'You have the key' : "You don't have the key",
+              l.yours ? 'Your key: loot behind it' : l.have ? 'You have the key' : "You don't have the key",
               ...(l.friends.length
                 ? [`${l.friends.join(', ')} ${l.friends.length === 1 ? 'has' : 'have'} it`]
                 : [])

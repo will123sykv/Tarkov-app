@@ -398,6 +398,12 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ maps: { hiddenQuests: 'all' } }).maps.hiddenQuests).toEqual([])
   })
 
+  it('keeps whether the map shows the locks your keys open (since 1.44.0)', () => {
+    expect(sanitizeSettings({}).maps.showOwnedLocks).toBe(false)
+    expect(sanitizeSettings({ maps: { showOwnedLocks: true } }).maps.showOwnedLocks).toBe(true)
+    expect(sanitizeSettings({ maps: { showOwnedLocks: 'yes' } }).maps.showOwnedLocks).toBe(false)
+  })
+
   it('turns Active + available into Active, and keeps the global settings moved to Settings (1.40.0)', () => {
     const old = sanitizeSettings({
       maps: { questScope: 'available' },

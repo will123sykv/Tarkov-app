@@ -258,6 +258,8 @@ export interface MapSettings {
   showSnipers: boolean
   /** Locks of the keys quests need, and where the ones the player doesn't have spawn (since 1.17.0). */
   showKeys: boolean
+  /** Every lock the player's own keys open, to know where to loot (since 1.44.0). */
+  showOwnedLocks: boolean
   /** Whose extracts to show; co-op extracts show for both. */
   faction: 'pmc' | 'scav'
   /** The favourites panel over the map is open (since 1.27.0, when the 2D maps became the only ones). */

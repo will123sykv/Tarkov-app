@@ -485,7 +485,8 @@ the game's install folder, or its `build` folder.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many
-  locks and spots it has on this map.
+  locks and spots it has on this map. Tick **Locks you have keys for** to see every locked door and
+  container your own keys open, so you know where to loot.
 - **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
   out, and the wiki describes places in words), so the app works out which map each step is on from
   the step and its part of the wiki's guide, and lists the unfinished ones under **Story steps
