@@ -12,6 +12,7 @@ import { registerIpc } from './ipc'
 import { locateLogsDir } from './logs/locate'
 import { createLogWatcher } from './logs/watcher'
 import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
+import { allowMapGenie } from './mapGenie'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
 import { createPlayerStore } from './quests/playerStore'
@@ -69,7 +70,9 @@ function createWindow(showWhenReady = true): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      // Only for Map Genie's Lab map (see mapGenie.ts).
+      webviewTag: true
     }
   })
 
@@ -82,6 +85,9 @@ function createWindow(showWhenReady = true): BrowserWindow {
   })
   win.webContents.on('will-navigate', (event, url) => {
     if (url !== win.webContents.getURL()) event.preventDefault()
+  })
+  allowMapGenie(win.webContents, (url) => {
+    if (isSafeExternalUrl(url)) void shell.openExternal(url)
   })
 
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {

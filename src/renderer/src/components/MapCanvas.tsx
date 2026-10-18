@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import { pointInPolygon, polygonArea } from '../../../shared/geometry'
 import { matchExit } from '../../../shared/extracts'
-import { opens } from '../../../shared/keys'
+import { keycardName, opens, type KeycardColour } from '../../../shared/keys'
 import { squadShared } from '../../../shared/squad'
 import type { GameMap, MapLabel, Vec3, WikiExit, WikiMapExits } from '../../../shared/questTypes'
 import type { FindArea } from '../../../shared/whereToFind'
@@ -29,6 +29,8 @@ export interface KeyMarks {
     have: boolean
     /** Shown because it's one of the player's own keys (Locks you have keys for). */
     yours?: boolean
+    /** The Lab's coloured keycards: the pin is drawn in the card's colour. */
+    keycard?: KeycardColour | null
     /** Friends who have the key (from the codes they shared). */
     friends: string[]
   }[]
@@ -408,13 +410,20 @@ export default function MapCanvas({
     }
     if (keyMarks) {
       for (const l of keyMarks.locks.filter((l) => shown(l.position))) {
-        const what = l.kind === 'trunk' ? 'Locked container' : 'Locked door'
+        const what = `${l.kind === 'trunk' ? 'Locked container' : 'Locked door'}${l.keycard ? ` (${keycardName(l.keycard)})` : ''}`
         add(
           l.focused ? 'key:focus' : 'key:other',
-          htmlMarker(at(l.position), badgeElement('lock', l.focused ? 'focused' : l.have ? 'have' : ''), {
-            riseOnHover: true,
-            zIndexOffset: l.focused ? 500 : 0
-          }).bindTooltip(
+          htmlMarker(
+            at(l.position),
+            badgeElement(
+              'lock',
+              `${l.focused ? 'focused' : l.have ? 'have' : ''}${l.keycard ? ` keycard keycard-${l.keycard}` : ''}`
+            ),
+            {
+              riseOnHover: true,
+              zIndexOffset: l.focused ? 500 : 0
+            }
+          ).bindTooltip(
             label(what, [
               `Opens with the ${l.name}`,
               l.yours ? 'Your key: loot behind it' : l.have ? 'You have the key' : "You don't have the key",

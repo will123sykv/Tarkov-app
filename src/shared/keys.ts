@@ -14,6 +14,23 @@ export interface KeyInventory {
 
 export const EMPTY_KEYS: KeyInventory = { owned: [], toDo: [] }
 
+/** The colours of the Lab's keycards. */
+export const KEYCARD_COLOURS = ['red', 'green', 'blue', 'violet', 'yellow', 'black', 'white'] as const
+export type KeycardColour = (typeof KEYCARD_COLOURS)[number]
+
+/**
+ * The colour of a coloured keycard from its name ("TerraGroup Labs keycard (Red)": red), so its locks
+ * can be drawn in it. Null for other keys, the Lab's access keycard among them.
+ */
+export function keycardColour(name: string | null | undefined): KeycardColour | null {
+  const colour = /\bkeycard\s*\((\w+)\)/i.exec(name ?? '')?.[1].toLowerCase()
+  return (KEYCARD_COLOURS as readonly string[]).includes(colour ?? '') ? (colour as KeycardColour) : null
+}
+
+/** "Red keycard". */
+export const keycardName = (colour: KeycardColour): string =>
+  `${colour[0].toUpperCase()}${colour.slice(1)} keycard`
+
 /** Far more than there are keys in the game. */
 export const MAX_KEYS = 2000
 

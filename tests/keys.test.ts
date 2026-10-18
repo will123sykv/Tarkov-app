@@ -6,6 +6,7 @@ import { createPlayerStore } from '../src/main/quests/playerStore'
 import {
   blockedByKeys,
   EMPTY_KEYS,
+  keycardColour,
   keyRewards,
   keyScanChanges,
   keysNeeded,
@@ -57,6 +58,22 @@ const quest = (id: string, objectives: QuestObjective[], extra: Partial<Quest> =
   ...extra
 })
 const row = (q: Quest, status: QuestStatus) => ({ quest: q, status })
+
+describe('keycard colours', () => {
+  it('reads the colour off a coloured keycard’s name', () => {
+    expect(keycardColour('TerraGroup Labs keycard (Red)')).toBe('red')
+    expect(keycardColour('TerraGroup Labs keycard (Violet)')).toBe('violet')
+    expect(keycardColour('TerraGroup Labs keycard (Black)')).toBe('black')
+  })
+
+  it('leaves out other keys, the access keycard among them', () => {
+    expect(keycardColour('TerraGroup Labs access keycard')).toBeNull()
+    expect(keycardColour('Lab. Arsenal storage room key')).toBeNull()
+    expect(keycardColour('Dorm room 303 key')).toBeNull()
+    expect(keycardColour('Some keycard (Orange)')).toBeNull()
+    expect(keycardColour(undefined)).toBeNull()
+  })
+})
 
 describe('which locks are open', () => {
   it('needs only one of a lock’s keys', () => {

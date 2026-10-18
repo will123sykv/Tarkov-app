@@ -404,6 +404,12 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ maps: { showOwnedLocks: 'yes' } }).maps.showOwnedLocks).toBe(false)
   })
 
+  it('keeps which Lab map is shown (since 1.45.0)', () => {
+    expect(sanitizeSettings({}).maps.labMap).toBe('app')
+    expect(sanitizeSettings({ maps: { labMap: 'mapgenie' } }).maps.labMap).toBe('mapgenie')
+    expect(sanitizeSettings({ maps: { labMap: 'tarkov.dev' } }).maps.labMap).toBe('app')
+  })
+
   it('turns Active + available into Active, and keeps the global settings moved to Settings (1.40.0)', () => {
     const old = sanitizeSettings({
       maps: { questScope: 'available' },

@@ -448,7 +448,9 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     set({ keyFocus: keyId })
-    if (keyId && mapKey) await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
+    // Map Genie's page can't show the app's pins: back to the app's map.
+    if (keyId && mapKey)
+      await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey, labMap: 'app' } })
   },
 
   openTodoMap: (todoMap) => set({ todoMap }),
@@ -496,7 +498,7 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     set({ mapFocus: { questId, objectiveId }, selectedQuest: questId })
-    await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey } })
+    await get().updateSettings({ view: 'maps', maps: { ...settings.maps, mapKey, labMap: 'app' } })
   },
 
   async pinOnMap(questId, objectiveId, mapKey) {
@@ -505,7 +507,7 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ placing: { questId, objectiveId }, selectedQuest: questId })
     await get().updateSettings({
       view: 'maps',
-      maps: { ...settings.maps, mapKey: mapKey ?? settings.maps.mapKey }
+      maps: { ...settings.maps, mapKey: mapKey ?? settings.maps.mapKey, labMap: 'app' }
     })
   },
 

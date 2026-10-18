@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { blockedByKeys, EMPTY_KEYS, keysNeeded, missingKeys, opens } from '../../../shared/keys'
+import {
+  blockedByKeys,
+  EMPTY_KEYS,
+  KEYCARD_COLOURS,
+  keycardColour,
+  keycardName,
+  keysNeeded,
+  missingKeys,
+  opens
+} from '../../../shared/keys'
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
@@ -30,6 +39,7 @@ import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
 import KillBanner from './KillBanner'
 import MapReminder, { hasReminder, type RaidReminder } from './MapReminder'
+import MapGenieView from './MapGenieView'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import SettingsLink from './SettingsLink'
@@ -107,10 +117,19 @@ function PinLegend({ kind, children }: { kind: PinKind; children: React.ReactNod
 
 const BADGE_ICON = { boss: BOSS_ICON, sniper: SNIPER_ICON, lock: LOCK_ICON, key: KEY_ICON }
 
-function BadgeLegend({ kind, children }: { kind: keyof typeof BADGE_ICON; children: React.ReactNode }) {
+function BadgeLegend({
+  kind,
+  extra = '',
+  children
+}: {
+  kind: keyof typeof BADGE_ICON
+  /** More classes for the badge (a keycard's colour). */
+  extra?: string
+  children: React.ReactNode
+}) {
   return (
     <li>
-      <span className={`legend-badge map-badge ${kind}`} aria-hidden>
+      <span className={`legend-badge map-badge ${kind} ${extra}`.trim()} aria-hidden>
         <Icon path={BADGE_ICON[kind]} />
       </span>
       {children}
@@ -266,6 +285,10 @@ export default function MapsView({
   }, [dataset])
   const config = MAP_CONFIGS.find((c) => c.key === m.mapKey) ?? null
   const poster = config ? posterFor(config.key) : null
+  // The Lab can be shown as Map Genie's own page instead (none of the app's pins go on it), except
+  // while a pin is being placed, which needs the app's map.
+  const isLab = config?.key === 'the-lab'
+  const mapGenie = isLab && m.labMap === 'mapgenie' && !placing
   const projection = useMemo(
     () => (poster ? posterProjection(poster, config?.bounds ?? null) : null),
     [config, poster]
@@ -513,6 +536,7 @@ export default function MapsView({
             focused,
             have: owned.has(l.keyId),
             yours,
+            keycard: keycardColour(itemName(l.keyId)),
             friends: friendsWith([l.keyId])
           })
       }
@@ -530,6 +554,13 @@ export default function MapsView({
     }
     return { locks, spawns, focusKey: keyFocus }
   }, [keyFocus, m.showKeys, m.showOwnedLocks, myKeys, maps, neededKeys, owned, itemName, friendsWith])
+  // The colours of the keycards that open locks here (the Lab's), for the legend.
+  const keycards = useMemo(() => {
+    const here = new Set(
+      maps.flatMap((map) => (map.locks ?? []).map((l) => keycardColour(itemName(l.keyId))))
+    )
+    return KEYCARD_COLOURS.filter((c) => here.has(c))
+  }, [maps, itemName])
   // Where else the key looked at has locks or spawns, to switch to.
   const focusElsewhere = useMemo(() => {
     if (!keyFocus) return []
@@ -637,6 +668,34 @@ export default function MapsView({
             ))}
             {!choices.length && <option value={m.mapKey}>Loading maps…</option>}
           </select>
+          {isLab && (
+            <>
+              <div className="mini-toggle wide" role="radiogroup" aria-label="Lab map">
+                {(
+                  [
+                    ['app', 'This app'],
+                    ['mapgenie', 'Map Genie']
+                  ] as const
+                ).map(([id, text]) => (
+                  <button
+                    key={id}
+                    role="radio"
+                    aria-checked={m.labMap === id}
+                    className={m.labMap === id ? 'active' : ''}
+                    onClick={() => set({ labMap: id })}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+              {m.labMap === 'mapgenie' && (
+                <p className="hint">
+                  Map Genie&rsquo;s own map, with its markers and filters. The app&rsquo;s quest pins, locks
+                  and extracts show on this app&rsquo;s map.
+                </p>
+              )}
+            </>
+          )}
         </SidebarSection>
         <SidebarSection title="Quest objectives">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Quest objectives">
@@ -794,6 +853,14 @@ export default function MapsView({
           )}
           <ul className="legend">
             <BadgeLegend kind="lock">Locked door or container (green: you have the key)</BadgeLegend>
+            {keycards.map((c) => (
+              <BadgeLegend key={c} kind="lock" extra={`keycard keycard-${c}`}>
+                Opens with the {keycardName(c)}
+              </BadgeLegend>
+            ))}
+            {keycards.length > 0 && (
+              <li className="muted">Keycard locks have a green ring when you have the card.</li>
+            )}
             <BadgeLegend kind="key">Where a key you don&rsquo;t have can spawn</BadgeLegend>
           </ul>
           <p className="hint">
@@ -884,7 +951,9 @@ export default function MapsView({
             </button>
           </div>
         )}
-        {projection && maps.length ? (
+        {mapGenie ? (
+          <MapGenieView onBack={() => set({ labMap: 'app' })} />
+        ) : projection && maps.length ? (
           <MapCanvas
             projection={projection}
             maps={maps}
@@ -937,26 +1006,28 @@ export default function MapsView({
             </button>
           </div>
         )}
-        <div className="map-side">
-          {!placing && (
-            <KillBanner
-              kills={kills}
-              mapNames={mapNames}
-              open={m.killsOpen}
-              onToggle={() => set({ killsOpen: !m.killsOpen })}
-              onSelectQuest={onSelectQuest}
+        {!mapGenie && (
+          <div className="map-side">
+            {!placing && (
+              <KillBanner
+                kills={kills}
+                mapNames={mapNames}
+                open={m.killsOpen}
+                onToggle={() => set({ killsOpen: !m.killsOpen })}
+                onSelectQuest={onSelectQuest}
+              />
+            )}
+            <FavouritesPanel
+              settings={settings}
+              priceState={priceState}
+              findInfo={findInfo}
+              highlighted={highlighted}
+              colors={colors}
+              onHighlight={setHighlighted}
+              onOpenMap={(mapKey) => set({ mapKey })}
             />
-          )}
-          <FavouritesPanel
-            settings={settings}
-            priceState={priceState}
-            findInfo={findInfo}
-            highlighted={highlighted}
-            colors={colors}
-            onHighlight={setHighlighted}
-            onOpenMap={(mapKey) => set({ mapKey })}
-          />
-        </div>
+          </div>
+        )}
       </main>
       {selected && dataset && (
         <QuestDetail

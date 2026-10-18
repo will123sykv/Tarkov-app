@@ -486,7 +486,14 @@ the game's install folder, or its `build` folder.
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many
   locks and spots it has on this map. Tick **Locks you have keys for** to see every locked door and
-  container your own keys open, so you know where to loot.
+  container your own keys open, so you know where to loot. On the Lab, locks opened by a coloured
+  keycard are drawn in the card's colour (red, green, blue, violet, yellow, black), with a green ring
+  when you have the card; the legend lists the colours on the map.
+- **Map Genie for the Lab:** on the Lab, switch the map to **Map Genie** to see Map Genie's own
+  interactive Lab map (mapgenie.io) in the Maps tab, with its markers and filters. A Map Genie sign-in
+  is kept between runs; links off Map Genie open in your browser. The app's quest pins, locks and
+  extracts aren't on it: switch back to **This app** for them (Show on map from another tab does that
+  for you).
 - **Story steps on the maps:** nobody publishes where story steps are (tarkov.dev leaves the story
   out, and the wiki describes places in words), so the app works out which map each step is on from
   the step and its part of the wiki's guide, and lists the unfinished ones under **Story steps
