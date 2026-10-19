@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { opens } from '../../../shared/keys'
-import type { BringItem, MapPlan, TodoStep, WeaponsToBring } from '../../../shared/todo'
+import type { BringItem, MapPlan, TodoStep } from '../../../shared/todo'
 import type { MapGun } from '../../../shared/weapons'
 import type { useItemLookup } from '../lib/useItemLookup'
 import { ItemChip, KeyChoice } from './QuestDetail'
 import { MapGunPanel } from './GunCards'
-import { BringChip, WeaponChoice } from './TakeChips'
+import { BringChip } from './TakeChips'
 
 type Items = ReturnType<typeof useItemLookup>
 
@@ -22,8 +22,6 @@ export interface RaidReminder {
   gun: MapGun | null
   /** The map's key, to open the Weapons tab at it. */
   mapKey: string
-  /** For kills the gun doesn't cover: the weapons that would do. */
-  weapons: WeaponsToBring[]
   bring: BringItem[]
   questItems: MapPlan['questItems']
   /** Items to find in raid for active quests, not yet put aside. */
@@ -35,7 +33,6 @@ export const hasReminder = (r: RaidReminder): boolean =>
   r.keys.length +
     (r.noAccess ? 1 : 0) +
     (r.gun ? 1 : 0) +
-    r.weapons.length +
     r.bring.length +
     r.questItems.length +
     r.finds.length >
@@ -71,7 +68,7 @@ export default function MapReminder({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  const { keys, noAccess, gun, mapKey, weapons, bring, questItems, finds } = reminder
+  const { keys, noAccess, gun, mapKey, bring, questItems, finds } = reminder
   const missingKeys = keys.filter((k) => !opens(k, owned)).length
   const haveOf = (b: BringItem): number => b.itemIds.reduce((n, id) => n + (have[id] ?? 0), 0)
   return (
@@ -109,13 +106,10 @@ export default function MapReminder({
             <MapGunPanel gun={gun} items={items} mapKey={mapKey} onChange={onClose} />
           </section>
         )}
-        {(weapons.length > 0 || bring.length > 0 || questItems.length > 0) && (
+        {(bring.length > 0 || questItems.length > 0) && (
           <section>
             <h3>Bring</h3>
             <div className="map-reminder-chips">
-              {weapons.map((w) => (
-                <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
-              ))}
               {bring.map((b) => (
                 <BringChip
                   key={`${b.itemIds.join()}${b.anyMap ? ':any' : ''}`}

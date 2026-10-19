@@ -74,8 +74,9 @@ export function useOpenWeapons(): (mapKey: string | null) => void {
 }
 
 /**
- * A map's gun as To do's map and the Maps tab's reminder show it: a large picture, its name, whether it's
- * chosen or only suggested, the kill quests it covers and the ones it doesn't, and a way to change it.
+ * A map's gun as To do's map and the Maps tab's reminder show it: a large picture of the gun chosen in the
+ * Weapons tab, the kill quests it's for and a way to change it; with none chosen, a prompt to choose one
+ * (since 1.55.0 the suggestion stays in the Weapons tab).
  */
 export function MapGunPanel({
   gun,
@@ -90,25 +91,40 @@ export function MapGunPanel({
   onChange?: () => void
 }): React.JSX.Element {
   const openWeapons = useOpenWeapons()
+  const open = (): void => {
+    onChange?.()
+    openWeapons(mapKey)
+  }
+  if (!gun.chosen) {
+    const quests = [...new Set([...gun.covers, ...gun.misses].map((k) => k.quest.name))]
+    return (
+      <div className="map-gun prompt">
+        <div className="map-gun-text">
+          <span className="map-gun-label">No gun chosen</span>
+          <span>
+            {quests.join(', ')} {quests.length === 1 ? 'has a kill' : 'have kills'} to make with particular
+            weapons here.
+          </span>
+          <button className="button small primary" onClick={open}>
+            Choose a gun in Weapons ▶
+          </button>
+        </div>
+      </div>
+    )
+  }
   return (
-    <div className={`map-gun ${gun.chosen ? 'chosen' : 'suggested'}`}>
+    <div className="map-gun chosen">
       <GunPicture id={gun.itemId} items={items} />
       <div className="map-gun-text">
-        <span className="map-gun-label">{gun.chosen ? '★ Gun to bring' : 'Suggested gun'}</span>
+        <span className="map-gun-label">★ Gun to bring</span>
         <strong>{gunName(items, gun.itemId)}</strong>
         <span className="muted">For {gun.covers.map(killText).join(', ')}</span>
-        {gun.misses.length > 0 && (
-          <span className="map-gun-misses">Doesn&rsquo;t cover {gun.misses.map(killText).join(', ')}</span>
-        )}
         <button
           className="button small"
-          title="Choose the gun for this map in the Weapons tab"
-          onClick={() => {
-            onChange?.()
-            openWeapons(mapKey)
-          }}
+          title="Choose another gun for this map in the Weapons tab"
+          onClick={open}
         >
-          {gun.chosen ? 'Change in Weapons' : 'Choose in Weapons'}
+          Change in Weapons
         </button>
       </div>
     </div>

@@ -5698,7 +5698,14 @@ p.quest-before.done {
   color: var(--muted);
 }
 
-.map-gun-misses {
+/* No gun chosen: a prompt to choose one in the Weapons tab (since 1.55.0). */
+.map-gun.prompt {
+  grid-template-columns: minmax(0, 1fr);
+  border-style: dashed;
+  border-color: var(--warn);
+}
+
+.map-gun.prompt .map-gun-label {
   color: var(--warn);
 }
 
@@ -5742,6 +5749,10 @@ p.quest-before.done {
   gap: 10px;
 }
 
+.weapons-map header .button {
+  margin-left: auto;
+}
+
 .weapons-map header strong {
   color: var(--accent-strong);
   font-size: 16px;
@@ -5774,21 +5785,59 @@ p.quest-before.done {
   font-size: 17px;
 }
 
-.weapons-kills {
+/* A kill quest on the map, unfolded to pick a gun from the ones that count for it (since 1.55.0). */
+.weapons-quests {
   display: grid;
-  gap: 3px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 12.5px;
 }
 
-.weapons-kills .covers > span:first-child {
+.weapons-quest {
+  display: grid;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.weapons-quest-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weapons-quest-head:hover strong {
+  color: var(--accent-strong);
+}
+
+.weapons-quest-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.weapons-quest.covers .weapons-quest-mark {
   color: var(--ok);
 }
 
-.weapons-kills .misses > span:first-child {
+.weapons-quest.misses .weapons-quest-mark {
   color: var(--warn);
+}
+
+.weapons-quest-count {
+  margin-left: auto;
+  font-size: 12px;
 }
 
 .weapons-options {

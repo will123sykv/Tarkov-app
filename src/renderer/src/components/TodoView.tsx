@@ -23,7 +23,7 @@ import {
   type MapPlan,
   type TodoStep
 } from '../../../shared/todo'
-import { mapGun, mapKills, missedWeapons, type MapGun } from '../../../shared/weapons'
+import { mapGun, mapKills, type MapGun } from '../../../shared/weapons'
 import { squadShared } from '../../../shared/squad'
 import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/questPins'
@@ -43,7 +43,7 @@ import { FriendTags } from './FriendKeys'
 import SettingsLink from './SettingsLink'
 import SquadIcon from './SquadIcon'
 import { KillGunTag, MapGunPanel } from './GunCards'
-import { BringChip, MapGunChip, WeaponChoice } from './TakeChips'
+import { BringChip, MapGunChip } from './TakeChips'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -364,11 +364,11 @@ function MapCard({
   anyMapSteps?: readonly TodoStep[]
 }): React.JSX.Element {
   const { bring } = takeToMap(plan, anyMap)
-  // The gun to bring for kill quests that need particular weapons, chosen in the Weapons tab (or
-  // suggested), and for the kills it doesn't cover, the weapons that would do.
+  // The gun to bring for kill quests that need particular weapons, chosen in the Weapons tab: the only
+  // gun Bring lists (with none chosen, the panel asks for one).
   const chosen = useStore((s) => s.settings?.weapons.byMap[plan.group.key])
   const gun = mapGun(mapKills(plan.steps, anyMapSteps), chosen)
-  const weapons = missedWeapons(gun)
+  const bringGun = gun?.chosen ? gun : null
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
   const reason = [
@@ -497,14 +497,11 @@ function MapCard({
               </span>
             </div>
           )}
-          {(bring.length > 0 || plan.questItems.length > 0 || gun) && (
+          {(bring.length > 0 || plan.questItems.length > 0 || bringGun) && (
             <div>
               <span className="todo-take-label">Bring</span>
               <span className="todo-take-list">
-                {gun && <MapGunChip gun={gun} items={items} />}
-                {weapons.map((w) => (
-                  <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
-                ))}
+                {bringGun && <MapGunChip gun={bringGun} items={items} />}
                 {bring.map((b) => (
                   <BringChip key={`${b.itemIds.join()}${b.anyMap ? ':any' : ''}`} item={b} items={items} />
                 ))}

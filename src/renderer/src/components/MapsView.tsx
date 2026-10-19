@@ -13,7 +13,7 @@ import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../..
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
 import { anyMapTake, killObjectives, takeToMap } from '../../../shared/todo'
-import { mapGun, mapKills, missedWeapons } from '../../../shared/weapons'
+import { mapGun, mapKills } from '../../../shared/weapons'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
@@ -418,7 +418,6 @@ export default function MapsView({
       noAccess: here?.noAccess ?? null,
       gun,
       mapKey: key ?? '',
-      weapons: missedWeapons(gun),
       bring,
       questItems: here?.questItems ?? [],
       finds: todo.finds

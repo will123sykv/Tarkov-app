@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { todoPlan, type MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
@@ -66,6 +66,12 @@ export default function WeaponsView({
     void updateSettings({ weapons: { ...settings.weapons, byMap: next } })
   }
 
+  // Back to the map on the To do tab, opened from its overview.
+  const openTodo = (mapKey: string): void => {
+    useStore.getState().openTodoMap(mapKey)
+    void updateSettings({ view: 'todo', todo: { ...settings.todo, layout: 'maps' } })
+  }
+
   // Opened at a map (from To do or the reminder): scroll to it.
   const focus = useStore((s) => s.weaponsFocus)
   useEffect(() => {
@@ -109,6 +115,7 @@ export default function WeaponsView({
             chosen={byMap[p.group.key]}
             items={items}
             onChoose={(itemId) => choose(p.group.key, itemId)}
+            onOpenTodo={() => openTodo(p.group.key)}
           />
         ))}
       </div>
@@ -121,23 +128,37 @@ function MapWeapons({
   kills,
   chosen,
   items,
-  onChoose
+  onChoose,
+  onOpenTodo
 }: {
   plan: MapPlan
   kills: MapKill[]
   chosen: string | undefined
   items: Items
   onChoose: (itemId: string | null) => void
+  onOpenTodo: () => void
 }): React.JSX.Element | null {
+  // Quests unfolded to pick a gun from (since 1.55.0), by quest and objective: folded to start with.
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
+  const killKey = (k: MapKill): string => `${k.quest.id}:${k.objective.id}`
   const gun = mapGun(kills, chosen)
-  const options = gunOptions(kills)
   if (!gun) return null
+  const options = gunOptions(kills)
   const name = (id: string): string => items.get(id)?.name ?? 'Unknown weapon'
+  const toggle = (k: MapKill): void =>
+    setOpen((was) => {
+      const next = new Set(was)
+      if (!next.delete(killKey(k))) next.add(killKey(k))
+      return next
+    })
   return (
     <article id={`weapons-${plan.group.key}`} className={`weapons-map ${gun.chosen ? 'chosen' : ''}`}>
       <header>
         <strong>{plan.group.name}</strong>
         <span className="muted">{plural(kills.length, 'kill quest')} that need particular weapons</span>
+        <button className="button small" title="Open this map on the To do tab" onClick={onOpenTodo}>
+          Open in To do
+        </button>
       </header>
       <div className="weapons-current">
         <GunPicture id={gun.itemId} items={items} className="large" />
@@ -146,22 +167,10 @@ function MapWeapons({
             {gun.chosen ? '★ Gun to bring' : 'Suggested: the one that covers the most'}
           </span>
           <strong className="weapons-gun-name">{name(gun.itemId)}</strong>
-          <ul className="weapons-kills">
-            {gun.covers.map((k) => (
-              <li key={`${k.quest.id}:${k.objective.id}`} className="covers">
-                <span aria-label="Covers">✓</span> <strong>{k.quest.name}</strong>{' '}
-                <span className="muted">{killText(k)}</span>
-              </li>
-            ))}
-            {gun.misses.map((k) => (
-              <li key={`${k.quest.id}:${k.objective.id}`} className="misses">
-                <span aria-label="Doesn't cover">✗</span> <strong>{k.quest.name}</strong>{' '}
-                <span className="muted">
-                  {killText(k)} · needs {k.itemIds.map(name).join(' or ')}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <span className="muted">
+            Covers {gun.covers.length} of {plural(kills.length, 'kill quest')} here
+            {gun.chosen ? '' : ': open a quest below to choose a gun'}
+          </span>
           {gun.chosen && (
             <button
               className="link small"
@@ -173,30 +182,52 @@ function MapWeapons({
           )}
         </div>
       </div>
-      <h4>
-        Guns that count here <span className="muted">· click one to bring it</span>
-      </h4>
-      <div className="weapons-options" role="radiogroup" aria-label={`Gun for ${plan.group.name}`}>
-        {options.map((o) => {
-          const selected = gun.chosen && o.itemId === gun.itemId
+      <ul className="weapons-quests">
+        {kills.map((k) => {
+          const covered = gun.covers.includes(k)
+          const unfolded = open.has(killKey(k))
           return (
-            <button
-              key={o.itemId}
-              role="radio"
-              aria-checked={selected}
-              className={`weapons-option ${selected ? 'selected' : ''}`}
-              title={`For ${o.covers.map((k) => k.quest.name).join(', ')}`}
-              onClick={() => onChoose(o.itemId)}
+            <li
+              key={`${k.quest.id}:${k.objective.id}`}
+              className={`weapons-quest ${covered ? 'covers' : 'misses'}`}
             >
-              <GunPicture id={o.itemId} items={items} />
-              <span className="weapons-option-name">{name(o.itemId)}</span>
-              <span className="muted">
-                covers {o.covers.length} of {kills.length}
-              </span>
-            </button>
+              <button className="weapons-quest-head" aria-expanded={unfolded} onClick={() => toggle(k)}>
+                <span aria-hidden>{unfolded ? '▾' : '▸'}</span>
+                <span className="weapons-quest-mark" aria-label={covered ? 'Covered' : 'Not covered'}>
+                  {covered ? '✓' : '✗'}
+                </span>
+                <strong>{k.quest.name}</strong>
+                <span className="muted">{killText(k)}</span>
+                <span className="muted weapons-quest-count">{plural(k.itemIds.length, 'gun')} count</span>
+              </button>
+              {unfolded && (
+                <div className="weapons-options" role="radiogroup" aria-label={`Guns for ${k.quest.name}`}>
+                  {k.itemIds.map((id) => {
+                    const selected = gun.chosen && id === gun.itemId
+                    const covers = options.find((o) => o.itemId === id)?.covers.length ?? 1
+                    return (
+                      <button
+                        key={id}
+                        role="radio"
+                        aria-checked={selected}
+                        className={`weapons-option ${selected ? 'selected' : ''}`}
+                        title={`Bring it to ${plan.group.name}`}
+                        onClick={() => onChoose(id)}
+                      >
+                        <GunPicture id={id} items={items} />
+                        <span className="weapons-option-name">{name(id)}</span>
+                        <span className="muted">
+                          covers {covers} of {kills.length} here
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </li>
           )
         })}
-      </div>
+      </ul>
     </article>
   )
 }

@@ -1,5 +1,5 @@
 import type { Quest, QuestObjective } from './questTypes'
-import { sameItems, type MapGroup, type TodoStep, type WeaponsToBring } from './todo'
+import type { MapGroup, TodoStep } from './todo'
 
 // The gun to bring to each map for kill quests that need particular weapons (the Weapons tab, since
 // 1.54.0): one per map, chosen from every gun that counts for one of its kills, or suggested as the one
@@ -76,21 +76,6 @@ export function mapGun(kills: readonly MapKill[], chosen: string | undefined): M
     covers: option.covers,
     misses: kills.filter((k) => !option.covers.includes(k))
   }
-}
-
-/** For the kills a map's gun misses: the weapons that would do, once per set (as To do's Bring lists them). */
-export function missedWeapons(gun: MapGun | null): WeaponsToBring[] {
-  const lists: WeaponsToBring[] = []
-  for (const k of gun?.misses ?? []) {
-    const entry = lists.find((w) => sameItems(w.itemIds, k.itemIds))
-    if (!entry) lists.push({ itemIds: k.itemIds, quests: [k.quest], ...(k.anyMap ? { anyMap: true } : {}) })
-    else {
-      if (!entry.quests.includes(k.quest)) entry.quests.push(k.quest)
-      // Also for a kill on this map: not only any map.
-      if (!k.anyMap) delete entry.anyMap
-    }
-  }
-  return lists
 }
 
 /**

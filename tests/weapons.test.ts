@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import { todoPlan, type MapGroup } from '../src/shared/todo'
-import { gunForObjective, gunOptions, mapGun, mapKills, missedWeapons } from '../src/shared/weapons'
+import { gunForObjective, gunOptions, mapGun, mapKills } from '../src/shared/weapons'
 
 const CUSTOMS = 'customs-id'
 const WOODS = 'woods-id'
@@ -95,11 +95,6 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
       true,
       ['akm'],
       ['m4', 'anywhere']
-    ])
-    // The kills it misses, with the weapons that would do.
-    expect(missedWeapons(chosen).map((w) => [w.itemIds, w.anyMap ?? false])).toEqual([
-      [['m4a1', 'akms'], false],
-      [['akms', 'svd'], true]
     ])
     // A gun that no longer counts there: back to the suggestion.
     expect(mapGun(kills('customs'), 'sv98')).toMatchObject({ itemId: 'akms', chosen: false })

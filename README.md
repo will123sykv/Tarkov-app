@@ -168,10 +168,11 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
 - **Gun to bring:** when a kill quest on the map has to be made with particular weapons, the map shows
-  a large picture of the gun chosen for it in the **Weapons** tab (or the one suggested until you
-  choose), the quests it covers and the ones it doesn't, with **Change in Weapons**. The gun heads the
-  **Bring** list (**★ AKMS (for Supply Plans)**), kill objectives say **★ Bringing AKMS** (in To do and
-  the quest's details) or **No gun chosen**, and the Maps tab's **Before you raid** shows it too.
+  a large picture of the gun chosen for it in the **Weapons** tab, the quests it's for, and **Change in
+  Weapons**. It's the only gun the **Bring** list has (**★ AKMS (for Supply Plans)**). With no gun
+  chosen, it asks you to choose one instead (**Choose a gun in Weapons ▶**) and Bring lists no guns.
+  Kill objectives say **★ Bringing AKMS** (in To do and the quest's details) or **No gun chosen**, and
+  the Maps tab's **Before you raid** shows the gun too.
 - **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
@@ -208,12 +209,13 @@ good as your ticks (and your keys ticked in the Keys tab).
 
 For kill quests that have to be made with particular weapons (Eliminate 5 Scavs with an AKM), the
 **Weapons** tab has a card per map with the gun to bring there: one per map. Each card shows a large
-picture of it, fully built, which kill quests it covers (✓) and which it doesn't (✗, with the guns
-they'd need), and every gun that counts for one of the map's kill quests, saying how many each covers.
-Click one to bring it; until you do, the one that covers the most is **Suggested**, and **Clear** goes
-back to that. Kills on any map count on every map. Maps with kills of their own come first, in To do's
-order. To do's map and the Maps tab's **Before you raid** show the gun, and **Change in Weapons** there
-opens this tab at the map.
+picture of it, fully built, and how many of the map's kill quests it covers, then a row per kill quest,
+marked ✓ when the gun covers it and ✗ when it doesn't. Click a quest to unfold the guns that count for
+it, each saying how many of the map's kill quests it covers, and click one to bring it to the map.
+Until you do, the one that covers the most is **Suggested**, and **Clear** goes back to that. Kills on
+any map count on every map. Maps with kills of their own come first, in To do's order. **Open in To
+do** opens the map on the To do tab. To do's map and the Maps tab's **Before you raid** show the gun,
+and **Change in Weapons** there opens this tab at the map.
 
 Pictures are of the gun fully built (tarkov.dev's default preset of the weapon), not the bare
 receiver the quest names.
@@ -543,8 +545,8 @@ the game's install folder, or its `build` folder.
 - **Before you raid:** opening a map (picking it, or **Show on map** from another tab) shows what a
   raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
   (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
-  to plant or use, quest items, the guns that would do for kills the map's gun doesn't cover, with how
-  many you've put aside), a large picture of the map's **Gun** from the Weapons tab, and found-in-raid
+  to plant, use or extract with and quest items, with how many you've put aside), a large picture of the
+  map's **Gun** chosen in the Weapons tab (or a prompt to choose one), and found-in-raid
   items to **Look out for**. It doesn't show when there's nothing to list.
 - **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
   until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its
