@@ -6,7 +6,6 @@ import {
   type QuestStatus
 } from './questProgress'
 import type { Quest, QuestObjective } from './questTypes'
-import type { GunPick } from './types'
 import { missingKeys, opens } from './keys'
 import { squadShared } from './squad'
 import { reachableSteps } from './storyQuests'
@@ -143,7 +142,7 @@ export interface WeaponsToBring {
   anyMap?: boolean
 }
 
-const sameItems = (a: readonly string[], b: readonly string[]): boolean =>
+export const sameItems = (a: readonly string[], b: readonly string[]): boolean =>
   [...a].sort().join() === [...b].sort().join()
 
 /** Add an item to bring to a list, adding to the count of the same choice of items. */
@@ -187,94 +186,6 @@ export function takeToMap(
     ],
     bring: [...plan.bring, ...anyMap.bring]
   }
-}
-
-/** The key a gun is picked under for a kill objective: its quest's id and its own. */
-export const gunKey = (questId: string, objectiveId: string): string => `${questId}:${objectiveId}`
-
-/** A kill objective to make with particular weapons, the gun shown for it, and whether it's starred (since 1.53.0). */
-export interface KillGun {
-  key: string
-  quest: Quest
-  objective: QuestObjective
-  /** Kills still to make. */
-  left: number
-  /** The guns that count: any one of them. */
-  itemIds: string[]
-  /** The gun picked (when it's one that counts), or the first. */
-  shown: string
-  /** The shown gun is the one to bring. */
-  favourite: boolean
-  /** A kill on any map. */
-  anyMap: boolean
-}
-
-/**
- * The kill objectives on a map that need particular weapons, then the ones on any map, each with the gun
- * picked for it (`guns`, by `gunKey`). A pick of a gun that doesn't count (the quest data changed) is
- * ignored.
- */
-export function killGuns(
-  steps: readonly TodoStep[],
-  anyMap: readonly TodoStep[],
-  guns: Readonly<Record<string, GunPick>>
-): KillGun[] {
-  const list: KillGun[] = []
-  const add = (step: TodoStep, onAnyMap: boolean): void => {
-    const itemIds = step.objective.weapons ?? []
-    const key = gunKey(step.quest.id, step.objective.id)
-    if (!itemIds.length || list.some((k) => k.key === key)) return
-    const pick = guns[key]
-    const counts = pick !== undefined && itemIds.includes(pick.itemId)
-    list.push({
-      key,
-      quest: step.quest,
-      objective: step.objective,
-      left: step.left,
-      itemIds,
-      shown: counts ? pick.itemId : itemIds[0],
-      favourite: counts && pick.favourite,
-      anyMap: onAnyMap
-    })
-  }
-  for (const step of steps) add(step, false)
-  for (const step of anyMap) add(step, true)
-  return list
-}
-
-/** A gun starred to bring, and the quests it's for. */
-export interface StarredGun {
-  itemId: string
-  quests: Quest[]
-}
-
-/**
- * The guns to take for a map's kills: the ones starred (one entry per gun, naming every quest it's for),
- * then, for kills with none starred, the weapons that would do, once per set as before 1.53.0.
- */
-export function weaponsToTake(kills: readonly KillGun[]): {
-  starred: StarredGun[]
-  undecided: WeaponsToBring[]
-} {
-  const starred: StarredGun[] = []
-  const undecided: WeaponsToBring[] = []
-  for (const k of kills) {
-    if (k.favourite) {
-      const entry = starred.find((s) => s.itemId === k.shown)
-      if (!entry) starred.push({ itemId: k.shown, quests: [k.quest] })
-      else if (!entry.quests.includes(k.quest)) entry.quests.push(k.quest)
-      continue
-    }
-    const entry = undecided.find((w) => sameItems(w.itemIds, k.itemIds))
-    if (!entry)
-      undecided.push({ itemIds: k.itemIds, quests: [k.quest], ...(k.anyMap ? { anyMap: true } : {}) })
-    else {
-      if (!entry.quests.includes(k.quest)) entry.quests.push(k.quest)
-      // Also for a kill on this map: not only any map.
-      if (!k.anyMap) delete entry.anyMap
-    }
-  }
-  return { starred, undecided }
 }
 
 /** A hand-over that can be done now: the items are put aside, or the quest item has been found. */

@@ -328,7 +328,7 @@ function Objective({
         <span className="objective-text">
           {objective.description || objective.type}
           {squadShared(quest, objective) && <SquadIcon />}
-          {!done && <KillGunTag quest={quest} objective={objective} items={items} />}
+          {!done && <KillGunTag objective={objective} items={items} />}
           {objective.optional && <span className="tag">optional</span>}
           {objective.wiki &&
             ('added' in objective.wiki ? (

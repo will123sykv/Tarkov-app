@@ -1,4 +1,5 @@
-import type { BringItem, StarredGun, WeaponsToBring } from '../../../shared/todo'
+import type { BringItem, WeaponsToBring } from '../../../shared/todo'
+import type { MapGun } from '../../../shared/weapons'
 import type { useItemLookup } from '../lib/useItemLookup'
 
 // What to take into a raid, as chips: the To do tab's Bring and the map's reminder.
@@ -28,15 +29,26 @@ export function WeaponChoice({ weapon, items }: { weapon: WeaponsToBring; items:
   )
 }
 
-/** A gun starred to bring (since 1.53.0), and the quests it's for. */
-export function StarredGunChip({ gun, items }: { gun: StarredGun; items: Items }): React.JSX.Element {
+/** A map's gun (since 1.54.0): chosen in the Weapons tab, or suggested; and the quests it's for. */
+export function MapGunChip({ gun, items }: { gun: MapGun; items: Items }): React.JSX.Element {
   const item = items.get(gun.itemId)
-  const quests = gun.quests.map((q) => q.name).join(', ')
+  const quests = [...new Set(gun.covers.map((k) => k.quest.name))].join(', ')
   return (
-    <span className="item-chip weapon starred" title={`The gun you've starred to bring for ${quests}`}>
+    <span
+      className={`item-chip weapon ${gun.chosen ? 'starred' : ''}`}
+      title={
+        gun.chosen
+          ? `The gun chosen for this map, for ${quests}`
+          : `Suggested for ${quests}: choose one in Weapons`
+      }
+    >
       {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
       <span>
-        ★ {item?.name ?? 'Unknown weapon'} <span className="muted">(for {quests})</span>
+        {gun.chosen ? '★ ' : ''}
+        {item?.name ?? 'Unknown weapon'}{' '}
+        <span className="muted">
+          ({gun.chosen ? '' : 'suggested, '}for {quests})
+        </span>
       </span>
     </span>
   )

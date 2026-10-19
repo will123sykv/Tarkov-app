@@ -60,6 +60,11 @@ async function smokeJson(dataMode: DataMode): Promise<PriceDataset> {
   check(count((i) => i.fleaPrice) > 500, 'expected flea prices for more than 500 items')
   check(count((i) => i.bestTrader) > 500, 'expected trader prices for more than 500 items')
   check(untranslated < items.length / 10, 'item names are not being translated')
+  // Kill quests show guns fully built: each weapon's default preset (since 1.54.0).
+  const guns = count((i) => i.types.includes('gun') && !i.types.includes('preset'))
+  const withPreset = Object.keys(dataset.presets ?? {}).length
+  console.log(`[json ${dataMode}] ${withPreset} of ${guns} guns have a default preset`)
+  check(withPreset > guns / 2, 'most guns should have a default preset (fully built pictures)')
   check(count((i) => i.category) > items.length / 2, 'item categories are missing')
   check(count((i) => i.buyFrom?.length) > 500, 'what traders sell is missing')
   // The scav case scanner matches labels against short names of items the same size.

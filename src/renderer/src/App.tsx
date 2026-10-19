@@ -20,6 +20,7 @@ import StatusBar from './components/StatusBar'
 import TodoView from './components/TodoView'
 import TopBar from './components/TopBar'
 import TrendsView from './components/TrendsView'
+import WeaponsView from './components/WeaponsView'
 import { useTrendRanking } from './lib/useTrendRanking'
 import { containerLootKey, useStore } from './store'
 
@@ -122,6 +123,8 @@ export default function App(): React.JSX.Element {
           <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
         ) : view === 'todo' ? (
           <TodoView settings={settings} priceState={priceState} />
+        ) : view === 'weapons' ? (
+          <WeaponsView settings={settings} priceState={priceState} />
         ) : view === 'quests' ? (
           <QuestsView settings={settings} priceState={priceState} />
         ) : view === 'hideout' ? (

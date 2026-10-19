@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeTarkovDev, type TarkovDevPricesResponse } from '../src/main/pricing/tarkovDev'
 import {
+  defaultPresets,
   fetchTarkovDevJson,
   normalizeTarkovDevJson,
   type JsonItemsData,
@@ -118,5 +119,40 @@ describe('fetchTarkovDevJson', () => {
       tarkovDevJson: (url) => (url.endsWith('/items') ? jsonResponse({ nope: true }) : jsonFixtureRoute(url))
     })
     await expect(fetchTarkovDevJson(malformed, 'pvp')).rejects.toThrow('items: no data in response')
+  })
+})
+
+describe('fully built guns (since 1.54.0)', () => {
+  const gun = (id: string, extra: object = {}) => ({ id, types: ['gun', 'weapon'], ...extra })
+  const preset = (id: string, extra: object = {}) => ({ id, types: ['gun', 'preset'], ...extra })
+
+  it('finds each weapon’s default preset however tarkov.dev says it', () => {
+    expect(
+      defaultPresets([
+        // The weapon names it (as an id or { id }).
+        gun('akm', { properties: { defaultPreset: 'akm-std' } }),
+        preset('akm-std'),
+        gun('aks', { properties: { defaultPreset: { id: 'aks-std' } } }),
+        preset('aks-std'),
+        // A preset says it's the weapon's default (another of its presets comes first).
+        gun('m4'),
+        preset('m4-tactical', { properties: { baseItem: 'm4' } }),
+        preset('m4-std', { properties: { baseItem: { id: 'm4' }, default: true } }),
+        // Named as the weapon's default.
+        gun('sv98', { normalizedName: 'sv-98' }),
+        preset('sv98-std', { normalizedName: 'sv-98-default' }),
+        // Only presets that aren't the default: the first.
+        gun('vpo', {}),
+        preset('vpo-a', { properties: { baseItem: 'vpo' } }),
+        preset('vpo-b', { properties: { baseItem: 'vpo' } }),
+        // None at all, or one that doesn't exist.
+        gun('mosin'),
+        gun('svd', { properties: { defaultPreset: 'gone' } })
+      ])
+    ).toEqual({ akm: 'akm-std', aks: 'aks-std', m4: 'm4-std', sv98: 'sv98-std', vpo: 'vpo-a' })
+  })
+
+  it('comes with the prices', () => {
+    expect(normalizeTarkovDevJson(input, 'pvp', 42).presets).toBeDefined()
   })
 })

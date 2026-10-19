@@ -509,8 +509,7 @@ describe('sanitizeSettings', () => {
       kinds: 'all',
       view: 'summary',
       layout: 'maps',
-      squadKeys: false,
-      guns: {}
+      squadKeys: false
     })
     // 1.17–1.18's key switch gives way to the filters' defaults.
     expect(sanitizeSettings({ todo: { keys: true } }).todo).toEqual(DEFAULT_SETTINGS.todo)
@@ -519,8 +518,7 @@ describe('sanitizeSettings', () => {
       kinds: 'kill',
       view: 'full',
       layout: 'list',
-      squadKeys: true,
-      guns: {}
+      squadKeys: true
     } as const
     expect(sanitizeSettings({ todo: chosen }).todo).toEqual(chosen)
     expect(sanitizeSettings({ todo: { kinds: 'locate' } }).todo.kinds).toBe('locate')
@@ -538,19 +536,24 @@ describe('sanitizeSettings', () => {
     ).toBe('doable')
   })
 
-  it('keeps the guns picked and starred for kill objectives (since 1.53.0)', () => {
-    const guns = {
-      'q1:o1': { itemId: 'm4a1', favourite: true },
-      'q2:o2': { itemId: 'akm', favourite: false }
-    }
-    expect(sanitizeSettings({ todo: { guns } }).todo.guns).toEqual(guns)
-    // Anything else is dropped; a favourite is only ever true or false.
+  it('keeps the gun chosen for each map in the Weapons tab (since 1.54.0)', () => {
+    expect(DEFAULT_SETTINGS.weapons).toEqual({ byMap: {} })
+    expect(
+      sanitizeSettings({ view: 'weapons', weapons: { byMap: { customs: 'akms', woods: 'sv98' } } })
+    ).toMatchObject({
+      view: 'weapons',
+      weapons: { byMap: { customs: 'akms', woods: 'sv98' } }
+    })
+    // Map keys and ids that aren't, and 1.53's guns per quest, are dropped.
     expect(
       sanitizeSettings({
-        todo: { guns: { a: { itemId: '' }, b: 'm4a1', c: { itemId: 'akm', favourite: 'yes' } } }
-      }).todo.guns
-    ).toEqual({ c: { itemId: 'akm', favourite: false } })
-    expect(sanitizeSettings({ todo: { guns: [1, 2] } }).todo.guns).toEqual({})
+        weapons: { byMap: { 'Bad Key': 'akm', lab: '', reserve: 5, shoreline: 'x'.repeat(65) } },
+        todo: { guns: { 'q:o': { itemId: 'akm', favourite: true } } }
+      })
+    ).toMatchObject({ weapons: { byMap: {} }, todo: DEFAULT_SETTINGS.todo })
+    expect(
+      mergeSettings(DEFAULT_SETTINGS, { weapons: { byMap: { customs: 'akms' } } }).weapons.byMap
+    ).toEqual({ customs: 'akms' })
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

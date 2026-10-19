@@ -57,6 +57,8 @@ interface AppStore {
   todoMap: string | null
   /** The station opened from the Hideout tab's overview, or null for the overview (since 1.51.0). */
   craftingStation: string | null
+  /** The map the Weapons tab was opened at (scrolled to), from To do or the reminder (since 1.54.0). */
+  weaponsFocus: string | null
   /** Event quests added from the wiki, as read from it (for the titles and data mode in `key`). */
   wikiQuests: { key: string; quests: WikiQuest[]; errors: Record<string, string>; loading: boolean } | null
   logHistory: Partial<Record<GameMode, LogHistory>>
@@ -108,6 +110,7 @@ interface AppStore {
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   openTodoMap(mapKey: string | null): void
   openCraftingStation(stationId: string | null): void
+  focusWeapons(mapKey: string | null): void
   setHideoutHaveMany(counts: Record<string, number>): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
   setTraderLevel(traderId: string, level: number): Promise<void>
@@ -171,6 +174,7 @@ export const useStore = create<AppStore>((set, get) => ({
   keyFocus: null,
   todoMap: null,
   craftingStation: null,
+  weaponsFocus: null,
   wikiQuests: null,
   logHistory: {},
   logStatus: null,
@@ -474,6 +478,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   openTodoMap: (todoMap) => set({ todoMap }),
   openCraftingStation: (craftingStation) => set({ craftingStation }),
+  focusWeapons: (weaponsFocus) => set({ weaponsFocus }),
 
   async setHideoutHave(itemId, count) {
     const gameMode = get().settings?.gameMode

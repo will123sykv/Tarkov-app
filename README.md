@@ -55,7 +55,7 @@ next time you close the app.
   says so, with a **Settings** link that opens Settings at that part.
 - **Quick search and shortcuts.** **Ctrl+K** (or the magnifier at the top right) opens one search
   box for quests, keys and items: pick one with the arrow keys and Enter to open it where it lives (a
-  quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+9** switch tabs, in
+  quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+9** and **Ctrl+0** switch tabs, in
   the order they're shown (not while you're typing in a box); hover a tab for its shortcut.
 - **Your progress is backed up.** Quests, objectives, hideout, items put aside, keys, loyalty, pins,
   favourites and settings are copied to a `backups` folder once a day (the last 7 days are kept). If
@@ -167,12 +167,11 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
   what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
-- **Guns for kill quests:** when a kill has to be made with particular weapons, the map shows a card
-  per quest with a large picture of a gun that counts. Click the picture to change it (the list only
-  has the guns that count for that quest), and **☆ Bring this one** to star it as the gun you're
-  taking: one per quest. Starred guns head the **Bring** list (**★ AKMS (for Supply Plans)**) and the
-  Maps tab's **Before you raid**, the kill objectives say **★ Bringing AKMS** (in To do and the quest's
-  details), and a quest whose kills have none starred says so.
+- **Gun to bring:** when a kill quest on the map has to be made with particular weapons, the map shows
+  a large picture of the gun chosen for it in the **Weapons** tab (or the one suggested until you
+  choose), the quests it covers and the ones it doesn't, with **Change in Weapons**. The gun heads the
+  **Bring** list (**★ AKMS (for Supply Plans)**), kill objectives say **★ Bringing AKMS** (in To do and
+  the quest's details) or **No gun chosen**, and the Maps tab's **Before you raid** shows it too.
 - **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
@@ -204,6 +203,20 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 
 The game's logs only say when a quest starts and finishes, not its objectives, so the ranking is as
 good as your ticks (and your keys ticked in the Keys tab).
+
+### Weapons
+
+For kill quests that have to be made with particular weapons (Eliminate 5 Scavs with an AKM), the
+**Weapons** tab has a card per map with the gun to bring there: one per map. Each card shows a large
+picture of it, fully built, which kill quests it covers (✓) and which it doesn't (✗, with the guns
+they'd need), and every gun that counts for one of the map's kill quests, saying how many each covers.
+Click one to bring it; until you do, the one that covers the most is **Suggested**, and **Clear** goes
+back to that. Kills on any map count on every map. Maps with kills of their own come first, in To do's
+order. To do's map and the Maps tab's **Before you raid** show the gun, and **Change in Weapons** there
+opens this tab at the map.
+
+Pictures are of the gun fully built (tarkov.dev's default preset of the weapon), not the bare
+receiver the quest names.
 
 ### Items to collect
 
@@ -530,8 +543,8 @@ the game's install folder, or its `build` folder.
 - **Before you raid:** opening a map (picking it, or **Show on map** from another tab) shows what a
   raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
   (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
-  to plant or use, quest items, the guns you've starred for kills on the To do tab and the ones that
-  would do for the rest, with how many you've put aside), and found-in-raid
+  to plant or use, quest items, the guns that would do for kills the map's gun doesn't cover, with how
+  many you've put aside), a large picture of the map's **Gun** from the Weapons tab, and found-in-raid
   items to **Look out for**. It doesn't show when there's nothing to list.
 - **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
   until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its

@@ -12,7 +12,8 @@ import {
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
-import { anyMapTake, killGuns, killObjectives, takeToMap, weaponsToTake } from '../../../shared/todo'
+import { anyMapTake, killObjectives, takeToMap } from '../../../shared/todo'
+import { mapGun, mapKills, missedWeapons } from '../../../shared/weapons'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
 import type { MapSettings, PriceState, PublicSettings } from '../../../shared/types'
 import { posterProjection } from '../lib/mapProjection'
@@ -405,24 +406,25 @@ export default function MapsView({
   const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
   const groupFor = useCallback((id: string) => groupOf.get(id), [groupOf])
   const todo = useTodoPlan(settings, rows, done, groupFor, owned, have)
-  const guns = settings.todo.guns
+  const byMap = settings.weapons.byMap
   const reminder = useMemo<RaidReminder | null>(() => {
     if (!mainMap) return null
     const key = groupOf.get(mainMap.id)?.key
     const here = todo.maps.find((p) => p.group.key === key)
     const { bring } = takeToMap(here ?? { weapons: [], bring: [] }, anyMapTake(todo))
-    const { starred, undecided } = weaponsToTake(killGuns(here?.steps ?? [], todo.anyMap, guns))
+    const gun = key ? mapGun(mapKills(here?.steps ?? [], todo.anyMap), byMap[key]) : null
     const r: RaidReminder = {
       keys: here?.keys ?? [],
       noAccess: here?.noAccess ?? null,
-      starred,
-      weapons: undecided,
+      gun,
+      mapKey: key ?? '',
+      weapons: missedWeapons(gun),
       bring,
       questItems: here?.questItems ?? [],
       finds: todo.finds
     }
     return hasReminder(r) ? r : null
-  }, [mainMap, groupOf, todo, guns])
+  }, [mainMap, groupOf, todo, byMap])
   const [remindFor, setRemindFor] = useState<string | null>(m.mapKey)
   useEffect(() => setRemindFor(m.mapKey), [m.mapKey])
   const reminderOpen = remindFor === m.mapKey

@@ -67,6 +67,8 @@ export interface PriceDataset {
   fleaFeeRates?: FleaFeeRates
   /** Whether only found-in-raid items can be listed on the flea. */
   foundInRaidRequired?: boolean | null
+  /** Each weapon's default preset (weapon id → preset id): the gun fully built (since 1.54.0). */
+  presets?: Record<string, string>
 }
 
 export interface PriceFetchResult {
@@ -153,6 +155,7 @@ export interface Settings {
   keys: KeysSettings
   /** The Hideout tab: what to craft (since 1.49.0). */
   crafting: CraftingSettings
+  weapons: WeaponsSettings
   /** Each tab's sidebar: sections hidden (by heading) and whether it's collapsed (since 1.26.0). */
   sidebars: Partial<Record<AppView, SidebarSettings>>
 }
@@ -175,17 +178,12 @@ export interface TodoSettings {
   layout: 'maps' | 'list'
   /** Friends' keys (from their codes) count as yours for what you can do: a squad's keys (since 1.35.0). */
   squadKeys: boolean
-  /**
-   * The gun shown for each kill objective that needs particular weapons, keyed "questId:objectiveId",
-   * and whether it's starred as the one to bring (since 1.53.0).
-   */
-  guns: Record<string, GunPick>
 }
 
-/** A gun picked for a kill objective, and whether it's the one to bring. */
-export interface GunPick {
-  itemId: string
-  favourite: boolean
+/** The Weapons tab (since 1.54.0). */
+export interface WeaponsSettings {
+  /** The gun chosen to bring to each map (by map group key, e.g. `customs`) for its kill quests. */
+  byMap: Record<string, string>
 }
 
 /** A column of the Hideout tab's lists of crafts for upgrades and quests ('priority': the app's order). */
@@ -234,7 +232,7 @@ export interface KeyFriend {
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */
 export type AppView =
-  'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'crafting' | 'keys' | 'maps' | 'raids'
+  'loot' | 'trends' | 'todo' | 'weapons' | 'quests' | 'hideout' | 'crafting' | 'keys' | 'maps' | 'raids'
 
 export interface HideoutSettings {
   /** Count what each station's next level needs, or every level still to build. */

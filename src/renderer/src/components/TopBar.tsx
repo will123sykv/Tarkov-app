@@ -9,6 +9,7 @@ const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
   { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
   { id: 'trends', label: 'Flea trends', subtitle: 'Best times to buy and sell' },
   { id: 'todo', label: 'To do', subtitle: 'Which map to raid next for your quests' },
+  { id: 'weapons', label: 'Weapons', subtitle: 'The gun to bring to each map for kill quests' },
   { id: 'quests', label: 'Quests', subtitle: 'Quest progress from your game logs' },
   { id: 'hideout', label: 'Items to collect', subtitle: 'What your hideout and quests still need' },
   { id: 'crafting', label: 'Hideout', subtitle: 'What to craft at each station now' },
@@ -49,7 +50,7 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
           <button
             key={view.id}
             role="tab"
-            title={`${view.subtitle} (Ctrl+${i + 1})`}
+            title={`${view.subtitle} (Ctrl+${(i + 1) % 10})`}
             aria-selected={settings.view === view.id}
             className={settings.view === view.id ? 'active' : ''}
             onClick={() => void updateSettings({ view: view.id })}

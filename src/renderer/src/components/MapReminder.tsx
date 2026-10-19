@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { opens } from '../../../shared/keys'
-import type { BringItem, MapPlan, StarredGun, TodoStep, WeaponsToBring } from '../../../shared/todo'
+import type { BringItem, MapPlan, TodoStep, WeaponsToBring } from '../../../shared/todo'
+import type { MapGun } from '../../../shared/weapons'
 import type { useItemLookup } from '../lib/useItemLookup'
 import { ItemChip, KeyChoice } from './QuestDetail'
-import { BringChip, StarredGunChip, WeaponChoice } from './TakeChips'
+import { MapGunPanel } from './GunCards'
+import { BringChip, WeaponChoice } from './TakeChips'
 
 type Items = ReturnType<typeof useItemLookup>
 
@@ -16,9 +18,11 @@ export interface RaidReminder {
   keys: string[][]
   /** The items needed to get onto the map, when the player has none of them. */
   noAccess: string[] | null
-  /** Guns starred to bring for kills (since 1.53.0). */
-  starred: StarredGun[]
-  /** For kills with no gun starred: the weapons that would do. */
+  /** The gun for the map's kill quests, chosen in the Weapons tab or suggested (since 1.54.0). */
+  gun: MapGun | null
+  /** The map's key, to open the Weapons tab at it. */
+  mapKey: string
+  /** For kills the gun doesn't cover: the weapons that would do. */
   weapons: WeaponsToBring[]
   bring: BringItem[]
   questItems: MapPlan['questItems']
@@ -30,7 +34,7 @@ export interface RaidReminder {
 export const hasReminder = (r: RaidReminder): boolean =>
   r.keys.length +
     (r.noAccess ? 1 : 0) +
-    r.starred.length +
+    (r.gun ? 1 : 0) +
     r.weapons.length +
     r.bring.length +
     r.questItems.length +
@@ -67,7 +71,7 @@ export default function MapReminder({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  const { keys, noAccess, starred, weapons, bring, questItems, finds } = reminder
+  const { keys, noAccess, gun, mapKey, weapons, bring, questItems, finds } = reminder
   const missingKeys = keys.filter((k) => !opens(k, owned)).length
   const haveOf = (b: BringItem): number => b.itemIds.reduce((n, id) => n + (have[id] ?? 0), 0)
   return (
@@ -99,13 +103,16 @@ export default function MapReminder({
             </ul>
           </section>
         )}
-        {(starred.length > 0 || weapons.length > 0 || bring.length > 0 || questItems.length > 0) && (
+        {gun && (
+          <section>
+            <h3>Gun</h3>
+            <MapGunPanel gun={gun} items={items} mapKey={mapKey} onChange={onClose} />
+          </section>
+        )}
+        {(weapons.length > 0 || bring.length > 0 || questItems.length > 0) && (
           <section>
             <h3>Bring</h3>
             <div className="map-reminder-chips">
-              {starred.map((g) => (
-                <StarredGunChip key={g.itemId} gun={g} items={items} />
-              ))}
               {weapons.map((w) => (
                 <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
               ))}

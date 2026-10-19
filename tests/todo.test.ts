@@ -7,7 +7,6 @@ import {
   anyMapTake,
   takeToMap,
   inRaid,
-  killGuns,
   killObjectives,
   mapOverview,
   objectiveCategory,
@@ -15,7 +14,6 @@ import {
   questSummary,
   shortObjective,
   todoPlan,
-  weaponsToTake,
   type MapGroup
 } from '../src/shared/todo'
 
@@ -520,50 +518,6 @@ describe('weapons to bring for kills', () => {
       woods: [[['svds'], ['a']]]
     })
     expect(mapOverview(plan.maps.find((p) => p.group.key === 'woods')!).bring).toBe(1)
-  })
-
-  it('shows the gun picked for each kill, starred ones to bring and the rest as before (since 1.53.0)', () => {
-    const shotgun = objective('shotgun', 'shoot', { count: 5, weapons: ['mp133', 'mp153'] })
-    const again = objective('again', 'shoot', { count: 3, weapons: ['mp153', 'mp133'] })
-    const anywhere = objective('anywhere', 'shoot', { maps: [], weapons: ['m4a1', 'akm'] })
-    const plan = todoPlan(
-      [row(quest('a', [shotgun])), row(quest('b', [again])), row(quest('c', [anywhere]))],
-      {},
-      groupOf
-    )
-    const customs = plan.maps.find((p) => p.group.key === 'customs')!
-    const guns = (picks: Parameters<typeof killGuns>[2]) => killGuns(customs.steps, plan.anyMap, picks)
-
-    // Nothing picked: the first gun of each, the kill on any map last.
-    expect(guns({}).map((k) => [k.key, k.shown, k.favourite, k.anyMap])).toEqual([
-      ['a:shotgun', 'mp133', false, false],
-      ['b:again', 'mp153', false, false],
-      ['c:anywhere', 'm4a1', false, true]
-    ])
-    // A pick of a gun that doesn't count is ignored.
-    expect(guns({ 'a:shotgun': { itemId: 'svds', favourite: true } })[0]).toMatchObject({
-      shown: 'mp133',
-      favourite: false
-    })
-
-    // Nothing starred: the sets of weapons as before, the same set once.
-    const none = weaponsToTake(guns({}))
-    expect(none.starred).toEqual([])
-    expect(none.undecided.map((w) => [w.itemIds, names(w.quests), w.anyMap ?? false])).toEqual([
-      [['mp133', 'mp153'], ['a', 'b'], false],
-      [['m4a1', 'akm'], ['c'], true]
-    ])
-
-    // The same MP-153 starred for both shotgun quests: one gun to bring, for both.
-    const picked = weaponsToTake(
-      guns({
-        'a:shotgun': { itemId: 'mp153', favourite: true },
-        'b:again': { itemId: 'mp153', favourite: true },
-        'c:anywhere': { itemId: 'akm', favourite: false }
-      })
-    )
-    expect(picked.starred.map((s) => [s.itemId, names(s.quests)])).toEqual([['mp153', ['a', 'b']]])
-    expect(picked.undecided.map((w) => names(w.quests))).toEqual([['c']])
   })
 })
 

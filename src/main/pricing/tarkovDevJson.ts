@@ -19,6 +19,16 @@ export interface JsonItem {
   id: string
   name?: string | null
   shortName?: string | null
+  normalizedName?: string | null
+  /**
+   * What tarkov.dev knows about the item by kind, kept loose: for a weapon its default preset, for a
+   * preset its weapon and whether it's the default (since 1.54.0, for fully built gun pictures).
+   */
+  properties?: {
+    defaultPreset?: string | { id?: string | null } | null
+    baseItem?: string | { id?: string | null } | null
+    default?: boolean | null
+  } | null
   width?: number | null
   height?: number | null
   types?: string[] | null
@@ -95,6 +105,40 @@ export async function fetchJsonData<T>(fetchFn: FetchFn, dataMode: DataMode, fil
   )) as { data?: T } | null
   if (!body || typeof body !== 'object' || body.data == null) throw new Error(`${file}: no data in response`)
   return body.data
+}
+
+/** An id given as is or as `{ id }`. */
+const refId = (ref: string | { id?: string | null } | null | undefined): string | null =>
+  typeof ref === 'string' ? ref || null : (ref?.id ?? null)
+
+/**
+ * Each weapon's default preset: the gun fully built, whose picture is the whole gun rather than the
+ * bare receiver (since 1.54.0). The weapon says which, or a preset says it's the default one for its
+ * weapon, or is named as the weapon's default; otherwise the weapon's first preset.
+ */
+export function defaultPresets(raws: readonly JsonItem[]): Record<string, string> {
+  const presets = raws.filter((r) => r?.id && r.types?.includes('preset'))
+  const presetIds = new Set(presets.map((p) => p.id!))
+  const result: Record<string, string> = {}
+  const byWeapon = new Map<string, JsonItem[]>()
+  for (const p of presets) {
+    const base = refId(p.properties?.baseItem)
+    if (base) byWeapon.set(base, [...(byWeapon.get(base) ?? []), p])
+  }
+  const byName = new Map(presets.filter((p) => p.normalizedName).map((p) => [p.normalizedName!, p.id!]))
+  for (const raw of raws) {
+    if (!raw?.id || !raw.types?.includes('gun') || raw.types.includes('preset')) continue
+    const own = refId(raw.properties?.defaultPreset)
+    const ofWeapon = byWeapon.get(raw.id) ?? []
+    const preset =
+      (own && presetIds.has(own) ? own : null) ??
+      ofWeapon.find((p) => p.properties?.default === true)?.id ??
+      (raw.normalizedName ? byName.get(`${raw.normalizedName}-default`) : undefined) ??
+      ofWeapon[0]?.id ??
+      null
+    if (preset) result[raw.id] = preset
+  }
+  return result
 }
 
 function positive(n: number | null | undefined): number | null {
@@ -188,7 +232,8 @@ export function normalizeTarkovDevJson(
     fleaMinLevel: positive(flea?.minPlayerLevel) ?? DEFAULT_FLEA_MIN_LEVEL,
     items,
     fleaFeeRates: feeRates,
-    foundInRaidRequired: typeof flea?.foundInRaidRequired === 'boolean' ? flea.foundInRaidRequired : null
+    foundInRaidRequired: typeof flea?.foundInRaidRequired === 'boolean' ? flea.foundInRaidRequired : null,
+    presets: defaultPresets(values(input.items.items))
   }
 }
 

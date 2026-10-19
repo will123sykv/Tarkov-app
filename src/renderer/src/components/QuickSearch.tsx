@@ -5,13 +5,14 @@ import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 
 // One search box for quests, keys and items, opened with Ctrl+K from anywhere; picking a result opens
-// the tab it lives on. Ctrl+1 to Ctrl+9 switch tabs. Since 1.47.0.
+// the tab it lives on. Ctrl+1 to Ctrl+9 and Ctrl+0 (the tenth, since 1.54.0) switch tabs. Since 1.47.0.
 
-/** The tabs in the order they're shown, for Ctrl+1 to Ctrl+9. */
+/** The tabs in the order they're shown, for Ctrl+1 to Ctrl+9, then Ctrl+0. */
 export const TAB_ORDER: AppView[] = [
   'loot',
   'trends',
   'todo',
+  'weapons',
   'quests',
   'hideout',
   'crafting',
@@ -65,11 +66,12 @@ export default function QuickSearch({ settings }: { settings: PublicSettings }):
         setOpen((o) => !o)
         return
       }
-      const n = Number(e.key)
-      if (Number.isInteger(n) && n >= 1 && n <= TAB_ORDER.length && !typing(e.target)) {
+      // 1 is the first tab, 0 the tenth.
+      const n = /^[0-9]$/.test(e.key) ? (Number(e.key) + 9) % 10 : -1
+      if (n >= 0 && n < TAB_ORDER.length && !typing(e.target)) {
         e.preventDefault()
         setOpen(false)
-        void updateSettings({ view: TAB_ORDER[n - 1] })
+        void updateSettings({ view: TAB_ORDER[n] })
       }
     }
     const onOpen = (): void => setOpen(true)
@@ -188,8 +190,8 @@ function SearchDialog({
         <div id="quick-search-results" className="quick-search-results" role="listbox">
           {!term ? (
             <p className="hint">
-              Type a quest, key or item. ↑ ↓ to pick, Enter to open, Esc to close. Ctrl+1 to Ctrl+9 switch
-              tabs.
+              Type a quest, key or item. ↑ ↓ to pick, Enter to open, Esc to close. Ctrl+1 to Ctrl+9 and Ctrl+0
+              switch tabs.
             </p>
           ) : results.length === 0 ? (
             <p className="hint">Nothing matches &ldquo;{text.trim()}&rdquo;.</p>
