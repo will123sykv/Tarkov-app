@@ -151,6 +151,8 @@ export interface Settings {
   todo: TodoSettings
   /** Since 1.17.0. */
   keys: KeysSettings
+  /** The Hideout tab: what to craft (since 1.49.0). */
+  crafting: CraftingSettings
   /** Each tab's sidebar: sections hidden (by heading) and whether it's collapsed (since 1.26.0). */
   sidebars: Partial<Record<AppView, SidebarSettings>>
 }
@@ -173,6 +175,17 @@ export interface TodoSettings {
   layout: 'maps' | 'list'
   /** Friends' keys (from their codes) count as yours for what you can do: a squad's keys (since 1.35.0). */
   squadKeys: boolean
+}
+
+/** A column of the Hideout tab's lists of crafts for upgrades and quests ('priority': the app's order). */
+export type CraftSortKey =
+  'priority' | 'item' | 'for' | 'missing' | 'runs' | 'time' | 'cost' | 'buy' | 'saving'
+
+export interface CraftingSettings {
+  /** Crafts for profit have to take at least this long (minutes). */
+  minProfitMinutes: number
+  /** How the lists of crafts for upgrades and quests are ordered. */
+  sort: { key: CraftSortKey; desc: boolean }
 }
 
 export interface KeysSettings {
@@ -200,7 +213,8 @@ export interface KeyFriend {
 }
 
 /** `hideout` is the Items to collect tab (named Hideout before 1.16.0). */
-export type AppView = 'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'keys' | 'maps' | 'raids'
+export type AppView =
+  'loot' | 'trends' | 'todo' | 'quests' | 'hideout' | 'crafting' | 'keys' | 'maps' | 'raids'
 
 export interface HideoutSettings {
   /** Count what each station's next level needs, or every level still to build. */

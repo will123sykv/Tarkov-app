@@ -5397,3 +5397,149 @@ p.quest-before.done {
   fill: currentColor;
   vertical-align: middle;
 }
+
+/* The Hideout tab: what to craft at each station now. */
+.crafting-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.crafting-page .summary .hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.crafting-stations {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+  align-content: start;
+  gap: 12px;
+  padding: 12px 16px 24px;
+}
+
+.crafting-station {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.crafting-station.needed {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.crafting-station.profit {
+  box-shadow: inset 3px 0 var(--ok);
+}
+
+.crafting-station header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.crafting-station header strong {
+  font-size: 15px;
+}
+
+.crafting-station h4 {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.crafting-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.crafting-next-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.crafting-station .gain {
+  color: var(--ok);
+}
+
+.crafting-station .loss {
+  color: var(--bad);
+}
+
+.crafting-table {
+  font-size: 12.5px;
+}
+
+.crafting-table td {
+  vertical-align: middle;
+}
+
+.crafting-table th.sortable button {
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.crafting-table th.sorted button {
+  color: var(--accent-strong);
+}
+
+.crafting-table .crafting-for {
+  min-width: 140px;
+  max-width: 260px;
+  color: var(--muted);
+}
+
+.crafting-table .item-cell {
+  min-width: 140px;
+}
+
+.crafting-table td.num {
+  white-space: nowrap;
+}
+
+.crafting-table .tag.fir {
+  margin-left: 6px;
+}
+
+.crafting-profit {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.crafting-profit li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 90px 110px;
+  align-items: center;
+  gap: 10px;
+}
+
+.crafting-profit .num {
+  text-align: right;
+}
+
+.crafting-unbuilt {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}

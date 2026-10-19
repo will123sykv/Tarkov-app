@@ -34,6 +34,9 @@ interface AppStore {
   /** The Keys tab's search (in the store so Quick search can set it). Since 1.47.0. */
   keysSearch: string
   setKeysSearch(search: string): void
+  /** Items to collect's Crafts search (so the Hideout tab can open it on an item). Since 1.49.0. */
+  craftsSearch: string
+  setCraftsSearch(search: string): void
   trendAnalysis: Partial<Record<DataMode, TrendAnalysis>>
   trendsLoading: boolean
   trendsError: string | null
@@ -150,6 +153,7 @@ export const useStore = create<AppStore>((set, get) => ({
   containerLoot: {},
   search: '',
   keysSearch: '',
+  craftsSearch: '',
   trendAnalysis: {},
   trendsLoading: false,
   trendsError: null,
@@ -529,5 +533,6 @@ export const useStore = create<AppStore>((set, get) => ({
   },
   setSearch: (search) => set({ search }),
   setKeysSearch: (keysSearch) => set({ keysSearch }),
+  setCraftsSearch: (craftsSearch) => set({ craftsSearch }),
   setSettingsOpen: (settingsOpen, section) => set({ settingsOpen, settingsSection: section ?? null })
 }))

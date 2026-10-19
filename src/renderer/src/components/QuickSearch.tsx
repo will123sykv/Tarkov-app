@@ -5,10 +5,20 @@ import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 
 // One search box for quests, keys and items, opened with Ctrl+K from anywhere; picking a result opens
-// the tab it lives on. Ctrl+1 to Ctrl+8 switch tabs. Since 1.47.0.
+// the tab it lives on. Ctrl+1 to Ctrl+9 switch tabs. Since 1.47.0.
 
-/** The tabs in the order they're shown, for Ctrl+1 to Ctrl+8. */
-export const TAB_ORDER: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'keys', 'maps', 'raids']
+/** The tabs in the order they're shown, for Ctrl+1 to Ctrl+9. */
+export const TAB_ORDER: AppView[] = [
+  'loot',
+  'trends',
+  'todo',
+  'quests',
+  'hideout',
+  'crafting',
+  'keys',
+  'maps',
+  'raids'
+]
 
 const PER_GROUP = 6
 
@@ -178,7 +188,7 @@ function SearchDialog({
         <div id="quick-search-results" className="quick-search-results" role="listbox">
           {!term ? (
             <p className="hint">
-              Type a quest, key or item. ↑ ↓ to pick, Enter to open, Esc to close. Ctrl+1 to Ctrl+8 switch
+              Type a quest, key or item. ↑ ↓ to pick, Enter to open, Esc to close. Ctrl+1 to Ctrl+9 switch
               tabs.
             </p>
           ) : results.length === 0 ? (

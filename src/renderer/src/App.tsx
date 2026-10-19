@@ -6,6 +6,7 @@ import { rankItems, type ContainerFilter } from '../../shared/valuation'
 import ErrorBoundary from './components/ErrorBoundary'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
+import CraftingView from './components/CraftingView'
 import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
 import KeysView from './components/KeysView'
@@ -125,6 +126,8 @@ export default function App(): React.JSX.Element {
           <QuestsView settings={settings} priceState={priceState} />
         ) : view === 'hideout' ? (
           <HideoutView settings={settings} priceState={priceState} />
+        ) : view === 'crafting' ? (
+          <CraftingView settings={settings} priceState={priceState} />
         ) : view === 'keys' ? (
           <KeysView settings={settings} priceState={priceState} />
         ) : view === 'maps' ? (

@@ -1,7 +1,7 @@
 import { useStore } from '../store'
 
 /** Settings' sections a page can link to. */
-export type SettingsSection = 'quests' | 'wiki' | 'loyalty' | 'trends' | 'logs'
+export type SettingsSection = 'quests' | 'wiki' | 'loyalty' | 'crafting' | 'trends' | 'logs'
 
 /** A link that opens Settings at one of its sections (where a page's global setting is changed). */
 export default function SettingsLink({

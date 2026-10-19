@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
-import { TREND_INTERVALS } from '../../../shared/settings'
+import { MIN_PROFIT_MINUTES, TREND_INTERVALS } from '../../../shared/settings'
 import type { PublicSettings, QuestSettings, TodoSettings, TrendSettings } from '../../../shared/types'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useStore } from '../store'
@@ -176,6 +176,33 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
       ) : (
         <p className="hint">Loading the traders…</p>
       )}
+    </section>
+  )
+}
+
+/** "Any", "30 min", "2 h". */
+const minutesLabel = (minutes: number): string =>
+  minutes === 0 ? 'Any' : minutes < 60 ? `${minutes} min` : `${minutes / 60} h`
+
+/** The Hideout tab's crafts for profit: how long they have to take at least. */
+export function CraftingSettingsSection({ settings }: { settings: PublicSettings }): React.JSX.Element {
+  const updateSettings = useStore((s) => s.updateSettings)
+  const c = settings.crafting
+  return (
+    <section id="settings-crafting">
+      <h3>Hideout crafting</h3>
+      <span className="toggle-label">Profit crafts at least</span>
+      <Choice
+        label="Profit crafts at least"
+        value={c.minProfitMinutes}
+        options={MIN_PROFIT_MINUTES.map((m) => [m, minutesLabel(m)] as const)}
+        onChange={(minProfitMinutes) => void updateSettings({ crafting: { ...c, minProfitMinutes } })}
+      />
+      <p className="hint">
+        The Hideout tab picks crafts for profit only from ones that take at least this long, so a station
+        isn&rsquo;t left waiting on you every few minutes. They&rsquo;re crafted next only when nothing your
+        upgrades and quests need can be made there.
+      </p>
     </section>
   )
 }

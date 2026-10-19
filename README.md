@@ -55,7 +55,7 @@ next time you close the app.
   says so, with a **Settings** link that opens Settings at that part.
 - **Quick search and shortcuts.** **Ctrl+K** (or the magnifier at the top right) opens one search
   box for quests, keys and items: pick one with the arrow keys and Enter to open it where it lives (a
-  quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+8** switch tabs, in
+  quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+9** switch tabs, in
   the order they're shown (not while you're typing in a box); hover a tab for its shortcut.
 - **Your progress is backed up.** Quests, objectives, hideout, items put aside, keys, loyalty, pins,
   favourites and settings are copied to a `backups` folder once a day (the last 7 days are kept). If
@@ -325,6 +325,26 @@ amber and marked **Check this one**. If a screenshot shows more than one window 
 container), new loot lists the smaller one and lets you tick the others (everything you have counts
 them all); **Scan part of it** lets you drag a box around the window you want. Calibrated on 1080p
 screenshots; other resolutions and UI scales are scaled to match.
+
+### Hideout
+
+The **Hideout** tab says what to put on each station you've built, going by what **Items to
+collect** counts as still needed (its **Count items for** choices, so the two always agree). Each
+station gets a card:
+
+- **Craft next:** what to start now. Crafts that make an item your hideout upgrades or quests still
+  need come first: items that must be found in raid (buying won't do), then the biggest saving over
+  buying, then the quickest. With nothing needed, it's the craft that makes the most profit per hour.
+- **For upgrades and quests:** every craft at that station that makes something still needed, with
+  what it's for, how many are missing (and how many of those must be found in raid), runs, time,
+  what the craft costs, what buying the item costs and the saving. Click any column's header to sort
+  by it, and again to reverse; the order is kept and used for every station.
+- **For profit:** the station's three crafts that make the most per hour at today's prices. Only
+  crafts that take at least **Profit crafts at least** (in **Settings › Hideout crafting**, 30
+  minutes by default) are picked, so a station isn't left idle by short crafts.
+
+Only crafts you can make now count (station level and quests). Click an item to open it in Items to
+collect's **Crafts** list.
 
 ### Keys
 

@@ -4,6 +4,7 @@ import type { UpdaterStatus } from '../../../shared/types'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
 import {
+  CraftingSettingsSection,
   LoyaltySettingsSection,
   QuestSettingsSection,
   TrendSettingsSection,
@@ -162,6 +163,7 @@ export default function SettingsDialog(): React.JSX.Element | null {
       <QuestSettingsSection settings={settings} />
       <WikiSettingsSection settings={settings} />
       <LoyaltySettingsSection settings={settings} />
+      <CraftingSettingsSection settings={settings} />
       <TrendSettingsSection settings={settings} />
 
       <div className="dialog-logs" id="settings-logs">

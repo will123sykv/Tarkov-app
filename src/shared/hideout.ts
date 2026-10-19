@@ -198,7 +198,11 @@ export function buyOptions(
 }
 
 /** Roubles for one of an item at the cheapest place to buy it now (money at what traders charge). */
-function unitPrice(itemId: string, items: ReadonlyMap<string, LootItem>, ctx: BuyContext): number | null {
+export function unitPrice(
+  itemId: string,
+  items: ReadonlyMap<string, LootItem>,
+  ctx: BuyContext
+): number | null {
   if (itemId === ROUBLES_ID) return 1
   return buyOptions(items.get(itemId) ?? NO_ITEM, ctx).options[0]?.price ?? null
 }

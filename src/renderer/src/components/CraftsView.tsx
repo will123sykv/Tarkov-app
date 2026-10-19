@@ -4,6 +4,7 @@ import type { HideoutSettings, LootItem } from '../../../shared/types'
 import { evaluateItem, type ValuationContext } from '../../../shared/valuation'
 import { formatDuration, formatRub } from '../lib/format'
 import type { useItemLookup } from '../lib/useItemLookup'
+import { useStore } from '../store'
 import FavouriteStar from './FavouriteStar'
 import { ItemChip } from './QuestDetail'
 
@@ -54,7 +55,8 @@ export default function CraftsView({
 }): React.JSX.Element {
   const [sort, setSort] = useState<SortKey>('perHour')
   const [stationId, setStationId] = useState<string>('')
-  const [search, setSearch] = useState('')
+  const search = useStore((s) => s.craftsSearch)
+  const setSearch = useStore((s) => s.setCraftsSearch)
   const profits = useMemo(
     () => craftProfits(cc, ctx, (item: LootItem) => evaluateItem(item, valuation).worth),
     [cc, ctx, valuation]

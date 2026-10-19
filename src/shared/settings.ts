@@ -9,6 +9,8 @@ import { isGameMode } from './gameModes'
 import type { TrendSortKey } from './fleaTrends'
 import type {
   AppView,
+  CraftingSettings,
+  CraftSortKey,
   GameMode,
   HideoutSettings,
   KeyFriend,
@@ -99,10 +101,11 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
+  crafting: { minProfitMinutes: 30, sort: { key: 'priority', desc: false } },
   sidebars: {}
 }
 
-const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'keys', 'maps', 'raids']
+const VIEWS: AppView[] = ['loot', 'trends', 'todo', 'quests', 'hideout', 'crafting', 'keys', 'maps', 'raids']
 const QUEST_STATUSES: QuestStatusFilter[] = ['available', 'active', 'locked', 'completed', 'failed']
 
 function sanitizeQuests(raw: unknown): QuestSettings {
@@ -308,7 +311,36 @@ export function sanitizeSettings(raw: unknown): Settings {
     hideout: sanitizeHideout(r.hideout, version),
     todo: sanitizeTodo(r.todo),
     keys: sanitizeKeys(r.keys),
+    crafting: sanitizeCrafting(r.crafting),
     sidebars: sanitizeSidebars(r.sidebars)
+  }
+}
+
+/** The minimum times the Hideout tab's profit crafts can be set to (minutes). */
+export const MIN_PROFIT_MINUTES = [0, 15, 30, 45, 60, 120, 180, 240, 360] as const
+const CRAFT_SORT_KEYS: CraftSortKey[] = [
+  'priority',
+  'item',
+  'for',
+  'missing',
+  'runs',
+  'time',
+  'cost',
+  'buy',
+  'saving'
+]
+
+function sanitizeCrafting(raw: unknown): CraftingSettings {
+  const r = isRecord(raw) ? raw : {}
+  const sort = isRecord(r.sort) ? r.sort : {}
+  return {
+    minProfitMinutes: (MIN_PROFIT_MINUTES as readonly unknown[]).includes(r.minProfitMinutes)
+      ? (r.minProfitMinutes as number)
+      : 30,
+    sort: {
+      key: CRAFT_SORT_KEYS.includes(sort.key as CraftSortKey) ? (sort.key as CraftSortKey) : 'priority',
+      desc: sort.desc === true
+    }
   }
 }
 
@@ -405,6 +437,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     hideout: { ...current.hideout, ...patch.hideout },
     todo: { ...current.todo, ...patch.todo },
     keys: { ...current.keys, ...patch.keys },
+    crafting: { ...current.crafting, ...patch.crafting },
     sidebars: { ...current.sidebars, ...patch.sidebars }
   })
 }
