@@ -1,6 +1,6 @@
 # Tarkov Loot Optimiser
 
-![Tarkov Loot Optimiser: the Maps tab with quest pins, kill objectives and favourite items, plus the To do, Keys, Items to collect and Loot tabs](docs/feature-overview.png)
+![Tarkov Loot Optimiser: the Maps tab with quest pins, kill objectives and favourite items, plus the To do, Weapons, Keys, Items to collect, Hideout and Loot tabs](docs/feature-overview.png)
 
 A Windows desktop app that tells you which Escape from Tarkov items are worth the space in your
 bag. Every item is ranked by **roubles per inventory slot**, using live flea market and trader
@@ -14,10 +14,14 @@ prices, your PMC level and the game mode you play. It also has:
   quest's keys, items, rewards and the wiki's guide and pictures of where to go;
 - **To do:** which map to raid next to move your active quests on, each map at a glance and then
   its quests, what to take, and what to hand in, hand over or build before you go;
+- **Weapons:** the gun to bring to each map for kill quests that need particular weapons, chosen
+  per map (and per game mode) and shown fully built in To do and the map's reminder;
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
   buy or craft back later), every hideout craft ranked by profit, and the items not to sell (rare
   ones flagged) marked in the loot list;
+- **Hideout:** what to craft next at each station you've built, for your upgrades and quests or
+  for profit, with a **Started** button that updates Items to collect;
 - **Keys:** the keys to buy and the keys you own (ticked by hand), each split into the ones your
   quests need and the rest, with how to get each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
 - **Maps:** 2D maps with your quests (named, with their trader) and story chapter steps,
@@ -48,10 +52,10 @@ next time you close the app.
   **«** folds a tab's whole sidebar away so the page gets the full width, and **»** brings it back.
   Each tab remembers its own.
 - **One place for settings that span tabs.** **Settings** (⚙ at the top right) holds what applies
-  across the app: **Show all** or **Only quests I can do** (To do, Maps and Quests), **Count friends'
+  across the app: **Show all** or **Only quests I can do** (To do, Weapons, Maps and Quests), **Count friends'
   keys**, **Summary** or **Full** quests on the To do tab, the wiki's quest corrections and extra
   quests, your **Trader loyalty** (a card per trader: pick LL1 to LL4 on it, per game mode), how flea trends are read (**Split
-  the day into**, **Look back**), the **Game logs** folder and **Your progress**. A tab these change
+  the day into**, **Look back**), **Hideout crafting**, the **Game logs** folder and **Your progress**. A tab these change
   says so, with a **Settings** link that opens Settings at that part.
 - **Quick search and shortcuts.** **Ctrl+K** (or the magnifier at the top right) opens one search
   box for quests, keys and items: pick one with the arrow keys and Enter to open it where it lives (a
@@ -181,7 +185,7 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - **Details ▶** (or a quest's name) opens the quest's full details beside the maps, as in the Quests
   tab: status, what unlocks it and what it unlocks, every objective with its progress and **Show on
   map**, the keys and items it takes, its rewards and the wiki's guide. **✕** goes back.
-- **Only quests I can do** (in Settings, for the To do, Maps and Quests tabs) leaves out every
+- **Only quests I can do** (in Settings, for the To do, Weapons, Maps and Quests tabs) leaves out every
   quest held up by a lock none of your keys open, on any map, while still listing the keys to get,
   and maps you can't get onto, like the Lab without its access keycard. The top right says which is
   on, with a **Settings** link.
@@ -226,7 +230,7 @@ receiver the quest names.
 
 ### Items to collect
 
-The **Items to collect** tab (called Hideout before 1.16.0) tracks your hideout and what your
+The **Items to collect** tab tracks your hideout and what your
 quests need handed over, per game mode. The game's logs don't record hideout upgrades, so set each
 station's level in the sidebar (the Stash starts at level 1).
 
@@ -307,7 +311,7 @@ station's level in the sidebar (the Stash starts at level 1).
 
 #### Screenshots: what to keep and sell, and counting what you have
 
-**Screenshots** (next to Items needed and Upgrades) reads screenshots of your items. Pick what they
+**Screenshots** (after Items needed, Upgrades and Crafts) reads screenshots of your items. Pick what they
 show at the top: **New loot** (a scav case haul or a container) or **Everything I have** (your
 stash and cases).
 
@@ -428,7 +432,7 @@ game's logs don't say which keys you have, so tick them yourself.
   to buy** and the locks on the maps say which friends have a key too, and **Count friends' keys**
   (in Settings, under **Quests and maps**) counts their keys as yours, for
   raiding together.
-- **Read from screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
+- **Screenshots** (next to **Keys** at the top) ticks your keys for you. In game, open
   your key tool, keycard holder and any case you keep keys in, and take a screenshot of each (and of
   stash pages with loose keys); add them all with **Use latest screenshot**, **Open picture…**, paste
   or drop. The app reads every item the way the Items to collect scanner does (on your PC) and lists
@@ -689,7 +693,8 @@ npm run data:maps    # regenerate the bundled map projections from tarkov.dev
 ```
 src/shared/     Types, game modes, settings validation, item and container valuation,
                 flea trend analysis (fleaTrends.ts), the item tracker (hideout.ts), the
-                To do tab's map ranking (todo.ts) and the key tracker (keys.ts)
+                To do tab's map ranking (todo.ts), the key tracker (keys.ts), guns for
+                kill quests (weapons.ts) and the Hideout tab's crafting plan (crafting.ts)
 src/main/       Electron main process: settings, price fetching and caching, auto-updater,
                 container loot tables, tray (background.ts)
   pricing/      json.tarkov.dev, tarkov.dev GraphQL and tarkov-market clients, fallback chain,

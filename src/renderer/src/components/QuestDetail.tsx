@@ -783,8 +783,8 @@ function QuestPanel({
             {quest.lightkeeperRequired && ' · Lightkeeper'}
           </span>
           {onOpenInQuests && (
-            <button className="link small" onClick={onOpenInQuests}>
-              Open in Quests
+            <button className="button small open-in-quests" onClick={onOpenInQuests}>
+              Open in Quests ▶
             </button>
           )}
         </div>

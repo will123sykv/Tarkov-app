@@ -3,7 +3,7 @@ import { dataModeFor } from '../../../shared/gameModes'
 import type { QuestObjective } from '../../../shared/questTypes'
 import { gunsFor } from '../../../shared/settings'
 import { objectiveMapIds } from '../../../shared/todo'
-import { gunForObjective, type MapGun, type MapKill } from '../../../shared/weapons'
+import { gunForObjective, killText, type MapGun } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import type { useItemLookup } from '../lib/useItemLookup'
 import { useStore } from '../store'
@@ -62,10 +62,6 @@ export function GunPicture({
 
 const gunName = (items: Items, id: string): string => items.get(id)?.name ?? 'Unknown weapon'
 
-/** "Supply Plans (5 left)": a kill quest the gun covers or misses. */
-const killText = (k: MapKill): string =>
-  `${k.quest.name}${(k.objective.count ?? 1) > 1 ? ` (${k.left} left)` : ''}${k.anyMap ? ' · any map' : ''}`
-
 /** Open the Weapons tab on a map (its overview with none). */
 function useOpenWeapons(): (mapKey: string | null) => void {
   const updateSettings = useStore((s) => s.updateSettings)
@@ -120,13 +116,13 @@ export function MapGunPanel({
       <div className="map-gun-text">
         <span className="map-gun-label">★ Gun to bring</span>
         <strong>{gunName(items, gun.itemId)}</strong>
-        <span className="muted">For {gun.covers.map(killText).join(', ')}</span>
+        <span className="muted">For {gun.covers.map((k) => killText(k)).join(', ')}</span>
         <button
           className="button small"
           title="Choose another gun for this map in the Weapons tab"
           onClick={open}
         >
-          Change in Weapons
+          Change in Weapons ▶
         </button>
       </div>
     </div>

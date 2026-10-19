@@ -150,8 +150,8 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
     <section id="settings-loyalty">
       <h3>Trader loyalty</h3>
       <p className="hint">
-        For {MODE_NAME[settings.gameMode]}. It decides what you can buy (Loot, Items to collect, Keys) and
-        ticks off &ldquo;reach loyalty level&rdquo; quest steps.
+        For {MODE_NAME[settings.gameMode]}. It decides what you can buy (Loot, Items to collect, Hideout,
+        Keys) and ticks off &ldquo;reach loyalty level&rdquo; quest steps.
       </p>
       {listed.length ? (
         <ul className="loyalty-cards">

@@ -68,7 +68,7 @@ function StartButton({ onStart }: { onStart: () => void }): React.JSX.Element {
 
 /** Roubles, a loss with a minus sign in front (−₽5,000); a dash when unknown. */
 const money = (value: number | null): string =>
-  value === null ? '–' : value < 0 ? `−${formatRub(-value)}` : formatRub(value)
+  value === null ? '—' : value < 0 ? `−${formatRub(-value)}` : formatRub(value)
 
 /** "30 min", "2 h", or nothing for no minimum. */
 const minutesText = (minutes: number): string =>
@@ -537,7 +537,7 @@ function StationCard({
                       {n.missing}
                       {n.fir > 0 && (
                         <span className="tag fir" title={`${n.fir} of ${n.missing} must be found in raid`}>
-                          {n.fir === n.missing ? 'all FIR' : `${n.fir} FIR`}
+                          {n.fir === n.missing ? 'found in raid' : `${n.fir} found in raid`}
                         </span>
                       )}
                     </td>

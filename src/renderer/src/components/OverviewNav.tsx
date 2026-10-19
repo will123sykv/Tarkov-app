@@ -1,6 +1,6 @@
 /**
- * Above something opened from an overview of tiles (a map in To do, a station in the Hideout tab): back
- * to the overview, where it is in the order, and on to the one before or after.
+ * Above something opened from an overview of tiles (a map in To do or Weapons, a station in the Hideout
+ * tab): back to the overview, where it is in the order, and on to the one before or after.
  */
 export default function OverviewNav({
   items,
@@ -23,11 +23,11 @@ export default function OverviewNav({
   const prev = i > 0 ? items[i - 1] : null
   const next = i >= 0 && i < items.length - 1 ? items[i + 1] : null
   return (
-    <nav className="todo-nav" aria-label={label}>
+    <nav className="overview-nav" aria-label={label}>
       <button className="button small" onClick={() => onOpen(null)}>
         ◀ {allLabel}
       </button>
-      <span className="todo-nav-where">
+      <span className="overview-nav-where">
         <strong>{name}</strong>
         {i >= 0 && (
           <span className="muted">

@@ -427,7 +427,7 @@ export default function KeysView({
         <SidebarSection title="Share keys">
           <KeyShare keys={k} gameMode={settings.gameMode} owned={inventory.owned} onChange={set} />
         </SidebarSection>
-        <SidebarSection title="In the To do tab">
+        <SidebarSection title="How it's used">
           <p className="hint">
             Objectives behind a lock you have no key for (or on a map you can&rsquo;t get onto) don&rsquo;t
             count towards which map to raid. The keys for them are under <strong>Keys to buy</strong>, with
@@ -480,7 +480,7 @@ export default function KeysView({
                 title="Tick the keys you have from screenshots of your key tool, cases and stash"
                 onClick={() => set({ tab: 'scan' })}
               >
-                Read from screenshots
+                Screenshots
               </button>
             </div>
             {k.tab === 'list' && (

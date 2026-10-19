@@ -17,6 +17,15 @@ export interface MapKill {
   anyMap: boolean
 }
 
+/**
+ * A kill as the Weapons tab and gun panels name it: by its quest ("Supply Plans · 5 left · any map") or
+ * its objective ("Eliminate 5 Scavs with an AKM · 5 left").
+ */
+export function killText(k: MapKill, by: 'quest' | 'objective' = 'quest'): string {
+  const name = by === 'quest' ? k.quest.name : k.objective.description || 'Kills'
+  return `${name}${(k.objective.count ?? 1) > 1 ? ` · ${k.left} left` : ''}${k.anyMap ? ' · any map' : ''}`
+}
+
 /** A map's kill objectives that need particular weapons, then the ones on any map. */
 export function mapKills(steps: readonly TodoStep[], anyMap: readonly TodoStep[]): MapKill[] {
   const kills: MapKill[] = []

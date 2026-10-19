@@ -3,7 +3,7 @@ import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { gunsFor } from '../../../shared/settings'
 import type { MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
-import { gunOptions, mapGun, mapKills, questGunMaps, type MapKill } from '../../../shared/weapons'
+import { gunOptions, killText, mapGun, mapKills, questGunMaps, type MapKill } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useItemLookup } from '../lib/useItemLookup'
@@ -13,6 +13,7 @@ import { useStore } from '../store'
 import { GunPicture } from './GunCards'
 import LoadError from './LoadError'
 import OverviewNav from './OverviewNav'
+import SettingsLink from './SettingsLink'
 
 // The Weapons tab (since 1.54.0): for each map with kill quests that have to be made with particular
 // weapons, the gun to bring, one per map, chosen from every gun that counts for one of them. To do's
@@ -27,10 +28,6 @@ interface WeaponMap {
   plan: MapPlan
   kills: MapKill[]
 }
-
-/** "Eliminate 5 Scavs with an AKM on Customs · 2 left · any map" */
-const killText = (k: MapKill): string =>
-  `${k.objective.description || 'Kills'}${(k.objective.count ?? 1) > 1 ? ` · ${k.left} left` : ''}${k.anyMap ? ' · any map' : ''}`
 
 export default function WeaponsView({
   settings,
@@ -91,6 +88,11 @@ export default function WeaponsView({
   useEffect(() => {
     if (openedKey && dataset && !opened) openMap(null)
   }, [openedKey, dataset, opened, openMap])
+  // In the List, a map opened from To do or the reminder is scrolled to.
+  const listed = settings.weapons.layout === 'list'
+  useEffect(() => {
+    if (listed && opened) document.getElementById(`weapons-${opened.plan.group.key}`)?.scrollIntoView()
+  }, [listed, opened])
 
   const chosenCount = maps.filter((m) => mapGun(m.kills, byMap[m.plan.group.key])?.chosen).length
   return (
@@ -111,14 +113,61 @@ export default function WeaponsView({
               'Loading quests…'
             )}
           </span>
+          <span className="muted small settings-note">
+            {settings.todo.show === 'doable' ? 'Only quests I can do' : 'Showing all quests'}
+            {' · '}
+            <SettingsLink section="quests" />
+          </span>
         </div>
         <p className="hint">
           Choose the gun to bring to each map: one per map, from every gun that counts for one of its kill
           quests (kills on any map count everywhere). Until you do, the one that covers the most is suggested.
-          To do and the map&rsquo;s Before you raid show it.
+          To do and the map&rsquo;s Before you raid show it. Each game mode keeps its own.
         </p>
+        <div className="segmented small" role="radiogroup" aria-label="How to show maps">
+          {(
+            [
+              ['tiles', 'Overview', 'A tile per map with its gun: click one to change it'],
+              ['list', 'List', 'Every map with its kill quests, one under another']
+            ] as const
+          ).map(([id, text, title]) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={settings.weapons.layout === id}
+              className={settings.weapons.layout === id ? 'active' : ''}
+              title={title}
+              onClick={() => {
+                // Overview also goes back from an opened map.
+                openMap(null)
+                void updateSettings({ weapons: { ...settings.weapons, layout: id } })
+              }}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
       </div>
-      {opened ? (
+      {dataset && !maps.length ? (
+        <div className="empty">
+          <p>No kill quests need particular weapons right now.</p>
+        </div>
+      ) : listed ? (
+        <div key="list" className="weapons-maps">
+          {maps.map((m) => (
+            <MapWeapons
+              key={m.plan.group.key}
+              plan={m.plan}
+              kills={m.kills}
+              maps={maps}
+              byMap={byMap}
+              items={items}
+              onChoose={choose}
+              onOpenTodo={() => openTodo(m.plan.group.key)}
+            />
+          ))}
+        </div>
+      ) : opened ? (
         <div key={`map:${opened.plan.group.key}`} className="weapons-maps">
           <OverviewNav
             items={maps.map((m) => m.plan.group)}
@@ -140,10 +189,11 @@ export default function WeaponsView({
         </div>
       ) : (
         <div key="tiles" className="weapons-maps weapons-tiles">
-          {maps.map((m) => (
+          {maps.map((m, i) => (
             <MapTile
               key={m.plan.group.key}
               map={m}
+              rank={i + 1}
               chosen={byMap[m.plan.group.key]}
               items={items}
               onOpen={openMap}
@@ -158,11 +208,13 @@ export default function WeaponsView({
 /** A map in the overview: its gun, chosen or not, and its kill quests; click it to change the gun. */
 function MapTile({
   map,
+  rank,
   chosen,
   items,
   onOpen
 }: {
   map: WeaponMap
+  rank: number
   chosen: string | undefined
   items: Items
   onOpen: (mapKey: string) => void
@@ -173,11 +225,12 @@ function MapTile({
   const quests = [...new Set(map.kills.map((k) => k.quest.name))]
   return (
     <button
-      className={`todo-tile weapons-tile ${gun.chosen ? 'best' : 'unchosen'}`}
-      aria-label={`${map.plan.group.name}: ${gun.chosen ? `bringing ${name}` : 'no gun chosen'}. Change it`}
+      className={`todo-tile weapons-tile ${gun.chosen ? 'chosen' : 'unchosen'}`}
+      aria-label={`${map.plan.group.name}: ${gun.chosen ? `bringing ${name}` : 'no gun chosen'}. Open it`}
       onClick={() => onOpen(map.plan.group.key)}
     >
       <span className="todo-tile-head">
+        <span className="todo-rank">{rank}</span>
         <span className="todo-tile-name">
           <strong>{map.plan.group.name}</strong>
         </span>
@@ -241,7 +294,7 @@ function MapWeapons({
         <strong>{plan.group.name}</strong>
         <span className="muted">{plural(kills.length, 'kill quest')} that need particular weapons</span>
         <button className="button small" title="Open this map on the To do tab" onClick={onOpenTodo}>
-          Open in To do
+          Open in To do ▶
         </button>
       </header>
       <div className="weapons-current">
@@ -281,7 +334,7 @@ function MapWeapons({
                   {covered ? '✓' : '✗'}
                 </span>
                 <strong>{k.quest.name}</strong>
-                <span className="muted">{killText(k)}</span>
+                <span className="muted">{killText(k, 'objective')}</span>
                 <span className="muted weapons-quest-count">{plural(k.itemIds.length, 'gun')} count</span>
               </button>
               {unfolded && (

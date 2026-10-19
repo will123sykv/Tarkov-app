@@ -84,7 +84,7 @@ export default function KillBanner({
                       className="tag gun"
                       title="The gun chosen for this map in the Weapons tab completes it"
                     >
-                      {gunIcon && <img src={gunIcon} alt="" loading="lazy" />}★ {gunName}
+                      {gunIcon && <img src={gunIcon} alt="" loading="lazy" />}★ Bringing {gunName}
                     </span>
                   )}
                   {fit === 'other' && (
@@ -97,7 +97,7 @@ export default function KillBanner({
                   )}
                 </span>
                 <span className="kill-banner-count" title={`${done} of ${total} done`}>
-                  {done} / {total}
+                  {done}/{total}
                 </span>
               </li>
             )

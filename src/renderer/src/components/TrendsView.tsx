@@ -418,7 +418,12 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             </span>
           </div>
           {trendsError && (
-            <div className="hint error">Couldn’t load the price history: {friendlyError(trendsError)}</div>
+            <div className="hint error">
+              Couldn&rsquo;t load the price history: {friendlyError(trendsError)}.{' '}
+              <button className="link" onClick={() => void loadTrends()} disabled={trendsLoading}>
+                Retry
+              </button>
+            </div>
           )}
         </div>
 

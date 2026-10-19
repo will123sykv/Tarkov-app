@@ -4767,7 +4767,7 @@ tr:hover .favourite-star {
   height: 16px;
 }
 
-.todo-nav {
+.overview-nav {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
@@ -4775,7 +4775,7 @@ tr:hover .favourite-star {
   gap: 8px;
 }
 
-.todo-nav-where {
+.overview-nav-where {
   flex: 1;
   min-width: 0;
   font-size: 14px;
@@ -5814,6 +5814,14 @@ p.quest-before.done {
   font-size: 14px;
 }
 
+.weapons-tile.chosen {
+  border-color: rgba(200, 178, 122, 0.55);
+}
+
+.weapons-tile.chosen .map-gun-label {
+  color: var(--accent);
+}
+
 .weapons-tile.unchosen .map-gun-label {
   color: var(--warn);
 }
@@ -5951,4 +5959,9 @@ p.quest-before.done {
 .item-chip.weapon.starred > span {
   color: var(--accent-strong);
   font-weight: 600;
+}
+
+.open-in-quests {
+  justify-self: start;
+  margin-top: 4px;
 }

@@ -25,7 +25,7 @@ const byKey: Record<SortKey, (a: CraftProfit, b: CraftProfit) => number> = {
 
 /** Roubles, a loss with a minus sign in front (−₽5,000). */
 const money = (value: number | null): string =>
-  value === null ? '–' : value < 0 ? `−${formatRub(-value)}` : formatRub(value)
+  value === null ? '—' : value < 0 ? `−${formatRub(-value)}` : formatRub(value)
 
 /** Why a craft can't be made now, or null when it can. */
 function blocker(p: CraftProfit): string | null {

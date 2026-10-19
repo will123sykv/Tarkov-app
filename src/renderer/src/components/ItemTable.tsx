@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { KeepInfo } from '../../../shared/hideout'
 import type { PriceState, SortKey, SortState } from '../../../shared/types'
 import type { RankedItem } from '../../../shared/valuation'
+import { friendlyError } from '../lib/errors'
 import { formatPercent, formatRub } from '../lib/format'
 import { useStore } from '../store'
 
@@ -229,14 +230,14 @@ export default function ItemTable({
   let empty: React.ReactNode = null
   if (!dataset) {
     empty = priceState?.error ? (
-      <>
-        <p>No price data yet: {priceState.error}</p>
-        <button className="button" onClick={() => void refreshPrices()} disabled={priceState.refreshing}>
-          Try again
+      <p>
+        Couldn&rsquo;t load prices: {friendlyError(priceState.error)}.{' '}
+        <button className="link" onClick={() => void refreshPrices()} disabled={priceState.refreshing}>
+          Retry
         </button>
-      </>
+      </p>
     ) : (
-      <p>Fetching prices…</p>
+      <p>Loading prices…</p>
     )
   } else if (rows.length === 0) {
     empty = <p>No items{scopeLabel ? ` from ${scopeLabel}` : ''} match these filters.</p>

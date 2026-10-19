@@ -63,7 +63,7 @@ export default function ContainerSidebar({
       <input
         className="search"
         type="search"
-        placeholder="Search items…"
+        placeholder="Search items"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         aria-label="Search items"

@@ -146,7 +146,7 @@ function Step({
   )
 }
 
-/** A quest's name, opening it in the Quests tab, with its trader. */
+/** A quest's name, opening its details, with its trader. */
 function QuestLink({
   quest,
   trader,
@@ -179,7 +179,7 @@ function QuestRef({
 }): React.JSX.Element {
   return (
     <>
-      <button className="link" title="Open in the Quests tab" onClick={() => onOpen(quest.id)}>
+      <button className="link" title="See its details" onClick={() => onOpen(quest.id)}>
         {quest.name}
       </button>
       {trader && <span className="muted"> ({trader.name})</span>}
@@ -665,7 +665,7 @@ function MapTile({
   )
 }
 
-/** Quests by name, each opening in the Quests tab. */
+/** Quests by name, each opening its details. */
 function QuestList({
   quests,
   onOpen
@@ -678,7 +678,7 @@ function QuestList({
       {quests.map((q, i) => (
         <span key={q.id}>
           {i > 0 && ', '}
-          <button className="link" title="Open in the Quests tab" onClick={() => onOpen(q.id)}>
+          <button className="link" title="See its details" onClick={() => onOpen(q.id)}>
             {q.name}
           </button>
         </span>
@@ -943,7 +943,7 @@ export default function TodoView({
       view={t.view}
       questMaps={questMaps}
       onDetails={setDetail}
-      onOpenQuest={openQuest}
+      onOpenQuest={setDetail}
       onOpenMap={openMap}
       wide={wide}
       anyMap={anyMap}
@@ -984,7 +984,7 @@ export default function TodoView({
                 <li key={quest.id}>
                   <Icon path={mdiCheckCircleOutline} className="ok" />
                   <div>
-                    Hand in <QuestRef quest={quest} trader={traderOf(quest)} onOpen={openQuest} />
+                    Hand in <QuestRef quest={quest} trader={traderOf(quest)} onOpen={setDetail} />
                     <div className="muted">Every objective is ticked off</div>
                   </div>
                 </li>
@@ -1007,7 +1007,7 @@ export default function TodoView({
                       )}
                     </div>
                     <div className="muted">
-                      for <QuestRef quest={h.quest} trader={traderOf(h.quest)} onOpen={openQuest} />
+                      for <QuestRef quest={h.quest} trader={traderOf(h.quest)} onOpen={setDetail} />
                       {h.have !== null && ` · you have ${h.have}`}
                     </div>
                   </div>
@@ -1045,7 +1045,7 @@ export default function TodoView({
                   added={false}
                   friends={friendsWith(k.keyIds)}
                   info={info}
-                  onOpenQuest={openQuest}
+                  onOpenQuest={setDetail}
                 />
               ))}
               {addedKeys.map((id) => (
@@ -1055,7 +1055,7 @@ export default function TodoView({
                   added
                   friends={friendsWith([id])}
                   info={info}
-                  onOpenQuest={openQuest}
+                  onOpenQuest={setDetail}
                 />
               ))}
             </ul>
@@ -1234,14 +1234,14 @@ export default function TodoView({
               />
             ))}
             {others.length > 0 && (
-              <OtherMaps plans={others} keyName={keyName} onOpenQuest={openQuest} onOpenMap={openMap} />
+              <OtherMaps plans={others} keyName={keyName} onOpenQuest={setDetail} onOpenMap={openMap} />
             )}
           </div>
         ) : (
           <div key="list" className="todo-maps">
             {ranked.map((p, i) => mapCard(p, i + 1))}
             {others.length > 0 && (
-              <OtherMaps plans={others} keyName={keyName} onOpenQuest={openQuest} onOpenMap={openMap} />
+              <OtherMaps plans={others} keyName={keyName} onOpenQuest={setDetail} onOpenMap={openMap} />
             )}
           </div>
         )}

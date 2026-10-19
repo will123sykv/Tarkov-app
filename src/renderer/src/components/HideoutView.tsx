@@ -563,7 +563,7 @@ function UpgradeCard({
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
                 <span className="upgrade-item-name">
                   {item?.name ?? 'Unknown item'}
-                  {fir && <span className="tag fir">FIR</span>}
+                  {fir && <span className="tag fir">found in raid</span>}
                   {scarce && <ScarceBadge scarce={scarce} />}
                   {p.missing > p.find && (
                     <small className={p.best ? '' : 'muted'}>
