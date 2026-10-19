@@ -39,7 +39,6 @@ import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
 import KillBanner from './KillBanner'
 import MapReminder, { hasReminder, type RaidReminder } from './MapReminder'
-import MapGenieView from './MapGenieView'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
 import SettingsLink from './SettingsLink'
@@ -285,10 +284,6 @@ export default function MapsView({
   }, [dataset])
   const config = MAP_CONFIGS.find((c) => c.key === m.mapKey) ?? null
   const poster = config ? posterFor(config.key) : null
-  // The Lab can be shown as Map Genie's own page instead (none of the app's pins go on it), except
-  // while a pin is being placed, which needs the app's map.
-  const isLab = config?.key === 'the-lab'
-  const mapGenie = isLab && m.labMap === 'mapgenie' && !placing
   const projection = useMemo(
     () => (poster ? posterProjection(poster, config?.bounds ?? null) : null),
     [config, poster]
@@ -668,34 +663,6 @@ export default function MapsView({
             ))}
             {!choices.length && <option value={m.mapKey}>Loading maps…</option>}
           </select>
-          {isLab && (
-            <>
-              <div className="mini-toggle wide" role="radiogroup" aria-label="Lab map">
-                {(
-                  [
-                    ['app', 'This app'],
-                    ['mapgenie', 'Map Genie']
-                  ] as const
-                ).map(([id, text]) => (
-                  <button
-                    key={id}
-                    role="radio"
-                    aria-checked={m.labMap === id}
-                    className={m.labMap === id ? 'active' : ''}
-                    onClick={() => set({ labMap: id })}
-                  >
-                    {text}
-                  </button>
-                ))}
-              </div>
-              {m.labMap === 'mapgenie' && (
-                <p className="hint">
-                  Map Genie&rsquo;s own map, with its markers and filters. The app&rsquo;s quest pins, locks
-                  and extracts show on this app&rsquo;s map.
-                </p>
-              )}
-            </>
-          )}
         </SidebarSection>
         <SidebarSection title="Quest objectives">
           <div className="mini-toggle wide" role="radiogroup" aria-label="Quest objectives">
@@ -951,9 +918,7 @@ export default function MapsView({
             </button>
           </div>
         )}
-        {mapGenie ? (
-          <MapGenieView onBack={() => set({ labMap: 'app' })} />
-        ) : projection && maps.length ? (
+        {projection && maps.length ? (
           <MapCanvas
             projection={projection}
             maps={maps}
@@ -1006,28 +971,26 @@ export default function MapsView({
             </button>
           </div>
         )}
-        {!mapGenie && (
-          <div className="map-side">
-            {!placing && (
-              <KillBanner
-                kills={kills}
-                mapNames={mapNames}
-                open={m.killsOpen}
-                onToggle={() => set({ killsOpen: !m.killsOpen })}
-                onSelectQuest={onSelectQuest}
-              />
-            )}
-            <FavouritesPanel
-              settings={settings}
-              priceState={priceState}
-              findInfo={findInfo}
-              highlighted={highlighted}
-              colors={colors}
-              onHighlight={setHighlighted}
-              onOpenMap={(mapKey) => set({ mapKey })}
+        <div className="map-side">
+          {!placing && (
+            <KillBanner
+              kills={kills}
+              mapNames={mapNames}
+              open={m.killsOpen}
+              onToggle={() => set({ killsOpen: !m.killsOpen })}
+              onSelectQuest={onSelectQuest}
             />
-          </div>
-        )}
+          )}
+          <FavouritesPanel
+            settings={settings}
+            priceState={priceState}
+            findInfo={findInfo}
+            highlighted={highlighted}
+            colors={colors}
+            onHighlight={setHighlighted}
+            onOpenMap={(mapKey) => set({ mapKey })}
+          />
+        </div>
       </main>
       {selected && dataset && (
         <QuestDetail

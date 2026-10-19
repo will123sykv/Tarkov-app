@@ -260,8 +260,6 @@ export interface MapSettings {
   showKeys: boolean
   /** Every lock the player's own keys open, to know where to loot (since 1.44.0). */
   showOwnedLocks: boolean
-  /** The Lab's map: the app's (with its pins) or Map Genie's own page (since 1.45.0). */
-  labMap: 'app' | 'mapgenie'
   /** Whose extracts to show; co-op extracts show for both. */
   faction: 'pmc' | 'scav'
   /** The favourites panel over the map is open (since 1.27.0, when the 2D maps became the only ones). */

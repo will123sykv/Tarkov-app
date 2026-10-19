@@ -9,8 +9,6 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: tarkov-map: https://assets.tarkov.dev https://*.tarkov-market.app https://*.tarkov-market.com https://static.wikia.nocookie.net",
   "connect-src 'self' tarkov-map:",
-  // Map Genie's Lab map, in a <webview> (src/main/mapGenie.ts).
-  'frame-src https://mapgenie.io',
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'"
