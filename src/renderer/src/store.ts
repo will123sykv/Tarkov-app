@@ -490,8 +490,32 @@ export const useStore = create<AppStore>((set, get) => ({
   async setHideoutHaveMany(counts) {
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
-    const hideout = await window.api.setHideoutHaveMany(gameMode, counts)
-    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+    // Counted at once (a quick second click counts on top of the first); the saved counts replace them,
+    // and a failed save puts these back.
+    const before = get().hideoutProgress[gameMode]
+    if (before) {
+      const have = { ...before.have }
+      for (const [itemId, count] of Object.entries(counts)) {
+        if (count > 0) have[itemId] = count
+        else delete have[itemId]
+      }
+      set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: { ...before, have } } }))
+    }
+    try {
+      const hideout = await window.api.setHideoutHaveMany(gameMode, counts)
+      set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+    } catch (err) {
+      if (before) {
+        const now = get().hideoutProgress[gameMode]
+        const have = { ...now?.have }
+        for (const itemId of Object.keys(counts)) {
+          if (before.have[itemId] !== undefined) have[itemId] = before.have[itemId]
+          else delete have[itemId]
+        }
+        if (now) set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: { ...now, have } } }))
+      }
+      throw err
+    }
   },
 
   async setTraderLevel(traderId, level) {

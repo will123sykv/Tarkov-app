@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createSettingsStore, type SecretCodec } from '../src/main/settings'
-import { DEFAULT_SETTINGS, mergeSettings, sanitizeSettings } from '../src/shared/settings'
+import { DEFAULT_SETTINGS, gunsFor, mergeSettings, sanitizeSettings } from '../src/shared/settings'
 import { tempDir } from './helpers'
 
 // A reversible stand-in for safeStorage so tests can check the key isn't stored in plain text.
@@ -536,24 +536,31 @@ describe('sanitizeSettings', () => {
     ).toBe('doable')
   })
 
-  it('keeps the gun chosen for each map in the Weapons tab (since 1.54.0)', () => {
-    expect(DEFAULT_SETTINGS.weapons).toEqual({ byMap: {} })
-    expect(
-      sanitizeSettings({ view: 'weapons', weapons: { byMap: { customs: 'akms', woods: 'sv98' } } })
-    ).toMatchObject({
+  it('keeps the gun chosen for each map in the Weapons tab, per game mode (since 1.54.0)', () => {
+    const none = { pvp: {}, pve: {}, season: {} }
+    expect(DEFAULT_SETTINGS.weapons).toEqual({ byMode: none, layout: 'tiles' })
+    const byMode = { pvp: { customs: 'akms' }, pve: { woods: 'sv98' }, season: {} }
+    expect(sanitizeSettings({ view: 'weapons', weapons: { byMode, layout: 'list' } })).toMatchObject({
       view: 'weapons',
-      weapons: { byMap: { customs: 'akms', woods: 'sv98' } }
+      weapons: { byMode, layout: 'list' }
+    })
+    // 1.54–1.57's one set for every mode (since 1.58.0, per mode): each mode starts from it.
+    expect(sanitizeSettings({ weapons: { byMap: { customs: 'akms' } } }).weapons.byMode).toEqual({
+      pvp: { customs: 'akms' },
+      pve: { customs: 'akms' },
+      season: { customs: 'akms' }
     })
     // Map keys and ids that aren't, and 1.53's guns per quest, are dropped.
     expect(
       sanitizeSettings({
-        weapons: { byMap: { 'Bad Key': 'akm', lab: '', reserve: 5, shoreline: 'x'.repeat(65) } },
+        weapons: {
+          byMode: { pvp: { 'Bad Key': 'akm', lab: '', reserve: 5, shoreline: 'x'.repeat(65) } },
+          layout: 'grid'
+        },
         todo: { guns: { 'q:o': { itemId: 'akm', favourite: true } } }
       })
-    ).toMatchObject({ weapons: { byMap: {} }, todo: DEFAULT_SETTINGS.todo })
-    expect(
-      mergeSettings(DEFAULT_SETTINGS, { weapons: { byMap: { customs: 'akms' } } }).weapons.byMap
-    ).toEqual({ customs: 'akms' })
+    ).toMatchObject({ weapons: { byMode: none, layout: 'tiles' }, todo: DEFAULT_SETTINGS.todo })
+    expect(gunsFor({ gameMode: 'pve', weapons: { byMode, layout: 'tiles' } })).toEqual({ woods: 'sv98' })
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

@@ -1,25 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
-import type { AppView, PublicSettings } from '../../../shared/types'
+import type { PublicSettings } from '../../../shared/types'
 import { useQuestRows } from '../lib/useQuestRows'
+import { TAB_ORDER } from '../lib/views'
 import { useStore } from '../store'
 
 // One search box for quests, keys and items, opened with Ctrl+K from anywhere; picking a result opens
 // the tab it lives on. Ctrl+1 to Ctrl+9 and Ctrl+0 (the tenth, since 1.54.0) switch tabs. Since 1.47.0.
-
-/** The tabs in the order they're shown, for Ctrl+1 to Ctrl+9, then Ctrl+0. */
-export const TAB_ORDER: AppView[] = [
-  'loot',
-  'trends',
-  'todo',
-  'weapons',
-  'quests',
-  'hideout',
-  'crafting',
-  'keys',
-  'maps',
-  'raids'
-]
 
 const PER_GROUP = 6
 

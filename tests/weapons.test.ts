@@ -146,4 +146,17 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
     expect(killForGun(kill('plain', []), 'akms')).toBeNull()
     expect(killForGun(akm, undefined)).toBeNull()
   })
+
+  it('prefers the gun of the map an objective is shown under, and places it by its zones too (since 1.58.0)', () => {
+    const both = kill('both', ['akm', 'm4a1'], [CUSTOMS, WOODS])
+    const byMap = { customs: 'akm', woods: 'm4a1' }
+    expect(gunForObjective(both, byMap, groupOf, 'woods')).toBe('m4a1')
+    expect(gunForObjective(both, byMap, groupOf, 'customs')).toBe('akm')
+    // A kill placed only by a zone on Woods isn't one for any map.
+    const zoned = {
+      ...kill('zoned', ['akm', 'm4a1'], []),
+      zones: [{ map: WOODS, position: { x: 0, y: 0, z: 0 }, outline: [] }]
+    }
+    expect(gunForObjective(zoned, byMap, groupOf)).toBe('m4a1')
+  })
 })

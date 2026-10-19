@@ -292,7 +292,8 @@ function Objective({
   value,
   detected,
   completed,
-  waiting = false
+  waiting = false,
+  mapKey
 }: {
   quest: Quest
   objective: QuestObjective
@@ -303,6 +304,8 @@ function Objective({
   completed: boolean
   /** A story step waiting for the ones before it (not on the map or the To do tab yet). */
   waiting?: boolean
+  /** The map the panel is about, whose gun its kill tags name first. */
+  mapKey?: string | null
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
   const owned = useOwnedKeys()
@@ -328,7 +331,7 @@ function Objective({
         <span className="objective-text">
           {objective.description || objective.type}
           {squadShared(quest, objective) && <SquadIcon />}
-          {!done && <KillGunTag objective={objective} items={items} />}
+          {!done && <KillGunTag objective={objective} items={items} mapKey={mapKey} />}
           {objective.optional && <span className="tag">optional</span>}
           {objective.wiki &&
             ('added' in objective.wiki ? (
@@ -1013,6 +1016,7 @@ function QuestPanel({
                   detected={detected[quest.id]?.[o.id]}
                   completed={completed}
                   waiting={waiting}
+                  mapKey={chosenMap ?? preferredMap}
                 />
               </Fragment>
             )

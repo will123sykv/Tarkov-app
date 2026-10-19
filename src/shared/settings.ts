@@ -101,7 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
     craftsReadyOnly: true
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
-  weapons: { byMap: {} },
+  weapons: { byMode: { pvp: {}, pve: {}, season: {} }, layout: 'tiles' },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
   crafting: {
     minProfitMinutes: 30,
@@ -382,15 +382,33 @@ function sanitizeTodo(raw: unknown): TodoSettings {
 /** At most this many maps with a gun chosen. */
 const MAX_WEAPON_MAPS = 100
 
+/** Map keys to gun ids, keeping only well-formed ones. */
+function sanitizeGuns(raw: unknown): Record<string, string> {
+  const guns: Record<string, string> = {}
+  if (isRecord(raw))
+    for (const [map, itemId] of Object.entries(raw).slice(0, MAX_WEAPON_MAPS))
+      if (/^[a-z0-9-]{1,40}$/.test(map) && typeof itemId === 'string' && itemId && itemId.length <= 64)
+        guns[map] = itemId
+  return guns
+}
+
 function sanitizeWeapons(raw: unknown): WeaponsSettings {
   const r = isRecord(raw) ? raw : {}
-  const byMap: Record<string, string> = {}
-  if (isRecord(r.byMap))
-    for (const [map, itemId] of Object.entries(r.byMap).slice(0, MAX_WEAPON_MAPS))
-      if (/^[a-z0-9-]{1,40}$/.test(map) && typeof itemId === 'string' && itemId && itemId.length <= 64)
-        byMap[map] = itemId
-  return { byMap }
+  const byMode = isRecord(r.byMode) ? r.byMode : {}
+  // 1.54–1.57 kept one set of guns for every mode: each mode starts from it.
+  const shared = sanitizeGuns(r.byMap)
+  const modes = Object.keys(DEFAULT_SETTINGS.weapons.byMode) as GameMode[]
+  return {
+    byMode: Object.fromEntries(
+      modes.map((mode) => [mode, mode in byMode ? sanitizeGuns(byMode[mode]) : { ...shared }])
+    ) as Record<GameMode, Record<string, string>>,
+    layout: r.layout === 'list' ? 'list' : 'tiles'
+  }
 }
+
+/** The guns chosen in the Weapons tab for the game mode played (since 1.58.0). */
+export const gunsFor = (settings: Pick<Settings, 'gameMode' | 'weapons'>): Record<string, string> =>
+  settings.weapons.byMode[settings.gameMode] ?? {}
 
 function sanitizeKeys(raw: unknown): KeysSettings {
   const r = isRecord(raw) ? raw : {}

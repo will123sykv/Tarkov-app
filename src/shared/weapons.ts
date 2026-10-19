@@ -1,5 +1,5 @@
 import type { Quest, QuestObjective } from './questTypes'
-import type { MapGroup, TodoStep } from './todo'
+import { objectiveMapIds, type MapGroup, type TodoStep } from './todo'
 
 // The gun to bring to each map for kill quests that need particular weapons (the Weapons tab, since
 // 1.54.0): one per map, chosen from every gun that counts for one of its kills, or suggested as the one
@@ -79,20 +79,24 @@ export function mapGun(kills: readonly MapKill[], chosen: string | undefined): M
 }
 
 /**
- * The gun chosen in the Weapons tab that a kill objective will be made with: one chosen for a map it's
- * on (any map, for a kill on any map) that counts for it. Null when none is.
+ * The gun chosen in the Weapons tab that a kill objective will be made with: the one chosen for `mapKey`
+ * (the map it's shown under) when it counts, otherwise one chosen for another map it's on (by its maps,
+ * zones or places; any map for a kill naming none) that counts for it. Null when none is.
  */
 export function gunForObjective(
   objective: QuestObjective,
   byMap: Readonly<Record<string, string>>,
-  groupOf: (mapId: string) => MapGroup | undefined
+  groupOf: (mapId: string) => MapGroup | undefined,
+  mapKey?: string | null
 ): string | null {
   const counts = new Set(objective.weapons ?? [])
   if (!counts.size) return null
-  const keys = objective.maps.length
-    ? [...new Set(objective.maps.map((id) => groupOf(id)?.key).filter((k) => k !== undefined))]
+  const mapIds = objectiveMapIds(objective)
+  const keys = mapIds.length
+    ? [...new Set(mapIds.map((id) => groupOf(id)?.key).filter((k) => k !== undefined))]
     : Object.keys(byMap)
-  for (const key of keys) if (counts.has(byMap[key])) return byMap[key]
+  const order = mapKey && keys.includes(mapKey) ? [mapKey, ...keys.filter((k) => k !== mapKey)] : keys
+  for (const key of order) if (counts.has(byMap[key])) return byMap[key]
   return null
 }
 

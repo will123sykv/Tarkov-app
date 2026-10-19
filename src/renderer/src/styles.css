@@ -465,17 +465,6 @@ input:focus {
   outline-offset: -1px;
 }
 
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.section-head h2 {
-  margin: 0;
-}
-
 .mini-toggle {
   display: flex;
   border: 1px solid var(--border);
@@ -4503,11 +4492,6 @@ tr:hover .favourite-star {
   margin: 3px 0 0;
 }
 
-.todo-check {
-  margin-top: 10px;
-  font-size: 13px;
-}
-
 /* Maps: the key looked at from the Keys tab. */
 .key-focus {
   display: grid;
@@ -5433,7 +5417,8 @@ p.quest-before.done {
   min-height: 0;
 }
 
-.crafting-page .summary .hint {
+.crafting-page .summary .hint,
+.weapons-page .summary .hint {
   margin: 2px 0 0;
   font-size: 12px;
 }
@@ -5463,6 +5448,23 @@ p.quest-before.done {
 /* The overview: a tile per station, like To do's maps (since 1.51.0). */
 .crafting-stations.crafting-tiles {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.crafting-tile-open {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.crafting-tile-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .crafting-tile.idle {
@@ -5722,10 +5724,6 @@ p.quest-before.done {
   text-transform: uppercase;
 }
 
-.map-gun.suggested .map-gun-label {
-  color: var(--muted);
-}
-
 /* No gun chosen: a prompt to choose one in the Weapons tab (since 1.55.0). */
 .map-gun.prompt {
   grid-template-columns: minmax(0, 1fr);
@@ -5742,11 +5740,6 @@ p.quest-before.done {
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.weapons-page .summary .hint {
-  margin: 2px 0 0;
-  font-size: 12px;
 }
 
 .weapons-maps {
@@ -5784,16 +5777,6 @@ p.quest-before.done {
 .weapons-map header strong {
   color: var(--accent-strong);
   font-size: 16px;
-}
-
-.weapons-map h4 {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.weapons-map h4 .muted {
-  font-weight: 400;
 }
 
 .weapons-current {

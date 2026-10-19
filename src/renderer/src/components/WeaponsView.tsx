@@ -1,12 +1,14 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
-import { todoPlan, type MapPlan } from '../../../shared/todo'
+import { gunsFor } from '../../../shared/settings'
+import type { MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import { gunOptions, mapGun, mapKills, questGunMaps, type MapKill } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
+import { useKillPlan } from '../lib/useTodoPlan'
 import { useStore } from '../store'
 import { GunPicture } from './GunCards'
 import LoadError from './LoadError'
@@ -45,17 +47,9 @@ export default function WeaponsView({
   const dataset = questState?.dataset ?? null
   const groups = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
-  // Kill objectives only, whatever To do's filter shows, keeping its Only quests I can do.
-  const plan = useMemo(
-    () =>
-      todoPlan(rows, objectives, groupOf, {
-        have: progress.have,
-        owned,
-        hideBlocked: settings.todo.show === 'doable',
-        kinds: 'kill'
-      }),
-    [rows, objectives, groupOf, progress.have, owned, settings.todo.show]
-  )
+  const plan = useKillPlan(settings, rows, objectives, groupOf, owned, progress.have)
+  // Every quest's kills, for which maps still have any (a map hidden by Only quests I can do keeps its gun).
+  const allPlan = useKillPlan(settings, rows, objectives, groupOf, owned, progress.have, true)
   // Maps with kills of their own that need particular weapons first, then the ones where only kills on
   // any map do, each in To do's order.
   const maps = useMemo(() => {
@@ -65,15 +59,23 @@ export default function WeaponsView({
     const own = (m: (typeof withKills)[number]): boolean => m.kills.some((k) => !k.anyMap)
     return [...withKills.filter(own), ...withKills.filter((m) => !own(m))]
   }, [plan])
-  const byMap = settings.weapons.byMap
-  // The gun for some maps (several when brought to every map with a quest), or none.
+  // The guns chosen for the game mode played (since 1.58.0 each mode keeps its own).
+  const byMap = gunsFor(settings)
+  // The gun for some maps (several when brought to every map with a quest), or none. Choices for maps
+  // left with no kill quests that need particular weapons go at the same time.
   const choose = (mapKeys: readonly string[], itemId: string | null): void => {
-    const next = { ...byMap }
+    const live = new Set(
+      allPlan.maps.filter((p) => mapKills(p.steps, allPlan.anyMap).length).map((p) => p.group.key)
+    )
+    const next = Object.fromEntries(Object.entries(byMap).filter(([key]) => live.has(key)))
     for (const key of mapKeys) {
       if (itemId) next[key] = itemId
       else delete next[key]
     }
-    void updateSettings({ weapons: { ...settings.weapons, byMap: next } })
+    const { byMode } = settings.weapons
+    void updateSettings({
+      weapons: { ...settings.weapons, byMode: { ...byMode, [settings.gameMode]: next } }
+    })
   }
 
   // Back to the map on the To do tab, opened from its overview.
@@ -86,6 +88,9 @@ export default function WeaponsView({
   const openedKey = useStore((s) => s.weaponsMap)
   const openMap = useStore((s) => s.openWeaponsMap)
   const opened = openedKey ? maps.find((m) => m.plan.group.key === openedKey) : undefined
+  useEffect(() => {
+    if (openedKey && dataset && !opened) openMap(null)
+  }, [openedKey, dataset, opened, openMap])
 
   const chosenCount = maps.filter((m) => mapGun(m.kills, byMap[m.plan.group.key])?.chosen).length
   return (

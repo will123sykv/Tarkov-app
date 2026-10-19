@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
 import type { QuestObjective } from '../../../shared/questTypes'
+import { gunsFor } from '../../../shared/settings'
+import { objectiveMapIds } from '../../../shared/todo'
 import { gunForObjective, type MapGun, type MapKill } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import type { useItemLookup } from '../lib/useItemLookup'
@@ -65,7 +67,7 @@ const killText = (k: MapKill): string =>
   `${k.quest.name}${(k.objective.count ?? 1) > 1 ? ` (${k.left} left)` : ''}${k.anyMap ? ' · any map' : ''}`
 
 /** Open the Weapons tab on a map (its overview with none). */
-export function useOpenWeapons(): (mapKey: string | null) => void {
+function useOpenWeapons(): (mapKey: string | null) => void {
   const updateSettings = useStore((s) => s.updateSettings)
   return (mapKey) => {
     useStore.getState().openWeaponsMap(mapKey)
@@ -137,26 +139,34 @@ export function MapGunPanel({
  */
 export function KillGunTag({
   objective,
-  items
+  items,
+  mapKey
 }: {
   objective: QuestObjective
   items: Items
+  /** The map it's listed under, whose gun is named first (an objective can be on several maps). */
+  mapKey?: string | null
 }): React.JSX.Element | null {
   const gameMode = useStore((s) => s.settings?.gameMode)
-  const byMap = useStore((s) => s.settings?.weapons.byMap) ?? NO_GUNS
+  const settings = useStore((s) => s.settings)
+  const byMap = settings ? gunsFor(settings) : NO_GUNS
   const maps = useStore((s) => (gameMode ? s.questData[dataModeFor(gameMode)]?.dataset?.maps : undefined))
   const groups = useMemo(() => mapGroups(maps ?? []), [maps])
+  const openWeapons = useOpenWeapons()
   if (!objective.weapons?.length) return null
-  const gun = gunForObjective(objective, byMap, (id) => groups.get(id))
-  if (!gun)
+  const gun = gunForObjective(objective, byMap, (id) => groups.get(id), mapKey)
+  if (!gun) {
+    const target = mapKey ?? groups.get(objectiveMapIds(objective)[0] ?? '')?.key ?? null
     return (
-      <span
-        className="tag gun-tag"
+      <button
+        className="link small gun-tag-link"
         title={`Any of ${objective.weapons.length} gun${objective.weapons.length === 1 ? '' : 's'} count: choose the one to bring to the map in the Weapons tab`}
+        onClick={() => openWeapons(target)}
       >
         No gun chosen
-      </span>
+      </button>
     )
+  }
   const item = items.get(gun)
   return (
     <span className="tag gun-tag starred" title="The gun chosen for this map in the Weapons tab">

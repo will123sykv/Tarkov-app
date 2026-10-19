@@ -8,26 +8,15 @@ type Items = ReturnType<typeof useItemLookup>
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** A map's gun (since 1.54.0): chosen in the Weapons tab, or suggested; and the quests it's for. */
+/** A map's gun chosen in the Weapons tab (since 1.54.0), and the quests it's for. */
 export function MapGunChip({ gun, items }: { gun: MapGun; items: Items }): React.JSX.Element {
   const item = items.get(gun.itemId)
   const quests = [...new Set(gun.covers.map((k) => k.quest.name))].join(', ')
   return (
-    <span
-      className={`item-chip weapon ${gun.chosen ? 'starred' : ''}`}
-      title={
-        gun.chosen
-          ? `The gun chosen for this map, for ${quests}`
-          : `Suggested for ${quests}: choose one in Weapons`
-      }
-    >
+    <span className="item-chip weapon starred" title={`The gun chosen for this map, for ${quests}`}>
       {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
       <span>
-        {gun.chosen ? '★ ' : ''}
-        {item?.name ?? 'Unknown weapon'}{' '}
-        <span className="muted">
-          ({gun.chosen ? '' : 'suggested, '}for {quests})
-        </span>
+        ★ {item?.name ?? 'Unknown weapon'} <span className="muted">(for {quests})</span>
       </span>
     </span>
   )

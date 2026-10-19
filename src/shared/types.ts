@@ -182,8 +182,13 @@ export interface TodoSettings {
 
 /** The Weapons tab (since 1.54.0). */
 export interface WeaponsSettings {
-  /** The gun chosen to bring to each map (by map group key, e.g. `customs`) for its kill quests. */
-  byMap: Record<string, string>
+  /**
+   * The gun chosen to bring to each map (by map group key, e.g. `customs`) for its kill quests, per game
+   * mode (since 1.58.0; 1.54–1.57 had one set for every mode, `byMap`).
+   */
+  byMode: Record<GameMode, Record<string, string>>
+  /** A tile per map to open, or every map's card one under another (since 1.58.0). */
+  layout: 'tiles' | 'list'
 }
 
 /** A column of the Hideout tab's lists of crafts for upgrades and quests ('priority': the app's order). */

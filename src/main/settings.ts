@@ -73,7 +73,7 @@ export function createSettingsStore({ dir, codec, log = () => {} }: SettingsStor
       settings = mergeSettings(settings, rest)
       const pending = [queueWrite(settingsPath, settings)]
       if (tarkovMarketApiKey !== undefined) {
-        const trimmed = tarkovMarketApiKey?.trim() || null
+        const trimmed = (typeof tarkovMarketApiKey === 'string' && tarkovMarketApiKey.trim()) || null
         apiKey = trimmed
         pending.push(queueWrite(secretsPath, trimmed ? encodeKey(trimmed) : {}))
       }

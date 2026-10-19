@@ -31,12 +31,20 @@ type Items = ReturnType<typeof useItemLookup>
 
 /** A craft just started, and the Have counts it changed (to undo). */
 interface Started {
+  /** Which start it is, so a late reply goes to its own notice. */
+  id: number
   what: string
   station: string
   before: Record<string, number>
   after: Record<string, number>
   error: string | null
+  /** Being undone: the notice stays until that's saved. */
+  undoing: boolean
+  /** The undo failed (it can be tried again). */
+  undoFailed: boolean
 }
+
+let startedId = 0
 
 const START_TITLE =
   "I've put this craft on: add what it makes to Have in Items to collect (when something needs it) and take off what it uses (when you're keeping it). One run."
@@ -52,7 +60,6 @@ function StartButton({ onStart }: { onStart: () => void }): React.JSX.Element {
         e.stopPropagation()
         onStart()
       }}
-      onKeyDown={(e) => e.stopPropagation()}
     >
       Started
     </button>
@@ -208,27 +215,37 @@ export default function CraftingView({
   }, [rows, objectives, stations, progress])
   const setHaveMany = useStore((s) => s.setHideoutHaveMany)
   const [started, setStarted] = useState<Started | null>(null)
-  const saveCounts = (counts: Record<string, number>, failed: string): void => {
-    if (!Object.keys(counts).length) return
-    setHaveMany(counts).catch((err: unknown) =>
-      setStarted(
-        (s) => s && { ...s, error: `${failed}: ${err instanceof Error ? err.message : String(err)}` }
-      )
-    )
-  }
+  const message = (err: unknown): string => (err instanceof Error ? err.message : String(err))
   const startCraft = (craft: HideoutCraft, station: string): void => {
-    const after = craftRunCounts(craft, progress.have, tracked)
-    const before = Object.fromEntries(Object.keys(after).map((id) => [id, progress.have[id] ?? 0]))
+    // From the store's counts, which a start just before this one has already changed.
+    const have = useStore.getState().hideoutProgress[settings.gameMode]?.have ?? progress.have
+    const after = craftRunCounts(craft, have, tracked)
+    const before = Object.fromEntries(Object.keys(after).map((id) => [id, have[id] ?? 0]))
     const what = craft.outputs
       .map((o) => `${o.count > 1 ? `${o.count} × ` : ''}${items.get(o.itemId)?.name ?? 'Unknown item'}`)
       .join(', ')
-    setStarted({ what, station, before, after, error: null })
-    saveCounts(after, 'Couldn’t update Items to collect')
+    const id = ++startedId
+    setStarted({ id, what, station, before, after, error: null, undoing: false, undoFailed: false })
+    if (!Object.keys(after).length) return
+    setHaveMany(after).catch((err: unknown) =>
+      setStarted((s) =>
+        s?.id === id ? { ...s, error: `Couldn’t update Items to collect: ${message(err)}` } : s
+      )
+    )
   }
   const undoStart = (): void => {
-    if (!started) return
-    saveCounts(started.before, 'Couldn’t undo')
-    setStarted(null)
+    if (!started || started.undoing) return
+    const { id, before } = started
+    setStarted({ ...started, undoing: true, undoFailed: false, error: null })
+    setHaveMany(before).then(
+      () => setStarted((s) => (s?.id === id ? null : s)),
+      (err: unknown) =>
+        setStarted((s) =>
+          s?.id === id
+            ? { ...s, undoing: false, undoFailed: true, error: `Couldn’t undo: ${message(err)}` }
+            : s
+        )
+    )
   }
 
   const unbuilt = stations.filter((s) => stationLevel(s, progress) === 0)
@@ -391,9 +408,9 @@ export default function CraftingView({
                   : 'nothing it makes or uses is counted in Items to collect')}
             </span>
           </span>
-          {Object.keys(started.after).length > 0 && !started.error && (
-            <button className="link" onClick={undoStart}>
-              Undo
+          {Object.keys(started.after).length > 0 && (!started.error || started.undoFailed) && (
+            <button className="link" disabled={started.undoing} onClick={undoStart}>
+              {started.undoing ? 'Undoing…' : started.undoFailed ? 'Try again' : 'Undo'}
             </button>
           )}
           <button className="link-like muted" aria-label="Close" onClick={() => setStarted(null)}>
@@ -601,21 +618,21 @@ function StationTile({
       : next?.kind === 'profit'
         ? next.craft.craft.outputs.map((o) => items.get(o.itemId)?.name ?? 'Unknown item').join(', ')
         : 'Nothing to craft'
-  // A div acting as a button, since it holds the Started button (a button can't hold another).
+  // Not a button itself, since it holds the Started button (a button can't hold another): its head is
+  // the button that opens it, and a click anywhere else on it does the same.
   return (
     <div
-      role="button"
-      tabIndex={0}
       className={`todo-tile crafting-tile ${first ? 'best' : ''} ${next?.kind ?? 'idle'}`}
-      aria-label={`${plan.stationName}: craft ${nextText} next. Show its list`}
       onClick={() => onOpen(plan.stationId)}
-      onKeyDown={(e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return
-        e.preventDefault()
-        onOpen(plan.stationId)
-      }}
     >
-      <span className="todo-tile-head">
+      <button
+        className="todo-tile-head crafting-tile-open"
+        aria-label={`${plan.stationName}: craft ${nextText} next. Open it`}
+        onClick={(e) => {
+          e.stopPropagation()
+          onOpen(plan.stationId)
+        }}
+      >
         <span className="todo-rank">{rank}</span>
         <span className="todo-tile-name">
           {first && <span className="todo-next">Craft next</span>}
@@ -625,7 +642,7 @@ function StationTile({
         <span className="todo-tile-open" aria-hidden>
           ▶
         </span>
-      </span>
+      </button>
       <span className="crafting-tile-next">
         {next ? (
           <>

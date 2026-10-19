@@ -12,6 +12,7 @@ import {
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
+import { gunsFor } from '../../../shared/settings'
 import { anyMapTake, killObjectives, takeToMap } from '../../../shared/todo'
 import { mapGun, mapKills } from '../../../shared/weapons'
 import { densestArea, findRadius } from '../../../shared/whereToFind'
@@ -34,7 +35,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useWhereToFind } from '../lib/useFavourites'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useQuestRows } from '../lib/useQuestRows'
-import { useTodoPlan } from '../lib/useTodoPlan'
+import { useKillPlan, useTodoPlan } from '../lib/useTodoPlan'
 import { useStore } from '../store'
 import LoadError from './LoadError'
 import FavouritesPanel from './FavouritesPanel'
@@ -406,13 +407,20 @@ export default function MapsView({
   const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
   const groupFor = useCallback((id: string) => groupOf.get(id), [groupOf])
   const todo = useTodoPlan(settings, rows, done, groupFor, owned, have)
-  const byMap = settings.weapons.byMap
+  // The gun from kills only, as the Weapons tab has it, so To do's Locate filter doesn't hide it.
+  const killPlan = useKillPlan(settings, rows, done, groupFor, owned, have)
+  const mainKey = mainMap ? groupOf.get(mainMap.id)?.key : undefined
+  const chosenGun = mainKey ? gunsFor(settings)[mainKey] : undefined
+  const gun = useMemo(() => {
+    if (!mainKey) return null
+    const here = killPlan.maps.find((p) => p.group.key === mainKey)
+    return mapGun(mapKills(here?.steps ?? [], killPlan.anyMap), chosenGun)
+  }, [mainKey, killPlan, chosenGun])
   const reminder = useMemo<RaidReminder | null>(() => {
     if (!mainMap) return null
-    const key = groupOf.get(mainMap.id)?.key
+    const key = mainKey
     const here = todo.maps.find((p) => p.group.key === key)
-    const { bring } = takeToMap(here ?? { weapons: [], bring: [] }, anyMapTake(todo))
-    const gun = key ? mapGun(mapKills(here?.steps ?? [], todo.anyMap), byMap[key]) : null
+    const { bring } = takeToMap(here ?? { bring: [] }, anyMapTake(todo))
     const r: RaidReminder = {
       keys: here?.keys ?? [],
       noAccess: here?.noAccess ?? null,
@@ -423,7 +431,7 @@ export default function MapsView({
       finds: todo.finds
     }
     return hasReminder(r) ? r : null
-  }, [mainMap, groupOf, todo, byMap])
+  }, [mainMap, mainKey, todo, gun])
   const [remindFor, setRemindFor] = useState<string | null>(m.mapKey)
   useEffect(() => setRemindFor(m.mapKey), [m.mapKey])
   const reminderOpen = remindFor === m.mapKey
@@ -983,7 +991,7 @@ export default function MapsView({
               open={m.killsOpen}
               onToggle={() => set({ killsOpen: !m.killsOpen })}
               onSelectQuest={onSelectQuest}
-              gun={mainMap ? byMap[groupOf.get(mainMap.id)?.key ?? ''] : null}
+              gun={gun?.chosen ? gun.itemId : null}
               items={items}
             />
           )}

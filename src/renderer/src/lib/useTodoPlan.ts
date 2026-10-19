@@ -23,3 +23,23 @@ export function useTodoPlan(
     [rows, objectives, groupOf, have, owned, show, kinds]
   )
 }
+
+/**
+ * Kill objectives only, whatever To do's Kill or Locate filter shows: for the guns to bring (the Weapons
+ * tab and the map's reminder). It keeps Only quests I can do unless `allQuests`.
+ */
+export function useKillPlan(
+  settings: PublicSettings,
+  rows: readonly QuestRow[],
+  objectives: ObjectiveProgress,
+  groupOf: (mapId: string) => MapGroup | undefined,
+  owned: ReadonlySet<string>,
+  have: Readonly<Record<string, number>>,
+  allQuests = false
+): TodoPlan {
+  const hideBlocked = !allQuests && settings.todo.show === 'doable'
+  return useMemo(
+    () => todoPlan(rows, objectives, groupOf, { have, owned, hideBlocked, kinds: 'kill' }),
+    [rows, objectives, groupOf, have, owned, hideBlocked]
+  )
+}

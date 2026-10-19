@@ -1,22 +1,10 @@
 import { GAME_MODES } from '../../../shared/gameModes'
-import type { AppView, PriceState, PublicSettings } from '../../../shared/types'
+import type { PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import LevelInput from './LevelInput'
 import { openQuickSearch } from './QuickSearch'
 import RaidClock from './RaidClock'
-
-const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
-  { id: 'loot', label: 'Loot', subtitle: 'Value per inventory slot' },
-  { id: 'trends', label: 'Flea trends', subtitle: 'Best times to buy and sell' },
-  { id: 'todo', label: 'To do', subtitle: 'Which map to raid next for your quests' },
-  { id: 'weapons', label: 'Weapons', subtitle: 'The gun to bring to each map for kill quests' },
-  { id: 'quests', label: 'Quests', subtitle: 'Quest progress from your game logs' },
-  { id: 'hideout', label: 'Items to collect', subtitle: 'What your hideout and quests still need' },
-  { id: 'crafting', label: 'Hideout', subtitle: 'What to craft at each station now' },
-  { id: 'keys', label: 'Keys', subtitle: 'Your keys and the ones quests need' },
-  { id: 'maps', label: 'Maps', subtitle: 'Quest objectives, extracts and spawns' },
-  { id: 'raids', label: 'Raids', subtitle: 'Raids and flea sales from your logs' }
-]
+import { VIEWS } from '../lib/views'
 
 interface Props {
   settings: PublicSettings

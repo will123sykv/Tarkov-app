@@ -120,8 +120,6 @@ export interface MapPlan {
   keys: string[][]
   /** Items the steps here use up (to mark, plant or use), with how many: any one of each list. */
   bring: BringItem[]
-  /** Weapons kills here are to be made with: any one of each list (an AKM or an AKMN), and for which quests. */
-  weapons: { itemIds: string[]; quests: Quest[] }[]
   /** Quest items to take in and plant, given when the quest started. */
   questItems: { name: string; questId: string }[]
 }
@@ -134,15 +132,7 @@ export interface BringItem {
   anyMap?: boolean
 }
 
-/** Weapons a kill is to be made with: any one of `itemIds`, and for which quests. */
-export interface WeaponsToBring {
-  itemIds: string[]
-  quests: Quest[]
-  /** For a kill on any map. */
-  anyMap?: boolean
-}
-
-export const sameItems = (a: readonly string[], b: readonly string[]): boolean =>
+const sameItems = (a: readonly string[], b: readonly string[]): boolean =>
   [...a].sort().join() === [...b].sort().join()
 
 /** Add an item to bring to a list, adding to the count of the same choice of items. */
@@ -153,39 +143,22 @@ function addBring(list: BringItem[], itemIds: string[], count: number, anyMap?: 
 }
 
 /**
- * What objectives on any map (naming none) have you take in: the weapons kills are to be made with and
- * the items to use up, for every map's list, as they can be done on whichever map is raided.
+ * What objectives on any map (naming none) have you take in: the items to use up, for every map's list,
+ * as they can be done on whichever map is raided. (Guns are chosen per map in the Weapons tab.)
  */
-export function anyMapTake(plan: Pick<TodoPlan, 'anyMap'>): {
-  weapons: WeaponsToBring[]
-  bring: BringItem[]
-} {
-  const weapons: WeaponsToBring[] = []
+export function anyMapTake(plan: Pick<TodoPlan, 'anyMap'>): { bring: BringItem[] } {
   const bring: BringItem[] = []
-  for (const { quest, objective, left } of plan.anyMap) {
-    if (objective.weapons?.length) {
-      const guns = objective.weapons
-      const entry = weapons.find((w) => sameItems(w.itemIds, guns))
-      if (!entry) weapons.push({ itemIds: guns, quests: [quest], anyMap: true })
-      else if (!entry.quests.includes(quest)) entry.quests.push(quest)
-    }
+  for (const { objective, left } of plan.anyMap)
     if (BRING.has(objective.type) && objective.items.length) addBring(bring, objective.items, left, true)
-  }
-  return { weapons, bring }
+  return { bring }
 }
 
-/** A map's weapons and items to bring, with the ones for any map that aren't already listed. */
+/** A map's items to bring, with the ones for any map. */
 export function takeToMap(
-  plan: Pick<MapPlan, 'weapons' | 'bring'>,
-  anyMap: { weapons: WeaponsToBring[]; bring: BringItem[] }
-): { weapons: WeaponsToBring[]; bring: BringItem[] } {
-  return {
-    weapons: [
-      ...plan.weapons,
-      ...anyMap.weapons.filter((w) => !plan.weapons.some((p) => sameItems(p.itemIds, w.itemIds)))
-    ],
-    bring: [...plan.bring, ...anyMap.bring]
-  }
+  plan: Pick<MapPlan, 'bring'>,
+  anyMap: { bring: BringItem[] }
+): { bring: BringItem[] } {
+  return { bring: [...plan.bring, ...anyMap.bring] }
 }
 
 /** A hand-over that can be done now: the items are put aside, or the quest item has been found. */
@@ -271,7 +244,6 @@ export function todoPlan(
         noAccess: shut ? group.accessKeys! : null,
         keys: [],
         bring: [],
-        weapons: [],
         questItems: []
       }
       plans.set(group.key, p)
@@ -404,12 +376,6 @@ export function todoPlan(
           if (keyIds.length && !p.keys.some((k) => k.join() === keyIds.join())) p.keys.push(keyIds)
         // Any one of the items will do (an Obdolbos or an Obdolbos 2).
         if (BRING.has(objective.type) && objective.items.length) addBring(p.bring, objective.items, left)
-        if (objective.weapons?.length) {
-          const key = [...objective.weapons].sort().join()
-          const entry = p.weapons.find((w) => [...w.itemIds].sort().join() === key)
-          if (!entry) p.weapons.push({ itemIds: objective.weapons, quests: [quest] })
-          else if (!entry.quests.includes(quest)) entry.quests.push(quest)
-        }
         if (objective.type === 'plantQuestItem' && objective.questItem)
           p.questItems.push({ name: objective.questItem.name, questId: quest.id })
       }
@@ -469,13 +435,17 @@ export interface MapOverview {
   keys: number
   /** Of those, the ones none of the player's keys open (none when their keys aren't known). */
   missingKeys: number
-  /** Items and quest items to take in. */
+  /** Items and quest items to take in, and the gun chosen for the map's kills. */
   bring: number
   /** Quests to pick up that have objectives here. */
   pickUp: number
 }
 
-export function mapOverview(plan: MapPlan, owned: ReadonlySet<string> | null = null): MapOverview {
+export function mapOverview(
+  plan: MapPlan,
+  owned: ReadonlySet<string> | null = null,
+  gun = false
+): MapOverview {
   const kills = plan.steps.filter((s) => objectiveCategory(s.objective) === 'kill')
   return {
     quests: plan.quests.length,
@@ -487,7 +457,7 @@ export function mapOverview(plan: MapPlan, owned: ReadonlySet<string> | null = n
     blocked: plan.blocked.length,
     keys: plan.keys.length,
     missingKeys: owned ? plan.keys.filter((k) => !opens(k, owned)).length : 0,
-    bring: plan.bring.length + plan.questItems.length + plan.weapons.length,
+    bring: plan.bring.length + plan.questItems.length + (gun ? 1 : 0),
     pickUp: plan.available.length
   }
 }

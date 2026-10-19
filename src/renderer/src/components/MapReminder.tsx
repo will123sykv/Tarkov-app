@@ -18,7 +18,7 @@ export interface RaidReminder {
   keys: string[][]
   /** The items needed to get onto the map, when the player has none of them. */
   noAccess: string[] | null
-  /** The gun for the map's kill quests, chosen in the Weapons tab or suggested (since 1.54.0). */
+  /** The gun for the map's kill quests, chosen in the Weapons tab, or a prompt to choose one (since 1.54.0). */
   gun: MapGun | null
   /** The map's key, to open the Weapons tab at it. */
   mapKey: string

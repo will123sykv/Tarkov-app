@@ -23,6 +23,7 @@ import {
   type MapPlan,
   type TodoStep
 } from '../../../shared/todo'
+import { gunsFor } from '../../../shared/settings'
 import { mapGun, mapKills, type MapGun } from '../../../shared/weapons'
 import { squadShared } from '../../../shared/squad'
 import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
@@ -60,8 +61,14 @@ const Icon = ({ path, className }: { path: string; className?: string }): React.
   </svg>
 )
 
-const NO_TAKE = { weapons: [], bring: [] }
+const NO_TAKE = { bring: [] }
 const NO_STEPS: readonly TodoStep[] = []
+
+/** The gun for a map's kill quests that need particular weapons, with the choice made in the Weapons tab. */
+function useMapGun(plan: MapPlan, anyMapSteps: readonly TodoStep[]): MapGun | null {
+  const chosen = useStore((s) => (s.settings ? gunsFor(s.settings)[plan.group.key] : undefined))
+  return useMemo(() => mapGun(mapKills(plan.steps, anyMapSteps), chosen), [plan.steps, anyMapSteps, chosen])
+}
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -112,7 +119,7 @@ function Step({
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
           )}
-          <KillGunTag objective={objective} items={items} />
+          <KillGunTag objective={objective} items={items} mapKey={group?.key} />
           {objective.requiredKeys.length > 0 && !missing.length && (
             <span title="Needs a key you have">
               <Icon path={mdiKeyVariant} className="key" />
@@ -357,8 +364,7 @@ function MapCard({
   onOpenMap: (mapKey: string) => void
   /** Across the page, its quests side by side (as the map to raid next is). */
   wide?: boolean
-  /** Weapons for kills on any map, which can be done here too. */
-  /** What objectives on any map have you take in (kills' weapons, items to use up). */
+  /** What objectives on any map have you take in (items to use up), which can be done here too. */
   anyMap?: ReturnType<typeof anyMapTake>
   /** Objectives on any map, for the guns their kills need. */
   anyMapSteps?: readonly TodoStep[]
@@ -366,8 +372,7 @@ function MapCard({
   const { bring } = takeToMap(plan, anyMap)
   // The gun to bring for kill quests that need particular weapons, chosen in the Weapons tab: the only
   // gun Bring lists (with none chosen, the panel asks for one).
-  const chosen = useStore((s) => s.settings?.weapons.byMap[plan.group.key])
-  const gun = mapGun(mapKills(plan.steps, anyMapSteps), chosen)
+  const gun = useMapGun(plan, anyMapSteps)
   const bringGun = gun?.chosen ? gun : null
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
@@ -475,7 +480,7 @@ function MapCard({
         </ul>
       )}
       {gun && <MapGunPanel gun={gun} items={items} mapKey={plan.group.key} />}
-      {(plan.keys.length > 0 || bring.length > 0 || plan.questItems.length > 0 || gun) && (
+      {(plan.keys.length > 0 || bring.length > 0 || plan.questItems.length > 0 || bringGun) && (
         <div className="todo-take">
           {plan.keys.length > 0 && (
             <div>
@@ -533,7 +538,8 @@ function MapTile({
   owned,
   keyName,
   traderOf,
-  onOpen
+  onOpen,
+  anyMapSteps = NO_STEPS
 }: {
   plan: MapPlan
   rank: number
@@ -542,9 +548,11 @@ function MapTile({
   keyName: (keyId: string) => string
   traderOf: (quest: Quest) => QuestTrader | undefined
   onOpen: (mapKey: string) => void
+  /** Objectives on any map, for the guns their kills need. */
+  anyMapSteps?: readonly TodoStep[]
 }): React.JSX.Element {
   const group = plan.group
-  const o = mapOverview(plan, owned)
+  const o = mapOverview(plan, owned, !!useMapGun(plan, anyMapSteps)?.chosen)
   const total = o.done + o.left
   const shown = plan.quests.slice(0, 3)
   const more = plan.quests.length - shown.length
@@ -630,7 +638,7 @@ function MapTile({
             </span>
           )}
           {o.bring > 0 && (
-            <span className="todo-chip" title="Items and quest items to take in">
+            <span className="todo-chip" title="Items, quest items and the gun you chose to take in">
               {plural(o.bring, 'item')} to bring
             </span>
           )}
@@ -1222,6 +1230,7 @@ export default function TodoView({
                 keyName={keyName}
                 traderOf={traderOf}
                 onOpen={openTodoMap}
+                anyMapSteps={plan.anyMap}
               />
             ))}
             {others.length > 0 && (
