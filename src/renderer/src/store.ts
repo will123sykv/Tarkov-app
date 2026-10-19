@@ -21,6 +21,7 @@ import type {
   UpdaterStatus
 } from '../../shared/types'
 import type { FavouriteKind, Favourites } from '../../shared/favourites'
+import type { ProgressInfo } from '../../shared/ipc'
 
 interface AppStore {
   settings: PublicSettings | null
@@ -30,6 +31,9 @@ interface AppStore {
   /** Container loot keyed by map id ('' = all maps combined). */
   containerLoot: Record<string, ContainerLoot[]>
   search: string
+  /** The Keys tab's search (in the store so Quick search can set it). Since 1.47.0. */
+  keysSearch: string
+  setKeysSearch(search: string): void
   trendAnalysis: Partial<Record<DataMode, TrendAnalysis>>
   trendsLoading: boolean
   trendsError: string | null
@@ -61,6 +65,9 @@ interface AppStore {
   placing: { questId: string; objectiveId: string } | null
   updater: UpdaterStatus
   appVersion: string
+  /** Backups of the progress, and damaged files put back at startup (since 1.47.0). */
+  progressInfo: ProgressInfo | null
+  loadProgressInfo(): Promise<void>
   settingsOpen: boolean
   /** The Settings section to show when it opens (a page's "Settings" link). */
   settingsSection: string | null
@@ -142,6 +149,7 @@ export const useStore = create<AppStore>((set, get) => ({
   containerCatalog: null,
   containerLoot: {},
   search: '',
+  keysSearch: '',
   trendAnalysis: {},
   trendsLoading: false,
   trendsError: null,
@@ -164,6 +172,10 @@ export const useStore = create<AppStore>((set, get) => ({
   placing: null,
   updater: { state: 'idle' },
   appVersion: '',
+  progressInfo: null,
+  async loadProgressInfo() {
+    set({ progressInfo: await window.api.getProgressInfo() })
+  },
   settingsOpen: false,
   settingsSection: null,
 
@@ -185,6 +197,7 @@ export const useStore = create<AppStore>((set, get) => ({
       api.onLogStatus((logStatus) => set({ logStatus }))
     ]
     void api.getLogStatus().then((logStatus) => set((s) => (s.logStatus ? s : { logStatus })))
+    void get().loadProgressInfo()
     try {
       const [settings, updater, appVersion, containerCatalog] = await Promise.all([
         api.getSettings(),
@@ -515,5 +528,6 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ storyPins: await window.api.setStoryPin(questId, objectiveId, pin) })
   },
   setSearch: (search) => set({ search }),
+  setKeysSearch: (keysSearch) => set({ keysSearch }),
   setSettingsOpen: (settingsOpen, section) => set({ settingsOpen, settingsSection: section ?? null })
 }))

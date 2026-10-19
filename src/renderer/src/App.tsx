@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo } from 'react'
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
 import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
@@ -10,10 +10,10 @@ import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
 import KeysView from './components/KeysView'
 import { useKeepList } from './lib/useKeepList'
-import MapsView from './components/MapsView'
 import QuestsView from './components/QuestsView'
 import RaidsView from './components/RaidsView'
 import ModeBanner from './components/ModeBanner'
+import QuickSearch from './components/QuickSearch'
 import SettingsDialog from './components/SettingsDialog'
 import StatusBar from './components/StatusBar'
 import TodoView from './components/TodoView'
@@ -21,6 +21,9 @@ import TopBar from './components/TopBar'
 import TrendsView from './components/TrendsView'
 import { useTrendRanking } from './lib/useTrendRanking'
 import { containerLootKey, useStore } from './store'
+
+// The Maps tab (with Leaflet, the map library) is loaded the first time it's opened.
+const MapsView = lazy(() => import('./components/MapsView'))
 
 export default function App(): React.JSX.Element {
   const init = useStore((s) => s.init)
@@ -112,6 +115,7 @@ export default function App(): React.JSX.Element {
     <div className="app">
       <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
       <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
+      <QuickSearch settings={settings} />
       <ErrorBoundary key={view} what="this tab" variant="tab">
         {view === 'trends' ? (
           <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
@@ -124,7 +128,9 @@ export default function App(): React.JSX.Element {
         ) : view === 'keys' ? (
           <KeysView settings={settings} priceState={priceState} />
         ) : view === 'maps' ? (
-          <MapsView settings={settings} priceState={priceState} />
+          <Suspense fallback={<div className="empty">Loading the map…</div>}>
+            <MapsView settings={settings} priceState={priceState} />
+          </Suspense>
         ) : view === 'raids' ? (
           <RaidsView settings={settings} priceState={priceState} />
         ) : (

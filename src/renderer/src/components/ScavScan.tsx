@@ -387,8 +387,10 @@ function ItemPicker({
   onPick: (id: string) => void
   onClose: () => void
 }): React.JSX.Element {
-  const first = (a: LootItem, b: LootItem): number =>
-    prefer ? Number(prefer(b.id)) - Number(prefer(a.id)) : 0
+  const first = useCallback(
+    (a: LootItem, b: LootItem): number => (prefer ? Number(prefer(b.id)) - Number(prefer(a.id)) : 0),
+    [prefer]
+  )
   const [term, setTerm] = useState('')
   const results = useMemo(() => {
     const t = term.trim().toLowerCase()
@@ -403,7 +405,7 @@ function ItemPicker({
           a.name.length - b.name.length
       )
       .slice(0, 8)
-  }, [items, term, prefer])
+  }, [items, term, first])
   const shown =
     term.trim().length >= 2
       ? results
@@ -692,7 +694,7 @@ export default function ScavScan({
 
   /** New loot starts a new scan; counting everything adds to the one under way. */
   const fresh = mode === 'loot' || !shots.length
-  const useLatest = async (startNew: boolean): Promise<void> => {
+  const readLatest = async (startNew: boolean): Promise<void> => {
     patch({ busy: true, error: null })
     const file = await window.api.getLatestScreenshot().catch(() => null)
     if (!file) {
@@ -876,13 +878,13 @@ export default function ScavScan({
             ))}
           </div>
         )}
-        <button className="button primary" onClick={() => void useLatest(fresh)} disabled={state.busy}>
+        <button className="button primary" onClick={() => void readLatest(fresh)} disabled={state.busy}>
           {fresh ? 'Use latest screenshot' : 'Add latest screenshot'}
         </button>
         {mode === 'loot' && shots.length > 0 && (
           <button
             className="button"
-            onClick={() => void useLatest(false)}
+            onClick={() => void readLatest(false)}
             disabled={state.busy}
             title="Add your newest screenshot to this scan, for a haul that takes more than one"
           >

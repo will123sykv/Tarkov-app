@@ -12,6 +12,7 @@ import { createBackgroundMode, launchedHidden } from './background'
 import { registerIpc } from './ipc'
 import { locateLogsDir } from './logs/locate'
 import { createLogWatcher } from './logs/watcher'
+import { createBackups } from './backups'
 import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
@@ -102,6 +103,13 @@ async function bootstrap(): Promise<void> {
   // Map Genie sign-in, cookies).
   void rm(join(userData, 'Partitions', 'mapgenie'), { recursive: true, force: true }).catch(() => {})
 
+  // A damaged progress or settings file is put back from its backup before anything reads it.
+  const backups = createBackups({ dir: userData })
+  const recoveries = await backups.recover().catch((err) => {
+    log(`Checking saved files failed: ${err}`)
+    return []
+  })
+
   const settings = createSettingsStore({
     dir: userData,
     log,
@@ -148,6 +156,10 @@ async function bootstrap(): Promise<void> {
   const questGuides = createQuestGuideService({ fetchFn, cacheDir })
   const wikiQuests = createWikiQuestService({ fetchFn, cacheDir })
   const player = createPlayerStore({ file: join(userData, 'player.json') })
+  // Today's backup, once the files are known to be good (and again each day the app stays open).
+  const backUp = (): void => void backups.daily().catch((err) => log(`Backing up failed: ${err}`))
+  backUp()
+  setInterval(backUp, 60 * 60_000).unref()
   const logs = createLogWatcher({
     stateFile: join(userData, 'logs', 'state.json'),
     locate: () => locateLogsDir(settings.get().gameLogsDir),
@@ -187,6 +199,8 @@ async function bootstrap(): Promise<void> {
     player,
     logs,
     scan,
+    backups,
+    recoveries,
     onSettingsChanged: (previous, current) => {
       if (previous.gameLogsDir !== current.gameLogsDir) void logs.poll()
       if (

@@ -116,6 +116,8 @@ function mapsNamed(markup: string, namer: MapNamer): string[] {
   const named: { id: string; start: number; end: number; linked: boolean }[] = []
   let clean = ''
   let last = 0
+  // The markers put round linked names above: control characters, so no page text can hold them.
+  // eslint-disable-next-line no-control-regex
   for (const m of text.matchAll(/\u0001([^\u0002]*)\u0002([^\u0003]*)\u0003/g)) {
     clean += text.slice(last, m.index)
     named.push({ id: m[1], start: clean.length, end: clean.length + m[2].length, linked: true })

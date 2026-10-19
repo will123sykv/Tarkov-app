@@ -45,7 +45,8 @@ export async function fetchJson(
     }
     return await res.json()
   } catch (err) {
-    if (controller.signal.aborted) throw new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`)
+    if (controller.signal.aborted)
+      throw new Error(`timed out after ${Math.round(timeoutMs / 1000)}s`, { cause: err })
     throw err
   } finally {
     clearTimeout(timer)

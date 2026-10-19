@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CURRENCIES } from '../../../shared/constants'
+import { CURRENCIES, DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
 import { upgradeKey } from '../../../shared/favourites'
 import {
   EMPTY_HIDEOUT,
@@ -34,6 +34,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import CraftsView from './CraftsView'
 import LoadError from './LoadError'
 import FavouriteStar from './FavouriteStar'
 import { craftText, GetCell } from './GetCell'
@@ -583,6 +584,14 @@ export default function HideoutView({
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
   const cc = useCraftContext(settings, priceState)
+  const valuation = useMemo(
+    () => ({
+      playerLevel: settings.playerLevels[settings.gameMode],
+      fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
+      subtractFleaFee: settings.subtractFleaFee
+    }),
+    [settings.playerLevels, settings.gameMode, settings.subtractFleaFee, priceState]
+  )
   const [search, setSearch] = useState('')
   const h = settings.hideout
   const set = (patch: Partial<HideoutSettings>): void => void updateSettings({ hideout: { ...h, ...patch } })
@@ -853,6 +862,15 @@ export default function HideoutView({
               </button>
               <button
                 role="tab"
+                aria-selected={h.tab === 'crafts'}
+                className={h.tab === 'crafts' ? 'active' : ''}
+                onClick={() => set({ tab: 'crafts' })}
+                title="Every hideout craft by profit at today's prices"
+              >
+                Crafts
+              </button>
+              <button
+                role="tab"
                 aria-selected={h.tab === 'scav'}
                 className={h.tab === 'scav' ? 'active' : ''}
                 onClick={() => set({ tab: 'scav' })}
@@ -951,6 +969,8 @@ export default function HideoutView({
             allNeeds={allNeeds}
             variant="items"
           />
+        ) : h.tab === 'crafts' ? (
+          <CraftsView cc={cc} ctx={ctx} valuation={valuation} items={items} h={h} set={set} />
         ) : h.tab === 'items' ? (
           <ItemsNeeded
             needs={shownNeeds}

@@ -25,7 +25,8 @@
     "format:check": "prettier --check .",
     "data:containers": "tsx scripts/build-container-loot.ts",
     "data:container-images": "tsx scripts/fetch-container-images.ts",
-    "data:maps": "tsx scripts/build-map-configs.ts"
+    "data:maps": "tsx scripts/build-map-configs.ts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
@@ -33,6 +34,7 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@mdi/js": "^7.4.47",
     "@tanstack/react-virtual": "^3.14.13",
     "@types/leaflet": "^1.9.22",
@@ -43,12 +45,15 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "leaflet": "^1.9.4",
     "prettier": "^3.9.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.2",
     "vite": "^7.3.6",
     "vitest": "^5.0.2",
     "zustand": "^5.0.15"

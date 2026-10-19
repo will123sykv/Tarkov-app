@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { hasOwnPriceData } from '../../../shared/gameModes'
 import type { GameMode, PriceState } from '../../../shared/types'
 import { friendlyError } from '../lib/errors'
-import { formatAgo } from '../lib/format'
+import { formatAgo, formatDateTime } from '../lib/format'
 import { useNow } from '../lib/useNow'
 import { useStore } from '../store'
 
@@ -23,6 +23,20 @@ export default function ModeBanner({ gameMode, priceState }: Props): React.JSX.E
       tone: 'warn',
       id: 'season',
       text: "PvP Season prices aren't available from tarkov.dev, so these are PvP prices. The Season economy is separate, so real values may differ."
+    })
+  }
+
+  // A damaged progress or settings file found at startup, and what was put in its place.
+  for (const r of useStore((s) => s.progressInfo)?.recoveries ?? []) {
+    const what = r.file === 'player' ? 'Your progress file' : 'Your settings file'
+    const kept = `The damaged file was kept as ${r.keptAs.split(/[\\/]/).pop()}.`
+    banners.push({
+      tone: r.restoredFrom === null ? 'error' : 'warn',
+      id: `recovered:${r.keptAs}`,
+      text:
+        r.restoredFrom === null
+          ? `${what} was damaged and there was no backup, so it started fresh. ${kept}`
+          : `${what} was damaged, so it was put back from the backup of ${formatDateTime(r.restoredFrom)}. ${kept}`
     })
   }
 

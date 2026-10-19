@@ -10,6 +10,23 @@ export async function readJsonFile(path: string): Promise<unknown> {
   }
 }
 
+/** A JSON file read, telling a missing file from one that's there but can't be read or parsed. */
+export type CheckedJson = { state: 'missing' } | { state: 'damaged' } | { state: 'ok'; data: unknown }
+
+export async function readJsonFileChecked(path: string): Promise<CheckedJson> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'ENOENT' ? { state: 'missing' } : { state: 'damaged' }
+  }
+  try {
+    return { state: 'ok', data: JSON.parse(text) }
+  } catch {
+    return { state: 'damaged' }
+  }
+}
+
 // Writes to the same file wait for the one before, so the last one asked for is the one kept (and two in
 // the same millisecond don't share a temp file).
 const writing = new Map<string, Promise<void>>()

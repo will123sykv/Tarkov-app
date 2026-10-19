@@ -1,4 +1,6 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import { TREND_INTERVALS } from '../shared/settings'
@@ -7,7 +9,9 @@ import { handOverItemOf, type ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
 import type { StoryPin } from '../shared/storyPlaces'
 import type { DataMode, GameMode, Settings, SettingsPatch } from '../shared/types'
+import type { Backups, Recovery } from './backups'
 import type { ContainerService } from './containers'
+import { progressFile, readProgressFile } from './progressFile'
 import type { LogWatcher } from './logs/watcher'
 import type { PriceController } from './pricing/priceController'
 import type { PlayerStore } from './quests/playerStore'
@@ -116,6 +120,9 @@ export function registerIpc(deps: {
   player: PlayerStore
   logs: LogWatcher
   scan: ScanService
+  backups: Backups
+  /** Damaged files put back at startup. */
+  recoveries: Recovery[]
   onSettingsChanged?: (previous: Settings, current: Settings) => void
 }): void {
   const { settings, prices, containers, trends, questData, questGuides, wikiQuests, player, logs, scan } =
@@ -132,6 +139,68 @@ export function registerIpc(deps: {
       prices.reschedule()
     }
     return current
+  })
+
+  const applySettings = async (patch: SettingsPatch): Promise<void> => {
+    const { previous, current } = await settings.update(patch)
+    deps.onSettingsChanged?.(previous, current)
+    if (previous.gameMode !== current.gameMode || previous.refreshIntervalMin !== current.refreshIntervalMin)
+      prices.reschedule()
+  }
+
+  ipcMain.handle(IPC.progressInfo, async () => ({
+    lastBackupAt: await deps.backups.lastBackupAt(),
+    recoveries: deps.recoveries
+  }))
+  ipcMain.handle(IPC.progressOpenBackups, async () => {
+    await shell.openPath(deps.backups.dir)
+  })
+  ipcMain.handle(IPC.progressExport, async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const day = new Date().toISOString().slice(0, 10)
+    const options = {
+      title: 'Export progress',
+      defaultPath: join(app.getPath('documents'), `tarkov-progress-${day}.json`),
+      filters: [{ name: 'Progress', extensions: ['json'] }]
+    }
+    const picked = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+    if (picked.canceled || !picked.filePath) return { ok: false, cancelled: true }
+    try {
+      const file = progressFile(await player.saved(), settings.get(), app.getVersion(), Date.now())
+      await writeFile(picked.filePath, JSON.stringify(file, null, 1), 'utf8')
+      return { ok: true, path: picked.filePath }
+    } catch (err) {
+      return {
+        ok: false,
+        error: `Couldn’t save the file: ${err instanceof Error ? err.message : String(err)}`
+      }
+    }
+  })
+  ipcMain.handle(IPC.progressImport, async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    const options = {
+      title: 'Import progress',
+      properties: ['openFile' as const],
+      filters: [{ name: 'Progress', extensions: ['json'] }]
+    }
+    const picked = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    const path = picked.filePaths[0]
+    if (picked.canceled || !path) return { ok: false, cancelled: true }
+    try {
+      let raw: unknown
+      try {
+        raw = JSON.parse(await readFile(path, 'utf8'))
+      } catch {
+        throw new Error('This file can’t be read as a progress file.')
+      }
+      const imported = readProgressFile(raw)
+      await deps.backups.beforeImport()
+      await player.replace(imported.player)
+      await applySettings(imported.settings)
+      return { ok: true, path }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   })
 
   ipcMain.handle(IPC.pricesGet, (_e, dataMode: unknown) => prices.getState(requireDataMode(dataMode)))

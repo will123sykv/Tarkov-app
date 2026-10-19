@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { FleaRecord, RaidRecord } from '../../../shared/logTypes'
 import type { PriceState, PublicSettings } from '../../../shared/types'
-import { formatRub } from '../lib/format'
+import { formatDateTime, formatRub } from '../lib/format'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
@@ -13,8 +13,11 @@ const MAX_ROWS = 200
 /** Maps the quest data leaves out, by the game's location id: the Ground Zero tutorial (since 1.33.0). */
 const OTHER_MAP_NAMES: Record<string, string> = { sandbox_start: 'Ground Zero Tutorial' }
 
-const when = (t: number): string =>
-  new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const when = formatDateTime
+
+// The same empty lists each time, so the stats aren't worked out again on every render.
+const NO_RAIDS: RaidRecord[] = []
+const NO_FLEA: FleaRecord[] = []
 
 function duration(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return '—'
@@ -52,8 +55,8 @@ export default function RaidsView({
   const nameOf = (id: string): string =>
     mapNames.get(id.toLowerCase()) ?? OTHER_MAP_NAMES[id.toLowerCase()] ?? id
   const mapName = (raid: RaidRecord): string => nameOf(raid.map)
-  const raids = history?.raids ?? []
-  const flea = history?.flea ?? []
+  const raids = history?.raids ?? NO_RAIDS
+  const flea = history?.flea ?? NO_FLEA
 
   const stats = useMemo(() => {
     const byMap = new Map<string, number>()

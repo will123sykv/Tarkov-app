@@ -101,46 +101,62 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
   const now = opts.now ?? Date.now
   let data: Saved | null = null
 
+  /** Saved data as read from a file (or an imported one), cleaned up; anything else starts empty. */
+  function fromRaw(input: unknown): Saved {
+    const raw = input as Partial<Saved> | undefined
+    const base = empty()
+    return raw?.version === 1
+      ? {
+          version: 1,
+          progress: { ...base.progress, ...raw.progress },
+          history: { ...base.history, ...raw.history },
+          hideout: Object.fromEntries(
+            MODES.map((mode) => {
+              // 1.8.0 saved no trader levels.
+              const hideout: HideoutProgress = { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }
+              // Before 1.14.0 counts had no times: treat them as set now, so quests the logs
+              // completed before this version never come off them.
+              if (!hideout.haveAt && Object.keys(hideout.have).length)
+                hideout.haveAt = Object.fromEntries(Object.keys(hideout.have).map((id) => [id, now()]))
+              return [mode, hideout]
+            })
+          ) as Saved['hideout'],
+          objectives: { ...base.objectives, ...raw.objectives },
+          pins: raw.pins ?? {},
+          keys: Object.fromEntries(
+            MODES.map((mode) => [
+              mode,
+              { owned: keyList(raw.keys?.[mode]?.owned), toDo: keyList(raw.keys?.[mode]?.toDo) }
+            ])
+          ) as Saved['keys'],
+          favourites: Object.fromEntries(
+            MODES.map((mode) => [mode, sanitizeFavourites(raw.favourites?.[mode])])
+          ) as Saved['favourites']
+        }
+      : base
+  }
+
   async function load(): Promise<Saved> {
     if (data) return data
-    const raw = (await readJsonFile(opts.file)) as Partial<Saved> | undefined
-    const base = empty()
-    data =
-      raw?.version === 1
-        ? {
-            version: 1,
-            progress: { ...base.progress, ...raw.progress },
-            history: { ...base.history, ...raw.history },
-            hideout: Object.fromEntries(
-              MODES.map((mode) => {
-                // 1.8.0 saved no trader levels.
-                const hideout: HideoutProgress = { ...EMPTY_HIDEOUT, ...raw.hideout?.[mode] }
-                // Before 1.14.0 counts had no times: treat them as set now, so quests the logs
-                // completed before this version never come off them.
-                if (!hideout.haveAt && Object.keys(hideout.have).length)
-                  hideout.haveAt = Object.fromEntries(Object.keys(hideout.have).map((id) => [id, now()]))
-                return [mode, hideout]
-              })
-            ) as Saved['hideout'],
-            objectives: { ...base.objectives, ...raw.objectives },
-            pins: raw.pins ?? {},
-            keys: Object.fromEntries(
-              MODES.map((mode) => [
-                mode,
-                { owned: keyList(raw.keys?.[mode]?.owned), toDo: keyList(raw.keys?.[mode]?.toDo) }
-              ])
-            ) as Saved['keys'],
-            favourites: Object.fromEntries(
-              MODES.map((mode) => [mode, sanitizeFavourites(raw.favourites?.[mode])])
-            ) as Saved['favourites']
-          }
-        : base
+    data = fromRaw(await readJsonFile(opts.file))
     return data
   }
 
   const save = (): Promise<void> => writeJsonFileAtomic(opts.file, data)
 
   return {
+    /** Everything saved, as written to the file (for exporting it). */
+    async saved(): Promise<unknown> {
+      return structuredClone(await load())
+    },
+
+    /** Replace everything with an imported file's data (cleaned up as when loading), and save it. */
+    async replace(raw: unknown): Promise<void> {
+      if ((raw as { version?: unknown } | null)?.version !== 1) throw new Error('Not saved progress')
+      data = fromRaw(raw)
+      await save()
+    },
+
     async progress(mode: GameMode): Promise<QuestProgress> {
       return (await load()).progress[mode]
     },

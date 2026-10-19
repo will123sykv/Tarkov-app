@@ -222,8 +222,10 @@ export interface HideoutSettings {
    * can't and the copies that must be found in raid (since 1.15.0; on by default since 1.25.0).
    */
   scanSellBuyable: boolean
-  /** Items needed, the next upgrades, or the screenshot scanner. */
-  tab: 'items' | 'upgrades' | 'scav'
+  /** Items needed, the next upgrades, crafts by profit (since 1.47.0), or the screenshot scanner. */
+  tab: 'items' | 'upgrades' | 'crafts' | 'scav'
+  /** Crafts: only the ones the player can make now (stations built, quests done). Since 1.47.0. */
+  craftsReadyOnly: boolean
 }
 
 export type QuestStatusFilter = 'available' | 'active' | 'locked' | 'completed' | 'failed'

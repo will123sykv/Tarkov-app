@@ -60,6 +60,17 @@ function firstMention(text: string, place: MapPlace): { at: number; length: numb
  * overlap), else the one its part of the guide names, when it names exactly one.
  */
 export function namedPlace(text: string, guide: string | null, places: readonly MapPlace[]): MapPlace | null {
+  // Every step is checked against every place each time the quests are listed: remember the answers.
+  let known = matched.get(places)
+  if (!known) matched.set(places, (known = new Map()))
+  const key = `${text}\u0000${guide ?? ''}`
+  if (!known.has(key)) known.set(key, findPlace(text, guide, places))
+  return known.get(key) ?? null
+}
+
+const matched = new WeakMap<readonly MapPlace[], Map<string, MapPlace | null>>()
+
+function findPlace(text: string, guide: string | null, places: readonly MapPlace[]): MapPlace | null {
   let best: { place: MapPlace; at: number; length: number } | null = null
   for (const place of places) {
     const found = firstMention(text, place)

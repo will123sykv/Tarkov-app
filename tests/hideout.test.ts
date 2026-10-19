@@ -4,6 +4,7 @@ import {
   buyOptions,
   barterOptions,
   craftOptions,
+  craftProfits,
   getBackNow,
   EMPTY_HIDEOUT,
   handOversLeft,
@@ -476,6 +477,39 @@ describe('upgradeStatus', () => {
     const cc = { crafts, stations: both, progress: progress({}, { gen: 2, wb: 1 }), items }
     const named = (extra: Partial<BuyContext> = {}) =>
       ctx({ questNames: new Map([['q1', 'Quest One']]), ...extra })
+
+    it('works out what each craft costs and makes, and its profit per hour', () => {
+      const worth = (item: LootItem): number => ({ ledx: 100_000, screws: 8_000 })[item.id] ?? 0
+      const profits = craftProfits(
+        { ...cc, crafts: [...crafts, { ...craft('e', 'gen', 1, [], [['missing', 1]]), duration: 7200 }] },
+        named(),
+        worth
+      )
+      expect(
+        profits.map((p) => [
+          p.craft.id,
+          p.cost,
+          p.value,
+          p.profit,
+          p.perHour,
+          p.unbuyable,
+          p.stationReady,
+          p.questDone
+        ])
+      ).toEqual([
+        // Two bolts and a screw for a LEDX; the drill is a tool, so free. The Workbench isn't level 2.
+        ['a', 2 * 24_000 + 9_000, 100_000, 100_000 - 57_000, 43_000, [], false, true],
+        // A drill for two LEDX, once Quest One is done.
+        ['b', 40_000, 200_000, 160_000, 160_000, [], true, false],
+        // Nobody sells what it needs: no cost or profit, and it says what.
+        ['c', null, 100_000, null, null, ['unknown'], true, true],
+        // A bolt for four screws.
+        ['d', 24_000, 32_000, 8_000, 8_000, [], true, true],
+        // Nothing in, something with no price out, over two hours.
+        ['e', 0, null, null, null, [], true, true]
+      ])
+      expect(profits[1]).toMatchObject({ stationName: 'Generator', stationLevel: 2, questName: 'Quest One' })
+    })
 
     it('lists the crafts that make an item, ones you can do now first, then the cheapest', () => {
       const options = craftOptions('ledx', cc, named())

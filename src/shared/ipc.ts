@@ -69,8 +69,23 @@ export const IPC = {
   updaterGetStatus: 'updater:get-status',
   updaterCheck: 'updater:check',
   updaterInstall: 'updater:install',
-  appVersion: 'app:version'
+  appVersion: 'app:version',
+  progressInfo: 'progress:info',
+  progressExport: 'progress:export',
+  progressImport: 'progress:import',
+  progressOpenBackups: 'progress:open-backups'
 } as const
+
+/** Saved progress: its backups, and damaged files put back at startup (since 1.47.0). */
+export interface ProgressInfo {
+  /** When the newest backup was made, or null when there's none yet. */
+  lastBackupAt: number | null
+  recoveries: { file: 'player' | 'settings'; restoredFrom: number | null; keptAs: string }[]
+}
+
+/** What an export or import did; `cancelled` when the file dialog was closed. */
+export type ProgressFileResult =
+  { ok: true; path: string } | { ok: false; cancelled: true } | { ok: false; error: string }
 
 /** The bridge the preload script exposes to the renderer as `window.api`. */
 export interface TarkovApi {
@@ -166,6 +181,13 @@ export interface TarkovApi {
   checkForUpdates(): Promise<UpdaterStatus>
   installUpdate(): Promise<void>
   getAppVersion(): Promise<string>
+  /** Backups of the progress, and any damaged file put back at startup. */
+  getProgressInfo(): Promise<ProgressInfo>
+  /** Save the progress and settings to a file the player picks. */
+  exportProgress(): Promise<ProgressFileResult>
+  /** Replace the progress and settings with an exported file's (today's are backed up first). */
+  importProgress(): Promise<ProgressFileResult>
+  openBackupsFolder(): Promise<void>
   onPriceState(listener: (state: PriceState) => void): () => void
   onUpdaterStatus(listener: (status: UpdaterStatus) => void): () => void
 }

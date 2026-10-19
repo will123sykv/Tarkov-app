@@ -295,6 +295,68 @@ export function getBackNow(item: LootItem, ctx: BuyContext, cc?: CraftContext): 
 }
 
 /** The crafts that make an item: ones the player can do now first, then the cheapest, then the quickest. */
+/** A hideout craft as a way to make money: what its inputs cost now and what its outputs sell for. */
+export interface CraftProfit {
+  craft: HideoutCraft
+  stationName: string
+  /** The player's station level now. */
+  stationLevel: number
+  stationReady: boolean
+  questDone: boolean
+  questName: string | null
+  /** Roubles to buy what it uses up, at the cheapest place now; null when something can't be bought. */
+  cost: number | null
+  /** Inputs that can't be bought now (item ids). */
+  unbuyable: string[]
+  /** What it makes sells for (roubles); null when something it makes has no price. */
+  value: number | null
+  profit: number | null
+  /** Profit per hour of crafting time. */
+  perHour: number | null
+}
+
+/**
+ * Every craft with its cost (inputs at the cheapest place to buy them now) and value (outputs at what
+ * `worth` says they sell for). Tools aren't used up, so they cost nothing; fuel, skills and hideout
+ * bonuses aren't counted.
+ */
+export function craftProfits(
+  cc: CraftContext,
+  ctx: BuyContext,
+  worth: (item: LootItem) => number
+): CraftProfit[] {
+  return cc.crafts.map((craft) => {
+    const station = cc.stations.get(craft.stationId)
+    const level = station ? stationLevel(station, cc.progress) : 0
+    let cost: number | null = 0
+    const unbuyable: string[] = []
+    for (const input of craft.inputs) {
+      const price = unitPrice(input.itemId, cc.items, ctx)
+      if (price === null) unbuyable.push(input.itemId)
+      cost = cost !== null && price !== null ? cost + price * input.count : null
+    }
+    let value: number | null = 0
+    for (const output of craft.outputs) {
+      const item = cc.items.get(output.itemId)
+      value = value !== null && item ? value + worth(item) * output.count : null
+    }
+    const profit = cost !== null && value !== null ? value - cost : null
+    return {
+      craft,
+      stationName: station?.name ?? 'the hideout',
+      stationLevel: level,
+      stationReady: ctx.unlockAll === true || level >= craft.level,
+      questDone: !craft.questId || ctx.unlockAll === true || ctx.completedQuests.has(craft.questId),
+      questName: craft.questId ? (ctx.questNames?.get(craft.questId) ?? 'a quest') : null,
+      cost,
+      unbuyable,
+      value,
+      profit,
+      perHour: profit !== null ? (profit * 3600) / Math.max(1, craft.duration) : null
+    }
+  })
+}
+
 export function craftOptions(itemId: string, cc: CraftContext, ctx: BuyContext): CraftOption[] {
   return cc.crafts
     .filter((c) => c.outputs.some((o) => o.itemId === itemId))

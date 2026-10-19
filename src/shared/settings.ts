@@ -94,7 +94,8 @@ export const DEFAULT_SETTINGS: Settings = {
     keepOnly: false,
     sellOnly: false,
     scanSellBuyable: true,
-    tab: 'items'
+    tab: 'items',
+    craftsReadyOnly: true
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
@@ -189,7 +190,8 @@ function sanitizeHideout(raw: unknown, version: number): HideoutSettings {
     sellOnly: r.sellOnly === true && r.keepOnly !== true,
     // On by default since 1.25.0, so turned on for settings saved before then.
     scanSellBuyable: version < 3 || r.scanSellBuyable !== false,
-    tab: r.tab === 'upgrades' || r.tab === 'scav' ? r.tab : 'items'
+    tab: r.tab === 'upgrades' || r.tab === 'crafts' || r.tab === 'scav' ? r.tab : 'items',
+    craftsReadyOnly: r.craftsReadyOnly !== false
   }
 }
 

@@ -32,6 +32,8 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
-    plugins: [react(), contentSecurityPolicy()]
+    plugins: [react(), contentSecurityPolicy()],
+    // electron-vite leaves the renderer unminified; minified it's about half the size to load.
+    build: { minify: 'esbuild' }
   }
 })

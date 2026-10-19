@@ -2,6 +2,7 @@ import { GAME_MODES } from '../../../shared/gameModes'
 import type { AppView, PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import LevelInput from './LevelInput'
+import { openQuickSearch } from './QuickSearch'
 import RaidClock from './RaidClock'
 
 const VIEWS: { id: AppView; label: string; subtitle: string }[] = [
@@ -43,10 +44,11 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
       </div>
 
       <nav className="view-tabs" role="tablist" aria-label="View">
-        {VIEWS.map((view) => (
+        {VIEWS.map((view, i) => (
           <button
             key={view.id}
             role="tab"
+            title={`${view.subtitle} (Ctrl+${i + 1})`}
             aria-selected={settings.view === view.id}
             className={settings.view === view.id ? 'active' : ''}
             onClick={() => void updateSettings({ view: view.id })}
@@ -80,6 +82,16 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
       />
 
       <div className="topbar-actions">
+        <button
+          className="button icon"
+          title="Search quests, keys and items (Ctrl+K)"
+          aria-label="Search"
+          onClick={openQuickSearch}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden className="topbar-icon">
+            <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" />
+          </svg>
+        </button>
         <button
           className="button"
           title="Refresh prices"

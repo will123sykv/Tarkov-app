@@ -62,6 +62,10 @@ const api: TarkovApi = {
   checkForUpdates: () => ipcRenderer.invoke(IPC.updaterCheck),
   installUpdate: () => ipcRenderer.invoke(IPC.updaterInstall),
   getAppVersion: () => ipcRenderer.invoke(IPC.appVersion),
+  getProgressInfo: () => ipcRenderer.invoke(IPC.progressInfo),
+  exportProgress: () => ipcRenderer.invoke(IPC.progressExport),
+  importProgress: () => ipcRenderer.invoke(IPC.progressImport),
+  openBackupsFolder: () => ipcRenderer.invoke(IPC.progressOpenBackups),
   onPriceState: (listener) => subscribe(IPC.pricesState, listener),
   onUpdaterStatus: (listener) => subscribe(IPC.updaterStatus, listener)
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { EMPTY_KEYS, keysNeeded, opens, type KeyNeed } from '../../../shared/keys'
 import { lockReasons, type QuestStatus } from '../../../shared/questProgress'
@@ -306,7 +306,8 @@ export default function KeysView({
   const { info, keyIds, groups } = useKeyInfo(settings, priceState)
   const items = useItemLookup(priceState)
   const hideout = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
-  const [search, setSearch] = useState('')
+  const search = useStore((s) => s.keysSearch)
+  const setSearch = useStore((s) => s.setKeysSearch)
   const k = settings.keys
   const set = (patch: Partial<KeysSettings>): void => void updateSettings({ keys: { ...k, ...patch } })
 

@@ -5,9 +5,15 @@ import { configFor } from './questUi'
 
 // What story steps and the logs' raids are matched against on each map.
 
+const madePlaces = new WeakMap<readonly GameMap[], Map<string, MapPlace[]>>()
+
 /** The named spots on each map (place names, extracts, transits), for the places story steps name. */
 export function mapPlaces(maps: readonly GameMap[]): Map<string, MapPlace[]> {
+  // Made once per set of maps, so every tab shares the same places (and what's been matched to them).
+  const made = madePlaces.get(maps)
+  if (made) return made
   const result = new Map<string, MapPlace[]>()
+  madePlaces.set(maps, result)
   // "On Shoreline or Lighthouse" names the map, not Shoreline's Lighthouse extract.
   const mapNames = new Set(maps.map((m) => m.name.toLowerCase()))
   for (const map of maps) {

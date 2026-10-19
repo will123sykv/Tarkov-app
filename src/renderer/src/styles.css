@@ -956,6 +956,14 @@ button.link {
   font-size: 12px;
 }
 
+.dialog .hint.error {
+  color: var(--bad);
+}
+
+.dialog .inline + .hint {
+  margin-top: 8px;
+}
+
 .dialog .check {
   margin-top: 12px;
 }
@@ -2393,6 +2401,80 @@ button.link.small {
 .also-needed.short {
   color: var(--warn);
   cursor: help;
+}
+
+/* Crafts: every hideout craft by profit. */
+.crafts {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px 24px;
+}
+
+.crafts-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.crafts-filters .search {
+  width: 220px;
+}
+
+.crafts-filters select {
+  padding: 4px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.crafts .hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.craft-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.craft-tool {
+  opacity: 0.7;
+}
+
+.craft-tool .item-chip::after {
+  content: '(tool)';
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.crafts-table {
+  margin-top: 10px;
+}
+
+.crafts-table td {
+  vertical-align: middle;
+}
+
+.crafts-table tr.locked td {
+  opacity: 0.55;
+}
+
+.crafts-table td.gain {
+  color: var(--ok);
+}
+
+.crafts-table td.loss {
+  color: var(--bad);
+}
+
+.crafts-table td.strong {
+  font-weight: 600;
+}
+
+.crafts-table .small {
+  font-size: 11px;
 }
 
 .upgrades {
@@ -5223,4 +5305,79 @@ p.quest-before.done {
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+/* Quick search (Ctrl+K): one box for quests, keys and items. */
+.quick-search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.quick-search {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.quick-search input {
+  padding: 14px 16px;
+  font-size: 15px;
+  background: var(--bg);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: none;
+}
+
+.quick-search-results {
+  overflow-y: auto;
+  padding: 6px 0 8px;
+}
+
+.quick-search-results .hint {
+  margin: 10px 16px;
+  font-size: 12px;
+}
+
+.quick-search-results h3 {
+  margin: 8px 16px 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.quick-search-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 16px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-search-results button.active {
+  background: var(--panel-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.topbar-icon {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  vertical-align: middle;
 }

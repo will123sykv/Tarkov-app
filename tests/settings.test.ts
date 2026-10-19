@@ -243,7 +243,8 @@ describe('sanitizeSettings', () => {
       keepOnly: false,
       sellOnly: false,
       scanSellBuyable: true,
-      tab: 'items'
+      tab: 'items',
+      craftsReadyOnly: true
     })
     const chosen = { scope: 'next', hideDone: true, firOnly: true, keepOnly: true, tab: 'upgrades' } as const
     expect(sanitizeSettings({ view: 'hideout', hideout: chosen })).toMatchObject({
@@ -396,6 +397,15 @@ describe('sanitizeSettings', () => {
       }).maps.hiddenQuests
     ).toEqual(['5936d90786f7742b1420ba5b', 'wiki-make-amends', 'story:ch1'])
     expect(sanitizeSettings({ maps: { hiddenQuests: 'all' } }).maps.hiddenQuests).toEqual([])
+  })
+
+  it('keeps the Crafts view and its filter (since 1.47.0)', () => {
+    expect(sanitizeSettings({}).hideout).toMatchObject({ tab: 'items', craftsReadyOnly: true })
+    expect(sanitizeSettings({ hideout: { tab: 'crafts', craftsReadyOnly: false } }).hideout).toMatchObject({
+      tab: 'crafts',
+      craftsReadyOnly: false
+    })
+    expect(sanitizeSettings({ hideout: { tab: 'barters' } }).hideout.tab).toBe('items')
   })
 
   it('keeps whether the map shows the locks your keys open (since 1.44.0)', () => {

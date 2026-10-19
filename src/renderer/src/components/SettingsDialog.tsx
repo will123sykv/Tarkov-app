@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { formatDateTime } from '../lib/format'
 import type { UpdaterStatus } from '../../../shared/types'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
@@ -33,6 +34,62 @@ function describeUpdater(status: UpdaterStatus): string {
   }
 }
 
+/** Backups of the progress, and exporting or importing it as a file (since 1.47.0). */
+function ProgressSection(): React.JSX.Element {
+  const info = useStore((s) => s.progressInfo)
+  const loadProgressInfo = useStore((s) => s.loadProgressInfo)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const exportProgress = async (): Promise<void> => {
+    setBusy(true)
+    const result = await window.api.exportProgress()
+    setBusy(false)
+    if (result.ok) setMessage({ tone: 'ok', text: `Saved to ${result.path}` })
+    else if ('error' in result) setMessage({ tone: 'error', text: result.error })
+  }
+  const importProgress = async (): Promise<void> => {
+    if (
+      !window.confirm(
+        'Importing replaces your progress and settings with the file’s (this PC’s game logs folder and tray settings stay). Today’s are backed up first. Go on?'
+      )
+    )
+      return
+    setBusy(true)
+    const result = await window.api.importProgress()
+    setBusy(false)
+    if (result.ok) {
+      await loadProgressInfo()
+      // Everything shown comes from the progress: start the page again from the imported one.
+      window.location.reload()
+    } else if ('error' in result) setMessage({ tone: 'error', text: result.error })
+  }
+  return (
+    <section id="settings-progress">
+      <h3>Your progress</h3>
+      <p className="hint">
+        Quests, objectives, hideout, items put aside, keys, loyalty, pins and favourites are backed up each
+        day (the last 7 days are kept), and put back from there if the file is ever damaged.{' '}
+        {info?.lastBackupAt ? `Last backup: ${formatDateTime(info.lastBackupAt)}.` : 'No backup yet.'}
+      </p>
+      <div className="inline">
+        <button className="button" disabled={busy} onClick={() => void exportProgress()}>
+          Export progress…
+        </button>
+        <button className="button" disabled={busy} onClick={() => void importProgress()}>
+          Import progress…
+        </button>
+        <button className="link small" onClick={() => void window.api.openBackupsFolder()}>
+          Open backups folder
+        </button>
+      </div>
+      {message && <p className={`hint ${message.tone === 'error' ? 'error' : ''}`}>{message.text}</p>}
+      <p className="hint">
+        Export to keep your own copy or move to another PC; the tarkov-market key isn&rsquo;t included.
+      </p>
+    </section>
+  )
+}
+
 export default function SettingsDialog(): React.JSX.Element | null {
   const open = useStore((s) => s.settingsOpen)
   const section = useStore((s) => s.settingsSection)
@@ -57,6 +114,7 @@ export default function SettingsDialog(): React.JSX.Element | null {
     if (!open) return
     void loadQuestData()
     void loadPlayerData()
+    void useStore.getState().loadProgressInfo()
   }, [open, loadQuestData, loadPlayerData])
   // Opened from a page's "Settings" link: straight to its section.
   useEffect(() => {
@@ -109,6 +167,8 @@ export default function SettingsDialog(): React.JSX.Element | null {
       <div className="dialog-logs" id="settings-logs">
         <LogStatusPanel />
       </div>
+
+      <ProgressSection />
 
       <section>
         <h3>Background</h3>

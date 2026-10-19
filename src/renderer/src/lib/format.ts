@@ -73,3 +73,13 @@ export function formatDuration(seconds: number): string {
   const m = Math.round((seconds % 3600) / 60)
   return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`
 }
+
+/** "18 Oct, 14:05". */
+export function formatDateTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}

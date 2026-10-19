@@ -460,7 +460,7 @@ export default function MapsView({
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked, hiddenQuests])
+  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked, hiddenQuests, owned])
   const placingStep = placing
     ? (rows
         .find((r) => r.quest.id === placing.questId)

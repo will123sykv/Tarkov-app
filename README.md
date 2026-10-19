@@ -16,7 +16,8 @@ prices, your PMC level and the game mode you play. It also has:
   its quests, what to take, and what to hand in, hand over or build before you go;
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
-  buy or craft back later), and the items not to sell (rare ones flagged) marked in the loot list;
+  buy or craft back later), every hideout craft ranked by profit, and the items not to sell (rare
+  ones flagged) marked in the loot list;
 - **Keys:** the keys to buy and the keys you own (ticked by hand), each split into the ones your
   quests need and the rest, with how to get each (buy it, a quest that gives it, or where it spawns) and where its locks are on the map;
 - **Maps:** 2D maps with your quests (named, with their trader) and story chapter steps,
@@ -50,8 +51,19 @@ next time you close the app.
   across the app: **Show all** or **Only quests I can do** (To do, Maps and Quests), **Count friends'
   keys**, **Summary** or **Full** quests on the To do tab, the wiki's quest corrections and extra
   quests, your **Trader loyalty** (a card per trader: pick LL1 to LL4 on it, per game mode), how flea trends are read (**Split
-  the day into**, **Look back**) and the **Game logs** folder. A tab these change says so, with a
-  **Settings** link that opens Settings at that part.
+  the day into**, **Look back**), the **Game logs** folder and **Your progress**. A tab these change
+  says so, with a **Settings** link that opens Settings at that part.
+- **Quick search and shortcuts.** **Ctrl+K** (or the magnifier at the top right) opens one search
+  box for quests, keys and items: pick one with the arrow keys and Enter to open it where it lives (a
+  quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+8** switch tabs, in
+  the order they're shown (not while you're typing in a box); hover a tab for its shortcut.
+- **Your progress is backed up.** Quests, objectives, hideout, items put aside, keys, loyalty, pins,
+  favourites and settings are copied to a `backups` folder once a day (the last 7 days are kept). If
+  the progress or settings file is ever damaged, the newest good backup is put back when the app
+  starts, the damaged file is kept beside it, and a message says so. **Export progress…** and
+  **Import progress…** (Settings, **Your progress**) save it all to a file and load it back, to keep
+  your own copy or move to another PC: importing backs up what's there first and keeps the PC's own
+  game logs folder and tray settings. The tarkov-market key never leaves the PC.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
   also sort by worth, flea price, trader price, size or name.
 - **Live prices.** Flea and trader prices from [tarkov.dev](https://tarkov.dev), refreshed every
@@ -238,6 +250,14 @@ station's level in the sidebar (the Stash starts at level 1).
   quest that unlocks it, if any), or **Can't buy yet** with what would open it up. Set your
   loyalty with each trader under **Trader loyalty** in Settings (per game mode; unset is LL1); the
   sidebar lists the traders who sell what the hideout needs, at the levels set. The Quests tab's **Items to hand over** has the same column.
+- **Crafts** lists every hideout craft as a way to make money: what it makes, the station (and
+  level) it takes, what it uses up, how long it takes, what buying what it uses up costs now (at the
+  cheapest place for your level and loyalty; tools aren't used up), what what it makes sells for
+  (on the flea after the fee, or to a trader), the profit, and the profit per hour. Sort by **Per
+  hour**, **Profit** or **Quickest**, pick a station, or search. **Only crafts I can make** (on by
+  default) leaves out the ones whose station isn't built far enough or whose quest isn't done; with
+  it off they're greyed, saying what they need. Fuel, skills and hideout bonuses aren't counted, and
+  the Bitcoin farm's time depends on how many graphics cards it has.
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
   sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
@@ -571,6 +591,7 @@ npm ci
 npm run dev          # run the app with hot reload
 npm test             # unit tests (Vitest)
 npm run typecheck
+npm run lint         # ESLint (TypeScript and React hooks rules)
 npm run format       # Prettier
 npm run build        # compile main, preload and renderer into out/
 npm run dist         # build a Windows installer into dist/ (run on Windows)
