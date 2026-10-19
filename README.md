@@ -351,6 +351,12 @@ An opened station (or each one in List) has a card:
   crafts that take at least **Profit crafts at least** (in **Settings › Hideout crafting**, 30
   minutes by default) are picked, so a station isn't left idle by short crafts.
 
+When you put a craft on in the game, click its **Started** button (on a tile, on Craft next, on each
+row of the list and on each craft for profit) to keep Items to collect up to date. It counts one run:
+what the craft makes goes onto **Have** when your upgrades or quests need it, and what it uses comes
+off Have when you're keeping it (tools aren't used up, and ingredients you don't track are left alone).
+A notice at the bottom says what changed, with **Undo**.
+
 Two filters at the top narrow the lists for upgrades and quests (and so what's crafted next):
 
 - **Found in raid only:** only items that must be found in raid, where buying won't do.

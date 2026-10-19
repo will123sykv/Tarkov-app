@@ -1,14 +1,16 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
 import {
   byPriority,
   craftingPlan,
+  craftRunCounts,
   upgradableNow,
   type NeededCraft,
   type StationPlan
 } from '../../../shared/crafting'
 import { EMPTY_HIDEOUT, hideoutNeeds, stationLevel } from '../../../shared/hideout'
 import { neededItems } from '../../../shared/questProgress'
+import type { HideoutCraft } from '../../../shared/questTypes'
 import type { CraftSortKey, LootItem, PriceState, PublicSettings } from '../../../shared/types'
 import { evaluateItem } from '../../../shared/valuation'
 import { formatDuration, formatRub } from '../lib/format'
@@ -26,6 +28,36 @@ import SettingsLink from './SettingsLink'
 // hour, at least as long as Settings says.
 
 type Items = ReturnType<typeof useItemLookup>
+
+/** A craft just started, and the Have counts it changed (to undo). */
+interface Started {
+  what: string
+  station: string
+  before: Record<string, number>
+  after: Record<string, number>
+  error: string | null
+}
+
+const START_TITLE =
+  "I've put this craft on: add what it makes to Have in Items to collect (when something needs it) and take off what it uses (when you're keeping it). One run."
+
+/** Says a craft has been put on in the game, updating Items to collect's Have counts (since 1.52.0). */
+function StartButton({ onStart }: { onStart: () => void }): React.JSX.Element {
+  return (
+    <button
+      className="button small crafting-start"
+      title={START_TITLE}
+      onClick={(e) => {
+        // Not the tile's click, which opens the station.
+        e.stopPropagation()
+        onStart()
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      Started
+    </button>
+  )
+}
 
 /** Roubles, a loss with a minus sign in front (−₽5,000); a dash when unknown. */
 const money = (value: number | null): string =>
@@ -160,6 +192,45 @@ export default function CraftingView({
     priceState
   ])
 
+  // Every item the hideout or a quest left still needs, whatever the filters: what a craft started
+  // adds to Have when it makes one.
+  const tracked = useMemo(() => {
+    const left = rows.filter((r) => r.status !== 'completed' && r.status !== 'failed')
+    const quests = neededItems(
+      left.map((r) => r.quest),
+      objectives
+    ).items
+    return new Set(
+      hideoutNeeds(stations, progress, 'all', quests)
+        .filter((n) => n.needed > 0)
+        .map((n) => n.itemId)
+    )
+  }, [rows, objectives, stations, progress])
+  const setHaveMany = useStore((s) => s.setHideoutHaveMany)
+  const [started, setStarted] = useState<Started | null>(null)
+  const saveCounts = (counts: Record<string, number>, failed: string): void => {
+    if (!Object.keys(counts).length) return
+    setHaveMany(counts).catch((err: unknown) =>
+      setStarted(
+        (s) => s && { ...s, error: `${failed}: ${err instanceof Error ? err.message : String(err)}` }
+      )
+    )
+  }
+  const startCraft = (craft: HideoutCraft, station: string): void => {
+    const after = craftRunCounts(craft, progress.have, tracked)
+    const before = Object.fromEntries(Object.keys(after).map((id) => [id, progress.have[id] ?? 0]))
+    const what = craft.outputs
+      .map((o) => `${o.count > 1 ? `${o.count} × ` : ''}${items.get(o.itemId)?.name ?? 'Unknown item'}`)
+      .join(', ')
+    setStarted({ what, station, before, after, error: null })
+    saveCounts(after, 'Couldn’t update Items to collect')
+  }
+  const undoStart = (): void => {
+    if (!started) return
+    saveCounts(started.before, 'Couldn’t undo')
+    setStarted(null)
+  }
+
   const unbuilt = stations.filter((s) => stationLevel(s, progress) === 0)
   const neededCount = plans.reduce((n, p) => n + p.needed.length, 0)
   const name = (id: string): string => items.get(id)?.name ?? 'Unknown item'
@@ -189,6 +260,7 @@ export default function CraftingView({
       onOpen={openInCrafts}
       minutes={c.minProfitMinutes}
       wide={wide}
+      onStart={(craft) => startCraft(craft, plan.stationName)}
     />
   )
   const unbuiltHint = dataset && unbuilt.length > 0 && (
@@ -293,6 +365,7 @@ export default function CraftingView({
               first={plan.stationId === firstNeeded}
               items={items}
               onOpen={openStation}
+              onStart={(craft) => startCraft(craft, plan.stationName)}
             />
           ))}
           {unbuiltHint}
@@ -301,6 +374,31 @@ export default function CraftingView({
         <div key="list" className="crafting-stations">
           {plans.map((plan) => card(plan))}
           {unbuiltHint}
+        </div>
+      )}
+      {started && (
+        <div className="crafting-toast" role="status">
+          <span>
+            Started {started.what} at {started.station}
+            <span className="muted">
+              {' · '}
+              {started.error ??
+                (Object.keys(started.after).length
+                  ? 'Have: ' +
+                    Object.keys(started.after)
+                      .map((id) => `${name(id)} ${started.before[id]} → ${started.after[id]}`)
+                      .join(', ')
+                  : 'nothing it makes or uses is counted in Items to collect')}
+            </span>
+          </span>
+          {Object.keys(started.after).length > 0 && !started.error && (
+            <button className="link" onClick={undoStart}>
+              Undo
+            </button>
+          )}
+          <button className="link-like muted" aria-label="Close" onClick={() => setStarted(null)}>
+            ✕
+          </button>
         </div>
       )}
     </div>
@@ -315,7 +413,8 @@ function StationCard({
   onSort,
   onOpen,
   minutes,
-  wide = false
+  wide = false,
+  onStart
 }: {
   plan: StationPlan
   items: Items
@@ -326,6 +425,7 @@ function StationCard({
   minutes: number
   /** The whole row, whether or not it has a list (an opened station). */
   wide?: boolean
+  onStart: (craft: HideoutCraft) => void
 }): React.JSX.Element {
   const next = plan.next
   const rank = new Map([...plan.needed].sort(byPriority).map((n, i) => [n.itemId, i + 1]))
@@ -354,7 +454,8 @@ function StationCard({
               {next.craft.cost !== null && ` · ≈ ${formatRub(next.craft.cost)}`} · for{' '}
               {next.craft.forWhat.join(', ')}
               {next.craft.fir > 0 && ' · must be found in raid'}
-            </span>
+            </span>{' '}
+            <StartButton onStart={() => onStart(next.craft.craft.craft)} />
           </span>
         ) : next?.kind === 'profit' ? (
           <span>
@@ -366,7 +467,8 @@ function StationCard({
             <span className="muted">
               for profit: <b className="gain">{money(next.craft.perHour)}/h</b> ·{' '}
               {formatDuration(next.craft.craft.duration)} · {money(next.craft.profit)} a craft
-            </span>
+            </span>{' '}
+            <StartButton onStart={() => onStart(next.craft.craft)} />
           </span>
         ) : (
           <span className="muted">
@@ -395,6 +497,7 @@ function StationCard({
                       </button>
                     </th>
                   ))}
+                  <th aria-label="Started" />
                 </tr>
               </thead>
               <tbody>
@@ -428,6 +531,9 @@ function StationCard({
                     <td className={`num ${n.saving !== null ? (n.saving > 0 ? 'gain' : 'loss') : ''}`}>
                       {money(n.saving)}
                     </td>
+                    <td>
+                      <StartButton onStart={() => onStart(n.craft.craft)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -449,6 +555,7 @@ function StationCard({
                 <span className="muted">{formatDuration(p.craft.duration)}</span>
                 <span className="num">{money(p.profit)}</span>
                 <b className="num gain">{money(p.perHour)}/h</b>
+                <StartButton onStart={() => onStart(p.craft)} />
               </li>
             ))}
           </ul>
@@ -470,13 +577,15 @@ function StationTile({
   rank,
   first,
   items,
-  onOpen
+  onOpen,
+  onStart
 }: {
   plan: StationPlan
   rank: number
   first: boolean
   items: Items
   onOpen: (stationId: string) => void
+  onStart: (craft: HideoutCraft) => void
 }): React.JSX.Element {
   const next = plan.next
   const fir = plan.needed.filter((n) => n.fir > 0).length
@@ -492,11 +601,19 @@ function StationTile({
       : next?.kind === 'profit'
         ? next.craft.craft.outputs.map((o) => items.get(o.itemId)?.name ?? 'Unknown item').join(', ')
         : 'Nothing to craft'
+  // A div acting as a button, since it holds the Started button (a button can't hold another).
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       className={`todo-tile crafting-tile ${first ? 'best' : ''} ${next?.kind ?? 'idle'}`}
       aria-label={`${plan.stationName}: craft ${nextText} next. Show its list`}
       onClick={() => onOpen(plan.stationId)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        e.preventDefault()
+        onOpen(plan.stationId)
+      }}
     >
       <span className="todo-tile-head">
         <span className="todo-rank">{rank}</span>
@@ -533,6 +650,9 @@ function StationTile({
                 </>
               )}
             </span>
+            <StartButton
+              onStart={() => onStart(next.kind === 'needed' ? next.craft.craft.craft : next.craft.craft)}
+            />
           </>
         ) : (
           <span className="muted">Nothing needed here, and no craft for profit.</span>
@@ -576,6 +696,6 @@ function StationTile({
           {more > 0 && <span className="muted">+{more} more</span>}
         </span>
       )}
-    </button>
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { craftingPlan, upgradableNow, type StationPlan } from '../src/shared/crafting'
+import { craftingPlan, craftRunCounts, upgradableNow, type StationPlan } from '../src/shared/crafting'
 import type { BuyContext, CraftContext, HideoutNeed, HideoutProgress } from '../src/shared/hideout'
 import type { HideoutCraft, HideoutStation } from '../src/shared/questTypes'
 import type { LootItem } from '../src/shared/types'
@@ -200,5 +200,26 @@ describe('what to craft at each station', () => {
     expect(ids({ wb: 2, gen: 1 }, { mechanic: 2 })).toEqual(['wb', 'gen'])
     // Built all the way: nothing left to upgrade.
     expect(ids({ wb: 3, gen: 1 }, { mechanic: 1 })).toEqual([])
+  })
+
+  it('updates the Have counts for one run of a craft started', () => {
+    // Two bolts from four screws, with a toolset that isn't used up.
+    const bolts = { ...crafts[0], tools: ['toolset'] }
+    const tracked = new Set(['bolts', 'screws', 'toolset'])
+    // Bolts are needed: +2. Screws are counted: -4. The toolset stays.
+    expect(craftRunCounts(bolts, { bolts: 1, screws: 6, toolset: 1 }, tracked)).toEqual({
+      bolts: 3,
+      screws: 2
+    })
+    // Fewer screws counted than it uses: down to 0, not below.
+    expect(craftRunCounts(bolts, { screws: 3 }, tracked)).toEqual({ bolts: 2, screws: 0 })
+    // Screws not counted are left alone; bolts nothing needs aren't added.
+    expect(craftRunCounts(bolts, {}, new Set(['screws']))).toEqual({})
+    // Something it both uses and makes: the difference.
+    const swap = craft('swap', 'wb', 1, [['wire', 1]], [['wire', 3]], 600)
+    expect(craftRunCounts(swap, { wire: 2 }, new Set(['wire']))).toEqual({ wire: 4 })
+    // Money it costs isn't counted.
+    const paid = craft('paid', 'wb', 1, [[ROUBLES, 5_000]], [['wire', 1]], 600)
+    expect(craftRunCounts(paid, { [ROUBLES]: 10_000 }, new Set(['wire']))).toEqual({ wire: 1 })
   })
 })

@@ -12,7 +12,7 @@ import {
   type HideoutNeed,
   type HideoutProgress
 } from './hideout'
-import type { HideoutStation } from './questTypes'
+import type { HideoutCraft, HideoutStation } from './questTypes'
 import type { LootItem } from './types'
 
 // What to craft at each station now (the Hideout tab, since 1.49.0): first what the hideout's
@@ -162,4 +162,28 @@ export function craftingPlan(
       (b.profit[0]?.perHour ?? -Infinity) - (a.profit[0]?.perHour ?? -Infinity) ||
       a.stationName.localeCompare(b.stationName)
   )
+}
+
+/**
+ * The Have counts after starting one run of `craft` (since 1.52.0), only for items that change: what it
+ * makes goes up when something still needs it (`tracked`), and what it uses up comes off when it's
+ * counted (never below 0). Tools aren't used up, and money isn't counted.
+ */
+export function craftRunCounts(
+  craft: HideoutCraft,
+  have: Readonly<Record<string, number>>,
+  tracked: ReadonlySet<string>
+): Record<string, number> {
+  const delta = new Map<string, number>()
+  const add = (itemId: string, n: number): void => void delta.set(itemId, (delta.get(itemId) ?? 0) + n)
+  for (const { itemId, count } of craft.outputs) if (tracked.has(itemId)) add(itemId, count)
+  for (const { itemId, count } of craft.inputs) if ((have[itemId] ?? 0) > 0) add(itemId, -count)
+  const counts: Record<string, number> = {}
+  for (const [itemId, n] of delta) {
+    if (CURRENCIES[itemId]) continue
+    const before = have[itemId] ?? 0
+    const after = Math.max(0, before + n)
+    if (after !== before) counts[itemId] = after
+  }
+  return counts
 }
