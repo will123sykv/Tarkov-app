@@ -1384,33 +1384,35 @@ export default function ScavScan({
                         )}
                       </td>
                       <td className="item-cell">
-                        {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
-                        <span>
-                          <button
-                            className="link-like"
-                            onClick={() => setPicking(picking === r.key ? null : r.key)}
-                            title={r.read ? `Read as “${r.read}”. Click to change.` : 'Click to change'}
-                          >
-                            {item?.name ?? 'Unknown item'}
-                          </button>
-                          {check && item && (
-                            <span className="badge warn rare-badge" title={`Read as “${r.read}”`}>
-                              Check this one
-                            </span>
-                          )}
-                          {picking === r.key && (
-                            <ItemPicker
-                              items={items}
-                              guesses={r.guesses}
-                              prefer={mode === 'keys' ? isKey : undefined}
-                              onPick={(id) => {
-                                updateRow(r.key, { itemId: id, confidence: 'high' })
-                                setPicking(null)
-                              }}
-                              onClose={() => setPicking(null)}
-                            />
-                          )}
-                        </span>
+                        <div className="item-cell-body">
+                          {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
+                          <span>
+                            <button
+                              className="link-like"
+                              onClick={() => setPicking(picking === r.key ? null : r.key)}
+                              title={r.read ? `Read as “${r.read}”. Click to change.` : 'Click to change'}
+                            >
+                              {item?.name ?? 'Unknown item'}
+                            </button>
+                            {check && item && (
+                              <span className="badge warn rare-badge" title={`Read as “${r.read}”`}>
+                                Check this one
+                              </span>
+                            )}
+                            {picking === r.key && (
+                              <ItemPicker
+                                items={items}
+                                guesses={r.guesses}
+                                prefer={mode === 'keys' ? isKey : undefined}
+                                onPick={(id) => {
+                                  updateRow(r.key, { itemId: id, confidence: 'high' })
+                                  setPicking(null)
+                                }}
+                                onClose={() => setPicking(null)}
+                              />
+                            )}
+                          </span>
+                        </div>
                       </td>
                       {mode !== 'keys' && (
                         <td className="num">

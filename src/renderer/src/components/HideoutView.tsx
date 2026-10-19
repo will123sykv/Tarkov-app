@@ -301,30 +301,32 @@ function ItemsNeeded({
               }
             >
               <td className="item-cell">
-                <FavouriteStar kind="items" id={need.itemId} />
-                {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
-                <span>
-                  {item?.name ?? 'Unknown item'}
-                  {need.foundInRaid && (
-                    <span
-                      className="tag fir"
-                      title={
-                        need.firNeeded < need.needed
-                          ? `${need.firNeeded} of the ${need.needed} must be found in raid; the rest can be bought`
-                          : 'Every one must be found in raid'
-                      }
-                    >
-                      {need.firNeeded < need.needed ? `${need.firNeeded} found in raid` : 'found in raid'}
-                    </span>
-                  )}
-                  {/* Whether it can be bought only matters for copies that needn't be found in raid. */}
-                  {scarce && need.missing > 0 && get.buyCount > 0 && <ScarceBadge scarce={scarce} />}
-                  {sell && (
-                    <span className="badge ok rare-badge" title={sellTitle(sell)}>
-                      Sell {sell.count}
-                    </span>
-                  )}
-                </span>
+                <div className="item-cell-body">
+                  <FavouriteStar kind="items" id={need.itemId} />
+                  {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
+                  <span>
+                    {item?.name ?? 'Unknown item'}
+                    {need.foundInRaid && (
+                      <span
+                        className="tag fir"
+                        title={
+                          need.firNeeded < need.needed
+                            ? `${need.firNeeded} of the ${need.needed} must be found in raid; the rest can be bought`
+                            : 'Every one must be found in raid'
+                        }
+                      >
+                        {need.firNeeded < need.needed ? `${need.firNeeded} found in raid` : 'found in raid'}
+                      </span>
+                    )}
+                    {/* Whether it can be bought only matters for copies that needn't be found in raid. */}
+                    {scarce && need.missing > 0 && get.buyCount > 0 && <ScarceBadge scarce={scarce} />}
+                    {sell && (
+                      <span className="badge ok rare-badge" title={sellTitle(sell)}>
+                        Sell {sell.count}
+                      </span>
+                    )}
+                  </span>
+                </div>
               </td>
               <td>
                 <HaveCounter

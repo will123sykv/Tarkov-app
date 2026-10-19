@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { TREND_INTERVALS } from '../../../shared/settings'
@@ -123,6 +124,18 @@ export function WikiSettingsSection({ settings }: { settings: PublicSettings }):
   )
 }
 
+/** A trader's portrait, or their initials when it can't be loaded (offline, say). */
+function TraderPortrait({ name, src }: { name: string; src: string | null }): React.JSX.Element {
+  const [failed, setFailed] = useState(false)
+  return src && !failed ? (
+    <img className="loyalty-portrait" src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+  ) : (
+    <span className="loyalty-portrait" aria-hidden>
+      {name.slice(0, 2)}
+    </span>
+  )
+}
+
 /** Loyalty with each trader, for the game mode played: what can be bought, and loyalty quest steps. */
 export function LoyaltySettingsSection({ settings }: { settings: PublicSettings }): React.JSX.Element {
   const traders = useStore((s) => s.questData[dataModeFor(settings.gameMode)]?.dataset?.traders) ?? []
@@ -141,30 +154,24 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
         ticks off &ldquo;reach loyalty level&rdquo; quest steps.
       </p>
       {listed.length ? (
-        <ul className="station-levels loyalty-levels">
-          {listed.map((t) => (
-            <li key={t.id}>
-              {t.imageLink ? (
-                <img className="station-icon" src={t.imageLink} alt="" loading="lazy" />
-              ) : (
-                <span className="station-icon" aria-hidden>
-                  {t.name.slice(0, 2)}
-                </span>
-              )}
-              <span className="station-name">{t.name}</span>
-              <select
-                value={levels[t.id] ?? 1}
-                aria-label={`${t.name} loyalty level`}
-                onChange={(e) => void setTraderLevel(t.id, Number(e.target.value))}
-              >
-                {t.choices.map((level) => (
-                  <option key={level} value={level}>
-                    LL{level}
-                  </option>
-                ))}
-              </select>
-            </li>
-          ))}
+        <ul className="loyalty-cards">
+          {listed.map((t) => {
+            const level = levels[t.id] ?? 1
+            return (
+              <li key={t.id} className="loyalty-card">
+                <TraderPortrait name={t.name} src={t.imageLink} />
+                <div>
+                  <strong>{t.name}</strong>
+                  <Choice
+                    label={`${t.name} loyalty level`}
+                    value={level}
+                    options={t.choices.map((l) => [l, `LL${l}`, `Loyalty level ${l}`] as const)}
+                    onChange={(l) => void setTraderLevel(t.id, l)}
+                  />
+                </div>
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="hint">Loading the traders…</p>

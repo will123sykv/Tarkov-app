@@ -210,7 +210,7 @@ function PriceHistory({
           : loading
             ? 'loading the last 30 days of prices…'
             : 'no prices yet.'}
-        {theirs?.error && <span className="error"> Couldn’t update: {theirs.error}</span>}
+        {theirs?.error && <span className="error"> Couldn’t update: {friendlyError(theirs.error)}.</span>}
       </li>
       <li>
         <strong>This app:</strong>{' '}
@@ -418,7 +418,7 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
             </span>
           </div>
           {trendsError && (
-            <div className="hint error">Couldn't load the price history: {friendlyError(trendsError)}</div>
+            <div className="hint error">Couldn’t load the price history: {friendlyError(trendsError)}</div>
           )}
         </div>
 

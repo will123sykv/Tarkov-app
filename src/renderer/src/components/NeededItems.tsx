@@ -79,11 +79,13 @@ export default function NeededItems({
               return (
                 <tr key={`${n.itemId}:${n.foundInRaid}`}>
                   <td className="item-cell">
-                    {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
-                    <span>
-                      {item?.name ?? n.itemId}
-                      {n.foundInRaid && <span className="tag fir">found in raid</span>}
-                    </span>
+                    <div className="item-cell-body">
+                      {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
+                      <span>
+                        {item?.name ?? n.itemId}
+                        {n.foundInRaid && <span className="tag fir">found in raid</span>}
+                      </span>
+                    </div>
                   </td>
                   <td className={`num ${got >= n.count ? 'enough' : ''}`}>
                     {got}

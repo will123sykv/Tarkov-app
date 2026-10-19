@@ -125,16 +125,18 @@ function KeyRow({
         ))}
       </td>
       <td className="item-cell">
-        {first.item?.iconLink && <img src={first.item.iconLink} alt="" loading="lazy" />}
-        <span>
-          {keys.map((k, i) => (
-            <span key={k.id}>
-              {i > 0 && <span className="muted"> or </span>}
-              {k.name}
-            </span>
-          ))}
-          <FriendTags names={friends} />
-        </span>
+        <div className="item-cell-body">
+          {first.item?.iconLink && <img src={first.item.iconLink} alt="" loading="lazy" />}
+          <span>
+            {keys.map((k, i) => (
+              <span key={k.id}>
+                {i > 0 && <span className="muted"> or </span>}
+                {k.name}
+              </span>
+            ))}
+            <FriendTags names={friends} />
+          </span>
+        </div>
       </td>
       <td className="key-maps">
         {usedOn.map((m) => (

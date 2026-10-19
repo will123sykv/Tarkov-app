@@ -915,7 +915,7 @@ button.link {
 /* Settings dialog */
 
 .dialog {
-  width: min(520px, calc(100vw - 32px));
+  width: min(600px, calc(100vw - 32px));
   padding: 0;
   background: var(--panel);
   color: var(--text);
@@ -960,6 +960,68 @@ button.link {
   margin-top: 12px;
 }
 
+/* Choices and drop-downs are as wide as their options, not the dialog. */
+.dialog .segmented {
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.dialog .segmented + .hint {
+  margin-top: 6px;
+}
+
+.dialog .field select {
+  justify-self: start;
+  width: auto;
+  min-width: 120px;
+}
+
+/* Trader loyalty: a card per trader, its level picked on the card. */
+.loyalty-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loyalty-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.loyalty-card > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.loyalty-card strong {
+  font-size: 14px;
+}
+
+.loyalty-portrait {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .dialog > footer {
   padding: 12px 20px;
 }
@@ -987,7 +1049,7 @@ button.link {
   font-size: 13px;
 }
 
-.trends .sidebar .button.small {
+.trends .sidebar .button.small:not(.sidebar-toggle) {
   align-self: flex-start;
   margin-top: 12px;
 }
@@ -1006,6 +1068,8 @@ button.link {
 
 .trends-table {
   width: 100%;
+  /* The fixed columns plus room for the item's name: narrower, the table scrolls sideways. */
+  min-width: 1180px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 13px;
@@ -1980,6 +2044,11 @@ button.link.small {
   flex: none;
 }
 
+/* A chip's picture that can't load takes no room (in tables it keeps its column lined up). */
+.item-chip img[data-broken] {
+  display: none;
+}
+
 .item-chip img {
   width: 24px;
   height: 24px;
@@ -2196,7 +2265,8 @@ button.link.small {
   vertical-align: middle;
 }
 
-.item-cell {
+/* The cell stays a table cell (so its row's lines meet); what's in it is laid out inside. */
+.item-cell-body {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2214,22 +2284,20 @@ button.link.small {
 
 .station-levels li {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 104px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   font-size: 13px;
 }
 
 .station-levels select {
-  width: 100%;
+  width: auto;
   padding: 3px 6px;
   font-size: 12px;
 }
 
 .station-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .station-icon {
@@ -3322,7 +3390,7 @@ button.link.small {
   background: rgba(200, 178, 122, 0.08);
 }
 
-.scan-table .item-cell > span {
+.scan-table .item-cell-body > span {
   position: relative;
 }
 

@@ -49,7 +49,7 @@ next time you close the app.
 - **One place for settings that span tabs.** **Settings** (⚙ at the top right) holds what applies
   across the app: **Show all** or **Only quests I can do** (To do, Maps and Quests), **Count friends'
   keys**, **Summary** or **Full** quests on the To do tab, the wiki's quest corrections and extra
-  quests, your **Trader loyalty** with each trader (per game mode), how flea trends are read (**Split
+  quests, your **Trader loyalty** (a card per trader: pick LL1 to LL4 on it, per game mode), how flea trends are read (**Split
   the day into**, **Look back**) and the **Game logs** folder. A tab these change says so, with a
   **Settings** link that opens Settings at that part.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
