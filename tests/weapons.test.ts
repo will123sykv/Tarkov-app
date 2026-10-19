@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import { todoPlan, type MapGroup } from '../src/shared/todo'
-import { gunForObjective, gunOptions, mapGun, mapKills, questGunMaps } from '../src/shared/weapons'
+import {
+  gunForObjective,
+  gunOptions,
+  killForGun,
+  mapGun,
+  mapKills,
+  questGunMaps
+} from '../src/shared/weapons'
 
 const CUSTOMS = 'customs-id'
 const WOODS = 'woods-id'
@@ -130,5 +137,13 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
     // A kill on any map: every map listed.
     expect(questGunMaps(maps, 'c', 'svd').sort()).toEqual(['customs', 'woods'])
     expect(questGunMaps(maps, 'c', 'm4a1')).toEqual([])
+  })
+
+  it('says which kills the map’s gun completes (since 1.57.0)', () => {
+    expect(killForGun(akm, 'akms')).toBe('gun')
+    expect(killForGun(sv98, 'akms')).toBe('other')
+    // Any weapon will do, or no gun chosen.
+    expect(killForGun(kill('plain', []), 'akms')).toBeNull()
+    expect(killForGun(akm, undefined)).toBeNull()
   })
 })

@@ -110,3 +110,16 @@ export function questGunMaps(
     .filter((m) => m.kills.some((k) => k.quest.id === questId && k.itemIds.includes(itemId)))
     .map((m) => m.key)
 }
+
+/**
+ * For the kill banner over a map (since 1.57.0): how a gun does for each kill objective. 'gun' when it's
+ * one of the weapons the kill has to be made with, 'other' when the kill needs other particular weapons,
+ * null when any weapon will do (or there's no gun).
+ */
+export function killForGun(
+  objective: QuestObjective,
+  itemId: string | null | undefined
+): 'gun' | 'other' | null {
+  if (!itemId || !objective.weapons?.length) return null
+  return objective.weapons.includes(itemId) ? 'gun' : 'other'
+}

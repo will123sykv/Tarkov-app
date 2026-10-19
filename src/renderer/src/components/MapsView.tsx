@@ -983,6 +983,8 @@ export default function MapsView({
               open={m.killsOpen}
               onToggle={() => set({ killsOpen: !m.killsOpen })}
               onSelectQuest={onSelectQuest}
+              gun={mainMap ? byMap[groupOf.get(mainMap.id)?.key ?? ''] : null}
+              items={items}
             />
           )}
           <FavouritesPanel

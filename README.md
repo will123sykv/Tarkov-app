@@ -581,7 +581,10 @@ the game's install folder, or its `build` folder.
   location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills). Each gives the quest, what to
   kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.
   Click a quest to open its panel; click the banner's heading to fold it (it's remembered).
-  **Only quests I can do** leaves out quests a key you don't have holds up.
+  **Only quests I can do** leaves out quests a key you don't have holds up. With a gun chosen for the
+  map in the **Weapons** tab, the kills it completes come first, highlighted with **★ AKMS**, the
+  heading counts them (**1 with your AKMS**), and kills that need another particular weapon say
+  **needs another gun**.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many

@@ -5026,6 +5026,34 @@ tr:hover .favourite-star {
   white-space: nowrap;
 }
 
+/* A kill the gun chosen for the map completes (since 1.57.0). */
+.kill-banner-list li.gun {
+  margin: 0 -10px;
+  padding: 4px 10px 4px 7px;
+  background: rgba(200, 178, 122, 0.12);
+  border-left: 3px solid var(--accent);
+}
+
+.kill-banner-text .tag.gun {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+.kill-banner-text .tag.gun img {
+  width: 28px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.kill-banner-text .tag.other-gun {
+  color: var(--muted);
+  cursor: help;
+}
+
 /* "Count friends' keys", next to "Only quests I can do" (To do and Maps). */
 .squad-toggle {
   align-items: center;
