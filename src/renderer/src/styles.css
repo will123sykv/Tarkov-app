@@ -1512,18 +1512,23 @@ button.link {
   }
 }
 
-/* Eight views: at the narrowest windows the refresh button is just its icon (its title says what). */
+/* Ten views don't fit beside the rest in narrow windows (down to the 1200px the window can be): the
+   tabs get a row of their own under it, and the refresh button is just its icon (its title says what). */
 @media (max-width: 1360px) {
   .topbar {
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 8px 16px 0;
+  }
+
+  .brand {
+    margin-right: auto;
   }
 
   .view-tabs {
-    gap: 0;
-  }
-
-  .view-tabs button {
-    padding: 7px 5px;
+    order: 1;
+    flex-basis: 100%;
+    margin-right: 0;
   }
 
   .refresh-label {
@@ -5422,6 +5427,11 @@ p.quest-before.done {
 .weapons-page .summary .hint {
   margin: 2px 0 0;
   font-size: 12px;
+}
+
+.weapons-page .summary .segmented {
+  width: fit-content;
+  margin-top: 6px;
 }
 
 .crafting-stations {
