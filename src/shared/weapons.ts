@@ -95,3 +95,18 @@ export function gunForObjective(
   for (const key of keys) if (counts.has(byMap[key])) return byMap[key]
   return null
 }
+
+/**
+ * The maps where a quest has a kill a gun counts for (since 1.56.0), by key, in the order given: where
+ * bringing the gun picked for the quest on one map would do for it on the others too. A kill on any map
+ * is on every map listed.
+ */
+export function questGunMaps(
+  maps: readonly { key: string; kills: readonly MapKill[] }[],
+  questId: string,
+  itemId: string
+): string[] {
+  return maps
+    .filter((m) => m.kills.some((k) => k.quest.id === questId && k.itemIds.includes(itemId)))
+    .map((m) => m.key)
+}

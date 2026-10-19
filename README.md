@@ -208,14 +208,18 @@ good as your ticks (and your keys ticked in the Keys tab).
 ### Weapons
 
 For kill quests that have to be made with particular weapons (Eliminate 5 Scavs with an AKM), the
-**Weapons** tab has a card per map with the gun to bring there: one per map. Each card shows a large
-picture of it, fully built, and how many of the map's kill quests it covers, then a row per kill quest,
-marked ✓ when the gun covers it and ✗ when it doesn't. Click a quest to unfold the guns that count for
-it, each saying how many of the map's kill quests it covers, and click one to bring it to the map.
-Until you do, the one that covers the most is **Suggested**, and **Clear** goes back to that. Kills on
-any map count on every map. Maps with kills of their own come first, in To do's order. **Open in To
-do** opens the map on the To do tab. To do's map and the Maps tab's **Before you raid** show the gun,
-and **Change in Weapons** there opens this tab at the map.
+**Weapons** tab chooses the gun to bring to each map: one per map. It opens on a tile per map, like
+To do's, with a large picture of its gun, fully built: **★ Gun to bring** when you've chosen one, or
+**No gun chosen** with the one that covers the most **Suggested**, and how many of the map's kill
+quests it covers. Click a tile to open the map (**◀ All maps** goes back, and the buttons beside it
+step to the map before or after): its gun, then a row per kill quest, marked ✓ when the gun covers it
+and ✗ when it doesn't. Click a quest to unfold the guns that count for it, each saying how many of
+the map's kill quests it covers, and click one to bring it to the map; **Clear** goes back to the
+suggestion. When a quest has kills on other maps too (or on any map), **Bring … to every map with**
+the quest sets the gun on all of them at once, replacing what was chosen there (it says which). Kills
+on any map count on every map. Maps with kills of their own come first, in To do's order. **Open in
+To do** opens the map on the To do tab; To do's map and the Maps tab's **Before you raid** show the
+gun, and **Change in Weapons** there opens this tab on the map.
 
 Pictures are of the gun fully built (tarkov.dev's default preset of the weapon), not the bare
 receiver the quest names.

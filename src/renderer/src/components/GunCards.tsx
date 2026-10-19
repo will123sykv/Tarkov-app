@@ -64,11 +64,11 @@ const gunName = (items: Items, id: string): string => items.get(id)?.name ?? 'Un
 const killText = (k: MapKill): string =>
   `${k.quest.name}${(k.objective.count ?? 1) > 1 ? ` (${k.left} left)` : ''}${k.anyMap ? ' · any map' : ''}`
 
-/** Open the Weapons tab at a map's gun. */
+/** Open the Weapons tab on a map (its overview with none). */
 export function useOpenWeapons(): (mapKey: string | null) => void {
   const updateSettings = useStore((s) => s.updateSettings)
   return (mapKey) => {
-    useStore.getState().focusWeapons(mapKey)
+    useStore.getState().openWeaponsMap(mapKey)
     void updateSettings({ view: 'weapons' })
   }
 }

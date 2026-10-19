@@ -5785,6 +5785,38 @@ p.quest-before.done {
   font-size: 17px;
 }
 
+/* The Weapons overview (since 1.56.0): a tile per map with its gun, like To do's maps. */
+.weapons-maps.weapons-tiles {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.weapons-tile .gun-picture {
+  height: 120px;
+}
+
+.weapons-tile-gun {
+  display: grid;
+  gap: 2px;
+}
+
+.weapons-tile-gun strong {
+  font-size: 14px;
+}
+
+.weapons-tile.unchosen .map-gun-label {
+  color: var(--warn);
+}
+
+/* Bring the map's gun to every map with the same quest. */
+.weapons-all-maps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
 /* A kill quest on the map, unfolded to pick a gun from the ones that count for it (since 1.55.0). */
 .weapons-quests {
   display: grid;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import { todoPlan, type MapGroup } from '../src/shared/todo'
-import { gunForObjective, gunOptions, mapGun, mapKills } from '../src/shared/weapons'
+import { gunForObjective, gunOptions, mapGun, mapKills, questGunMaps } from '../src/shared/weapons'
 
 const CUSTOMS = 'customs-id'
 const WOODS = 'woods-id'
@@ -110,5 +110,25 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
     // Chosen for another map, or not one that counts: none.
     expect(gunForObjective(akm, { woods: 'akms' }, groupOf)).toBeNull()
     expect(gunForObjective(m4, { customs: 'akm' }, groupOf)).toBeNull()
+  })
+
+  it('finds the maps where a quest’s gun would do for it too (since 1.56.0)', () => {
+    // Supply Plans: an AKM or AKMS on Customs and an AKMS on Woods; quest c: an AKMS or SVD on any map.
+    const woodsAkms = kill('woods-akms', ['akms'], [WOODS])
+    const p = todoPlan(
+      [
+        { quest: quest('a', [akm, woodsAkms]), status: 'active' as const },
+        { quest: quest('c', [anywhere]), status: 'active' as const }
+      ],
+      {},
+      groupOf
+    )
+    const maps = p.maps.map((m) => ({ key: m.group.key, kills: mapKills(m.steps, p.anyMap) }))
+    // The AKMS counts for Supply Plans on both maps; the AKM only on Customs.
+    expect(questGunMaps(maps, 'a', 'akms').sort()).toEqual(['customs', 'woods'])
+    expect(questGunMaps(maps, 'a', 'akm')).toEqual(['customs'])
+    // A kill on any map: every map listed.
+    expect(questGunMaps(maps, 'c', 'svd').sort()).toEqual(['customs', 'woods'])
+    expect(questGunMaps(maps, 'c', 'm4a1')).toEqual([])
   })
 })

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { todoPlan, type MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
-import { gunOptions, mapGun, mapKills, type MapKill } from '../../../shared/weapons'
+import { gunOptions, mapGun, mapKills, questGunMaps, type MapKill } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useItemLookup } from '../lib/useItemLookup'
@@ -10,14 +10,21 @@ import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import { GunPicture } from './GunCards'
 import LoadError from './LoadError'
+import OverviewNav from './OverviewNav'
 
 // The Weapons tab (since 1.54.0): for each map with kill quests that have to be made with particular
 // weapons, the gun to bring, one per map, chosen from every gun that counts for one of them. To do's
-// map and the Maps tab's reminder show it.
+// map and the Maps tab's reminder show it. Since 1.56.0 it opens on a tile per map, like To do's.
 
 type Items = ReturnType<typeof useItemLookup>
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
+
+/** A map listed, with its kill quests that need particular weapons. */
+interface WeaponMap {
+  plan: MapPlan
+  kills: MapKill[]
+}
 
 /** "Eliminate 5 Scavs with an AKM on Customs · 2 left · any map" */
 const killText = (k: MapKill): string =>
@@ -59,10 +66,13 @@ export default function WeaponsView({
     return [...withKills.filter(own), ...withKills.filter((m) => !own(m))]
   }, [plan])
   const byMap = settings.weapons.byMap
-  const choose = (mapKey: string, itemId: string | null): void => {
+  // The gun for some maps (several when brought to every map with a quest), or none.
+  const choose = (mapKeys: readonly string[], itemId: string | null): void => {
     const next = { ...byMap }
-    if (itemId) next[mapKey] = itemId
-    else delete next[mapKey]
+    for (const key of mapKeys) {
+      if (itemId) next[key] = itemId
+      else delete next[key]
+    }
     void updateSettings({ weapons: { ...settings.weapons, byMap: next } })
   }
 
@@ -72,13 +82,10 @@ export default function WeaponsView({
     void updateSettings({ view: 'todo', todo: { ...settings.todo, layout: 'maps' } })
   }
 
-  // Opened at a map (from To do or the reminder): scroll to it.
-  const focus = useStore((s) => s.weaponsFocus)
-  useEffect(() => {
-    if (!focus || !maps.length) return
-    document.getElementById(`weapons-${focus}`)?.scrollIntoView({ block: 'start' })
-    useStore.getState().focusWeapons(null)
-  }, [focus, maps.length])
+  // The map opened from the overview (or from To do and the reminder); one no longer listed goes back.
+  const openedKey = useStore((s) => s.weaponsMap)
+  const openMap = useStore((s) => s.openWeaponsMap)
+  const opened = openedKey ? maps.find((m) => m.plan.group.key === openedKey) : undefined
 
   const chosenCount = maps.filter((m) => mapGun(m.kills, byMap[m.plan.group.key])?.chosen).length
   return (
@@ -106,38 +113,110 @@ export default function WeaponsView({
           To do and the map&rsquo;s Before you raid show it.
         </p>
       </div>
-      <div className="weapons-maps">
-        {maps.map(({ plan: p, kills }) => (
-          <MapWeapons
-            key={p.group.key}
-            plan={p}
-            kills={kills}
-            chosen={byMap[p.group.key]}
-            items={items}
-            onChoose={(itemId) => choose(p.group.key, itemId)}
-            onOpenTodo={() => openTodo(p.group.key)}
+      {opened ? (
+        <div key={`map:${opened.plan.group.key}`} className="weapons-maps">
+          <OverviewNav
+            items={maps.map((m) => m.plan.group)}
+            current={opened.plan.group.key}
+            name={opened.plan.group.name}
+            label="Maps"
+            allLabel="All maps"
+            onOpen={openMap}
           />
-        ))}
-      </div>
+          <MapWeapons
+            plan={opened.plan}
+            kills={opened.kills}
+            maps={maps}
+            byMap={byMap}
+            items={items}
+            onChoose={choose}
+            onOpenTodo={() => openTodo(opened.plan.group.key)}
+          />
+        </div>
+      ) : (
+        <div key="tiles" className="weapons-maps weapons-tiles">
+          {maps.map((m) => (
+            <MapTile
+              key={m.plan.group.key}
+              map={m}
+              chosen={byMap[m.plan.group.key]}
+              items={items}
+              onOpen={openMap}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+/** A map in the overview: its gun, chosen or not, and its kill quests; click it to change the gun. */
+function MapTile({
+  map,
+  chosen,
+  items,
+  onOpen
+}: {
+  map: WeaponMap
+  chosen: string | undefined
+  items: Items
+  onOpen: (mapKey: string) => void
+}): React.JSX.Element | null {
+  const gun = mapGun(map.kills, chosen)
+  if (!gun) return null
+  const name = items.get(gun.itemId)?.name ?? 'Unknown weapon'
+  const quests = [...new Set(map.kills.map((k) => k.quest.name))]
+  return (
+    <button
+      className={`todo-tile weapons-tile ${gun.chosen ? 'best' : 'unchosen'}`}
+      aria-label={`${map.plan.group.name}: ${gun.chosen ? `bringing ${name}` : 'no gun chosen'}. Change it`}
+      onClick={() => onOpen(map.plan.group.key)}
+    >
+      <span className="todo-tile-head">
+        <span className="todo-tile-name">
+          <strong>{map.plan.group.name}</strong>
+        </span>
+        <span className="todo-tile-open" aria-hidden>
+          ▶
+        </span>
+      </span>
+      <GunPicture id={gun.itemId} items={items} />
+      <span className="weapons-tile-gun">
+        <span className="map-gun-label">{gun.chosen ? '★ Gun to bring' : 'No gun chosen'}</span>
+        <strong>{gun.chosen ? name : `Suggested: ${name}`}</strong>
+        <span className="muted">
+          Covers {gun.covers.length} of {plural(map.kills.length, 'kill quest')}
+        </span>
+      </span>
+      <span className="todo-tile-quests">
+        {quests.slice(0, 3).map((q) => (
+          <span key={q}>{q}</span>
+        ))}
+        {quests.length > 3 && <span className="muted">+{quests.length - 3} more</span>}
+      </span>
+    </button>
   )
 }
 
 function MapWeapons({
   plan,
   kills,
-  chosen,
+  maps,
+  byMap,
   items,
   onChoose,
   onOpenTodo
 }: {
   plan: MapPlan
   kills: MapKill[]
-  chosen: string | undefined
+  /** Every map listed, for bringing a gun to all of a quest's maps. */
+  maps: readonly WeaponMap[]
+  byMap: Readonly<Record<string, string>>
   items: Items
-  onChoose: (itemId: string | null) => void
+  onChoose: (mapKeys: readonly string[], itemId: string | null) => void
   onOpenTodo: () => void
 }): React.JSX.Element | null {
+  const chosen = byMap[plan.group.key]
   // Quests unfolded to pick a gun from (since 1.55.0), by quest and objective: folded to start with.
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const killKey = (k: MapKill): string => `${k.quest.id}:${k.objective.id}`
@@ -175,7 +254,7 @@ function MapWeapons({
             <button
               className="link small"
               title="Go back to the suggested gun"
-              onClick={() => onChoose(null)}
+              onClick={() => onChoose([plan.group.key], null)}
             >
               Clear
             </button>
@@ -212,7 +291,7 @@ function MapWeapons({
                         aria-checked={selected}
                         className={`weapons-option ${selected ? 'selected' : ''}`}
                         title={`Bring it to ${plan.group.name}`}
-                        onClick={() => onChoose(id)}
+                        onClick={() => onChoose([plan.group.key], id)}
                       >
                         <GunPicture id={id} items={items} />
                         <span className="weapons-option-name">{name(id)}</span>
@@ -224,10 +303,72 @@ function MapWeapons({
                   })}
                 </div>
               )}
+              {unfolded && gun.chosen && k.itemIds.includes(gun.itemId) && (
+                <AllMaps
+                  kill={k}
+                  itemId={gun.itemId}
+                  mapKey={plan.group.key}
+                  maps={maps}
+                  byMap={byMap}
+                  name={name}
+                  onChoose={onChoose}
+                />
+              )}
             </li>
           )
         })}
       </ul>
     </article>
+  )
+}
+
+/**
+ * Bring the map's gun to every other map with the same quest where it counts for it (since 1.56.0),
+ * replacing the gun chosen there, or say it already is.
+ */
+function AllMaps({
+  kill,
+  itemId,
+  mapKey,
+  maps,
+  byMap,
+  name,
+  onChoose
+}: {
+  kill: MapKill
+  itemId: string
+  mapKey: string
+  maps: readonly WeaponMap[]
+  byMap: Readonly<Record<string, string>>
+  name: (id: string) => string
+  onChoose: (mapKeys: readonly string[], itemId: string | null) => void
+}): React.JSX.Element | null {
+  const keys = questGunMaps(
+    maps.map((m) => ({ key: m.plan.group.key, kills: m.kills })),
+    kill.quest.id,
+    itemId
+  )
+  if (keys.length < 2) return null
+  const mapName = (key: string): string => maps.find((m) => m.plan.group.key === key)?.plan.group.name ?? key
+  const others = keys.filter((key) => key !== mapKey)
+  const changing = others.filter((key) => byMap[key] !== itemId)
+  if (!changing.length)
+    return (
+      <p className="weapons-all-maps muted">
+        ✓ {name(itemId)} is the gun for every map with {kill.quest.name} ({others.map(mapName).join(', ')})
+      </p>
+    )
+  const replacing = changing.filter((key) => byMap[key])
+  return (
+    <p className="weapons-all-maps">
+      <button className="button small" onClick={() => onChoose(keys, itemId)}>
+        Bring {name(itemId)} to every map with {kill.quest.name}
+      </button>{' '}
+      <span className="muted">
+        {changing.map(mapName).join(', ')}
+        {replacing.length > 0 &&
+          ` · replaces ${replacing.map((key) => `${name(byMap[key])} on ${mapName(key)}`).join(', ')}`}
+      </span>
+    </p>
   )
 }
