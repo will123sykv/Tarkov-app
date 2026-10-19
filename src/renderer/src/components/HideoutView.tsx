@@ -43,23 +43,12 @@ import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
 import SettingsLink from './SettingsLink'
 import Sidebar, { SidebarSection } from './Sidebar'
+import StationLevels, { StationIcon } from './StationLevels'
 
 type Items = ReadonlyMap<string, LootItem>
 
 /** The most of one item the app keeps count of. */
 const MAX_HAVE = 100_000
-
-const STATION_ICON_FALLBACK = (name: string): string => name.slice(0, 2)
-
-function StationIcon({ station }: { station: HideoutStation }): React.JSX.Element {
-  return station.imageLink ? (
-    <img className="station-icon" src={station.imageLink} alt="" loading="lazy" />
-  ) : (
-    <span className="station-icon" aria-hidden>
-      {STATION_ICON_FALLBACK(station.name)}
-    </span>
-  )
-}
 
 /** Rare first, then what can't be bought: not yet, or because it must be found in raid. */
 const SCARCE_ORDER = (s: Scarcity | null, find: number): number =>
@@ -633,7 +622,6 @@ export default function HideoutView({
   const { questState, rows: questRows, objectives } = useQuestRows(settings)
   const selectQuest = useStore((s) => s.selectQuest)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
-  const setStationLevel = useStore((s) => s.setStationLevel)
   const updateSettings = useStore((s) => s.updateSettings)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
@@ -749,30 +737,7 @@ export default function HideoutView({
       <Sidebar view="hideout">
         <SidebarSection title="Stations">
           <p className="hint">Set how far each station is built. The game&rsquo;s logs don&rsquo;t say.</p>
-          <ul className="station-levels">
-            {stations.map((s) => {
-              const level = stationLevel(s, progress)
-              return (
-                <li key={s.id}>
-                  <StationIcon station={s} />
-                  <span className="station-name" title={s.name}>
-                    {s.name}
-                  </span>
-                  <select
-                    value={level}
-                    aria-label={`${s.name} level`}
-                    onChange={(e) => void setStationLevel(s.id, Number(e.target.value))}
-                  >
-                    {Array.from({ length: maxLevel(s) + 1 }, (_, n) => (
-                      <option key={n} value={n}>
-                        {n === 0 ? 'Not built' : `Level ${n}`}
-                      </option>
-                    ))}
-                  </select>
-                </li>
-              )
-            })}
-          </ul>
+          <StationLevels stations={stations} progress={progress} />
           {!stations.length && (
             <p className="hint">
               {questState?.error ? (

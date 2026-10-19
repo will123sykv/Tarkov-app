@@ -153,6 +153,7 @@ export default function App(): React.JSX.Element {
                 mapName={mapName}
                 unavailableContainer={unavailableContainer}
                 pricesLoaded={dataset !== null}
+                shown={ranked.length}
               />
               <ItemTable
                 keep={keep}

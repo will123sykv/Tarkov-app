@@ -447,6 +447,20 @@ export default function MapsView({
     return doable && shut ? left.filter((k) => k.anyMap) : left
   }, [rows, done, mapIds, doable, blocked, shut, groupOf, hiddenQuests, shownAnyway])
   const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
+  // The header over the map: the quests with objectives here and the extracts for the side played.
+  const activeHere = useMemo(
+    () => new Set([...objectives.map((mk) => mk.quest.id), ...kills.map((k) => k.quest.id)]).size,
+    [objectives, kills]
+  )
+  const extractCount = useMemo(
+    () =>
+      new Set(
+        (mainMap?.extracts ?? [])
+          .filter((e) => e.faction === 'shared' || e.faction === m.faction)
+          .map((e) => e.name)
+      ).size,
+    [mainMap, m.faction]
+  )
   // What the wiki says about this map's extracts and transits (its versions share a page).
   const exits = useMemo(
     () => maps.map((gm) => dataset?.wikiExtracts?.[gm.id]).find(Boolean) ?? null,
@@ -921,91 +935,109 @@ export default function MapsView({
           </p>
         )}
       </Sidebar>
-      <main className="content map-content">
-        {placing && (
-          <div className="placing-banner" role="status">
-            <span>Click where &ldquo;{placingStep?.description ?? 'the step'}&rdquo; is on the map.</span>
-            <button className="button small" onClick={cancelPlace}>
-              Cancel
-            </button>
-          </div>
-        )}
-        {projection && maps.length ? (
-          <MapCanvas
-            projection={projection}
-            maps={maps}
-            labels={config?.labels ?? NO_LABELS}
-            objectives={objectives}
-            owned={owned}
-            layers={layers}
-            faction={m.faction}
-            itemName={itemName}
-            focus={focus}
-            selectedQuest={selectedQuest}
-            onSelectQuest={onSelectQuest}
-            onTick={onTick}
-            keyMarks={keyMarks}
-            findAreas={findAreas}
-            placing={placing !== null}
-            onPlace={onPlace}
-            onCancelPlace={cancelPlace}
-            exits={exits}
-          />
-        ) : (
-          <div className="empty">
-            <p>
-              {questState?.error ? (
-                <LoadError what="map data" error={questState.error} />
-              ) : (
-                'Loading map data…'
+      <div className="map-column">
+        {mainMap && (
+          <div className="summary map-summary">
+            <div className="summary-title">
+              <strong>{choices.find((c) => c.key === m.mapKey)?.name ?? mainMap.name}</strong>
+              <span className="muted">
+                {plural(activeHere, 'quest')} with objectives here · {plural(kills.length, 'kill objective')}{' '}
+                · {plural(extractCount, m.faction === 'scav' ? 'Scav extract' : 'PMC extract')}
+              </span>
+              {doable && (
+                <span className="muted small settings-note">
+                  Only quests I can do · <SettingsLink section="quests" />
+                </span>
               )}
-            </p>
+            </div>
           </div>
         )}
-        {reminder && reminderOpen && !placing && mainMap && (
-          <MapReminder
-            mapName={choices.find((c) => c.key === m.mapKey)?.name ?? mainMap.name}
-            reminder={reminder}
-            items={items}
-            owned={owned}
-            friendsWith={friendsWith}
-            have={have}
-            onClose={closeReminder}
-          />
-        )}
-        {lastTick && (
-          <div className="map-toast" role="status">
-            <span>
-              Ticked off: {tickedText} <span className="muted">— {lastTick.quest.name}</span>
-            </span>
-            <button className="link" onClick={undoTick}>
-              Undo
-            </button>
-          </div>
-        )}
-        <div className="map-side">
-          {!placing && (
-            <KillBanner
-              kills={kills}
-              mapNames={mapNames}
-              open={m.killsOpen}
-              onToggle={() => set({ killsOpen: !m.killsOpen })}
+        <main className="content map-content">
+          {placing && (
+            <div className="placing-banner" role="status">
+              <span>Click where &ldquo;{placingStep?.description ?? 'the step'}&rdquo; is on the map.</span>
+              <button className="button small" onClick={cancelPlace}>
+                Cancel
+              </button>
+            </div>
+          )}
+          {projection && maps.length ? (
+            <MapCanvas
+              projection={projection}
+              maps={maps}
+              labels={config?.labels ?? NO_LABELS}
+              objectives={objectives}
+              owned={owned}
+              layers={layers}
+              faction={m.faction}
+              itemName={itemName}
+              focus={focus}
+              selectedQuest={selectedQuest}
               onSelectQuest={onSelectQuest}
-              gun={gun?.chosen ? gun.itemId : null}
+              onTick={onTick}
+              keyMarks={keyMarks}
+              findAreas={findAreas}
+              placing={placing !== null}
+              onPlace={onPlace}
+              onCancelPlace={cancelPlace}
+              exits={exits}
+            />
+          ) : (
+            <div className="empty">
+              <p>
+                {questState?.error ? (
+                  <LoadError what="map data" error={questState.error} />
+                ) : (
+                  'Loading map data…'
+                )}
+              </p>
+            </div>
+          )}
+          {reminder && reminderOpen && !placing && mainMap && (
+            <MapReminder
+              mapName={choices.find((c) => c.key === m.mapKey)?.name ?? mainMap.name}
+              reminder={reminder}
               items={items}
+              owned={owned}
+              friendsWith={friendsWith}
+              have={have}
+              onClose={closeReminder}
             />
           )}
-          <FavouritesPanel
-            settings={settings}
-            priceState={priceState}
-            findInfo={findInfo}
-            highlighted={highlighted}
-            colors={colors}
-            onHighlight={setHighlighted}
-            onOpenMap={(mapKey) => set({ mapKey })}
-          />
-        </div>
-      </main>
+          {lastTick && (
+            <div className="map-toast" role="status">
+              <span>
+                Ticked off: {tickedText} <span className="muted">— {lastTick.quest.name}</span>
+              </span>
+              <button className="link" onClick={undoTick}>
+                Undo
+              </button>
+            </div>
+          )}
+          <div className="map-side">
+            {!placing && (
+              <KillBanner
+                kills={kills}
+                mapNames={mapNames}
+                open={m.killsOpen}
+                onToggle={() => set({ killsOpen: !m.killsOpen })}
+                onSelectQuest={onSelectQuest}
+                gun={gun?.chosen ? gun.itemId : null}
+                items={items}
+              />
+            )}
+            <FavouritesPanel
+              settings={settings}
+              priceState={priceState}
+              findInfo={findInfo}
+              highlighted={highlighted}
+              colors={colors}
+              onHighlight={setHighlighted}
+              onOpenMap={(mapKey) => set({ mapKey })}
+            />
+          </div>
+        </main>
+      </div>
       {selected && dataset && (
         <QuestDetail
           row={selected}

@@ -22,6 +22,8 @@ import LoadError from './LoadError'
 import OverviewNav from './OverviewNav'
 import { ItemChip } from './QuestDetail'
 import SettingsLink from './SettingsLink'
+import Sidebar, { SidebarSection } from './Sidebar'
+import StationLevels from './StationLevels'
 
 // The Hideout tab (since 1.49.0): what to put on each station now. First what the hideout's upgrades
 // and quests still need (as Items to collect counts it), then the crafts that make the most money per
@@ -283,141 +285,162 @@ export default function CraftingView({
   const unbuiltHint = dataset && unbuilt.length > 0 && (
     <p className="hint crafting-unbuilt">
       Not built yet (so nothing to craft there): {unbuilt.map((s) => s.name).join(', ')}. Set how far each is
-      built in Items to collect.
+      built in the sidebar.
     </p>
   )
 
   return (
-    <div className="crafting-page">
-      <div className="summary">
-        <div className="summary-title">
-          <strong>Hideout</strong>
-          <span className="muted">
-            {dataset ? (
-              `${plans.length} station${plans.length === 1 ? '' : 's'} built · ` +
-              `${neededCount} craft${neededCount === 1 ? '' : 's'} for upgrades and quests · ` +
-              (c.currentOnly
-                ? 'counting the upgrades you can build now and active quests'
-                : `counting ${h.scope === 'next' ? 'next levels' : 'every level'} and ${h.questScope === 'active' ? 'active quests' : 'every quest left'}, as Items to collect does`) +
-              (c.firOnly ? ' · found in raid only' : '')
-            ) : questState?.error ? (
-              <LoadError what="the hideout" error={questState.error} />
-            ) : (
-              'Loading the hideout…'
-            )}
-          </span>
-        </div>
-        <p className="hint">
-          First what your upgrades and quests still need, then the most profit per hour
-          {c.minProfitMinutes ? ` from crafts of ${minutesText(c.minProfitMinutes)}` : ''}.{' '}
-          <SettingsLink section="crafting">Change the minimum</SettingsLink>
-        </p>
-        <div className="crafting-filters">
-          <div className="segmented small" role="radiogroup" aria-label="How to show stations">
-            {(
-              [
-                ['tiles', 'Overview', 'A tile per station saying what to craft next: click one for its list'],
-                ['list', 'List', 'Every station with its list, one under another']
-              ] as const
-            ).map(([id, text, title]) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={c.layout === id}
-                className={c.layout === id ? 'active' : ''}
-                title={title}
-                onClick={() => {
-                  // Overview also goes back from an opened station.
-                  openStation(null)
-                  void updateSettings({ crafting: { ...c, layout: id } })
-                }}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          <label
-            className="check fir-filter"
-            title="Only crafts for items that must be found in raid, where buying won't do"
-          >
-            <input
-              type="checkbox"
-              checked={c.firOnly}
-              onChange={(e) => void updateSettings({ crafting: { ...c, firOnly: e.target.checked } })}
-            />
-            Found in raid only
-          </label>
-          <label
-            className="check fir-filter"
-            title="Only what your active quests and the upgrades you can build now need (each station's next level, with the other stations and trader loyalty it needs met). Off: what Items to collect counts."
-          >
-            <input
-              type="checkbox"
-              checked={c.currentOnly}
-              onChange={(e) => void updateSettings({ crafting: { ...c, currentOnly: e.target.checked } })}
-            />
-            Current quests and upgrades only
-          </label>
-        </div>
-      </div>
-      {opened ? (
-        <div key={`station:${opened.stationId}`} className="crafting-stations opened">
-          <OverviewNav
-            items={plans.map((p) => ({ key: p.stationId, name: p.stationName }))}
-            current={opened.stationId}
-            name={opened.stationName}
-            label="Stations"
-            allLabel="All stations"
-            onOpen={openStation}
-          />
-          {card(opened, true)}
-        </div>
-      ) : c.layout === 'tiles' ? (
-        <div key="tiles" className="crafting-stations crafting-tiles">
-          {plans.map((plan, i) => (
-            <StationTile
-              key={plan.stationId}
-              plan={plan}
-              rank={i + 1}
-              first={plan.stationId === firstNeeded}
-              items={items}
-              onOpen={openStation}
-              onStart={(craft) => startCraft(craft, plan.stationName)}
-            />
-          ))}
-          {unbuiltHint}
-        </div>
-      ) : (
-        <div key="list" className="crafting-stations">
-          {plans.map((plan) => card(plan))}
-          {unbuiltHint}
-        </div>
-      )}
-      {started && (
-        <div className="crafting-toast" role="status">
-          <span>
-            Started {started.what} at {started.station}
-            <span className="muted">
-              {' · '}
-              {started.error ??
-                (Object.keys(started.after).length
-                  ? 'Have: ' +
-                    Object.keys(started.after)
-                      .map((id) => `${name(id)} ${started.before[id]} → ${started.after[id]}`)
-                      .join(', ')
-                  : 'nothing it makes or uses is counted in Items to collect')}
-            </span>
-          </span>
-          {Object.keys(started.after).length > 0 && (!started.error || started.undoFailed) && (
-            <button className="link" disabled={started.undoing} onClick={undoStart}>
-              {started.undoing ? 'Undoing…' : started.undoFailed ? 'Try again' : 'Undo'}
-            </button>
+    <div className="crafting">
+      <Sidebar view="crafting">
+        <SidebarSection title="Stations">
+          <p className="hint">Set how far each station is built. The game&rsquo;s logs don&rsquo;t say.</p>
+          <StationLevels stations={stations} progress={progress} />
+          {!stations.length && (
+            <p className="hint">
+              {questState?.error ? (
+                <LoadError what="the hideout" error={questState.error} />
+              ) : (
+                'Loading the hideout…'
+              )}
+            </p>
           )}
-          <button className="link-like muted" aria-label="Close" onClick={() => setStarted(null)}>
-            ✕
-          </button>
+        </SidebarSection>
+      </Sidebar>
+      <div className="crafting-page">
+        <div className="summary">
+          <div className="summary-title">
+            <strong>Hideout</strong>
+            <span className="muted">
+              {dataset ? (
+                `${plans.length} station${plans.length === 1 ? '' : 's'} built · ` +
+                `${neededCount} craft${neededCount === 1 ? '' : 's'} for upgrades and quests · ` +
+                (c.currentOnly
+                  ? 'counting the upgrades you can build now and active quests'
+                  : `counting ${h.scope === 'next' ? 'next levels' : 'every level'} and ${h.questScope === 'active' ? 'active quests' : 'every quest left'}, as Items to collect does`) +
+                (c.firOnly ? ' · found in raid only' : '')
+              ) : questState?.error ? (
+                <LoadError what="the hideout" error={questState.error} />
+              ) : (
+                'Loading the hideout…'
+              )}
+            </span>
+          </div>
+          <p className="hint">
+            First what your upgrades and quests still need, then the most profit per hour
+            {c.minProfitMinutes ? ` from crafts of ${minutesText(c.minProfitMinutes)}` : ''}.{' '}
+            <SettingsLink section="crafting">Change the minimum</SettingsLink>
+          </p>
+          <div className="crafting-filters">
+            <div className="segmented small" role="radiogroup" aria-label="How to show stations">
+              {(
+                [
+                  [
+                    'tiles',
+                    'Overview',
+                    'A tile per station saying what to craft next: click one for its list'
+                  ],
+                  ['list', 'List', 'Every station with its list, one under another']
+                ] as const
+              ).map(([id, text, title]) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={c.layout === id}
+                  className={c.layout === id ? 'active' : ''}
+                  title={title}
+                  onClick={() => {
+                    // Overview also goes back from an opened station.
+                    openStation(null)
+                    void updateSettings({ crafting: { ...c, layout: id } })
+                  }}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+            <label
+              className="check fir-filter"
+              title="Only crafts for items that must be found in raid, where buying won't do"
+            >
+              <input
+                type="checkbox"
+                checked={c.firOnly}
+                onChange={(e) => void updateSettings({ crafting: { ...c, firOnly: e.target.checked } })}
+              />
+              Found in raid only
+            </label>
+            <label
+              className="check fir-filter"
+              title="Only what your active quests and the upgrades you can build now need (each station's next level, with the other stations and trader loyalty it needs met). Off: what Items to collect counts."
+            >
+              <input
+                type="checkbox"
+                checked={c.currentOnly}
+                onChange={(e) => void updateSettings({ crafting: { ...c, currentOnly: e.target.checked } })}
+              />
+              Current quests and upgrades only
+            </label>
+          </div>
         </div>
-      )}
+        {opened ? (
+          <div key={`station:${opened.stationId}`} className="crafting-stations opened">
+            <OverviewNav
+              items={plans.map((p) => ({ key: p.stationId, name: p.stationName }))}
+              current={opened.stationId}
+              name={opened.stationName}
+              label="Stations"
+              allLabel="All stations"
+              onOpen={openStation}
+            />
+            {card(opened, true)}
+          </div>
+        ) : c.layout === 'tiles' ? (
+          <div key="tiles" className="crafting-stations crafting-tiles">
+            {plans.map((plan, i) => (
+              <StationTile
+                key={plan.stationId}
+                plan={plan}
+                rank={i + 1}
+                first={plan.stationId === firstNeeded}
+                items={items}
+                onOpen={openStation}
+                onStart={(craft) => startCraft(craft, plan.stationName)}
+              />
+            ))}
+            {unbuiltHint}
+          </div>
+        ) : (
+          <div key="list" className="crafting-stations">
+            {plans.map((plan) => card(plan))}
+            {unbuiltHint}
+          </div>
+        )}
+        {started && (
+          <div className="crafting-toast" role="status">
+            <span>
+              Started {started.what} at {started.station}
+              <span className="muted">
+                {' · '}
+                {started.error ??
+                  (Object.keys(started.after).length
+                    ? 'Have: ' +
+                      Object.keys(started.after)
+                        .map((id) => `${name(id)} ${started.before[id]} → ${started.after[id]}`)
+                        .join(', ')
+                    : 'nothing it makes or uses is counted in Items to collect')}
+              </span>
+            </span>
+            {Object.keys(started.after).length > 0 && (!started.error || started.undoFailed) && (
+              <button className="link" disabled={started.undoing} onClick={undoStart}>
+                {started.undoing ? 'Undoing…' : started.undoFailed ? 'Try again' : 'Undo'}
+              </button>
+            )}
+            <button className="link-like muted" aria-label="Close" onClick={() => setStarted(null)}>
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

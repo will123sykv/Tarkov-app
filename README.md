@@ -92,7 +92,9 @@ next time you close the app.
   - the container list is ranked by **average ₽ per search** at your level, so you can tell which
     containers are worth opening;
   - pick a **map** to use that map's loot tables, or leave it on "All maps";
-  - each container has a picture: a thumbnail in the list and a larger one when you hover over it.
+  - each container has a picture: a thumbnail in the list and a larger one when you hover over it;
+  - the header over the list says how many items are listed (and on which map), or, with a
+    container picked, what one search of it is worth.
 - **Flea trends.** Switch to **Flea trends** in the top bar to find flea items you could buy at one
   time of day and sell at another for a profit (see below).
 - **Quests, maps and raids** from the game's own log files (see below).
@@ -228,6 +230,12 @@ gun, and **Change in Weapons** there opens this tab on the map.
 Pictures are of the gun fully built (tarkov.dev's default preset of the weapon), not the bare
 receiver the quest names.
 
+**List** (beside **Overview** at the top) shows every map's card one under another instead of the
+tiles. Each game mode (PvP, PvE, the season) keeps its own guns, so a choice made in PvP isn't used in
+PvE. Choosing a gun also drops ones chosen for maps that no longer have kill quests needing
+particular weapons. Like To do, the tab follows **Only quests I can do** (the top says which, with a
+**Settings** link).
+
 ### Items to collect
 
 The **Items to collect** tab tracks your hideout and what your
@@ -359,6 +367,8 @@ screenshots; other resolutions and UI scales are scaled to match.
 
 The **Hideout** tab says what to put on each station you've built, going by what **Items to
 collect** counts as still needed (its **Count items for** choices, so the two always agree).
+**Stations** in the sidebar sets how far each station is built (**Not built**, then its levels), the
+same as in Items to collect.
 
 **Overview** (the default) shows a tile per station, like the To do tab's maps: what to craft next
 there, how many crafts your upgrades and quests need from it (and how many must be found in raid),
@@ -550,6 +560,8 @@ the game's install folder, or its `build` folder.
   Interchange's mall, the Lab's floors). **Show on map** on any objective jumps to it. Map images are downloaded the first time you
   open a map and kept, so they work offline afterwards. The Ground Zero tutorial, which tarkov.dev
   lists as a map of its own, is left out everywhere in the app.
+- **Header:** over the map, its name, how many quests have objectives there, its kill objectives
+  and your side's extracts (and **Only quests I can do**, when that's on).
 - **Before you raid:** opening a map (picking it, or **Show on map** from another tab) shows what a
   raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
   (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
