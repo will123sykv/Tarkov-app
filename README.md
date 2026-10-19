@@ -167,6 +167,12 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
   what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
+- **Guns for kill quests:** when a kill has to be made with particular weapons, the map shows a card
+  per quest with a large picture of a gun that counts. Click the picture to change it (the list only
+  has the guns that count for that quest), and **☆ Bring this one** to star it as the gun you're
+  taking: one per quest. Starred guns head the **Bring** list (**★ AKMS (for Supply Plans)**) and the
+  Maps tab's **Before you raid**, the kill objectives say **★ Bringing AKMS** (in To do and the quest's
+  details), and a quest whose kills have none starred says so.
 - **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
@@ -524,7 +530,8 @@ the game's install folder, or its `build` folder.
 - **Before you raid:** opening a map (picking it, or **Show on map** from another tab) shows what a
   raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
   (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
-  to plant or use, quest items, guns for kills, with how many you've put aside), and found-in-raid
+  to plant or use, quest items, the guns you've starred for kills on the To do tab and the ones that
+  would do for the rest, with how many you've put aside), and found-in-raid
   items to **Look out for**. It doesn't show when there's nothing to list.
 - **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
   until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its

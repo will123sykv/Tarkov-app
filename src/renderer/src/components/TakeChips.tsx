@@ -1,4 +1,4 @@
-import type { BringItem, WeaponsToBring } from '../../../shared/todo'
+import type { BringItem, StarredGun, WeaponsToBring } from '../../../shared/todo'
 import type { useItemLookup } from '../lib/useItemLookup'
 
 // What to take into a raid, as chips: the To do tab's Bring and the map's reminder.
@@ -23,6 +23,20 @@ export function WeaponChoice({ weapon, items }: { weapon: WeaponsToBring; items:
         {names[0]}
         {others > 0 && <span className="muted"> or {plural(others, 'other')}</span>}
         {weapon.anyMap && <span className="muted"> (any map)</span>}
+      </span>
+    </span>
+  )
+}
+
+/** A gun starred to bring (since 1.53.0), and the quests it's for. */
+export function StarredGunChip({ gun, items }: { gun: StarredGun; items: Items }): React.JSX.Element {
+  const item = items.get(gun.itemId)
+  const quests = gun.quests.map((q) => q.name).join(', ')
+  return (
+    <span className="item-chip weapon starred" title={`The gun you've starred to bring for ${quests}`}>
+      {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
+      <span>
+        ★ {item?.name ?? 'Unknown weapon'} <span className="muted">(for {quests})</span>
       </span>
     </span>
   )

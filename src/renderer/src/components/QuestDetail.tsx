@@ -39,6 +39,7 @@ import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
 import ErrorBoundary from './ErrorBoundary'
 import FavouriteStar from './FavouriteStar'
+import { KillGunTag } from './GunCards'
 import SquadIcon from './SquadIcon'
 
 interface Props {
@@ -327,6 +328,7 @@ function Objective({
         <span className="objective-text">
           {objective.description || objective.type}
           {squadShared(quest, objective) && <SquadIcon />}
+          {!done && <KillGunTag quest={quest} objective={objective} items={items} />}
           {objective.optional && <span className="tag">optional</span>}
           {objective.wiki &&
             ('added' in objective.wiki ? (

@@ -175,6 +175,17 @@ export interface TodoSettings {
   layout: 'maps' | 'list'
   /** Friends' keys (from their codes) count as yours for what you can do: a squad's keys (since 1.35.0). */
   squadKeys: boolean
+  /**
+   * The gun shown for each kill objective that needs particular weapons, keyed "questId:objectiveId",
+   * and whether it's starred as the one to bring (since 1.53.0).
+   */
+  guns: Record<string, GunPick>
+}
+
+/** A gun picked for a kill objective, and whether it's the one to bring. */
+export interface GunPick {
+  itemId: string
+  favourite: boolean
 }
 
 /** A column of the Hideout tab's lists of crafts for upgrades and quests ('priority': the app's order). */

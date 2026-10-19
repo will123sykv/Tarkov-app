@@ -11,6 +11,7 @@ import type {
   AppView,
   CraftingSettings,
   CraftSortKey,
+  GunPick,
   GameMode,
   HideoutSettings,
   KeyFriend,
@@ -99,7 +100,7 @@ export const DEFAULT_SETTINGS: Settings = {
     tab: 'items',
     craftsReadyOnly: true
   },
-  todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
+  todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false, guns: {} },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
   crafting: {
     minProfitMinutes: 30,
@@ -361,8 +362,22 @@ function sanitizeTodo(raw: unknown): TodoSettings {
     kinds: r.kinds === 'kill' || r.kinds === 'locate' ? r.kinds : 'all',
     view: r.view === 'full' ? 'full' : 'summary',
     layout: r.layout === 'list' ? 'list' : 'maps',
-    squadKeys: r.squadKeys === true
+    squadKeys: r.squadKeys === true,
+    guns: sanitizeGuns(r.guns)
   }
+}
+
+/** At most this many guns picked for kill objectives. */
+const MAX_GUNS = 500
+
+function sanitizeGuns(raw: unknown): Record<string, GunPick> {
+  const guns: Record<string, GunPick> = {}
+  if (!isRecord(raw)) return guns
+  for (const [key, value] of Object.entries(raw).slice(0, MAX_GUNS)) {
+    if (!isRecord(value) || typeof value.itemId !== 'string' || !value.itemId || key.length > 200) continue
+    guns[key] = { itemId: value.itemId.slice(0, 64), favourite: value.favourite === true }
+  }
+  return guns
 }
 
 function sanitizeKeys(raw: unknown): KeysSettings {

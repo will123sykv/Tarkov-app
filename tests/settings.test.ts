@@ -509,11 +509,19 @@ describe('sanitizeSettings', () => {
       kinds: 'all',
       view: 'summary',
       layout: 'maps',
-      squadKeys: false
+      squadKeys: false,
+      guns: {}
     })
     // 1.17–1.18's key switch gives way to the filters' defaults.
     expect(sanitizeSettings({ todo: { keys: true } }).todo).toEqual(DEFAULT_SETTINGS.todo)
-    const chosen = { show: 'doable', kinds: 'kill', view: 'full', layout: 'list', squadKeys: true } as const
+    const chosen = {
+      show: 'doable',
+      kinds: 'kill',
+      view: 'full',
+      layout: 'list',
+      squadKeys: true,
+      guns: {}
+    } as const
     expect(sanitizeSettings({ todo: chosen }).todo).toEqual(chosen)
     expect(sanitizeSettings({ todo: { kinds: 'locate' } }).todo.kinds).toBe('locate')
     // Friends' keys count only when switched on (since 1.35.0).
@@ -528,6 +536,21 @@ describe('sanitizeSettings', () => {
     expect(
       mergeSettings(DEFAULT_SETTINGS, { todo: { ...DEFAULT_SETTINGS.todo, show: 'doable' } }).todo.show
     ).toBe('doable')
+  })
+
+  it('keeps the guns picked and starred for kill objectives (since 1.53.0)', () => {
+    const guns = {
+      'q1:o1': { itemId: 'm4a1', favourite: true },
+      'q2:o2': { itemId: 'akm', favourite: false }
+    }
+    expect(sanitizeSettings({ todo: { guns } }).todo.guns).toEqual(guns)
+    // Anything else is dropped; a favourite is only ever true or false.
+    expect(
+      sanitizeSettings({
+        todo: { guns: { a: { itemId: '' }, b: 'm4a1', c: { itemId: 'akm', favourite: 'yes' } } }
+      }).todo.guns
+    ).toEqual({ c: { itemId: 'akm', favourite: false } })
+    expect(sanitizeSettings({ todo: { guns: [1, 2] } }).todo.guns).toEqual({})
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

@@ -5639,3 +5639,198 @@ p.quest-before.done {
   grid-column: 1 / -1;
   font-size: 12px;
 }
+
+/* Guns for kill quests (since 1.53.0): a large picture per kill, a picker of the guns that count, and a
+   star for the one to bring. */
+.todo-guns {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.todo-guns h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.todo-guns h4 .muted {
+  font-weight: 400;
+}
+
+.gun-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+}
+
+.gun-card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.gun-card.starred {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.gun-card-pick {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gun-card-pick:disabled {
+  cursor: default;
+}
+
+.gun-card-pick:not(:disabled):hover .gun-picture {
+  outline: 1px solid var(--accent);
+}
+
+.gun-card-pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gun-picture {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}
+
+.gun-card-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gun-card-name .muted {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.gun-card-for {
+  display: grid;
+  gap: 2px;
+}
+
+.gun-star {
+  justify-self: start;
+  padding: 3px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.gun-star:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.gun-star.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+.gun-picker {
+  position: absolute;
+  top: 128px;
+  left: 10px;
+  right: 10px;
+  z-index: 20;
+  max-height: 260px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.gun-picker button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gun-picker button:hover,
+.gun-picker button[aria-selected='true'] {
+  background: var(--panel-2);
+}
+
+.gun-picker img {
+  width: 48px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.gun-picker button > span:first-of-type {
+  flex: 1;
+}
+
+/* After a kill objective: the gun starred to bring, or that none is yet. */
+.tag.gun-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag.gun-tag.starred {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+.tag.gun-tag img {
+  width: 28px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.todo-gun {
+  font-size: 12px;
+}
+
+.todo-gun.starred {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.item-chip.weapon.starred > span {
+  color: var(--accent-strong);
+  font-weight: 600;
+}

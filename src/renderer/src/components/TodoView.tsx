@@ -14,6 +14,7 @@ import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../share
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
   anyMapTake,
+  killGuns,
   mapOverview,
   objectiveMapIds,
   questSummary,
@@ -21,7 +22,8 @@ import {
   type KeyToGet,
   type MapGroup,
   type MapPlan,
-  type TodoStep
+  type TodoStep,
+  weaponsToTake
 } from '../../../shared/todo'
 import { squadShared } from '../../../shared/squad'
 import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
@@ -41,7 +43,8 @@ import OverviewNav from './OverviewNav'
 import { FriendTags } from './FriendKeys'
 import SettingsLink from './SettingsLink'
 import SquadIcon from './SquadIcon'
-import { BringChip, WeaponChoice } from './TakeChips'
+import { GunCards, KillGunTag, starredGun, useGunPicks } from './GunCards'
+import { BringChip, StarredGunChip, WeaponChoice } from './TakeChips'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -59,6 +62,7 @@ const Icon = ({ path, className }: { path: string; className?: string }): React.
 )
 
 const NO_TAKE = { weapons: [], bring: [] }
+const NO_STEPS: readonly TodoStep[] = []
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -69,7 +73,8 @@ function Step({
   mapsById,
   objectives,
   detected,
-  keyName
+  keyName,
+  items
 }: {
   step: TodoStep
   group: MapGroup | null
@@ -77,6 +82,7 @@ function Step({
   objectives: ObjectiveProgress
   detected: DetectedProgress
   keyName: (keyId: string) => string
+  items: Items
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
   const { quest, objective, missing } = step
@@ -107,6 +113,7 @@ function Step({
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
           )}
+          <KillGunTag quest={quest} objective={objective} items={items} />
           {objective.requiredKeys.length > 0 && !missing.length && (
             <span title="Needs a key you have">
               <Icon path={mdiKeyVariant} className="key" />
@@ -221,6 +228,12 @@ function QuestCard({
   const missing = [...new Map(steps.flatMap((s) => s.missing).map((k) => [k.join(), k])).values()]
   const reward = rewardLine(quest, items, trader)
   const blocked = plan.blocked.includes(quest)
+  // Its kills that need particular weapons: the guns starred to bring, or that none is yet.
+  const { guns } = useGunPicks()
+  const kills = steps.filter((s) => s.objective.weapons?.length)
+  const starred = [
+    ...new Set(kills.map((s) => starredGun(guns, quest, s.objective)).filter((id) => id !== null))
+  ]
   return (
     <li className={`todo-card ${blocked ? 'todo-blocked' : ''}`}>
       <div className="todo-quest-head">
@@ -267,6 +280,16 @@ function QuestCard({
         ))}
         {more > 0 && <li className="muted todo-more">+{plural(more, 'more objective')}</li>}
       </ul>
+      {kills.length > 0 &&
+        (starred.length ? (
+          <div className="todo-gun starred" title="The gun you've starred to bring for its kills">
+            ★ Bringing {starred.map((id) => items.get(id)?.name ?? 'Unknown weapon').join(', ')}
+          </div>
+        ) : (
+          <div className="todo-gun muted" title="Its kills need particular weapons: star one under Guns">
+            No gun starred: pick one under Guns
+          </div>
+        ))}
       {missing.map((keyIds) => (
         <div key={keyIds.join()} className="todo-missing">
           <Icon path={mdiAlertOutline} />
@@ -310,7 +333,8 @@ function MapCard({
   onOpenQuest,
   onOpenMap,
   wide = false,
-  anyMap = NO_TAKE
+  anyMap = NO_TAKE,
+  anyMapSteps = NO_STEPS
 }: {
   plan: MapPlan
   rank: number
@@ -334,8 +358,13 @@ function MapCard({
   /** Weapons for kills on any map, which can be done here too. */
   /** What objectives on any map have you take in (kills' weapons, items to use up). */
   anyMap?: ReturnType<typeof anyMapTake>
+  /** Objectives on any map, for the guns their kills need. */
+  anyMapSteps?: readonly TodoStep[]
 }): React.JSX.Element {
-  const { weapons, bring } = takeToMap(plan, anyMap)
+  const { bring } = takeToMap(plan, anyMap)
+  const { guns } = useGunPicks()
+  const kills = killGuns(plan.steps, anyMapSteps, guns)
+  const { starred, undecided: weapons } = weaponsToTake(kills)
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
   const reason = [
@@ -432,6 +461,7 @@ function MapCard({
                       objectives={objectives}
                       detected={detected}
                       keyName={keyName}
+                      items={items}
                     />
                   ))}
               </ol>
@@ -439,7 +469,23 @@ function MapCard({
           ))}
         </ul>
       )}
-      {(plan.keys.length > 0 || bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
+      {kills.length > 0 && (
+        <section className="todo-guns">
+          <h4>
+            Guns for kill quests{' '}
+            <span className="muted">
+              · click one to change it, ☆ to star the one you&rsquo;re bringing (it shows in the map&rsquo;s
+              reminder)
+            </span>
+          </h4>
+          <GunCards kills={kills} items={items} />
+        </section>
+      )}
+      {(plan.keys.length > 0 ||
+        bring.length > 0 ||
+        plan.questItems.length > 0 ||
+        weapons.length > 0 ||
+        starred.length > 0) && (
         <div className="todo-take">
           {plan.keys.length > 0 && (
             <div>
@@ -461,10 +507,13 @@ function MapCard({
               </span>
             </div>
           )}
-          {(bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0) && (
+          {(bring.length > 0 || plan.questItems.length > 0 || weapons.length > 0 || starred.length > 0) && (
             <div>
               <span className="todo-take-label">Bring</span>
               <span className="todo-take-list">
+                {starred.map((g) => (
+                  <StarredGunChip key={g.itemId} gun={g} items={items} />
+                ))}
                 {weapons.map((w) => (
                   <WeaponChoice key={w.itemIds.join()} weapon={w} items={items} />
                 ))}
@@ -905,6 +954,7 @@ export default function TodoView({
       onOpenMap={openMap}
       wide={wide}
       anyMap={anyMap}
+      anyMapSteps={plan.anyMap}
     />
   )
   const segmented = <T extends string>(
@@ -1039,6 +1089,7 @@ export default function TodoView({
                       objectives={objectives}
                       detected={detected}
                       keyName={keyName}
+                      items={items}
                     />
                   </ol>
                 </li>
