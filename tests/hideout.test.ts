@@ -447,6 +447,82 @@ describe('upgradeStatus', () => {
     expect(upgradeStatus(fir, progress({ bolts: 2 }), ctx(), items, stations).state).toBe('buyable')
   })
 
+  it('plans crafting every part that must be found in raid, when each can be made now', () => {
+    const fir = level(3, [
+      ['bolts', 3, true],
+      ['screws', 4, true],
+      ['drill', 1]
+    ])
+    const WB = station('wb', 'Workbench', [level(1, []), level(2, [])])
+    const both = new Map([
+      ['gen', GEN],
+      ['wb', WB]
+    ])
+    // Two bolts for a screw, an hour a time; four screws for a drill, half an hour.
+    const crafts = (screwsAt: string, extra: Partial<HideoutCraft> = {}) => [
+      craft('b', 'gen', 1, [['screws', 1]], [['bolts', 2]]),
+      { ...craft('s', screwsAt, 1, [['drill', 1]], [['screws', 4]]), duration: 1800, ...extra }
+    ]
+    const plan = (c: HideoutCraft[], levels = { gen: 2, wb: 1 }, extra: Partial<BuyContext> = {}) =>
+      upgradeStatus(fir, progress({}, levels), ctx(extra), items, both, c).craftAll
+
+    // At the same station they run one after the other: two bolt runs, then the screws.
+    const same = upgradeStatus(fir, progress({}, { gen: 2, wb: 1 }), ctx(), items, both, crafts('gen'))
+    expect(same.state).toBe('short')
+    expect(same.craftAll).toMatchObject({
+      cost: 2 * 9_000 + 40_000,
+      time: 2 * 3600 + 1800,
+      totalTime: 2 * 3600 + 1800
+    })
+    expect(same.craftAll!.crafts.map((c) => [c.itemId, c.craft.craft.id, c.runs])).toEqual([
+      ['bolts', 'b', 2],
+      ['screws', 's', 1]
+    ])
+    // At different stations they run at once: the longest queue is the time.
+    expect(plan(crafts('wb'))).toMatchObject({ time: 2 * 3600, totalTime: 2 * 3600 + 1800 })
+    // A station not built far enough, or a quest not done: no plan.
+    expect(plan(crafts('wb'), { gen: 2, wb: 0 })).toBeNull()
+    expect(plan(crafts('wb', { questId: 'q1' }))).toBeNull()
+    expect(
+      plan(crafts('wb', { questId: 'q1' }), undefined, { completedQuests: new Set(['q1']) })
+    ).not.toBeNull()
+    // Something else that can't be bought but can be crafted now is crafted too.
+    const withLedx = level(3, [
+      ...fir.items.map((i) => [i.itemId, i.count, i.foundInRaid] as [string, number, boolean]),
+      ['ledx', 1]
+    ])
+    const ledx = upgradeStatus(withLedx, progress({}, { gen: 2, wb: 1 }), ctx(), items, both, [
+      ...crafts('wb'),
+      craft('l', 'gen', 1, [['bolts', 1]], [['ledx', 1]])
+    ]).craftAll
+    expect(ledx?.crafts.map((c) => [c.itemId, c.runs])).toEqual([
+      ['bolts', 2],
+      ['screws', 1],
+      ['ledx', 1]
+    ])
+    expect(ledx).toMatchObject({ cost: 2 * 9_000 + 40_000 + 24_000, time: 3 * 3600 })
+    // Something else that can't be bought or made: no plan.
+    const withUnknown = level(3, [
+      ...fir.items.map((i) => [i.itemId, i.count, i.foundInRaid] as [string, number, boolean]),
+      ['unknown', 1]
+    ])
+    expect(
+      upgradeStatus(withUnknown, progress({}, { gen: 2, wb: 1 }), ctx(), items, both, crafts('wb')).craftAll
+    ).toBeNull()
+    // Nothing to find in raid: nothing to plan.
+    expect(upgradeStatus(target, progress({}), ctx(), items, stations).craftAll).toBeNull()
+  })
+
+  it('lists crafts for parts that can be bought too, buying staying the price', () => {
+    const parts = level(3, [['screws', 4]])
+    const status = upgradeStatus(parts, progress({}), ctx(), items, stations, [
+      craft('d', 'gen', 1, [['bolts', 1]], [['screws', 4]])
+    ])
+    expect(status.partsCost).toBe(4 * 9_000)
+    expect(status.parts[0].best?.label).toBe('Flea')
+    expect(status.parts[0].crafts.map((c) => [c.craft.id, c.costEach])).toEqual([['d', 6_000]])
+  })
+
   describe('crafts', () => {
     const WB = station('wb', 'Workbench', [level(1, []), level(2, []), level(3, [])])
     const both = new Map([

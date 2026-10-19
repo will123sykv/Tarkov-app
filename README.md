@@ -238,6 +238,17 @@ station's level in the sidebar (the Stash starts at level 1).
   can buy the rest for, cheapest first. Parts that must be found in raid aren't priced: they say
   how many to find in raid, or the craft that makes them, and keep the card from **Can buy the
   rest**.
+- **Can craft the rest:** an upgrade whose found-in-raid items can all be crafted now (stations
+  built far enough, quests done, and what the crafts use up on sale), along with anything else it
+  needs that can't be bought, gets a red border and a red **Can craft the rest** badge. It says what
+  crafting them costs and how long until it's all made: each station makes one thing at a time and
+  different stations work at once, so it's the longest station's queue; hover it for each craft and
+  all the crafting added up. The total adds buying the rest and the build's own cost. These come
+  after the ready, buyable and waiting upgrades, cheapest first.
+- **Buy or craft each part:** a part that can be bought shows the cheapest way to buy it first (the
+  flea or a trader), then **or craft at …** with what crafting one costs (greyed, with what it needs,
+  when you can't make it yet). The card's cost stays on buying. A part where only some copies must be
+  found in raid shows both: buying the rest, and crafting or finding those.
 - **Buy or craft** shows the cheapest way to get one now. Items you buy never count as found in
   raid, so for ones that must be found in raid there's no price: it says **Craft** when one of your
   hideout's stations makes it (crafted items count as found in raid), with what buying what the

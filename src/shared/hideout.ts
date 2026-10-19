@@ -649,8 +649,25 @@ export interface UpgradePart {
   best: BuyOption | null
   /** What would open up a way to buy it, when there's none now. */
   locked: string[]
-  /** Ways to make it, best first, when some must be found in raid. */
+  /** Ways to make it, ones you can make now first, then the cheapest. */
   crafts: CraftOption[]
+}
+
+/**
+ * Crafting every part that must be found in raid (and any other that can't be bought now), when each
+ * has a craft you can make now; the rest are bought.
+ */
+export interface CraftAllPlan {
+  /** Roubles to buy what the crafts use up. */
+  cost: number
+  /**
+   * Seconds until it's all made: each station makes one thing at a time, different stations at
+   * once, so the longest station's queue.
+   */
+  time: number
+  /** Every craft's time added up. */
+  totalTime: number
+  crafts: { itemId: string; craft: CraftOption; runs: number }[]
 }
 
 export interface UpgradeStatus {
@@ -673,6 +690,40 @@ export interface UpgradeStatus {
   moneyCost: number | null
   unmetStations: { stationId: string; level: number }[]
   unmetTraders: { traderId: string; level: number }[]
+  /**
+   * When every part that must be found in raid can be crafted now (and the rest bought): what that
+   * costs and how long it takes. Null otherwise. Since 1.48.0.
+   */
+  craftAll: CraftAllPlan | null
+}
+
+/**
+ * A plan to craft every part still to find in raid, and any other that can't be bought now; null when
+ * nothing must be found in raid, or when one of them can't be made now.
+ */
+function craftAllPlan(parts: readonly UpgradePart[]): CraftAllPlan | null {
+  if (!parts.some((p) => p.find > 0)) return null
+  const crafts: CraftAllPlan['crafts'] = []
+  for (const part of parts) {
+    // Copies to find in raid, plus the rest when they can't be bought.
+    const count = part.find + (part.best ? 0 : part.missing - part.find)
+    if (count <= 0) continue
+    const craft = part.crafts.find((o) => canCraft(o) && o.costEach !== null)
+    if (!craft || craft.makes <= 0) return null
+    crafts.push({ itemId: part.itemId, craft, runs: Math.ceil(count / craft.makes) })
+  }
+  const byStation = new Map<string, number>()
+  for (const { craft, runs } of crafts)
+    byStation.set(
+      craft.craft.stationId,
+      (byStation.get(craft.craft.stationId) ?? 0) + runs * craft.craft.duration
+    )
+  return {
+    cost: crafts.reduce((sum, c) => sum + c.runs * c.craft.makes * (c.craft.costEach ?? 0), 0),
+    time: Math.max(...byStation.values()),
+    totalTime: [...byStation.values()].reduce((a, b) => a + b, 0),
+    crafts
+  }
 }
 
 const ROUBLES_ID = Object.keys(CURRENCIES).find((id) => CURRENCIES[id] === '₽')
@@ -714,7 +765,7 @@ export function upgradeStatus(
       find,
       best: buy.options[0] ?? null,
       locked: buy.locked,
-      crafts: find ? craftOptions(itemId, { crafts, stations: stationsById, progress, items }, ctx) : []
+      crafts: missing ? craftOptions(itemId, { crafts, stations: stationsById, progress, items }, ctx) : []
     })
   }
   const short = parts.filter((p) => p.missing > p.find)
@@ -728,7 +779,19 @@ export function upgradeStatus(
   const unmetTraders = level.traders.filter((r) => (ctx.traderLevels[r.traderId] ?? 1) < r.level)
   const met = !unmetStations.length && !unmetTraders.length
   const state = unbuyable || toFind ? 'short' : !met ? 'blocked' : short.length ? 'buyable' : 'ready'
-  return { state, parts, partsCost, unbuyable, toFind, money, moneyCost, unmetStations, unmetTraders }
+  const craftAll = craftAllPlan(parts)
+  return {
+    state,
+    parts,
+    partsCost,
+    unbuyable,
+    toFind,
+    money,
+    moneyCost,
+    unmetStations,
+    unmetTraders,
+    craftAll
+  }
 }
 
 const NO_ITEM: Pick<LootItem, 'bannedOnFlea' | 'minLevelForFlea' | 'fleaPrice' | 'buyFrom'> = {

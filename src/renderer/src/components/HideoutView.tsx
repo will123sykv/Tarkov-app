@@ -16,6 +16,7 @@ import {
   unneededHave,
   UPGRADE_ORDER,
   upgradeStatus,
+  type CraftAllPlan,
   type UpgradePart,
   type UpgradeStatus,
   type BuyContext,
@@ -410,6 +411,42 @@ function PartCraft({ part, items }: { part: UpgradePart; items: Items }): React.
   )
 }
 
+/** For a part that can be bought: the best craft that makes it too, the alternative to buying it. */
+function OrCraft({ part, items }: { part: UpgradePart; items: Items }): React.JSX.Element {
+  const best = part.crafts[0]
+  const ready = canCraft(best)
+  return (
+    <small
+      className={ready ? 'or-craft' : 'or-craft muted'}
+      title={part.crafts.map((o) => `• ${craftText(o, items)}`).join('\n')}
+    >
+      or craft at {best.stationName} {best.craft.level}
+      {ready
+        ? best.costEach !== null
+          ? ` · ≈ ${formatRub(best.costEach)} each`
+          : ''
+        : !best.stationReady
+          ? ` (yours is ${best.stationLevel ? `level ${best.stationLevel}` : 'not built'})`
+          : ` after ${best.questName}`}
+    </small>
+  )
+}
+
+/** What crafting the rest of an upgrade takes, craft by craft. */
+function craftPlanText(plan: CraftAllPlan, items: Items): string {
+  return [
+    'Crafted items count as found in raid. Each station makes one thing at a time; different stations work at once.',
+    ...plan.crafts.map(
+      ({ itemId, craft, runs }) =>
+        `• ${items.get(itemId)?.name ?? 'An item'}: ${runs} × ${craft.stationName} ${craft.craft.level} (${formatDuration(craft.craft.duration)} each, makes ${craft.makes})`
+    ),
+    `All the crafting added up: ${formatDuration(plan.totalTime)}`
+  ].join('\n')
+}
+
+/** What an upgrade would cost to finish now: buying the rest, and crafting what must be found in raid. */
+const upgradeCost = (s: UpgradeStatus): number => s.partsCost + (s.craftAll?.cost ?? 0)
+
 /** What a station's next level takes, what buying the rest would cost, and a button to mark it built. */
 function UpgradeCard({
   station,
@@ -431,7 +468,8 @@ function UpgradeCard({
   ctx: BuyContext
 }): React.JSX.Element {
   const build = useStore((s) => s.buildStationLevel)
-  const badge = UPGRADE_BADGE[status.state]
+  const plan = status.state === 'short' ? status.craftAll : null
+  const badge = plan ? { className: 'bad', text: 'Can craft the rest' } : UPGRADE_BADGE[status.state]
   const missing = status.parts.filter((p) => p.missing > 0)
   // What can be bought: parts that needn't be found in raid (bought ones never are).
   const buyable = missing.filter((p) => p.best && p.missing > p.find)
@@ -442,9 +480,10 @@ function UpgradeCard({
     ),
     ...status.unmetTraders.map((r) => `${traderName(r.traderId)} LL${r.level}`)
   ]
-  const total = status.moneyCost !== null ? status.partsCost + status.moneyCost : null
+  const total =
+    status.moneyCost !== null ? status.partsCost + status.moneyCost + (plan ? plan.cost : 0) : null
   return (
-    <article className={`upgrade-card ${status.state}`}>
+    <article className={`upgrade-card ${status.state} ${plan ? 'craftable' : ''}`.trim()}>
       <header>
         <StationIcon station={station} />
         <div>
@@ -464,22 +503,34 @@ function UpgradeCard({
             {buyable.length > 0 && (
               <>
                 <strong>≈ {formatRub(status.partsCost)}</strong> to buy{' '}
-                {buyable.length === missing.length && !status.toFind ? 'the rest' : 'what you can'} (
-                {buyable.length} item
-                {buyable.length === 1 ? '' : 's'})
+                {plan
+                  ? `${buyable.length} item${buyable.length === 1 ? '' : 's'}`
+                  : `${buyable.length === missing.length && !status.toFind ? 'the rest' : 'what you can'} (${buyable.length} item${buyable.length === 1 ? '' : 's'})`}
               </>
             )}
-            {status.unbuyable > 0 && (
+            {status.unbuyable > 0 && !plan && (
               <span className="muted">
                 {buyable.length > 0 ? ' · ' : ''}
                 {status.unbuyable} item{status.unbuyable === 1 ? '' : 's'} you can&rsquo;t buy yet
               </span>
             )}
-            {status.toFind > 0 && (
-              <span className="muted" title="Bought items never count as found in raid; crafted ones do">
-                {buyable.length > 0 || status.unbuyable > 0 ? ' · ' : ''}
-                {status.toFind} to find in raid or craft
+            {plan ? (
+              <span className="upgrade-craft" title={craftPlanText(plan, items)}>
+                {buyable.length > 0 ? ' · ' : ''}
+                <strong>≈ {formatRub(plan.cost)}</strong> to craft {plan.crafts.length} item
+                {plan.crafts.length === 1 ? '' : 's'}
+                {plan.crafts.length > status.toFind
+                  ? ` (${status.toFind} found in raid)`
+                  : ' found in raid'}{' '}
+                · {formatDuration(plan.time)} of crafting
               </span>
+            ) : (
+              status.toFind > 0 && (
+                <span className="muted" title="Bought items never count as found in raid; crafted ones do">
+                  {buyable.length > 0 || status.unbuyable > 0 ? ' · ' : ''}
+                  {status.toFind} to find in raid or craft
+                </span>
+              )
             )}
           </span>
         )}
@@ -491,11 +542,13 @@ function UpgradeCard({
               ` (≈ ${formatRub(status.moneyCost)})`}
           </span>
         )}
-        {total !== null && status.state !== 'short' && (missing.length > 0 || status.money.length > 0) && (
-          <span className="upgrade-total">
-            Total ≈ <strong>{formatRub(total)}</strong>
-          </span>
-        )}
+        {total !== null &&
+          (status.state !== 'short' || plan) &&
+          (missing.length > 0 || status.money.length > 0) && (
+            <span className="upgrade-total">
+              Total ≈ <strong>{formatRub(total)}</strong>
+            </span>
+          )}
         {waiting.length > 0 && <span className="upgrade-waiting">Waiting on {waiting.join(', ')}</span>}
       </div>
       {status.parts.length > 0 && (
@@ -512,18 +565,19 @@ function UpgradeCard({
                   {item?.name ?? 'Unknown item'}
                   {fir && <span className="tag fir">FIR</span>}
                   {scarce && <ScarceBadge scarce={scarce} />}
+                  {p.missing > p.find && (
+                    <small className={p.best ? '' : 'muted'}>
+                      {p.best
+                        ? `${p.missing - p.find} × ${formatRub(p.best.price)} · ${p.best.label}`
+                        : p.locked.length
+                          ? `Can’t buy yet: ${p.locked.join(', ')}`
+                          : 'Nobody sells it'}
+                    </small>
+                  )}
                   {p.find > 0 ? (
                     <PartCraft part={p} items={items} />
                   ) : (
-                    p.missing > 0 && (
-                      <small className={p.best ? '' : 'muted'}>
-                        {p.best
-                          ? `${p.missing} × ${formatRub(p.best.price)} · ${p.best.label}`
-                          : p.locked.length
-                            ? `Can’t buy yet: ${p.locked.join(', ')}`
-                            : 'Nobody sells it'}
-                      </small>
-                    )
+                    p.missing > 0 && p.crafts.length > 0 && <OrCraft part={p} items={items} />
                   )}
                 </span>
                 <span className="num">
@@ -677,11 +731,13 @@ export default function HideoutView({
     })
     .filter((u): u is { station: HideoutStation; next: HideoutLevel } => u.next !== undefined)
     .map((u) => ({ ...u, status: upgradeStatus(u.next, progress, ctx, items, stationsById, cc.crafts) }))
-    // Ready first, then what can be bought (cheapest first), then the rest.
+    // Ready first, then what can be bought (cheapest first), then waiting, then what can be crafted
+    // (cheapest first), then the rest.
     .sort(
       (a, b) =>
         UPGRADE_ORDER[a.status.state] - UPGRADE_ORDER[b.status.state] ||
-        a.status.partsCost - b.status.partsCost ||
+        Number(!a.status.craftAll) - Number(!b.status.craftAll) ||
+        upgradeCost(a.status) - upgradeCost(b.status) ||
         a.station.name.localeCompare(b.station.name)
     )
   const readyCount = upgrades.filter((u) => u.status.state === 'ready').length

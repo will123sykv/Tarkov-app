@@ -2551,10 +2551,10 @@ button.link.small {
   border-radius: 3px;
 }
 
+/* Names and their buy and craft lines wrap rather than being cut off. */
 .upgrade-item-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .upgrade-items li.done,
@@ -2600,6 +2600,25 @@ button.link.small {
   box-shadow: inset 3px 0 var(--warn);
 }
 
+/* Everything left to find in raid can be crafted now (and the rest bought). */
+.upgrade-card.craftable {
+  border-color: rgba(213, 99, 79, 0.75);
+  box-shadow: inset 3px 0 var(--bad);
+}
+
+.upgrade-card.craftable .upgrade-craft strong {
+  color: var(--bad);
+}
+
+.upgrade-items .or-craft {
+  display: block;
+  color: var(--info);
+}
+
+.upgrade-items .or-craft.muted {
+  color: var(--muted);
+}
+
 .upgrade-cost {
   display: grid;
   gap: 2px;
@@ -2627,9 +2646,6 @@ button.link.small {
   display: block;
   font-size: 11px;
   color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .upgrade-item-name small.muted {
