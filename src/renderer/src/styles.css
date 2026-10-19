@@ -5432,6 +5432,51 @@ p.quest-before.done {
   border-radius: 8px;
 }
 
+/* The overview: a tile per station, like To do's maps (since 1.51.0). */
+.crafting-stations.crafting-tiles {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.crafting-tile.idle {
+  opacity: 0.75;
+}
+
+.crafting-tile-next {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border-radius: 6px;
+}
+
+.crafting-tile-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-weight: 600;
+}
+
+.crafting-tile-next .muted {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+}
+
+.crafting-tile .gain {
+  color: var(--ok);
+}
+
+.crafting-tile .todo-tile-head > .muted {
+  font-size: 12px;
+}
+
+/* An opened station: the nav above its card, full width. */
+.crafting-stations.opened {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* A station with a list of crafts gets the whole row, so its table isn't squeezed. */
 .crafting-station.wide {
   grid-column: 1 / -1;

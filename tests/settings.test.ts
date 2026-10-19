@@ -399,12 +399,13 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ maps: { hiddenQuests: 'all' } }).maps.hiddenQuests).toEqual([])
   })
 
-  it('keeps the Hideout tab’s minimum profit time, list order and filters (since 1.49.0)', () => {
+  it('keeps the Hideout tab’s minimum profit time, list order, filters and layout (since 1.49.0)', () => {
     expect(sanitizeSettings({}).crafting).toEqual({
       minProfitMinutes: 30,
       sort: { key: 'priority', desc: false },
       firOnly: false,
-      currentOnly: false
+      currentOnly: false,
+      layout: 'tiles'
     })
     expect(
       sanitizeSettings({
@@ -413,21 +414,30 @@ describe('sanitizeSettings', () => {
           minProfitMinutes: 120,
           sort: { key: 'time', desc: true },
           firOnly: true,
-          currentOnly: true
+          currentOnly: true,
+          layout: 'list'
         }
       })
     ).toMatchObject({
       view: 'crafting',
-      crafting: { minProfitMinutes: 120, sort: { key: 'time', desc: true }, firOnly: true, currentOnly: true }
+      crafting: {
+        minProfitMinutes: 120,
+        sort: { key: 'time', desc: true },
+        firOnly: true,
+        currentOnly: true,
+        layout: 'list'
+      }
     })
     expect(
-      sanitizeSettings({ crafting: { minProfitMinutes: 7, sort: { key: 'colour' }, firOnly: 'yes' } })
-        .crafting
+      sanitizeSettings({
+        crafting: { minProfitMinutes: 7, sort: { key: 'colour' }, firOnly: 'yes', layout: 'grid' }
+      }).crafting
     ).toEqual({
       minProfitMinutes: 30,
       sort: { key: 'priority', desc: false },
       firOnly: false,
-      currentOnly: false
+      currentOnly: false,
+      layout: 'tiles'
     })
   })
 

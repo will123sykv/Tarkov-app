@@ -105,7 +105,8 @@ export const DEFAULT_SETTINGS: Settings = {
     minProfitMinutes: 30,
     sort: { key: 'priority', desc: false },
     firOnly: false,
-    currentOnly: false
+    currentOnly: false,
+    layout: 'tiles'
   },
   sidebars: {}
 }
@@ -347,7 +348,8 @@ function sanitizeCrafting(raw: unknown): CraftingSettings {
       desc: sort.desc === true
     },
     firOnly: r.firOnly === true,
-    currentOnly: r.currentOnly === true
+    currentOnly: r.currentOnly === true,
+    layout: r.layout === 'list' ? 'list' : 'tiles'
   }
 }
 

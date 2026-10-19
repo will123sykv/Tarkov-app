@@ -37,6 +37,7 @@ import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
+import OverviewNav from './OverviewNav'
 import { FriendTags } from './FriendKeys'
 import SettingsLink from './SettingsLink'
 import SquadIcon from './SquadIcon'
@@ -622,55 +623,6 @@ function MapTile({
   )
 }
 
-/** Back to the overview, and on to the map before or after in the ranking. */
-function MapNav({
-  plans,
-  current,
-  name,
-  onOpen
-}: {
-  plans: MapPlan[]
-  current: string
-  name: string
-  onOpen: (mapKey: string | null) => void
-}): React.JSX.Element {
-  const i = plans.findIndex((p) => p.group.key === current)
-  const prev = i > 0 ? plans[i - 1] : null
-  const next = i >= 0 && i < plans.length - 1 ? plans[i + 1] : null
-  return (
-    <nav className="todo-nav" aria-label="Maps">
-      <button className="button small" onClick={() => onOpen(null)}>
-        ◀ All maps
-      </button>
-      <span className="todo-nav-where">
-        <strong>{name}</strong>
-        {i >= 0 && (
-          <span className="muted">
-            {' '}
-            · {i + 1} of {plans.length}
-          </span>
-        )}
-      </span>
-      <button
-        className="button small"
-        disabled={!prev}
-        title={prev ? `Open ${prev.group.name}` : undefined}
-        onClick={() => prev && onOpen(prev.group.key)}
-      >
-        ◀ {prev?.group.name ?? 'Previous'}
-      </button>
-      <button
-        className="button small"
-        disabled={!next}
-        title={next ? `Open ${next.group.name}` : undefined}
-        onClick={() => next && onOpen(next.group.key)}
-      >
-        {next?.group.name ?? 'Next'} ▶
-      </button>
-    </nav>
-  )
-}
-
 /** Quests by name, each opening in the Quests tab. */
 function QuestList({
   quests,
@@ -1178,7 +1130,14 @@ export default function TodoView({
         </div>
         {openedName && todoMap ? (
           <div key={`map:${todoMap}`} className="todo-maps">
-            <MapNav plans={ranked} current={todoMap} name={openedName} onOpen={openTodoMap} />
+            <OverviewNav
+              items={ranked.map((p) => p.group)}
+              current={todoMap}
+              name={openedName}
+              label="Maps"
+              allLabel="All maps"
+              onOpen={openTodoMap}
+            />
             {openedRank >= 0 ? (
               mapCard(ranked[openedRank], openedRank + 1, true)
             ) : (

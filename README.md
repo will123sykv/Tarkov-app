@@ -329,8 +329,16 @@ screenshots; other resolutions and UI scales are scaled to match.
 ### Hideout
 
 The **Hideout** tab says what to put on each station you've built, going by what **Items to
-collect** counts as still needed (its **Count items for** choices, so the two always agree). Each
-station gets a card:
+collect** counts as still needed (its **Count items for** choices, so the two always agree).
+
+**Overview** (the default) shows a tile per station, like the To do tab's maps: what to craft next
+there, how many crafts your upgrades and quests need from it (and how many must be found in raid),
+how long they all take, its best craft for profit, and what comes after. Stations with the most to
+make come first, and the first one with something needed is marked **Craft next**. Click a tile to
+open that station: **◀ All stations** goes back, and the buttons beside it step to the station
+before or after. **List** shows every station's card one under another instead.
+
+An opened station (or each one in List) has a card:
 
 - **Craft next:** what to start now. Crafts that make an item your hideout upgrades or quests still
   need come first: items that must be found in raid (buying won't do), then the biggest saving over
@@ -350,8 +358,9 @@ Two filters at the top narrow the lists for upgrades and quests (and so what's c
   now need: each station's next level, when the other stations and trader loyalty it needs are met.
   Off, it counts what Items to collect counts.
 
-Stations with a list get a full-width card; the rest sit side by side below them. Only crafts you
-can make now count (station level and quests). Click an item to open it in Items to collect's
+They change the tiles and an opened station straight away. In List, stations with a list get a
+full-width card and the rest sit side by side below them. Only crafts you can make now count
+(station level and quests). Click an item to open it in Items to collect's
 **Crafts** list.
 
 ### Keys

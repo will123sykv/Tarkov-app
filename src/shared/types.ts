@@ -193,6 +193,8 @@ export interface CraftingSettings {
    * its other stations and trader loyalty met), rather than what Items to collect counts (since 1.50.0).
    */
   currentOnly: boolean
+  /** A tile per station (open one for its list), or every station's list one under another (since 1.51.0). */
+  layout: 'tiles' | 'list'
 }
 
 export interface KeysSettings {

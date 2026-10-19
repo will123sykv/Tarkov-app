@@ -17,6 +17,7 @@ import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
+import OverviewNav from './OverviewNav'
 import { ItemChip } from './QuestDetail'
 import SettingsLink from './SettingsLink'
 
@@ -171,6 +172,31 @@ export default function CraftingView({
     useStore.getState().setCraftsSearch(name(itemId))
     void updateSettings({ view: 'hideout', hideout: { ...h, tab: 'crafts', craftsReadyOnly: false } })
   }
+  // The station opened from the overview; a station no longer listed goes back to the overview.
+  const openedId = useStore((s) => s.craftingStation)
+  const openStation = useStore((s) => s.openCraftingStation)
+  const opened = c.layout === 'tiles' && openedId ? plans.find((p) => p.stationId === openedId) : undefined
+  // The first station with something needed is the one to get going on.
+  const firstNeeded = plans.find((p) => p.needed.length > 0)?.stationId
+  const card = (plan: StationPlan, wide = false): React.JSX.Element => (
+    <StationCard
+      key={plan.stationId}
+      plan={plan}
+      items={items}
+      order={order}
+      sort={c.sort}
+      onSort={sortBy}
+      onOpen={openInCrafts}
+      minutes={c.minProfitMinutes}
+      wide={wide}
+    />
+  )
+  const unbuiltHint = dataset && unbuilt.length > 0 && (
+    <p className="hint crafting-unbuilt">
+      Not built yet (so nothing to craft there): {unbuilt.map((s) => s.name).join(', ')}. Set how far each is
+      built in Items to collect.
+    </p>
+  )
 
   return (
     <div className="crafting-page">
@@ -198,6 +224,29 @@ export default function CraftingView({
           <SettingsLink section="crafting">Change the minimum</SettingsLink>
         </p>
         <div className="crafting-filters">
+          <div className="segmented small" role="radiogroup" aria-label="How to show stations">
+            {(
+              [
+                ['tiles', 'Overview', 'A tile per station saying what to craft next: click one for its list'],
+                ['list', 'List', 'Every station with its list, one under another']
+              ] as const
+            ).map(([id, text, title]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={c.layout === id}
+                className={c.layout === id ? 'active' : ''}
+                title={title}
+                onClick={() => {
+                  // Overview also goes back from an opened station.
+                  openStation(null)
+                  void updateSettings({ crafting: { ...c, layout: id } })
+                }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
           <label
             className="check fir-filter"
             title="Only crafts for items that must be found in raid, where buying won't do"
@@ -222,26 +271,38 @@ export default function CraftingView({
           </label>
         </div>
       </div>
-      <div className="crafting-stations">
-        {plans.map((plan) => (
-          <StationCard
-            key={plan.stationId}
-            plan={plan}
-            items={items}
-            order={order}
-            sort={c.sort}
-            onSort={sortBy}
-            onOpen={openInCrafts}
-            minutes={c.minProfitMinutes}
+      {opened ? (
+        <div key={`station:${opened.stationId}`} className="crafting-stations opened">
+          <OverviewNav
+            items={plans.map((p) => ({ key: p.stationId, name: p.stationName }))}
+            current={opened.stationId}
+            name={opened.stationName}
+            label="Stations"
+            allLabel="All stations"
+            onOpen={openStation}
           />
-        ))}
-        {dataset && unbuilt.length > 0 && (
-          <p className="hint crafting-unbuilt">
-            Not built yet (so nothing to craft there): {unbuilt.map((s) => s.name).join(', ')}. Set how far
-            each is built in Items to collect.
-          </p>
-        )}
-      </div>
+          {card(opened, true)}
+        </div>
+      ) : c.layout === 'tiles' ? (
+        <div key="tiles" className="crafting-stations crafting-tiles">
+          {plans.map((plan, i) => (
+            <StationTile
+              key={plan.stationId}
+              plan={plan}
+              rank={i + 1}
+              first={plan.stationId === firstNeeded}
+              items={items}
+              onOpen={openStation}
+            />
+          ))}
+          {unbuiltHint}
+        </div>
+      ) : (
+        <div key="list" className="crafting-stations">
+          {plans.map((plan) => card(plan))}
+          {unbuiltHint}
+        </div>
+      )}
     </div>
   )
 }
@@ -253,7 +314,8 @@ function StationCard({
   sort,
   onSort,
   onOpen,
-  minutes
+  minutes,
+  wide = false
 }: {
   plan: StationPlan
   items: Items
@@ -262,12 +324,16 @@ function StationCard({
   onSort: (key: CraftSortKey) => void
   onOpen: (itemId: string) => void
   minutes: number
+  /** The whole row, whether or not it has a list (an opened station). */
+  wide?: boolean
 }): React.JSX.Element {
   const next = plan.next
   const rank = new Map([...plan.needed].sort(byPriority).map((n, i) => [n.itemId, i + 1]))
   const rows = [...plan.needed].sort(order)
   return (
-    <article className={`crafting-station ${next?.kind ?? 'idle'} ${plan.needed.length ? 'wide' : ''}`}>
+    <article
+      className={`crafting-station ${next?.kind ?? 'idle'} ${wide || plan.needed.length ? 'wide' : ''}`}
+    >
       <header>
         <strong>{plan.stationName}</strong>
         <span className="muted">level {plan.level}</span>
@@ -389,5 +455,127 @@ function StationCard({
         </>
       )}
     </article>
+  )
+}
+
+/** "Medstation 1, Rest Space 2 +3 more": the first two, then how many others. */
+function shortFor(forWhat: readonly string[]): string {
+  const more = forWhat.length - 2
+  return forWhat.slice(0, 2).join(', ') + (more > 0 ? ` +${more} more` : '')
+}
+
+/** A station in the overview (since 1.51.0): what to craft next there and how much there is to make; click to open it. */
+function StationTile({
+  plan,
+  rank,
+  first,
+  items,
+  onOpen
+}: {
+  plan: StationPlan
+  rank: number
+  first: boolean
+  items: Items
+  onOpen: (stationId: string) => void
+}): React.JSX.Element {
+  const next = plan.next
+  const fir = plan.needed.filter((n) => n.fir > 0).length
+  const time = plan.needed.reduce((sum, n) => sum + n.time, 0)
+  const best = plan.profit[0]
+  // What comes after the next craft (plan.needed is in priority order, the next one first).
+  const after = next?.kind === 'needed' ? plan.needed.slice(1) : plan.needed
+  const shown = after.slice(0, 3)
+  const more = after.length - shown.length
+  const nextText =
+    next?.kind === 'needed'
+      ? `${next.craft.missing > 1 ? `${next.craft.missing} × ` : ''}${items.get(next.craft.itemId)?.name ?? 'Unknown item'}`
+      : next?.kind === 'profit'
+        ? next.craft.craft.outputs.map((o) => items.get(o.itemId)?.name ?? 'Unknown item').join(', ')
+        : 'Nothing to craft'
+  return (
+    <button
+      className={`todo-tile crafting-tile ${first ? 'best' : ''} ${next?.kind ?? 'idle'}`}
+      aria-label={`${plan.stationName}: craft ${nextText} next. Show its list`}
+      onClick={() => onOpen(plan.stationId)}
+    >
+      <span className="todo-tile-head">
+        <span className="todo-rank">{rank}</span>
+        <span className="todo-tile-name">
+          {first && <span className="todo-next">Craft next</span>}
+          <strong>{plan.stationName}</strong>
+        </span>
+        <span className="muted">level {plan.level}</span>
+        <span className="todo-tile-open" aria-hidden>
+          ▶
+        </span>
+      </span>
+      <span className="crafting-tile-next">
+        {next ? (
+          <>
+            <span className="crafting-tile-what">
+              {next.kind === 'needed' ? (
+                <ItemChip id={next.craft.itemId} count={next.craft.missing} items={items} />
+              ) : (
+                next.craft.craft.outputs.map((o) => (
+                  <ItemChip key={o.itemId} id={o.itemId} count={o.count} items={items} />
+                ))
+              )}
+            </span>
+            <span className="muted">
+              {next.kind === 'needed' ? (
+                <>
+                  {formatDuration(next.craft.time)} · for {shortFor(next.craft.forWhat)}
+                </>
+              ) : (
+                <>
+                  for profit: <b className="gain">{money(next.craft.perHour)}/h</b> ·{' '}
+                  {formatDuration(next.craft.craft.duration)}
+                </>
+              )}
+            </span>
+          </>
+        ) : (
+          <span className="muted">Nothing needed here, and no craft for profit.</span>
+        )}
+      </span>
+      {(plan.needed.length > 0 || best) && (
+        <span className="todo-chips">
+          {plan.needed.length > 0 && (
+            <span
+              className="todo-chip"
+              title="Crafts here that make what your upgrades and quests still need"
+            >
+              {plan.needed.length} for upgrades and quests
+            </span>
+          )}
+          {fir > 0 && (
+            <span className="todo-chip missing" title="Of those, items that must be found in raid">
+              {fir} found in raid
+            </span>
+          )}
+          {time > 0 && (
+            <span className="todo-chip" title="Every needed craft here, one after another">
+              {formatDuration(time)} of crafting
+            </span>
+          )}
+          {best && (
+            <span className="todo-chip gain" title="The best craft here for profit">
+              best {money(best.perHour)}/h
+            </span>
+          )}
+        </span>
+      )}
+      {shown.length > 0 && (
+        <span className="todo-tile-quests">
+          <span className="muted">Then</span>
+          {shown.map((n) => (
+            <span key={n.itemId}>
+              <ItemChip id={n.itemId} count={n.missing} items={items} />
+            </span>
+          ))}
+          {more > 0 && <span className="muted">+{more} more</span>}
+        </span>
+      )}
+    </button>
   )
 }
