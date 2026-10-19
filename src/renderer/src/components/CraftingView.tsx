@@ -1,6 +1,12 @@
 import { useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
-import { byPriority, craftingPlan, type NeededCraft, type StationPlan } from '../../../shared/crafting'
+import {
+  byPriority,
+  craftingPlan,
+  upgradableNow,
+  type NeededCraft,
+  type StationPlan
+} from '../../../shared/crafting'
 import { EMPTY_HIDEOUT, hideoutNeeds, stationLevel } from '../../../shared/hideout'
 import { neededItems } from '../../../shared/questProgress'
 import type { CraftSortKey, LootItem, PriceState, PublicSettings } from '../../../shared/types'
@@ -104,15 +110,30 @@ export default function CraftingView({
   const stations = useMemo(() => dataset?.stations ?? [], [dataset])
 
   // What's still needed, counted as Items to collect counts it (its next levels or every level, and
-  // active quests or every quest left).
+  // active quests or every quest left); with Current only, just active quests and the upgrades you can
+  // build now. Found in raid only keeps the items that must be found in raid.
   const needs = useMemo(() => {
     const left = rows.filter((r) => r.status !== 'completed' && r.status !== 'failed')
+    const activeOnly = c.currentOnly || h.questScope === 'active'
     const quests = neededItems(
-      (h.questScope === 'active' ? left.filter((r) => r.status === 'active') : left).map((r) => r.quest),
+      (activeOnly ? left.filter((r) => r.status === 'active') : left).map((r) => r.quest),
       objectives
     ).items
-    return hideoutNeeds(stations, progress, h.scope, quests)
-  }, [rows, objectives, stations, progress, h.scope, h.questScope])
+    const all = c.currentOnly
+      ? hideoutNeeds(upgradableNow(stations, progress, ctx.traderLevels), progress, 'next', quests)
+      : hideoutNeeds(stations, progress, h.scope, quests)
+    return c.firOnly ? all.filter((n) => n.firNeeded > 0) : all
+  }, [
+    rows,
+    objectives,
+    stations,
+    progress,
+    ctx.traderLevels,
+    h.scope,
+    h.questScope,
+    c.currentOnly,
+    c.firOnly
+  ])
 
   const plans = useMemo(() => {
     const valuation = {
@@ -160,7 +181,10 @@ export default function CraftingView({
             {dataset ? (
               `${plans.length} station${plans.length === 1 ? '' : 's'} built · ` +
               `${neededCount} craft${neededCount === 1 ? '' : 's'} for upgrades and quests · ` +
-              `counting ${h.scope === 'next' ? 'next levels' : 'every level'} and ${h.questScope === 'active' ? 'active quests' : 'every quest left'}, as Items to collect does`
+              (c.currentOnly
+                ? 'counting the upgrades you can build now and active quests'
+                : `counting ${h.scope === 'next' ? 'next levels' : 'every level'} and ${h.questScope === 'active' ? 'active quests' : 'every quest left'}, as Items to collect does`) +
+              (c.firOnly ? ' · found in raid only' : '')
             ) : questState?.error ? (
               <LoadError what="the hideout" error={questState.error} />
             ) : (
@@ -173,6 +197,30 @@ export default function CraftingView({
           {c.minProfitMinutes ? ` from crafts of ${minutesText(c.minProfitMinutes)}` : ''}.{' '}
           <SettingsLink section="crafting">Change the minimum</SettingsLink>
         </p>
+        <div className="crafting-filters">
+          <label
+            className="check fir-filter"
+            title="Only crafts for items that must be found in raid, where buying won't do"
+          >
+            <input
+              type="checkbox"
+              checked={c.firOnly}
+              onChange={(e) => void updateSettings({ crafting: { ...c, firOnly: e.target.checked } })}
+            />
+            Found in raid only
+          </label>
+          <label
+            className="check fir-filter"
+            title="Only what your active quests and the upgrades you can build now need (each station's next level, with the other stations and trader loyalty it needs met). Off: what Items to collect counts."
+          >
+            <input
+              type="checkbox"
+              checked={c.currentOnly}
+              onChange={(e) => void updateSettings({ crafting: { ...c, currentOnly: e.target.checked } })}
+            />
+            Current quests and upgrades only
+          </label>
+        </div>
       </div>
       <div className="crafting-stations">
         {plans.map((plan) => (
@@ -219,7 +267,7 @@ function StationCard({
   const rank = new Map([...plan.needed].sort(byPriority).map((n, i) => [n.itemId, i + 1]))
   const rows = [...plan.needed].sort(order)
   return (
-    <article className={`crafting-station ${next?.kind ?? 'idle'}`}>
+    <article className={`crafting-station ${next?.kind ?? 'idle'} ${plan.needed.length ? 'wide' : ''}`}>
       <header>
         <strong>{plan.stationName}</strong>
         <span className="muted">level {plan.level}</span>
@@ -264,57 +312,61 @@ function StationCard({
       {plan.needed.length > 0 && (
         <>
           <h4>For upgrades and quests</h4>
-          <table className="values-table crafting-table">
-            <thead>
-              <tr>
-                {COLUMNS.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`${col.num ? 'num' : ''} sortable ${sort.key === col.key ? 'sorted' : ''}`}
-                    title={col.title}
-                    aria-sort={sort.key === col.key ? (sort.desc ? 'descending' : 'ascending') : 'none'}
-                  >
-                    <button className="link-like" onClick={() => onSort(col.key)}>
-                      {col.label}
-                      {sort.key === col.key ? (sort.desc ? ' ▼' : ' ▲') : ''}
-                    </button>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((n) => (
-                <tr key={n.itemId}>
-                  <td className="num muted">{rank.get(n.itemId)}</td>
-                  <td>
-                    <button
-                      className="link-like"
-                      onClick={() => onOpen(n.itemId)}
-                      title="Open in Items to collect › Crafts"
+          <div className="crafting-table-wrap">
+            <table className="values-table crafting-table">
+              <thead>
+                <tr>
+                  {COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.num ? 'num' : ''} sortable ${sort.key === col.key ? 'sorted' : ''}`}
+                      title={col.title}
+                      aria-sort={sort.key === col.key ? (sort.desc ? 'descending' : 'ascending') : 'none'}
                     >
-                      <ItemChip id={n.itemId} items={items} />
-                    </button>
-                  </td>
-                  <td className="crafting-for">{n.forWhat.join(', ')}</td>
-                  <td className="num">
-                    {n.missing}
-                    {n.fir > 0 && (
-                      <span className="tag fir" title={`${n.fir} of ${n.missing} must be found in raid`}>
-                        {n.fir === n.missing ? 'all FIR' : `${n.fir} FIR`}
-                      </span>
-                    )}
-                  </td>
-                  <td className="num">{n.runs}</td>
-                  <td className="num">{formatDuration(n.time)}</td>
-                  <td className="num">{money(n.cost)}</td>
-                  <td className="num">{money(n.buyPrice)}</td>
-                  <td className={`num ${n.saving !== null ? (n.saving > 0 ? 'gain' : 'loss') : ''}`}>
-                    {money(n.saving)}
-                  </td>
+                      <button className="link-like" onClick={() => onSort(col.key)}>
+                        {col.label}
+                        {sort.key === col.key ? (sort.desc ? ' ▼' : ' ▲') : ''}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((n) => (
+                  <tr key={n.itemId}>
+                    <td className="num muted">{rank.get(n.itemId)}</td>
+                    <td className="item-cell">
+                      <div className="item-cell-body">
+                        <button
+                          className="link-like"
+                          onClick={() => onOpen(n.itemId)}
+                          title="Open in Items to collect › Crafts"
+                        >
+                          <ItemChip id={n.itemId} items={items} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="crafting-for">{n.forWhat.join(', ')}</td>
+                    <td className="num">
+                      {n.missing}
+                      {n.fir > 0 && (
+                        <span className="tag fir" title={`${n.fir} of ${n.missing} must be found in raid`}>
+                          {n.fir === n.missing ? 'all FIR' : `${n.fir} FIR`}
+                        </span>
+                      )}
+                    </td>
+                    <td className="num">{n.runs}</td>
+                    <td className="num">{formatDuration(n.time)}</td>
+                    <td className="num">{money(n.cost)}</td>
+                    <td className="num">{money(n.buyPrice)}</td>
+                    <td className={`num ${n.saving !== null ? (n.saving > 0 ? 'gain' : 'loss') : ''}`}>
+                      {money(n.saving)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       {plan.profit.length > 0 && (

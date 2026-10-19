@@ -186,6 +186,13 @@ export interface CraftingSettings {
   minProfitMinutes: number
   /** How the lists of crafts for upgrades and quests are ordered. */
   sort: { key: CraftSortKey; desc: boolean }
+  /** Only crafts for items that must be found in raid (since 1.50.0). */
+  firOnly: boolean
+  /**
+   * Only what active quests and the upgrades you can build now need (each station's next level, with
+   * its other stations and trader loyalty met), rather than what Items to collect counts (since 1.50.0).
+   */
+  currentOnly: boolean
 }
 
 export interface KeysSettings {

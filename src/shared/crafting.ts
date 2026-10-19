@@ -9,8 +9,10 @@ import {
   type CraftContext,
   type CraftOption,
   type CraftProfit,
-  type HideoutNeed
+  type HideoutNeed,
+  type HideoutProgress
 } from './hideout'
+import type { HideoutStation } from './questTypes'
 import type { LootItem } from './types'
 
 // What to craft at each station now (the Hideout tab, since 1.49.0): first what the hideout's
@@ -58,6 +60,30 @@ export function byPriority(a: NeededCraft, b: NeededCraft): number {
     (b.saving ?? -Infinity) - (a.saving ?? -Infinity) ||
     a.time - b.time
   )
+}
+
+/**
+ * The stations whose next level you could build now, bar its items: the other stations it needs are
+ * built that far and your trader loyalty is high enough. With `hideoutNeeds(…, 'next')` this counts only
+ * the upgrades you can work on now.
+ */
+export function upgradableNow(
+  stations: readonly HideoutStation[],
+  progress: HideoutProgress,
+  traderLevels: Readonly<Record<string, number>>
+): HideoutStation[] {
+  const byId = new Map(stations.map((s) => [s.id, s]))
+  return stations.filter((station) => {
+    const next = station.levels.find((l) => l.level === stationLevel(station, progress) + 1)
+    return (
+      next !== undefined &&
+      next.stations.every((r) => {
+        const other = byId.get(r.stationId)
+        return other === undefined || stationLevel(other, progress) >= r.level
+      }) &&
+      next.traders.every((r) => (traderLevels[r.traderId] ?? 1) >= r.level)
+    )
+  })
 }
 
 /**

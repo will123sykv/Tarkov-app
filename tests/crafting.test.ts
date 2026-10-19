@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { craftingPlan, type StationPlan } from '../src/shared/crafting'
+import { craftingPlan, upgradableNow, type StationPlan } from '../src/shared/crafting'
 import type { BuyContext, CraftContext, HideoutNeed, HideoutProgress } from '../src/shared/hideout'
 import type { HideoutCraft, HideoutStation } from '../src/shared/questTypes'
 import type { LootItem } from '../src/shared/types'
@@ -182,5 +182,23 @@ describe('what to craft at each station', () => {
   it('lists only stations built that craft something, the ones with most to make first', () => {
     const plans = plan([need('wire', 1), need('bolts', 1)], { wb: 1, lab: 1, lav: 0, stash: 1 })
     expect(plans.map((p) => p.stationId)).toEqual(['wb', 'lab'])
+  })
+
+  it('finds the upgrades you can work on now: other stations built and loyalty met', () => {
+    const gen = station('gen', 'Generator', 3)
+    // Generator 2 needs Workbench 2 and Mechanic LL2; Generator 1 needs nothing.
+    gen.levels[1] = {
+      ...gen.levels[1],
+      stations: [{ stationId: 'wb', level: 2 }],
+      traders: [{ traderId: 'mechanic', level: 2 }]
+    }
+    const all = [WORKBENCH, gen]
+    const ids = (levels: Record<string, number>, traders: Record<string, number> = {}): string[] =>
+      upgradableNow(all, progress(levels), traders).map((s) => s.id)
+    expect(ids({ wb: 1, gen: 0 })).toEqual(['wb', 'gen'])
+    expect(ids({ wb: 1, gen: 1 })).toEqual(['wb'])
+    expect(ids({ wb: 2, gen: 1 }, { mechanic: 2 })).toEqual(['wb', 'gen'])
+    // Built all the way: nothing left to upgrade.
+    expect(ids({ wb: 3, gen: 1 }, { mechanic: 1 })).toEqual([])
   })
 })

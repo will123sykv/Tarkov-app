@@ -343,8 +343,16 @@ station gets a card:
   crafts that take at least **Profit crafts at least** (in **Settings › Hideout crafting**, 30
   minutes by default) are picked, so a station isn't left idle by short crafts.
 
-Only crafts you can make now count (station level and quests). Click an item to open it in Items to
-collect's **Crafts** list.
+Two filters at the top narrow the lists for upgrades and quests (and so what's crafted next):
+
+- **Found in raid only:** only items that must be found in raid, where buying won't do.
+- **Current quests and upgrades only:** only what your active quests and the upgrades you can build
+  now need: each station's next level, when the other stations and trader loyalty it needs are met.
+  Off, it counts what Items to collect counts.
+
+Stations with a list get a full-width card; the rest sit side by side below them. Only crafts you
+can make now count (station level and quests). Click an item to open it in Items to collect's
+**Crafts** list.
 
 ### Keys
 

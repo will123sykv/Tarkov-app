@@ -101,7 +101,12 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   todo: { show: 'all', kinds: 'all', view: 'summary', layout: 'maps', squadKeys: false },
   keys: { scope: 'all', otherOpen: false, tab: 'list', map: null, shareName: '', friends: [] },
-  crafting: { minProfitMinutes: 30, sort: { key: 'priority', desc: false } },
+  crafting: {
+    minProfitMinutes: 30,
+    sort: { key: 'priority', desc: false },
+    firOnly: false,
+    currentOnly: false
+  },
   sidebars: {}
 }
 
@@ -340,7 +345,9 @@ function sanitizeCrafting(raw: unknown): CraftingSettings {
     sort: {
       key: CRAFT_SORT_KEYS.includes(sort.key as CraftSortKey) ? (sort.key as CraftSortKey) : 'priority',
       desc: sort.desc === true
-    }
+    },
+    firOnly: r.firOnly === true,
+    currentOnly: r.currentOnly === true
   }
 }
 

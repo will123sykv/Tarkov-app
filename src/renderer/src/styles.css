@@ -5414,20 +5414,27 @@ p.quest-before.done {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
   align-content: start;
+  align-items: start;
   gap: 12px;
   padding: 12px 16px 24px;
 }
 
 .crafting-station {
   display: grid;
+  min-width: 0;
   gap: 8px;
   align-content: start;
   padding: 12px 14px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* A station with a list of crafts gets the whole row, so its table isn't squeezed. */
+.crafting-station.wide {
+  grid-column: 1 / -1;
 }
 
 .crafting-station.needed {
@@ -5483,7 +5490,20 @@ p.quest-before.done {
   color: var(--bad);
 }
 
+.crafting-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 6px;
+}
+
+.crafting-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
 .crafting-table {
+  width: auto;
   font-size: 12.5px;
 }
 
@@ -5502,8 +5522,8 @@ p.quest-before.done {
 }
 
 .crafting-table .crafting-for {
-  min-width: 140px;
-  max-width: 260px;
+  min-width: 160px;
+  max-width: 420px;
   color: var(--muted);
 }
 
@@ -5521,6 +5541,7 @@ p.quest-before.done {
 
 .crafting-profit {
   display: grid;
+  max-width: 640px;
   gap: 4px;
   margin: 0;
   padding: 0;
