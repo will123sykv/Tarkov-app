@@ -6,6 +6,7 @@ import {
   MIN_REFRESH_INTERVAL_MIN
 } from './constants'
 import { isGameMode } from './gameModes'
+import type { ColumnSort } from './tableSort'
 import type { TrendSortKey } from './fleaTrends'
 import type {
   AppView,
@@ -27,7 +28,7 @@ import type {
   TrendSettings
 } from './types'
 
-const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance']
+const SORT_KEYS: SortKey[] = ['valuePerSlot', 'worth', 'flea', 'trader', 'slots', 'name', 'chance', 'access']
 
 /** 2: 1.5.0's looser flea trends defaults. 3: 1.25.0's screenshot scanner selling what can be got back. */
 const SETTINGS_VERSION = 3
@@ -53,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
     minConsistency: 0.6,
     minSwing: 0.15,
     sort: 'profit',
+    sortDesc: true,
     tradableOnly: true,
     intervalHours: 3,
     nowOnly: false
@@ -110,7 +112,8 @@ export const DEFAULT_SETTINGS: Settings = {
     currentOnly: false,
     layout: 'tiles'
   },
-  sidebars: {}
+  sidebars: {},
+  tableSorts: {}
 }
 
 const VIEWS: AppView[] = [
@@ -217,7 +220,19 @@ function sanitizeHideout(raw: unknown, version: number): HideoutSettings {
   }
 }
 
-const TREND_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency', 'offers', 'swing']
+const TREND_SORTS: TrendSortKey[] = [
+  'profit',
+  'spread',
+  'volatility',
+  'consistency',
+  'offers',
+  'swing',
+  'name',
+  'now',
+  'price',
+  'buyHour',
+  'buyPrice'
+]
 const TREND_DAYS = [7, 14, 30] as const
 export const TREND_INTERVALS: TrendInterval[] = [2, 3, 4, 6]
 
@@ -257,6 +272,7 @@ function sanitizeTrends(raw: unknown, version: number): TrendSettings {
     minConsistency: Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : d.minConsistency,
     minSwing: Number.isFinite(swing) ? Math.min(2, Math.max(0, swing)) : d.minSwing,
     sort: TREND_SORTS.includes(r.sort as TrendSortKey) ? (r.sort as TrendSortKey) : d.sort,
+    sortDesc: r.sortDesc !== false,
     tradableOnly: typeof r.tradableOnly === 'boolean' ? r.tradableOnly : d.tradableOnly,
     intervalHours: TREND_INTERVALS.find((n) => n === r.intervalHours) ?? d.intervalHours,
     nowOnly: r.nowOnly === true
@@ -332,8 +348,23 @@ export function sanitizeSettings(raw: unknown): Settings {
     keys: sanitizeKeys(r.keys),
     crafting: sanitizeCrafting(r.crafting),
     weapons: sanitizeWeapons(r.weapons),
-    sidebars: sanitizeSidebars(r.sidebars)
+    sidebars: sanitizeSidebars(r.sidebars),
+    tableSorts: sanitizeTableSorts(r.tableSorts)
   }
+}
+
+const TABLE_SORT_ID = /^[a-z0-9-]{1,40}$/
+const MAX_TABLE_SORTS = 40
+
+function sanitizeTableSorts(raw: unknown): Record<string, ColumnSort> {
+  if (!isRecord(raw)) return {}
+  const result: Record<string, ColumnSort> = {}
+  for (const [id, v] of Object.entries(raw).slice(0, MAX_TABLE_SORTS)) {
+    if (!TABLE_SORT_ID.test(id) || !isRecord(v)) continue
+    if (typeof v.key !== 'string' || !TABLE_SORT_ID.test(v.key)) continue
+    result[id] = { key: v.key, desc: v.desc === true }
+  }
+  return result
 }
 
 /** The minimum times the Hideout tab's profit crafts can be set to (minutes). */
@@ -493,6 +524,8 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     keys: { ...current.keys, ...patch.keys },
     crafting: { ...current.crafting, ...patch.crafting },
     weapons: { ...current.weapons, ...patch.weapons },
-    sidebars: { ...current.sidebars, ...patch.sidebars }
+    sidebars: { ...current.sidebars, ...patch.sidebars },
+    // Replaced whole, so a table going back to its own order can drop out.
+    tableSorts: patch.tableSorts ?? current.tableSorts
   })
 }

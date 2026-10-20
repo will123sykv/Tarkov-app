@@ -1,5 +1,6 @@
 import type { FleaFeeRates } from './fleaFee'
 import type { HistoryPoint, TrendSortKey, TrendStats } from './fleaTrends'
+import type { ColumnSort } from './tableSort'
 
 export type GameMode = 'pvp' | 'pve' | 'season'
 
@@ -108,7 +109,7 @@ export interface ContainerLoot {
   items: { id: string; chance: number }[]
 }
 
-export type SortKey = 'valuePerSlot' | 'worth' | 'flea' | 'trader' | 'slots' | 'name' | 'chance'
+export type SortKey = 'valuePerSlot' | 'worth' | 'flea' | 'trader' | 'slots' | 'name' | 'chance' | 'access'
 
 export interface SortState {
   key: SortKey
@@ -158,6 +159,11 @@ export interface Settings {
   weapons: WeaponsSettings
   /** Each tab's sidebar: sections hidden (by heading) and whether it's collapsed (since 1.26.0). */
   sidebars: Partial<Record<AppView, SidebarSettings>>
+  /**
+   * How each table without a setting of its own is sorted (since 1.59.0), by table id; a table not
+   * listed is in its own order.
+   */
+  tableSorts: Record<string, ColumnSort>
 }
 
 export interface SidebarSettings {
@@ -324,6 +330,8 @@ export interface TrendSettings {
   /** Minimum price swing, 0–2: today's 24h swing while collecting, then the buy→sell gap. */
   minSwing: number
   sort: TrendSortKey
+  /** Biggest (or latest) first; false for the other way. Since 1.59.0. */
+  sortDesc: boolean
   /** Only items the player can buy and sell on the flea at their level. */
   tradableOnly: boolean
   /** Length of the parts the day is split into, in hours. Since 1.13.0. */

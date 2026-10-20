@@ -735,18 +735,29 @@ button.link {
   color: var(--muted);
 }
 
+/* A sortable column's header (every table, since 1.59.0). */
 .sort {
   padding: 0;
   background: none;
   border: 0;
   color: inherit;
   cursor: pointer;
-  font-size: 12px;
+  font: inherit;
+  text-align: inherit;
+  white-space: nowrap;
 }
 
-.sort:hover,
-.sort.active {
+.sort:hover {
   color: var(--text);
+}
+
+.sort.active {
+  color: var(--accent-strong);
+}
+
+.sort:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .num {
@@ -5595,16 +5606,6 @@ p.quest-before.done {
 
 .crafting-table td {
   vertical-align: middle;
-}
-
-.crafting-table th.sortable button {
-  color: inherit;
-  font: inherit;
-  white-space: nowrap;
-}
-
-.crafting-table th.sorted button {
-  color: var(--accent-strong);
 }
 
 .crafting-table .crafting-for {

@@ -22,7 +22,15 @@ import {
   type ScanTile
 } from '../src/renderer/src/lib/scavScan'
 import { keepOnlyHardToReplace, type HideoutNeed, type KeepInfo } from '../src/shared/hideout'
-import { adviseScan, lootAdditions, scanTotals, stashCounts } from '../src/shared/scavAdvice'
+import {
+  adviceWorth,
+  adviseScan,
+  doRank,
+  lootAdditions,
+  scanTotals,
+  stashCounts,
+  type ScanAdvice
+} from '../src/shared/scavAdvice'
 import type { LootItem } from '../src/shared/types'
 
 const BORDER = [73, 81, 84]
@@ -571,5 +579,34 @@ describe('several screenshots', () => {
         ])
       )
     ).toBe(2)
+  })
+})
+
+describe('sorting what was read by what to do with it', () => {
+  const advice = (a: Partial<ScanAdvice>): ScanAdvice => ({
+    keep: 0,
+    keepFor: { hideout: 0, quests: 0 },
+    stored: 0,
+    scarce: null,
+    sell: 0,
+    via: null,
+    trader: null,
+    each: 0,
+    total: 0,
+    ...a
+  })
+  it('puts keep first, then the flea, then traders, then no buyer, then unknown items', () => {
+    const keepSome = advice({ keep: 1, sell: 2, via: 'flea', each: 100, total: 200 })
+    const flea = advice({ sell: 1, via: 'flea', each: 300, total: 300 })
+    const trader = advice({ sell: 1, via: 'trader', trader: 'Therapist', each: 50, total: 50 })
+    const none = advice({ sell: 1 })
+    expect([keepSome, flea, trader, none].map((a) => doRank(a, true))).toEqual([0, 1, 2, 3])
+    expect(doRank(flea, false)).toBe(4)
+  })
+
+  it('takes the worth the list shows: what the sold ones fetch, or what the kept ones would', () => {
+    expect(adviceWorth(advice({ keep: 1, sell: 2, via: 'flea', each: 100, total: 200 }))).toBe(200)
+    expect(adviceWorth(advice({ keep: 3, each: 100 }))).toBe(300)
+    expect(adviceWorth(advice({}))).toBe(0)
   })
 })

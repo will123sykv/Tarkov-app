@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import type { TrendFilterKey, TrendSortKey } from '../../../shared/fleaTrends'
+import { ASCENDING_TREND_SORTS, type TrendFilterKey, type TrendSortKey } from '../../../shared/fleaTrends'
+import { DEFAULT_SETTINGS } from '../../../shared/settings'
+import { nextSort } from '../../../shared/tableSort'
 import { dataModeFor } from '../../../shared/gameModes'
 import type {
   HistorySourceStatus,
@@ -18,6 +20,7 @@ import NumberField from './NumberField'
 import TrendDetail from './TrendDetail'
 import TrendTableRow from './TrendTableRow'
 import SettingsLink from './SettingsLink'
+import { ariaSort, SortButton } from './SortHeader'
 import TabSidebar, { SidebarSection } from './Sidebar'
 
 interface Props {
@@ -37,7 +40,12 @@ const SORT_LABELS: Record<TrendSortKey, string> = {
   consistency: 'Consistency',
   volatility: 'Usual daily swing',
   offers: 'Offers up',
-  swing: "Today's swing"
+  swing: "Today's swing",
+  name: 'Name',
+  now: 'Buy or sell soonest',
+  price: 'Lowest price now',
+  buyHour: 'Time of day to buy',
+  buyPrice: 'Buy price'
 }
 
 /** What's left after a filter, in words. */
@@ -317,7 +325,13 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
         </label>
         <label className="field">
           <span>Sort by</span>
-          <select value={t.sort} onChange={(e) => set({ sort: e.target.value as TrendSortKey })}>
+          <select
+            value={t.sort}
+            onChange={(e) => {
+              const key = e.target.value as TrendSortKey
+              set({ sort: key, sortDesc: !ASCENDING_TREND_SORTS.includes(key) })
+            }}
+          >
             {(Object.keys(SORT_LABELS) as TrendSortKey[]).map((key) => (
               <option key={key} value={key}>
                 {SORT_LABELS[key]}
@@ -337,7 +351,7 @@ function Sidebar({ settings, analysis, sort, patternsReady }: SidebarProps): Rea
 
 export default function TrendsView({ settings, priceState, ranking }: Props): React.JSX.Element {
   const dataMode = dataModeFor(settings.gameMode)
-  const { analysis, rows: ranked, patternsReady, sort, clock } = ranking
+  const { analysis, rows: ranked, patternsReady, sort, desc, clock } = ranking
   const loadTrends = useStore((s) => s.loadTrends)
   const trendsError = useStore((s) => s.trendsError)
   const trendsLoading = useStore((s) => s.trendsLoading)
@@ -369,12 +383,18 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
     (itemId: string) => selectTrendItem(useStore.getState().selectedTrendItem === itemId ? null : itemId),
     [selectTrendItem]
   )
-  const setSort = (key: TrendSortKey): void => void updateSettings({ trends: { ...t, sort: key } })
-  const header = (key: TrendSortKey, label: string): React.JSX.Element => (
-    <button className={`sort ${sort === key ? 'active' : ''}`} onClick={() => setSort(key)}>
-      {label}
-      {sort === key && <span aria-hidden> ▼</span>}
-    </button>
+  // Sort, reverse, then back to the usual order (profit, biggest first).
+  const setSort = (key: TrendSortKey): void => {
+    const next = nextSort({ key: sort, desc }, key, !ASCENDING_TREND_SORTS.includes(key))
+    const d = DEFAULT_SETTINGS.trends
+    void updateSettings({
+      trends: { ...t, sort: (next?.key as TrendSortKey) ?? d.sort, sortDesc: next ? next.desc : d.sortDesc }
+    })
+  }
+  const th = (key: TrendSortKey, label: string, num = false): React.JSX.Element => (
+    <th className={num ? 'num' : undefined} aria-sort={ariaSort(sort === key, desc)}>
+      <SortButton label={label} active={sort === key} desc={desc} onClick={() => setSort(key)} />
+    </th>
   )
 
   return (
@@ -431,16 +451,16 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
           <table className="trends-table">
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Now</th>
-                <th className="num">{header('offers', 'Offers up')}</th>
-                <th className="num">Lowest now</th>
-                <th className="num">{header('swing', 'Today (low–high)')}</th>
-                <th>Time of day</th>
-                <th>Buy at</th>
-                <th>{header('spread', 'Sell at')}</th>
-                <th className="num">{header('profit', 'Profit / unit')}</th>
-                <th className="num">{header('consistency', 'Worked on')}</th>
+                {th('name', 'Item')}
+                {th('now', 'Now')}
+                {th('offers', 'Offers up', true)}
+                {th('price', 'Lowest now', true)}
+                {th('swing', 'Today (low–high)', true)}
+                {th('buyHour', 'Time of day')}
+                {th('buyPrice', 'Buy at')}
+                {th('spread', 'Sell at')}
+                {th('profit', 'Profit / unit', true)}
+                {th('consistency', 'Worked on', true)}
               </tr>
             </thead>
             <tbody>

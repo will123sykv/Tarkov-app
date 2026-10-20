@@ -31,6 +31,21 @@ export interface ScanAdvice {
   total: number
 }
 
+/**
+ * Where a stack's Do comes when the list is sorted by it (since 1.59.0): keep (some sold too counts as
+ * keep), sell on the flea, sell to a trader, no buyer, then stacks whose item isn't known yet.
+ */
+export function doRank(advice: ScanAdvice, known: boolean): number {
+  if (!known) return 4
+  if (advice.keep > 0) return 0
+  if (advice.sell > 0) return advice.via === 'flea' ? 1 : advice.via === 'trader' ? 2 : 3
+  return 3
+}
+
+/** What a stack's Worth column shows: what the sold ones fetch, or what the kept ones would. */
+export const adviceWorth = (advice: ScanAdvice): number =>
+  advice.total > 0 ? advice.total : advice.each * advice.keep
+
 const NOTHING: ScanAdvice = {
   keep: 0,
   keepFor: { hideout: 0, quests: 0 },

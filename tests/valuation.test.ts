@@ -122,6 +122,14 @@ describe('rankItems', () => {
     expect(names(rankItems(items, ctx(15), filters(), { key: 'trader', dir: 'asc' }))[0]).toBe('Factory')
   })
 
+  it('sorts by flea access: sellable, then locked (soonest first), then banned (since 1.59.0)', () => {
+    // At level 25 the flea is open, but the Bitcoin's own gate (30) still locks it; Red is banned.
+    const access = names(rankItems(items, ctx(25), filters(), { key: 'access', dir: 'asc' }))
+    expect(access.slice(-2)).toEqual(['0.2BTC', 'Red'])
+    const reversed = names(rankItems(items, ctx(25), filters(), { key: 'access', dir: 'desc' }))
+    expect(reversed.slice(0, 2)).toEqual(['Red', '0.2BTC'])
+  })
+
   describe('with a container', () => {
     // A made-up container: GPU is 60% of its rolls, the Factory key 30%, LEDX 10%.
     const container = {

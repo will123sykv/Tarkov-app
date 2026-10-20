@@ -9,6 +9,8 @@ import {
   type StationPlan
 } from '../../../shared/crafting'
 import { EMPTY_HIDEOUT, hideoutNeeds, stationLevel } from '../../../shared/hideout'
+import { DEFAULT_SETTINGS } from '../../../shared/settings'
+import { nextSort } from '../../../shared/tableSort'
 import { neededItems } from '../../../shared/questProgress'
 import type { HideoutCraft } from '../../../shared/questTypes'
 import type { CraftSortKey, LootItem, PriceState, PublicSettings } from '../../../shared/types'
@@ -22,6 +24,7 @@ import LoadError from './LoadError'
 import OverviewNav from './OverviewNav'
 import { ItemChip } from './QuestDetail'
 import SettingsLink from './SettingsLink'
+import { ariaSort, SortButton } from './SortHeader'
 import Sidebar, { SidebarSection } from './Sidebar'
 import StationLevels from './StationLevels'
 
@@ -76,7 +79,8 @@ const money = (value: number | null): string =>
 const minutesText = (minutes: number): string =>
   minutes === 0 ? '' : minutes < 60 ? `${minutes} min or longer` : `${minutes / 60} h or longer`
 
-const COLUMNS: { key: CraftSortKey; label: string; num?: boolean; title?: string }[] = [
+/** The list's columns; `desc`: biggest first on the first click. */
+const COLUMNS: { key: CraftSortKey; label: string; num?: boolean; desc?: boolean; title?: string }[] = [
   {
     key: 'priority',
     label: '#',
@@ -85,20 +89,22 @@ const COLUMNS: { key: CraftSortKey; label: string; num?: boolean; title?: string
   },
   { key: 'item', label: 'Item' },
   { key: 'for', label: 'For' },
-  { key: 'missing', label: 'Missing', num: true },
-  { key: 'runs', label: 'Runs', num: true },
-  { key: 'time', label: 'Time', num: true },
-  { key: 'cost', label: 'Craft cost', num: true },
+  { key: 'missing', label: 'Missing', num: true, desc: true },
+  { key: 'runs', label: 'Runs', num: true, desc: true },
+  { key: 'time', label: 'Time', num: true, desc: true },
+  { key: 'cost', label: 'Craft cost', num: true, desc: true },
   {
     key: 'buy',
     label: 'Buy price',
     num: true,
+    desc: true,
     title: 'Buying the copies that needn’t be found in raid instead'
   },
   {
     key: 'saving',
     label: 'Saving',
     num: true,
+    desc: true,
     title: 'What crafting saves over buying those (negative: buying is cheaper)'
   }
 ]
@@ -254,10 +260,13 @@ export default function CraftingView({
   const neededCount = plans.reduce((n, p) => n + p.needed.length, 0)
   const name = (id: string): string => items.get(id)?.name ?? 'Unknown item'
   const order = sorter(c.sort.key, c.sort.desc, name)
-  const sortBy = (key: CraftSortKey): void =>
+  // Sort, reverse, then back to the app's order (priority).
+  const sortBy = (key: CraftSortKey): void => {
+    const next = nextSort(c.sort, key, !!COLUMNS.find((col) => col.key === key)?.desc)
     void updateSettings({
-      crafting: { ...c, sort: { key, desc: c.sort.key === key ? !c.sort.desc : false } }
+      crafting: { ...c, sort: next ? { key, desc: next.desc } : DEFAULT_SETTINGS.crafting.sort }
     })
+  }
   const openInCrafts = (itemId: string): void => {
     useStore.getState().setCraftsSearch(name(itemId))
     void updateSettings({ view: 'hideout', hideout: { ...h, tab: 'crafts', craftsReadyOnly: false } })
@@ -527,14 +536,16 @@ function StationCard({
                   {COLUMNS.map((col) => (
                     <th
                       key={col.key}
-                      className={`${col.num ? 'num' : ''} sortable ${sort.key === col.key ? 'sorted' : ''}`}
-                      title={col.title}
-                      aria-sort={sort.key === col.key ? (sort.desc ? 'descending' : 'ascending') : 'none'}
+                      className={col.num ? 'num' : undefined}
+                      aria-sort={ariaSort(sort.key === col.key, sort.desc)}
                     >
-                      <button className="link-like" onClick={() => onSort(col.key)}>
-                        {col.label}
-                        {sort.key === col.key ? (sort.desc ? ' ▼' : ' ▲') : ''}
-                      </button>
+                      <SortButton
+                        label={col.label}
+                        active={sort.key === col.key}
+                        desc={sort.desc}
+                        title={col.title}
+                        onClick={() => onSort(col.key)}
+                      />
                     </th>
                   ))}
                   <th aria-label="Started" />

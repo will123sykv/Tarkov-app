@@ -1,3 +1,4 @@
+import { compareCells, type Cell } from './tableSort'
 import type { LootItem, SortState } from './types'
 
 export type FleaStatus = 'sellable' | 'locked' | 'banned'
@@ -94,32 +95,38 @@ function matchesSearch(item: LootItem, query: string): boolean {
   return item.name.toLowerCase().includes(query) || item.shortName.toLowerCase().includes(query)
 }
 
-function sortValue(r: RankedItem, key: SortState['key']): number | string {
+function sortValue(r: RankedItem, key: SortState['key']): Cell {
   switch (key) {
     case 'valuePerSlot':
       return r.valuePerSlot
     case 'worth':
       return r.worth
     case 'flea':
-      return r.fleaNet ?? -1
+      return r.fleaNet
     case 'trader':
-      return r.item.bestTrader?.price ?? -1
+      return r.item.bestTrader?.price ?? null
     case 'slots':
       return r.item.slots
     case 'name':
-      return r.item.name.toLowerCase()
+      return r.item.name
     case 'chance':
-      return r.searchChance ?? -1
+      return r.searchChance
+    // Sellable, then locked (the soonest unlocked first), then banned.
+    case 'access':
+      return r.access.status === 'sellable'
+        ? 0
+        : r.access.status === 'banned'
+          ? 1000
+          : (r.access.unlockLevel ?? 999)
   }
 }
 
+/** Two items in the order asked; items with no value in that column go last, ties by name. */
 export function compareRanked(a: RankedItem, b: RankedItem, sort: SortState): number {
-  const va = sortValue(a, sort.key)
-  const vb = sortValue(b, sort.key)
-  const primary =
-    typeof va === 'string' && typeof vb === 'string' ? va.localeCompare(vb) : (va as number) - (vb as number)
-  if (primary !== 0) return sort.dir === 'asc' ? primary : -primary
-  return a.item.name.localeCompare(b.item.name)
+  return (
+    compareCells(sortValue(a, sort.key), sortValue(b, sort.key), sort.dir === 'desc') ||
+    a.item.name.localeCompare(b.item.name)
+  )
 }
 
 /**

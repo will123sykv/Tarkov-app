@@ -10,7 +10,9 @@ import {
   type HideoutProgress
 } from '../../../shared/hideout'
 import {
+  adviceWorth,
   adviseScan,
+  doRank,
   lootAdditions,
   scanTotals,
   stashCounts,
@@ -45,8 +47,10 @@ import {
 } from '../lib/scavScan'
 import { useBuyContext, useCraftContext, useKeepList } from '../lib/useKeepList'
 import { useKeyInfo } from '../lib/useKeyInfo'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
+import { SortHead } from './SortHeader'
 
 // The screenshot scanner, in the Items to collect tab and the Keys tab. New loot (a scav case haul, a
 // container): it finds each item, reads its name and count, says what to keep for the hideout and active
@@ -646,6 +650,55 @@ export default function ScavScan({
   const owned = new Set(inventory.owned)
   const noSizes = list.length > 0 && !list.some((i) => i.width && i.height)
   const needById = new Map(allNeeds.map((n) => [n.itemId, n]))
+  // Sorting the list (since 1.59.0) only reorders it: the advice stays worked out in read order, and
+  // each row keeps its number on the screenshot.
+  const nameOf = (r: ScanRow): string | null => (r.itemId ? (items.get(r.itemId)?.name ?? null) : null)
+  const worthOf = (r: ScanRow): number | null => {
+    const a = adviceOf.get(r.key)
+    if (!a) return null
+    const worth = mode === 'loot' ? adviceWorth(a) : a.each * r.count
+    return worth > 0 ? worth : null
+  }
+  const columns: SortColumn<ScanRow>[] = [
+    { key: 'number', label: '#', num: true, title: 'In the order read', value: (r) => number.get(r.key) },
+    { key: 'item', label: mode === 'keys' ? 'Key' : 'Item', value: nameOf },
+    ...(mode !== 'keys'
+      ? [{ key: 'count', label: 'Count', num: true, desc: true, value: (r: ScanRow) => r.count }]
+      : []),
+    mode === 'keys'
+      ? {
+          key: 'keys',
+          label: 'Your keys',
+          title: 'New, then ticked, then not a key, then keys to pick',
+          value: (r: ScanRow) =>
+            !r.itemId || !items.has(r.itemId) ? 3 : !isKey(r.itemId) ? 2 : owned.has(r.itemId) ? 1 : 0
+        }
+      : mode === 'stash'
+        ? {
+            key: 'needed',
+            label: 'Items needed',
+            title: 'On the list (most needed first), then not on it',
+            value: (r: ScanRow) => {
+              const item = r.itemId ? items.get(r.itemId) : undefined
+              const need = r.itemId ? needById.get(r.itemId) : undefined
+              return [!item ? 3 : CURRENCIES[item.id] ? 2 : need ? 0 : 1, -(need?.needed ?? 0)]
+            }
+          }
+        : {
+            key: 'do',
+            label: 'Do',
+            title: 'Keep, then sell on the flea, then sell to a trader, then no buyer',
+            value: (r: ScanRow) => {
+              const a = adviceOf.get(r.key)
+              const known = !!r.itemId && items.has(r.itemId)
+              return a ? [doRank(a, known), -a.keep, -(worthOf(r) ?? 0)] : null
+            }
+          },
+    ...(mode !== 'keys' ? [{ key: 'worth', label: 'Worth', num: true, desc: true, value: worthOf }] : []),
+    { key: 'remove', label: '', ariaLabel: 'Remove' }
+  ]
+  const { sort, onSort, sorted } = useTableSort(`scan-${mode}`, columns)
+  const shownRows = sorted(listed)
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
   const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
   const added = advice.reduce((n, a) => n + a.stored, 0)
@@ -1340,18 +1393,9 @@ export default function ScavScan({
               </div>
             )}
             <table className="values-table scan-table">
-              <thead>
-                <tr>
-                  <th className="num">#</th>
-                  <th>{mode === 'keys' ? 'Key' : 'Item'}</th>
-                  {mode !== 'keys' && <th className="num">Count</th>}
-                  <th>{mode === 'keys' ? 'Your keys' : mode === 'stash' ? 'Items needed' : 'Do'}</th>
-                  {mode !== 'keys' && <th className="num">Worth</th>}
-                  <th />
-                </tr>
-              </thead>
+              <SortHead columns={columns} sort={sort} onSort={onSort} />
               <tbody>
-                {listed.map((r, i) => {
+                {shownRows.map((r) => {
                   const item = r.itemId ? items.get(r.itemId) : undefined
                   const a = adviceOf.get(r.key)!
                   const check = r.confidence === 'low' || !item || (mode === 'keys' && !isKey(r.itemId))
@@ -1379,10 +1423,10 @@ export default function ScavScan({
                             title={`On screenshot ${shotNumber.get(r.shot)}: show it`}
                             onClick={() => patch({ active: r.shot })}
                           >
-                            {i + 1}
+                            {number.get(r.key)}
                           </button>
                         ) : (
-                          i + 1
+                          number.get(r.key)
                         )}
                       </td>
                       <td className="item-cell">

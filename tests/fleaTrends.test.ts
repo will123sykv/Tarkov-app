@@ -474,4 +474,14 @@ describe('rankTrends', () => {
       )
     ).toEqual(['a', 'd'])
   })
+
+  it('sorts either way by any column, keeping items with no value last (since 1.59.0)', () => {
+    const a = row(item('a'), pattern({ profit: 2_000 }))
+    const b = row(item('b'), pattern({ profit: 3_000 }))
+    const none = row(item('c'), null)
+    const f = filters({ minConsistency: 0, minSwing: 0, minProfit: -1_000_000 })
+    expect(ids(rankTrends([a, b, none], f, 'profit', false, null, false))).toEqual(['a', 'b', 'c'])
+    expect(ids(rankTrends([a, b, none], f, 'profit', false, null, true))).toEqual(['b', 'a', 'c'])
+    expect(ids(rankTrends([b, a], f, 'name', true, null, false))).toEqual(['a', 'b'])
+  })
 })

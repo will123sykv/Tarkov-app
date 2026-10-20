@@ -26,6 +26,8 @@ export interface TrendRanking {
   patternsReady: boolean
   /** The sort in effect, which may differ from the saved one before any item has buy and sell times. */
   sort: TrendSortKey
+  /** Biggest first (the other way when false). */
+  desc: boolean
   /** The hour of the day now (local) and the analysis' interval length, for "buy now" and "sell now". */
   clock: TrendClock
 }
@@ -59,15 +61,17 @@ export function useTrendRanking(
     [active, dataset, analysis, level, fleaMinLevel]
   )
   const patternsReady = useMemo(() => anyPattern(all), [all])
-  const sort: TrendSortKey = !patternsReady && PATTERN_SORTS.includes(saved) ? 'swing' : saved
+  const fallback = !patternsReady && PATTERN_SORTS.includes(saved)
+  const sort: TrendSortKey = fallback ? 'swing' : saved
+  const desc = fallback ? true : (filters?.sortDesc ?? true)
 
   const { rows, funnel } = useMemo(() => {
     if (!filters || !all.length) return { rows: [], funnel: [] }
     return {
-      rows: rankTrends(all, filters, sort, patternsReady, clock),
+      rows: rankTrends(all, filters, sort, patternsReady, clock, desc),
       funnel: trendFunnel(all, filters, patternsReady, clock)
     }
-  }, [all, filters, sort, patternsReady, clock])
+  }, [all, filters, sort, patternsReady, clock, desc])
 
-  return { analysis, rows, funnel, patternsReady, sort, clock }
+  return { analysis, rows, funnel, patternsReady, sort, desc, clock }
 }

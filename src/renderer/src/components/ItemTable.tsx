@@ -1,11 +1,14 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef } from 'react'
 import type { KeepInfo } from '../../../shared/hideout'
+import { DEFAULT_SETTINGS } from '../../../shared/settings'
+import { nextSort } from '../../../shared/tableSort'
 import type { PriceState, SortKey, SortState } from '../../../shared/types'
 import type { RankedItem } from '../../../shared/valuation'
 import { friendlyError } from '../lib/errors'
 import { formatPercent, formatRub } from '../lib/format'
 import { useStore } from '../store'
+import { ariaSort, SortButton } from './SortHeader'
 
 interface Props {
   rows: RankedItem[]
@@ -42,9 +45,12 @@ const COLUMNS: Column[] = [
     className: 'col-chance',
     title: 'Chance one search of this container turns up at least one'
   },
-  { key: null, label: 'Flea access' },
+  { key: 'access', label: 'Flea access', title: 'Sellable, then locked until a level, then banned' },
   { key: null, label: 'Source', className: 'col-source' }
 ]
+
+/** Columns sorted A to Z (or best first) on the first click; the rest biggest first. */
+const ASCENDING_FIRST = new Set<SortKey>(['name', 'access'])
 
 const ROW_HEIGHT = 52
 
@@ -58,9 +64,12 @@ function SortHeader({
   rowClass: string
 }): React.JSX.Element {
   const updateSettings = useStore((s) => s.updateSettings)
+  // Sort, reverse, then back to the usual order (₽ / slot, biggest first).
   function toggle(key: SortKey): void {
-    const dir = sort.key === key ? (sort.dir === 'desc' ? 'asc' : 'desc') : key === 'name' ? 'asc' : 'desc'
-    void updateSettings({ sort: { key, dir } })
+    const next = nextSort({ key: sort.key, desc: sort.dir === 'desc' }, key, !ASCENDING_FIRST.has(key))
+    void updateSettings({
+      sort: next ? { key, dir: next.desc ? 'desc' : 'asc' } : DEFAULT_SETTINGS.sort
+    })
   }
   return (
     <div className={`${rowClass} header`} role="row">
@@ -69,17 +78,16 @@ function SortHeader({
           key={i}
           role="columnheader"
           className={[col.align === 'right' ? 'num' : '', col.className ?? ''].join(' ').trim()}
-          title={col.title}
+          aria-sort={col.key ? ariaSort(sort.key === col.key, sort.dir === 'desc') : undefined}
         >
           {col.key ? (
-            <button
-              className={`sort ${sort.key === col.key ? 'active' : ''}`}
+            <SortButton
+              label={col.label}
+              active={sort.key === col.key}
+              desc={sort.dir === 'desc'}
+              title={col.title}
               onClick={() => toggle(col.key!)}
-              aria-sort={sort.key === col.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-            >
-              {col.label}
-              {sort.key === col.key && <span aria-hidden>{sort.dir === 'asc' ? ' ▲' : ' ▼'}</span>}
-            </button>
+            />
           ) : (
             col.label
           )}

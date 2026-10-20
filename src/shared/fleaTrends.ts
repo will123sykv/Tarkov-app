@@ -1,4 +1,5 @@
 import { fleaMarketFee, type FleaFeeRates } from './fleaFee'
+import { compareCells, type Cell } from './tableSort'
 import type { LootItem } from './types'
 import type { FleaAccess } from './valuation'
 
@@ -347,7 +348,22 @@ export interface TrendClock {
   bucketHours: number
 }
 
-export type TrendSortKey = 'profit' | 'spread' | 'volatility' | 'consistency' | 'offers' | 'swing'
+export type TrendSortKey =
+  | 'profit'
+  | 'spread'
+  | 'volatility'
+  | 'consistency'
+  | 'offers'
+  | 'swing'
+  // Since 1.59.0, so every column sorts:
+  | 'name'
+  | 'now'
+  | 'price'
+  | 'buyHour'
+  | 'buyPrice'
+
+/** Sorts that go A to Z (or soonest first) on the first click; the rest go biggest first. */
+export const ASCENDING_TREND_SORTS: readonly TrendSortKey[] = ['name', 'now', 'buyHour']
 
 /** Offers up for an item: the recordings' average when there is one, else the latest count. */
 export function liquidity(row: TrendRow): number | null {
@@ -362,20 +378,36 @@ export function hasPattern(row: TrendRow): boolean {
   return row.stats !== null && row.stats.insufficient === null && row.stats.buy !== null
 }
 
-function sortValue(row: TrendRow, key: TrendSortKey): number {
+/** What a row sorts by; null (no pattern yet, no price) goes last either way. */
+function sortValue(row: TrendRow, key: TrendSortKey, clock: TrendClock | null): Cell {
+  const pattern = hasPattern(row) ? row.stats! : null
   switch (key) {
     case 'profit':
-      return row.stats?.profit ?? -Infinity
+      return row.stats?.profit ?? null
     case 'spread':
-      return row.stats?.spreadPct ?? -Infinity
+      return row.stats?.spreadPct ?? null
     case 'volatility':
-      return row.stats?.volatility ?? -Infinity
+      return row.stats?.volatility ?? null
     case 'consistency':
-      return hasPattern(row) ? consistencyShare(row.stats) : -Infinity
+      return pattern ? consistencyShare(pattern) : null
     case 'offers':
-      return liquidity(row) ?? -Infinity
+      return liquidity(row)
     case 'swing':
-      return currentSwing(row) ?? -Infinity
+      return currentSwing(row)
+    case 'name':
+      return row.item.name
+    // Buy now, then sell now, then the soonest of either.
+    case 'now': {
+      const when = pattern && clock ? timing(pattern, clock.hour, clock.bucketHours) : null
+      if (!when) return null
+      return when.now === 'buy' ? 0 : when.now === 'sell' ? 1 : 2 + Math.min(when.buyIn, when.sellIn)
+    }
+    case 'price':
+      return row.item.fleaPrice ?? null
+    case 'buyHour':
+      return pattern?.buy?.startHour ?? null
+    case 'buyPrice':
+      return pattern?.buy?.price ?? null
   }
 }
 
@@ -437,12 +469,15 @@ export function rankTrends(
   filters: TrendFilters,
   sort: TrendSortKey,
   patternsOnly: boolean,
-  clock: TrendClock | null = null
+  clock: TrendClock | null = null,
+  desc = true
 ): TrendRow[] {
   const steps = trendSteps(filters, patternsOnly, clock)
   return rows
     .filter((row) => onFlea(row) && steps.every((step) => step.pass(row)))
-    .sort((a, b) => sortValue(b, sort) - sortValue(a, sort) || a.item.name.localeCompare(b.item.name))
+    .map((row) => ({ row, v: sortValue(row, sort, clock) }))
+    .sort((a, b) => compareCells(a.v, b.v, desc) || a.row.item.name.localeCompare(b.row.item.name))
+    .map((e) => e.row)
 }
 
 /**

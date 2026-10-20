@@ -295,6 +295,33 @@ describe('sanitizeSettings', () => {
     expect(saved(3, {})).toBe(true)
   })
 
+  it('keeps how each table is sorted, and drops what isn’t a table’s sort (since 1.59.0)', () => {
+    expect(DEFAULT_SETTINGS.tableSorts).toEqual({})
+    expect(
+      sanitizeSettings({
+        tableSorts: {
+          'scan-loot': { key: 'do', desc: false },
+          raids: { key: 'when', desc: true },
+          'Bad Id': { key: 'do', desc: true },
+          keys: { key: 'no spaces allowed', desc: true },
+          crafts: 'per-hour'
+        }
+      }).tableSorts
+    ).toEqual({ 'scan-loot': { key: 'do', desc: false }, raids: { key: 'when', desc: true } })
+    // Replaced whole, so a table going back to its own order drops out.
+    const current = sanitizeSettings({ tableSorts: { raids: { key: 'when', desc: true } } })
+    expect(mergeSettings(current, { tableSorts: {} }).tableSorts).toEqual({})
+    expect(mergeSettings(current, { view: 'raids' }).tableSorts).toEqual({
+      raids: { key: 'when', desc: true }
+    }) // Flea trends keep their own sort, now either way and by any column.
+    expect(DEFAULT_SETTINGS.trends).toMatchObject({ sort: 'profit', sortDesc: true })
+    expect(sanitizeSettings({ trends: { sort: 'name', sortDesc: false } }).trends).toMatchObject({
+      sort: 'name',
+      sortDesc: false
+    })
+    expect(sanitizeSettings({ trends: { sort: 'profit' } }).trends.sortDesc).toBe(true)
+  })
+
   it('keeps each tab’s hidden sidebar sections and whether it’s collapsed (since 1.26.0)', () => {
     expect(DEFAULT_SETTINGS.sidebars).toEqual({})
     expect(sanitizeSettings({}).sidebars).toEqual({})
