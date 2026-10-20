@@ -4,9 +4,11 @@ import type { PriceState, PublicSettings } from '../../../shared/types'
 import { formatDateTime, formatRub } from '../lib/format'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import { LogStatusLine } from './LogStatusPanel'
 import Sidebar, { SidebarSection } from './Sidebar'
+import { SortHead } from './SortHeader'
 
 const MAX_ROWS = 200
 
@@ -58,6 +60,51 @@ export default function RaidsView({
   const raids = history?.raids ?? NO_RAIDS
   const flea = history?.flea ?? NO_FLEA
 
+  // Both lists sort by any column (since 1.59.0); their own order is newest first.
+  const raidColumns = useMemo<SortColumn<RaidRecord>[]>(
+    () => [
+      { key: 'when', label: 'When', desc: true, value: (r) => r.startedAt ?? r.foundAt },
+      {
+        key: 'map',
+        label: 'Map',
+        value: (r) => mapNames.get(r.map.toLowerCase()) ?? OTHER_MAP_NAMES[r.map.toLowerCase()] ?? r.map
+      },
+      { key: 'side', label: 'As', value: (r) => r.side },
+      { key: 'queue', label: 'Queue', num: true, desc: true, value: (r) => r.queueSeconds },
+      { key: 'load', label: 'Load', num: true, desc: true, value: (r) => r.loadSeconds },
+      {
+        key: 'length',
+        label: 'Length',
+        num: true,
+        desc: true,
+        value: (r) => (r.startedAt && r.endedAt ? r.endedAt - r.startedAt : null)
+      }
+    ],
+    [mapNames]
+  )
+  const fleaColumns = useMemo<SortColumn<FleaRecord>[]>(
+    () => [
+      { key: 'when', label: 'When', desc: true, value: (f) => f.t },
+      {
+        key: 'item',
+        label: 'Item',
+        value: (f) => (f.itemId ? (items.get(f.itemId)?.name ?? f.itemId) : null)
+      },
+      { key: 'count', label: 'Count', num: true, desc: true, value: (f) => f.count },
+      { key: 'buyer', label: 'Buyer', value: (f) => f.buyer },
+      {
+        key: 'received',
+        label: 'Received',
+        num: true,
+        desc: true,
+        title: 'Roubles received (other currencies and expired offers last)',
+        value: (f) => (f.kind === 'sold' && f.payment?.currency === 'RUB' ? f.payment.amount : null)
+      }
+    ],
+    [items]
+  )
+  const raidSort = useTableSort('raids', raidColumns)
+  const fleaSort = useTableSort('flea-sales', fleaColumns)
   const stats = useMemo(() => {
     const byMap = new Map<string, number>()
     for (const r of raids) byMap.set(r.map.toLowerCase(), (byMap.get(r.map.toLowerCase()) ?? 0) + 1)
@@ -132,29 +179,23 @@ export default function RaidsView({
               <p className="muted">No raids read yet.</p>
             ) : (
               <table className="values-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Map</th>
-                    <th>As</th>
-                    <th className="num">Queue</th>
-                    <th className="num">Load</th>
-                    <th className="num">Length</th>
-                  </tr>
-                </thead>
+                <SortHead columns={raidColumns} sort={raidSort.sort} onSort={raidSort.onSort} />
                 <tbody>
-                  {raids.slice(0, MAX_ROWS).map((r) => (
-                    <tr key={`${r.foundAt}:${r.raidId}`}>
-                      <td>{when(r.startedAt ?? r.foundAt)}</td>
-                      <td>{mapName(r)}</td>
-                      <td>{r.side === 'pmc' ? 'PMC' : r.side === 'scav' ? 'Scav' : '—'}</td>
-                      <td className="num">{duration(r.queueSeconds)}</td>
-                      <td className="num">{duration(r.loadSeconds)}</td>
-                      <td className="num">
-                        {r.startedAt && r.endedAt ? duration((r.endedAt - r.startedAt) / 1000) : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {raidSort
+                    .sorted(raids)
+                    .slice(0, MAX_ROWS)
+                    .map((r) => (
+                      <tr key={`${r.foundAt}:${r.raidId}`}>
+                        <td>{when(r.startedAt ?? r.foundAt)}</td>
+                        <td>{mapName(r)}</td>
+                        <td>{r.side === 'pmc' ? 'PMC' : r.side === 'scav' ? 'Scav' : '—'}</td>
+                        <td className="num">{duration(r.queueSeconds)}</td>
+                        <td className="num">{duration(r.loadSeconds)}</td>
+                        <td className="num">
+                          {r.startedAt && r.endedAt ? duration((r.endedAt - r.startedAt) / 1000) : '—'}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             )}
@@ -165,25 +206,20 @@ export default function RaidsView({
               <p className="muted">No flea sales read yet.</p>
             ) : (
               <table className="values-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Item</th>
-                    <th className="num">Count</th>
-                    <th>Buyer</th>
-                    <th className="num">Received</th>
-                  </tr>
-                </thead>
+                <SortHead columns={fleaColumns} sort={fleaSort.sort} onSort={fleaSort.onSort} />
                 <tbody>
-                  {flea.slice(0, MAX_ROWS).map((f, i) => (
-                    <tr key={`${f.t}:${i}`} className={f.kind === 'expired' ? 'dim-row' : ''}>
-                      <td>{when(f.t)}</td>
-                      <td>{f.itemId ? (items.get(f.itemId)?.name ?? f.itemId) : '—'}</td>
-                      <td className="num">{f.count ?? '—'}</td>
-                      <td>{f.buyer ?? ''}</td>
-                      <td className="num">{payment(f)}</td>
-                    </tr>
-                  ))}
+                  {fleaSort
+                    .sorted(flea)
+                    .slice(0, MAX_ROWS)
+                    .map((f, i) => (
+                      <tr key={`${f.t}:${i}`} className={f.kind === 'expired' ? 'dim-row' : ''}>
+                        <td>{when(f.t)}</td>
+                        <td>{f.itemId ? (items.get(f.itemId)?.name ?? f.itemId) : '—'}</td>
+                        <td className="num">{f.count ?? '—'}</td>
+                        <td>{f.buyer ?? ''}</td>
+                        <td className="num">{payment(f)}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             )}

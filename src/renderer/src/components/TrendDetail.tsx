@@ -1,10 +1,47 @@
 import { useEffect } from 'react'
-import { consistencyShare, hasPattern, type TrendRow } from '../../../shared/fleaTrends'
+import { consistencyShare, hasPattern, type TrendBucket, type TrendRow } from '../../../shared/fleaTrends'
 import type { DataMode, TrendAnalysis } from '../../../shared/types'
 import { friendlyError } from '../lib/errors'
 import { formatHour, formatPercent, formatRub, formatRubShort, formatSlot } from '../lib/format'
 import { trendSeriesKey, useStore } from '../store'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import LineChart, { type ChartPoint } from './LineChart'
+import { SortHead } from './SortHeader'
+
+const BUCKET_COLUMNS: SortColumn<TrendBucket>[] = [
+  { key: 'time', label: 'Time', value: (b) => b.startHour },
+  { key: 'typical', label: 'Typical lowest', num: true, desc: true, value: (b) => b.median },
+  { key: 'middle', label: 'Middle half', num: true, desc: true, value: (b) => b.q1 },
+  { key: 'prices', label: 'Prices', num: true, desc: true, value: (b) => b.samples }
+]
+
+/** The values behind the time-of-day chart, a row per part of the day (any column sorts). */
+function BucketTable({
+  buckets,
+  bucketHours
+}: {
+  buckets: readonly TrendBucket[]
+  bucketHours: number
+}): React.JSX.Element {
+  const { sort, onSort, sorted } = useTableSort('trend-values', BUCKET_COLUMNS)
+  return (
+    <table className="values-table">
+      <SortHead columns={BUCKET_COLUMNS} sort={sort} onSort={onSort} />
+      <tbody>
+        {sorted(buckets).map((b) => (
+          <tr key={b.startHour}>
+            <td>{formatSlot(b.startHour, bucketHours)}</td>
+            <td className="num">{formatRub(b.median)}</td>
+            <td className="num">
+              {b.q1 != null && b.q3 != null ? `${formatRub(b.q1)}–${formatRub(b.q3)}` : '—'}
+            </td>
+            <td className="num">{b.samples}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
 interface Props {
   row: TrendRow
@@ -118,28 +155,7 @@ export default function TrendDetail({ row, analysis, days, dataMode }: Props): R
           {stats && (
             <details>
               <summary>Show values</summary>
-              <table className="values-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th className="num">Typical lowest</th>
-                    <th className="num">Middle half</th>
-                    <th className="num">Prices</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.buckets.map((b) => (
-                    <tr key={b.startHour}>
-                      <td>{formatSlot(b.startHour, bucketHours)}</td>
-                      <td className="num">{formatRub(b.median)}</td>
-                      <td className="num">
-                        {b.q1 != null && b.q3 != null ? `${formatRub(b.q1)}–${formatRub(b.q3)}` : '—'}
-                      </td>
-                      <td className="num">{b.samples}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <BucketTable buckets={stats.buckets} bucketHours={bucketHours} />
             </details>
           )}
         </figure>

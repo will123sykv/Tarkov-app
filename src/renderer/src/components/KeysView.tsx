@@ -11,12 +11,14 @@ import type { Group } from '../lib/mapGroups'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useQuestRows } from '../lib/useQuestRows'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import LoadError from './LoadError'
 import { FriendTags } from './FriendKeys'
 import KeyShare from './KeyShare'
 import ScavScan from './ScavScan'
 import Sidebar, { SidebarSection } from './Sidebar'
+import { SortHead } from './SortHeader'
 
 // The Keys tab: the keys the player has (ticked by hand), the ones their quests still need, and how to
 // get each: buy it, a quest that hands it out, or where it spawns.
@@ -224,6 +226,12 @@ function KeyGroup({
   )
 }
 
+/** A row of a key list: any one of the keys opens the lock, and the quests that need it. */
+interface KeyListRow {
+  keyIds: string[]
+  uses: KeyNeed['uses']
+}
+
 function KeyTable({
   title,
   rows,
@@ -232,11 +240,43 @@ function KeyTable({
   ...rest
 }: {
   title: string
-  rows: { keyIds: string[]; uses: KeyNeed['uses'] }[]
+  rows: KeyListRow[]
   /** Folded lists show just their heading and count; `onToggle` opens or folds them. */
   open?: boolean
   onToggle?: () => void
 } & Omit<Parameters<typeof KeyRow>[0], 'keyIds' | 'uses'>): React.JSX.Element | null {
+  const { info, owned, groups } = rest
+  // One sort for all the key lists (since 1.59.0); each keeps its own rows.
+  const columns = useMemo<SortColumn<KeyListRow>[]>(
+    () => [
+      {
+        key: 'have',
+        label: 'Have',
+        title: 'Tick the keys you have',
+        value: (r) => (opens(r.keyIds, owned) ? 0 : 1)
+      },
+      { key: 'key', label: 'Key', value: (r) => info(r.keyIds[0]).name },
+      {
+        key: 'map',
+        label: 'Map',
+        title: 'Where it opens a lock, a quest needs it, or it gets you onto the map',
+        value: (r) => keyMapsUsed(info(r.keyIds[0]), r.uses, groups)[0]?.name ?? null
+      },
+      { key: 'for', label: 'Needed for', value: (r) => r.uses[0]?.quest.name ?? null },
+      {
+        key: 'get',
+        label: 'How to get it',
+        title: 'The cheapest to buy first; keys you can’t buy last',
+        value: (r) => {
+          const prices = r.keyIds.flatMap((id) => info(id).buy?.options.map((o) => o.price) ?? [])
+          return prices.length ? Math.min(...prices) : null
+        }
+      },
+      { key: 'actions', label: '', ariaLabel: 'Actions' }
+    ],
+    [info, owned, groups]
+  )
+  const { sort, onSort, sorted } = useTableSort('keys', columns)
   if (!rows.length) return null
   const heading = (
     <>
@@ -264,18 +304,9 @@ function KeyTable({
             <col className="key-col-get" />
             <col className="key-col-actions" />
           </colgroup>
-          <thead>
-            <tr>
-              <th title="Tick the keys you have">Have</th>
-              <th>Key</th>
-              <th title="Where it opens a lock, a quest needs it, or it gets you onto the map">Map</th>
-              <th>Needed for</th>
-              <th>How to get it</th>
-              <th />
-            </tr>
-          </thead>
+          <SortHead columns={columns} sort={sort} onSort={onSort} />
           <tbody>
-            {rows.map((r) => (
+            {sorted(rows).map((r) => (
               <KeyRow key={r.keyIds.join()} keyIds={r.keyIds} uses={r.uses} {...rest} />
             ))}
           </tbody>

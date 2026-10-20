@@ -58,6 +58,16 @@ export function craftText(o: CraftOption, items: Items): string {
 }
 
 /**
+ * What the Buy or craft column sorts by (since 1.59.0): the buy price, or what a craft you can do now
+ * costs; none (last) when it can only be found or can't be bought yet.
+ */
+export function getPrice(get: GetInfo): number | null {
+  if (!get.find || get.buyCount > 0) return get.buy?.options[0]?.price ?? null
+  const best = get.crafts[0]
+  return best && canCraft(best) ? best.costEach : null
+}
+
+/**
  * The cheapest way to get one: the buy price for copies that needn't be found in raid; for the rest, a
  * craft you can do now (with what its inputs cost each), or finding it in raid.
  */

@@ -23,6 +23,7 @@ import {
   type CraftContext,
   type Scarcity,
   type SellAdvice,
+  type GetInfo,
   type HideoutNeed,
   type HideoutProgress
 } from '../../../shared/hideout'
@@ -34,15 +35,17 @@ import { formatMoney } from '../lib/questSummary'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import CraftsView from './CraftsView'
 import LoadError from './LoadError'
 import FavouriteStar from './FavouriteStar'
-import { craftText, GetCell } from './GetCell'
+import { craftText, GetCell, getPrice } from './GetCell'
 import ScarceBadge from './ScarceBadge'
 import ScavScan, { startStashCount } from './ScavScan'
 import SettingsLink from './SettingsLink'
 import Sidebar, { SidebarSection } from './Sidebar'
+import { SortHead } from './SortHeader'
 import StationLevels, { StationIcon } from './StationLevels'
 
 type Items = ReadonlyMap<string, LootItem>
@@ -173,6 +176,15 @@ function AlsoNeeded({
   )
 }
 
+/** A row of Items needed: the item, how to get it, and whether some could be sold. */
+interface NeededRow {
+  need: HideoutNeed
+  item: LootItem | undefined
+  scarce: Scarcity | null
+  get: GetInfo
+  sell: SellAdvice | null
+}
+
 /** Every item the stations and quests still need, rare ones first, then what's put aside but no longer needed. */
 function ItemsNeeded({
   needs,
@@ -208,7 +220,7 @@ function ItemsNeeded({
   onOpenQuest: (questId: string) => void
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
-  const rows = useMemo(
+  const rows = useMemo<NeededRow[]>(
     () =>
       needs
         .filter(
@@ -238,6 +250,43 @@ function ItemsNeeded({
         ),
     [needs, everything, items, hideDone, firOnly, keepOnly, sellOnly, ctx, cc]
   )
+  const columns = useMemo<SortColumn<NeededRow>[]>(
+    () => [
+      { key: 'item', label: 'Item', value: (r) => r.item?.name ?? null },
+      { key: 'have', label: 'Have', desc: true, value: (r) => r.need.have },
+      {
+        key: 'needed',
+        label: firOnly ? 'Found in raid' : 'Needed',
+        num: true,
+        desc: true,
+        title: firOnly ? 'Found in raid, of all needed' : undefined,
+        value: (r) => (firOnly ? r.need.firNeeded : r.need.needed)
+      },
+      { key: 'missing', label: 'Missing', num: true, desc: true, value: (r) => r.need.missing },
+      {
+        key: 'get',
+        label: 'Buy or craft',
+        num: true,
+        desc: true,
+        title:
+          'The cheapest way to get one now, at your level, trader loyalty and hideout: buy it or, when it ' +
+          'must be found in raid (bought items never are), craft it (crafted ones are) or find it',
+        value: (r) => getPrice(r.get)
+      },
+      {
+        key: 'for',
+        label: 'For',
+        value: (r) => r.need.uses[0]?.stationName ?? r.need.quests[0]?.name ?? null
+      }
+    ],
+    [firOnly]
+  )
+  const { sort, onSort, sorted } = useTableSort('items-needed', columns)
+  // What nothing needs any more stays at the bottom however it's sorted.
+  const shown = useMemo(() => {
+    const all = sorted(rows)
+    return [...all.filter((r) => r.need.needed > 0), ...all.filter((r) => r.need.needed === 0)]
+  }, [rows, sorted])
   if (!rows.length)
     return (
       <div className="empty">
@@ -257,28 +306,9 @@ function ItemsNeeded({
   return (
     <div className="hideout-items">
       <table className="values-table hideout-table">
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Have</th>
-            <th className="num" title={firOnly ? 'Found in raid, of all needed' : undefined}>
-              {firOnly ? 'Found in raid' : 'Needed'}
-            </th>
-            <th className="num">Missing</th>
-            <th
-              className="num"
-              title={
-                'The cheapest way to get one now, at your level, trader loyalty and hideout: buy it or, when it ' +
-                'must be found in raid (bought items never are), craft it (crafted ones are) or find it'
-              }
-            >
-              Buy or craft
-            </th>
-            <th>For</th>
-          </tr>
-        </thead>
+        <SortHead columns={columns} sort={sort} onSort={onSort} />
         <tbody>
-          {rows.map(({ need, item, scarce, get, sell }) => (
+          {shown.map(({ need, item, scarce, get, sell }) => (
             <tr
               key={need.itemId}
               className={

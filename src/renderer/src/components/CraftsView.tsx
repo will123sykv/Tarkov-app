@@ -4,24 +4,17 @@ import type { HideoutSettings, LootItem } from '../../../shared/types'
 import { evaluateItem, type ValuationContext } from '../../../shared/valuation'
 import { formatDuration, formatRub } from '../lib/format'
 import type { useItemLookup } from '../lib/useItemLookup'
+import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import FavouriteStar from './FavouriteStar'
 import { ItemChip } from './QuestDetail'
+import { SortHead } from './SortHeader'
 
 type Items = ReturnType<typeof useItemLookup>
-type SortKey = 'perHour' | 'profit' | 'time'
 
-const SORTS: readonly (readonly [SortKey, string])[] = [
-  ['perHour', 'Per hour'],
-  ['profit', 'Profit'],
-  ['time', 'Quickest']
-]
-
-const byKey: Record<SortKey, (a: CraftProfit, b: CraftProfit) => number> = {
-  perHour: (a, b) => (b.perHour ?? -Infinity) - (a.perHour ?? -Infinity),
-  profit: (a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity),
-  time: (a, b) => a.craft.duration - b.craft.duration || byKey.perHour(a, b)
-}
+/** The list's own order: the most profit per hour first (crafts with no profit known last). */
+const byPerHour = (a: CraftProfit, b: CraftProfit): number =>
+  (b.perHour ?? -Infinity) - (a.perHour ?? -Infinity)
 
 /** Roubles, a loss with a minus sign in front (−₽5,000). */
 const money = (value: number | null): string =>
@@ -53,7 +46,6 @@ export default function CraftsView({
   h: HideoutSettings
   set: (patch: Partial<HideoutSettings>) => void
 }): React.JSX.Element {
-  const [sort, setSort] = useState<SortKey>('perHour')
   const [stationId, setStationId] = useState<string>('')
   const search = useStore((s) => s.craftsSearch)
   const setSearch = useStore((s) => s.setCraftsSearch)
@@ -80,26 +72,29 @@ export default function CraftsView({
           [...p.craft.outputs, ...p.craft.inputs].some((i) => name(i.itemId).includes(term)) ||
           p.stationName.toLowerCase().includes(term)
       )
-      .sort(byKey[sort])
-  }, [profits, h.craftsReadyOnly, stationId, term, sort, items])
+      .sort(byPerHour)
+  }, [profits, h.craftsReadyOnly, stationId, term, items])
+  // Every column sorts (since 1.59.0, in place of the Per hour / Profit / Quickest switch).
+  const columns = useMemo<SortColumn<CraftProfit>[]>(() => {
+    const name = (id: string | undefined): string | null => (id ? (items.get(id)?.name ?? null) : null)
+    return [
+      { key: 'makes', label: 'Makes', value: (p) => name(p.craft.outputs[0]?.itemId) },
+      { key: 'station', label: 'Station', value: (p) => [p.stationName, p.craft.level] },
+      { key: 'uses', label: 'Uses', value: (p) => name(p.craft.inputs[0]?.itemId) },
+      { key: 'time', label: 'Time', num: true, desc: true, value: (p) => p.craft.duration },
+      { key: 'cost', label: 'Cost', num: true, desc: true, value: (p) => p.cost },
+      { key: 'value', label: 'Sells for', num: true, desc: true, value: (p) => p.value },
+      { key: 'profit', label: 'Profit', num: true, desc: true, value: (p) => p.profit },
+      { key: 'perHour', label: 'Per hour', num: true, desc: true, value: (p) => p.perHour }
+    ]
+  }, [items])
+  const { sort, onSort, sorted } = useTableSort('crafts', columns)
+  const rows = useMemo(() => sorted(shown), [sorted, shown])
   const ready = profits.filter((p) => blocker(p) === null).length
 
   return (
     <div className="crafts">
       <div className="crafts-filters">
-        <div className="segmented small" role="radiogroup" aria-label="Sort crafts by">
-          {SORTS.map(([id, text]) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={sort === id}
-              className={sort === id ? 'active' : ''}
-              onClick={() => setSort(id)}
-            >
-              {text}
-            </button>
-          ))}
-        </div>
         <select value={stationId} onChange={(e) => setStationId(e.target.value)} aria-label="Station">
           <option value="">Every station</option>
           {stations.map(([id, name]) => (
@@ -139,20 +134,9 @@ export default function CraftsView({
         </p>
       ) : (
         <table className="values-table crafts-table">
-          <thead>
-            <tr>
-              <th>Makes</th>
-              <th>Station</th>
-              <th>Uses</th>
-              <th className="num">Time</th>
-              <th className="num">Cost</th>
-              <th className="num">Sells for</th>
-              <th className="num">Profit</th>
-              <th className="num">Per hour</th>
-            </tr>
-          </thead>
+          <SortHead columns={columns} sort={sort} onSort={onSort} />
           <tbody>
-            {shown.map((p) => {
+            {rows.map((p) => {
               const blocked = blocker(p)
               const first = p.craft.outputs[0]
               return (
