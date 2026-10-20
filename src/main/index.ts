@@ -20,6 +20,7 @@ import { createPlayerStore } from './quests/playerStore'
 import { createScanService } from './scan/scanService'
 import { createQuestDataService } from './quests/questData'
 import { createQuestGuideService } from './quests/questGuide'
+import { allowQuestWiki } from './questWiki'
 import { createWikiQuestService } from './quests/wikiQuests'
 import { createSettingsStore } from './settings'
 import { createTarkovDevHistory } from './trends/history'
@@ -71,7 +72,9 @@ function createWindow(showWhenReady = true): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true
+      sandbox: true,
+      // Only for a quest's wiki page in the quest panel (see questWiki.ts).
+      webviewTag: true
     }
   })
 
@@ -84,6 +87,9 @@ function createWindow(showWhenReady = true): BrowserWindow {
   })
   win.webContents.on('will-navigate', (event, url) => {
     if (url !== win.webContents.getURL()) event.preventDefault()
+  })
+  allowQuestWiki(win.webContents, (url) => {
+    if (isSafeExternalUrl(url)) void shell.openExternal(url)
   })
 
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {

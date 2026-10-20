@@ -516,6 +516,13 @@ the game's install folder, or its `build` folder.
   map you're looking at: the Maps tab's, the Quests tab's **Map** filter or the map opened on the To
   do tab.
   Guides are kept for a week, so ones you've opened work offline.
+- **The wiki in the quest panel:** **Wiki ▶** under a quest's name (in the panel on the Maps, Quests
+  and To do tabs) opens its page on the Escape from Tarkov Wiki right there: the panel widens to
+  about half the window, with **◀ Quest** to go back to the quest, **‹ ›** to go back and forward
+  between wiki pages, **Reload** and **Open in browser ↗**. Links within the wiki stay in the panel;
+  links to other sites open in your browser. Only the wiki loads there, in a page of its own with no
+  access to the app or your PC; it keeps the wiki's cookies (its cookie choice) between runs. Offline,
+  it says the wiki couldn't be loaded, with **Try again**.
 - **Corrected from the wiki:** tarkov.dev's quest data and the
   [wiki](https://escapefromtarkov.fandom.com) don't always agree, so each quest's wiki page is read
   with the quest data, and where they differ the wiki's is used: the level the quest needs (only

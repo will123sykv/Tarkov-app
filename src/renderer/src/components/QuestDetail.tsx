@@ -28,6 +28,7 @@ import type {
   QuestTrader
 } from '../../../shared/questTypes'
 import type { PriceState } from '../../../shared/types'
+import { wikiPageUrl } from '../../../shared/questWiki'
 import { formatAgo } from '../lib/format'
 import { mapGroups } from '../lib/mapGroups'
 import { formatMoney, formatStanding, itemsNeeded, keysNeeded } from '../lib/questSummary'
@@ -40,6 +41,7 @@ import type { QuestRow } from '../lib/useQuestRows'
 import ErrorBoundary from './ErrorBoundary'
 import FavouriteStar from './FavouriteStar'
 import { KillGunTag } from './GunCards'
+import QuestWikiView from './QuestWikiView'
 import SquadIcon from './SquadIcon'
 
 interface Props {
@@ -761,6 +763,10 @@ function QuestPanel({
   const before = questsBefore(quest, progress, ctx, questsById, objectives)
   const traderOf = (q: Quest): QuestTrader | undefined =>
     q.story ? STORY_TRADER : traders.find((t) => t.id === q.traderId)
+  // The quest's wiki page, read in the panel (since 1.60.0); another quest opens on its details.
+  const wikiUrl = wikiPageUrl(quest.wikiLink)
+  const [wikiFor, setWikiFor] = useState<string | null>(null)
+  const wikiOpen = wikiFor === quest.id
   const questLink = (q: Quest | undefined, fallback: string): React.JSX.Element =>
     q ? (
       <button className="link" onClick={() => selectQuest(q.id)}>
@@ -771,7 +777,7 @@ function QuestPanel({
     )
 
   return (
-    <aside className="quest-detail" aria-label={`${quest.name} details`}>
+    <aside className={`quest-detail ${wikiOpen ? 'wiki-open' : ''}`} aria-label={`${quest.name} details`}>
       <header>
         {trader?.imageLink && <img className="portrait" src={trader.imageLink} alt="" />}
         <div>
@@ -782,10 +788,23 @@ function QuestPanel({
             {quest.kappaRequired && ' · Kappa'}
             {quest.lightkeeperRequired && ' · Lightkeeper'}
           </span>
-          {onOpenInQuests && (
-            <button className="button small open-in-quests" onClick={onOpenInQuests}>
-              Open in Quests ▶
-            </button>
+          {(onOpenInQuests || (wikiUrl && !wikiOpen)) && (
+            <span className="quest-detail-actions">
+              {onOpenInQuests && (
+                <button className="button small" onClick={onOpenInQuests}>
+                  Open in Quests ▶
+                </button>
+              )}
+              {wikiUrl && !wikiOpen && (
+                <button
+                  className="button small"
+                  title="Read the quest's page on the Escape from Tarkov Wiki here"
+                  onClick={() => setWikiFor(quest.id)}
+                >
+                  Wiki ▶
+                </button>
+              )}
+            </span>
           )}
         </div>
         <FavouriteStar kind="quests" id={quest.id} />
@@ -797,277 +816,284 @@ function QuestPanel({
           ✕
         </button>
       </header>
+      {wikiOpen && wikiUrl ? (
+        <QuestWikiView url={wikiUrl} onBack={() => setWikiFor(null)} />
+      ) : (
+        <>
+          {before.map(({ quest: b, status: bStatus, left }) =>
+            bStatus === 'completed' ? (
+              <p key={b.id} className="quest-before done">
+                <span className="muted">Before this: </span>
+                {questLink(b, b.name)}{' '}
+                <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
+              </p>
+            ) : (
+              <section key={b.id} className="quest-before" aria-label={`Before this: ${b.name}`}>
+                <div className="quest-before-head">
+                  <span className="muted">Before this</span>
+                  <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
+                </div>
+                <div className="quest-before-name">
+                  {traderOf(b)?.imageLink && (
+                    <img className="portrait small" src={traderOf(b)!.imageLink!} alt="" />
+                  )}
+                  {questLink(b, b.name)}
+                  {traderOf(b) && <span className="muted">{traderOf(b)!.name}</span>}
+                </div>
+                {left.length > 0 && (
+                  <ul className="quest-before-left">
+                    {left.slice(0, 4).map(({ objective: o, done, total }) => (
+                      <li key={o.id}>
+                        <span>{o.description || o.type}</span>
+                        {total > 1 && (
+                          <span className="todo-progress">
+                            {done}/{total}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                    {left.length > 4 && <li className="muted">+{left.length - 4} more</li>}
+                  </ul>
+                )}
+              </section>
+            )
+          )}
 
-      {before.map(({ quest: b, status: bStatus, left }) =>
-        bStatus === 'completed' ? (
-          <p key={b.id} className="quest-before done">
-            <span className="muted">Before this: </span>
-            {questLink(b, b.name)}{' '}
-            <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
-          </p>
-        ) : (
-          <section key={b.id} className="quest-before" aria-label={`Before this: ${b.name}`}>
-            <div className="quest-before-head">
-              <span className="muted">Before this</span>
-              <span className={`badge ${STATUS_BADGE[bStatus]}`}>{STATUS_LABEL[bStatus]}</span>
-            </div>
-            <div className="quest-before-name">
-              {traderOf(b)?.imageLink && (
-                <img className="portrait small" src={traderOf(b)!.imageLink!} alt="" />
-              )}
-              {questLink(b, b.name)}
-              {traderOf(b) && <span className="muted">{traderOf(b)!.name}</span>}
-            </div>
-            {left.length > 0 && (
-              <ul className="quest-before-left">
-                {left.slice(0, 4).map(({ objective: o, done, total }) => (
-                  <li key={o.id}>
-                    <span>{o.description || o.type}</span>
-                    {total > 1 && (
-                      <span className="todo-progress">
-                        {done}/{total}
-                      </span>
-                    )}
+          <div className="quest-status">
+            <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
+            <span className="muted">
+              {entry
+                ? `${entry.source === 'log' ? 'From the game’s logs' : 'Set by hand'}, ${formatAgo(entry.at, now)}`
+                : 'Not started yet'}
+            </span>
+          </div>
+          <div className="mini-toggle wide" role="radiogroup" aria-label="Set status">
+            {SET_STATUSES.map(({ status: s, label }) => {
+              const current = (entry?.status ?? null) === s
+              // Not started: Available or Locked, as the list has it.
+              const text = s === null && !entry ? STATUS_LABEL[status] : label
+              return (
+                <button
+                  key={s ?? 'none'}
+                  role="radio"
+                  aria-checked={current}
+                  className={current ? 'active' : ''}
+                  onClick={() => void setQuestStatus(quest.id, s)}
+                >
+                  {text}
+                </button>
+              )
+            })}
+          </div>
+          {offMap && mapSettings && (
+            <p className="hint off-map-note">
+              Taken off the map (Quests on this map), so the others stand out.{' '}
+              <button
+                className="link small"
+                onClick={() =>
+                  void updateSettings({
+                    maps: {
+                      ...mapSettings,
+                      hiddenQuests: mapSettings.hiddenQuests.filter((id) => id !== quest.id)
+                    }
+                  })
+                }
+              >
+                Put it back
+              </button>
+            </p>
+          )}
+          {!quest.story && !quest.wiki && (
+            <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
+              Mark this and everything before it done
+            </button>
+          )}
+
+          {quest.corrections && (
+            <section className="quest-section wiki-corrections">
+              <p className="wiki-note">
+                <span className="badge info">From the wiki</span> Its page on the wiki differs from
+                tarkov.dev&rsquo;s data, so this quest uses the wiki&rsquo;s:
+              </p>
+              <ul>
+                {quest.corrections.changes.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+                {quest.corrections.notes.map((n) => (
+                  <li key={n} className="wiki-note-line">
+                    {n}
                   </li>
                 ))}
-                {left.length > 4 && <li className="muted">+{left.length - 4} more</li>}
               </ul>
+            </section>
+          )}
+
+          {quest.wiki && (
+            <section className="quest-section story-intro">
+              <p className="wiki-note">
+                <span className="badge info">{quest.wiki.event ? 'Event quest' : 'From the wiki'}</span>{' '}
+                {quest.wiki.past
+                  ? 'From an event that’s over, by the wiki. '
+                  : quest.wiki.event
+                    ? 'Only given during an event. '
+                    : ''}
+                tarkov.dev doesn&rsquo;t list it, so this is read from its page on the wiki: there are no map
+                pins or keys
+                {quest.wiki.logged
+                  ? '. The game’s logs tick it off like any quest.'
+                  : ', and the game’s logs don’t name it, so set its status here yourself.'}
+              </p>
+              {quest.wiki.description && <blockquote>{quest.wiki.description}</blockquote>}
+              {!quest.wiki.listed && (
+                <button className="link small" onClick={() => void removeWikiQuest(quest.wiki!.title)}>
+                  Remove from my quests
+                </button>
+              )}
+            </section>
+          )}
+
+          {quest.story && (
+            <section className="quest-section story-intro">
+              {quest.imageLink && (
+                <img className="story-banner" src={quest.imageLink} alt="" loading="lazy" />
+              )}
+              {quest.story.description && <blockquote>{quest.story.description}</blockquote>}
+              {quest.story.howItStarts && (
+                <>
+                  <h4>How it starts</h4>
+                  {quest.story.howItStarts.split('\n').map((line, i) => (
+                    <p key={i} className={line.startsWith('•') ? 'story-point' : ''}>
+                      {line}
+                    </p>
+                  ))}
+                </>
+              )}
+            </section>
+          )}
+
+          {reasons.length > 0 && (
+            <ul className="lock-reasons">
+              {reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+
+          {unlocks.length > 0 && (
+            <p className="quest-links">
+              <span className="muted">Unlocks: </span>
+              {unlocks.map((q, i) => (
+                <span key={q.id}>
+                  {i > 0 && ', '}
+                  {questLink(q, q.name)}
+                </span>
+              ))}
+            </p>
+          )}
+
+          <section className="quest-section">
+            <h4>
+              Objectives{' '}
+              {summary.total > 0 && (
+                <span className="muted objective-summary">
+                  {summary.done} of {summary.total} done
+                </span>
+              )}
+            </h4>
+            {mapKeys.length >= 2 && (
+              <div className="segmented small quest-maps" role="tablist" aria-label="Show what's on">
+                <button
+                  role="tab"
+                  className={chosenMap === null ? 'active' : ''}
+                  onClick={() => setPickedMap(null)}
+                >
+                  All maps
+                </button>
+                {mapKeys.map((key) => (
+                  <button
+                    key={key}
+                    role="tab"
+                    className={chosenMap === key ? 'active' : ''}
+                    onClick={() => setPickedMap(key)}
+                  >
+                    {mapName(key)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <ol className="objectives">
+              {listed.map((o, i) => {
+                const waiting = Boolean(quest.story) && !completed && !reachable.has(o.id)
+                const previous = listed[i - 1]?.branch ?? null
+                const branch = o.branch ?? null
+                return (
+                  <Fragment key={o.id}>
+                    {branch !== previous && (branch || previous) && (
+                      <li className="objective-branch">{branch ?? 'Then, whichever path you took'}</li>
+                    )}
+                    <Objective
+                      quest={quest}
+                      objective={o}
+                      mapsById={mapsById}
+                      items={items}
+                      value={objectiveValue(o, quest.id, objectives, completed)}
+                      detected={detected[quest.id]?.[o.id]}
+                      completed={completed}
+                      waiting={waiting}
+                      mapKey={chosenMap ?? preferredMap}
+                    />
+                  </Fragment>
+                )
+              })}
+            </ol>
+            {elsewhere > 0 && (
+              <p className="hint">
+                {elsewhere === 1 ? '1 more objective' : `${elsewhere} more objectives`} on other maps.{' '}
+                <button className="link small" onClick={() => setPickedMap(null)}>
+                  Show all
+                </button>
+              </p>
+            )}
+            {quest.story && (
+              <p className="hint">
+                From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter
+                starts and finishes: tick the steps off yourself. Greyed steps wait for the ones before them:
+                they show on the map and the To do tab once those are done. Steps like &ldquo;visit Customs 3
+                times&rdquo; count your raids from the logs, and loyalty steps use the levels set in Settings.
+              </p>
             )}
           </section>
-        )
-      )}
-
-      <div className="quest-status">
-        <span className={`badge ${STATUS_BADGE[status]}`}>{STATUS_LABEL[status]}</span>
-        <span className="muted">
-          {entry
-            ? `${entry.source === 'log' ? 'From the game’s logs' : 'Set by hand'}, ${formatAgo(entry.at, now)}`
-            : 'Not started yet'}
-        </span>
-      </div>
-      <div className="mini-toggle wide" role="radiogroup" aria-label="Set status">
-        {SET_STATUSES.map(({ status: s, label }) => {
-          const current = (entry?.status ?? null) === s
-          // Not started: Available or Locked, as the list has it.
-          const text = s === null && !entry ? STATUS_LABEL[status] : label
-          return (
-            <button
-              key={s ?? 'none'}
-              role="radio"
-              aria-checked={current}
-              className={current ? 'active' : ''}
-              onClick={() => void setQuestStatus(quest.id, s)}
-            >
-              {text}
-            </button>
-          )
-        })}
-      </div>
-      {offMap && mapSettings && (
-        <p className="hint off-map-note">
-          Taken off the map (Quests on this map), so the others stand out.{' '}
-          <button
-            className="link small"
-            onClick={() =>
-              void updateSettings({
-                maps: {
-                  ...mapSettings,
-                  hiddenQuests: mapSettings.hiddenQuests.filter((id) => id !== quest.id)
-                }
-              })
-            }
-          >
-            Put it back
-          </button>
-        </p>
-      )}
-      {!quest.story && !quest.wiki && (
-        <button className="button small" onClick={() => void markQuestsUpTo(quest.id)}>
-          Mark this and everything before it done
-        </button>
-      )}
-
-      {quest.corrections && (
-        <section className="quest-section wiki-corrections">
-          <p className="wiki-note">
-            <span className="badge info">From the wiki</span> Its page on the wiki differs from
-            tarkov.dev&rsquo;s data, so this quest uses the wiki&rsquo;s:
-          </p>
-          <ul>
-            {quest.corrections.changes.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-            {quest.corrections.notes.map((n) => (
-              <li key={n} className="wiki-note-line">
-                {n}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {quest.wiki && (
-        <section className="quest-section story-intro">
-          <p className="wiki-note">
-            <span className="badge info">{quest.wiki.event ? 'Event quest' : 'From the wiki'}</span>{' '}
-            {quest.wiki.past
-              ? 'From an event that’s over, by the wiki. '
-              : quest.wiki.event
-                ? 'Only given during an event. '
-                : ''}
-            tarkov.dev doesn&rsquo;t list it, so this is read from its page on the wiki: there are no map pins
-            or keys
-            {quest.wiki.logged
-              ? '. The game’s logs tick it off like any quest.'
-              : ', and the game’s logs don’t name it, so set its status here yourself.'}
-          </p>
-          {quest.wiki.description && <blockquote>{quest.wiki.description}</blockquote>}
-          {!quest.wiki.listed && (
-            <button className="link small" onClick={() => void removeWikiQuest(quest.wiki!.title)}>
-              Remove from my quests
-            </button>
+          <Needs quest={quest} mapsById={mapsById} items={items} />
+          <Rewards
+            title="Given when you accept"
+            rewards={quest.startRewards}
+            experience={0}
+            traders={traders}
+            items={items}
+          />
+          <Rewards
+            title="Rewards"
+            rewards={quest.rewards}
+            experience={quest.experience}
+            traders={traders}
+            items={items}
+          />
+          <Guide
+            key={quest.id}
+            wikiLink={quest.wikiLink}
+            state={guideState}
+            placed={placed}
+            // A map with no pictures of its own shows them all.
+            chosen={chosenMap && placed.some((p) => p.includes(chosenMap)) ? chosenMap : null}
+            chosenName={chosenMap ? mapName(chosenMap) : null}
+            onShowAll={() => setPickedMap(null)}
+          />
+          {quest.wikiLink && (
+            <a className="wiki-link" href={quest.wikiLink} target="_blank" rel="noreferrer">
+              Open on the wiki ↗
+            </a>
           )}
-        </section>
-      )}
-
-      {quest.story && (
-        <section className="quest-section story-intro">
-          {quest.imageLink && <img className="story-banner" src={quest.imageLink} alt="" loading="lazy" />}
-          {quest.story.description && <blockquote>{quest.story.description}</blockquote>}
-          {quest.story.howItStarts && (
-            <>
-              <h4>How it starts</h4>
-              {quest.story.howItStarts.split('\n').map((line, i) => (
-                <p key={i} className={line.startsWith('•') ? 'story-point' : ''}>
-                  {line}
-                </p>
-              ))}
-            </>
-          )}
-        </section>
-      )}
-
-      {reasons.length > 0 && (
-        <ul className="lock-reasons">
-          {reasons.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-      )}
-
-      {unlocks.length > 0 && (
-        <p className="quest-links">
-          <span className="muted">Unlocks: </span>
-          {unlocks.map((q, i) => (
-            <span key={q.id}>
-              {i > 0 && ', '}
-              {questLink(q, q.name)}
-            </span>
-          ))}
-        </p>
-      )}
-
-      <section className="quest-section">
-        <h4>
-          Objectives{' '}
-          {summary.total > 0 && (
-            <span className="muted objective-summary">
-              {summary.done} of {summary.total} done
-            </span>
-          )}
-        </h4>
-        {mapKeys.length >= 2 && (
-          <div className="segmented small quest-maps" role="tablist" aria-label="Show what's on">
-            <button
-              role="tab"
-              className={chosenMap === null ? 'active' : ''}
-              onClick={() => setPickedMap(null)}
-            >
-              All maps
-            </button>
-            {mapKeys.map((key) => (
-              <button
-                key={key}
-                role="tab"
-                className={chosenMap === key ? 'active' : ''}
-                onClick={() => setPickedMap(key)}
-              >
-                {mapName(key)}
-              </button>
-            ))}
-          </div>
-        )}
-        <ol className="objectives">
-          {listed.map((o, i) => {
-            const waiting = Boolean(quest.story) && !completed && !reachable.has(o.id)
-            const previous = listed[i - 1]?.branch ?? null
-            const branch = o.branch ?? null
-            return (
-              <Fragment key={o.id}>
-                {branch !== previous && (branch || previous) && (
-                  <li className="objective-branch">{branch ?? 'Then, whichever path you took'}</li>
-                )}
-                <Objective
-                  quest={quest}
-                  objective={o}
-                  mapsById={mapsById}
-                  items={items}
-                  value={objectiveValue(o, quest.id, objectives, completed)}
-                  detected={detected[quest.id]?.[o.id]}
-                  completed={completed}
-                  waiting={waiting}
-                  mapKey={chosenMap ?? preferredMap}
-                />
-              </Fragment>
-            )
-          })}
-        </ol>
-        {elsewhere > 0 && (
-          <p className="hint">
-            {elsewhere === 1 ? '1 more objective' : `${elsewhere} more objectives`} on other maps.{' '}
-            <button className="link small" onClick={() => setPickedMap(null)}>
-              Show all
-            </button>
-          </p>
-        )}
-        {quest.story && (
-          <p className="hint">
-            From the chapter&rsquo;s page on the wiki. The game&rsquo;s logs only say when a chapter starts
-            and finishes: tick the steps off yourself. Greyed steps wait for the ones before them: they show
-            on the map and the To do tab once those are done. Steps like &ldquo;visit Customs 3 times&rdquo;
-            count your raids from the logs, and loyalty steps use the levels set in Settings.
-          </p>
-        )}
-      </section>
-      <Needs quest={quest} mapsById={mapsById} items={items} />
-      <Rewards
-        title="Given when you accept"
-        rewards={quest.startRewards}
-        experience={0}
-        traders={traders}
-        items={items}
-      />
-      <Rewards
-        title="Rewards"
-        rewards={quest.rewards}
-        experience={quest.experience}
-        traders={traders}
-        items={items}
-      />
-      <Guide
-        key={quest.id}
-        wikiLink={quest.wikiLink}
-        state={guideState}
-        placed={placed}
-        // A map with no pictures of its own shows them all.
-        chosen={chosenMap && placed.some((p) => p.includes(chosenMap)) ? chosenMap : null}
-        chosenName={chosenMap ? mapName(chosenMap) : null}
-        onShowAll={() => setPickedMap(null)}
-      />
-      {quest.wikiLink && (
-        <a className="wiki-link" href={quest.wikiLink} target="_blank" rel="noreferrer">
-          Open on the wiki ↗
-        </a>
+        </>
       )}
     </aside>
   )

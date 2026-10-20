@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import type { GuideBlock, GuideImage, QuestGuide, QuestGuideState } from '../../shared/questTypes'
+import { WIKI_BASE, WIKI_PAGE } from '../../shared/questWiki'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
 import { errorMessage, fetchJson, type FetchFn } from '../pricing/http'
 
 // The "Guide" section of a quest's page on the Escape from Tarkov wiki (escapefromtarkov.fandom.com,
 // CC BY-SA 3.0): what to do, as plain text, and its pictures of where things are, with captions.
 
-export const WIKI_BASE = 'https://escapefromtarkov.fandom.com'
-export const WIKI_PAGE = `${WIKI_BASE}/wiki/`
+export { WIKI_BASE, WIKI_PAGE }
 /** Guides change now and then: refresh weekly. */
 const MAX_AGE_MS = 7 * 24 * 3_600_000
 const TIMEOUT_MS = 20_000

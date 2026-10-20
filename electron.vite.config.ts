@@ -9,6 +9,8 @@ const CONTENT_SECURITY_POLICY = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: tarkov-map: https://assets.tarkov.dev https://*.tarkov-market.app https://*.tarkov-market.com https://static.wikia.nocookie.net",
   "connect-src 'self' tarkov-map:",
+  // A quest's wiki page in the quest panel, in a <webview> (src/main/questWiki.ts).
+  'frame-src https://escapefromtarkov.fandom.com',
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'"

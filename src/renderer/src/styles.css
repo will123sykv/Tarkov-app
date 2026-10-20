@@ -6003,9 +6003,74 @@ p.quest-before.done {
   font-weight: 600;
 }
 
-.open-in-quests {
-  justify-self: start;
-  margin-top: 4px;
+/* The quest panel's buttons under its name: Open in Quests, and Wiki (since 1.60.0). */
+.quest-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* A quest's wiki page in the panel: the panel widens to about half the window while it shows. */
+.maps.with-detail:has(.quest-detail.wiki-open) {
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr) min(50%, 900px);
+}
+
+.todo.with-detail:has(.quest-detail.wiki-open) {
+  grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr) min(50%, 900px);
+}
+
+.quests-main:has(.quest-detail.wiki-open) {
+  grid-template-columns: minmax(0, 1fr) min(55%, 900px);
+}
+
+.quest-detail.wiki-open {
+  overflow: hidden;
+}
+
+.quest-wiki {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.quest-detail > .quest-wiki {
+  flex-shrink: 1;
+}
+
+.quest-wiki-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.quest-wiki-bar .muted {
+  margin-right: auto;
+}
+
+.quest-wiki-page {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.quest-wiki-failed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  text-align: center;
 }
 
 /* The Maps tab's header over the map (since 1.58.0). */
