@@ -13,7 +13,7 @@ import type {
 import { friendlyError } from '../lib/errors'
 import { formatAgo, formatPercent, formatRub, formatSlot } from '../lib/format'
 import { useNow } from '../lib/useNow'
-import type { TrendRanking } from '../lib/useTrendRanking'
+import { PATTERN_SORTS, type TrendRanking } from '../lib/useTrendRanking'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
 import NumberField from './NumberField'
@@ -391,11 +391,22 @@ export default function TrendsView({ settings, priceState, ranking }: Props): Re
       trends: { ...t, sort: (next?.key as TrendSortKey) ?? d.sort, sortDesc: next ? next.desc : d.sortDesc }
     })
   }
-  const th = (key: TrendSortKey, label: string, num = false): React.JSX.Element => (
-    <th className={num ? 'num' : undefined} aria-sort={ariaSort(sort === key, desc)}>
-      <SortButton label={label} active={sort === key} desc={desc} onClick={() => setSort(key)} />
-    </th>
-  )
+  const th = (key: TrendSortKey, label: string, num = false): React.JSX.Element => {
+    // Columns of buy and sell times can't sort until some item has them.
+    const waiting = !patternsReady && PATTERN_SORTS.includes(key)
+    return (
+      <th className={num ? 'num' : undefined} aria-sort={ariaSort(sort === key, desc)}>
+        <SortButton
+          label={label}
+          active={sort === key}
+          desc={desc}
+          disabled={waiting}
+          title={waiting ? 'Sorts once buy and sell times are known' : undefined}
+          onClick={() => setSort(key)}
+        />
+      </th>
+    )
+  }
 
   return (
     <div className="trends">

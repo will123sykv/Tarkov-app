@@ -14,20 +14,26 @@ export function SortButton({
   active,
   desc,
   title,
+  disabled = false,
   onClick
 }: {
   label: React.ReactNode
   active: boolean
   desc: boolean
   title?: string
+  /** Can't sort by it yet (the title says why). */
+  disabled?: boolean
   onClick: () => void
 }): React.JSX.Element {
   return (
     <button
       className={`sort ${active ? 'active' : ''}`}
       title={
-        title ? `${title}. Click to sort; again to reverse, a third time for the usual order` : undefined
+        disabled || !title
+          ? title
+          : `${title}. Click to sort; again to reverse, a third time for the usual order`
       }
+      disabled={disabled}
       onClick={onClick}
     >
       {label}

@@ -302,12 +302,17 @@ describe('sanitizeSettings', () => {
         tableSorts: {
           'scan-loot': { key: 'do', desc: false },
           raids: { key: 'when', desc: true },
+          crafts: { key: 'perHour', desc: true },
           'Bad Id': { key: 'do', desc: true },
           keys: { key: 'no spaces allowed', desc: true },
-          crafts: 'per-hour'
+          'hand-over': 'per-hour'
         }
       }).tableSorts
-    ).toEqual({ 'scan-loot': { key: 'do', desc: false }, raids: { key: 'when', desc: true } })
+    ).toEqual({
+      'scan-loot': { key: 'do', desc: false },
+      raids: { key: 'when', desc: true },
+      crafts: { key: 'perHour', desc: true }
+    })
     // Replaced whole, so a table going back to its own order drops out.
     const current = sanitizeSettings({ tableSorts: { raids: { key: 'when', desc: true } } })
     expect(mergeSettings(current, { tableSorts: {} }).tableSorts).toEqual({})

@@ -660,15 +660,32 @@ export default function ScavScan({
     return worth > 0 ? worth : null
   }
   const columns: SortColumn<ScanRow>[] = [
-    { key: 'number', label: '#', num: true, title: 'In the order read', value: (r) => number.get(r.key) },
+    {
+      key: 'number',
+      label: '#',
+      num: true,
+      className: 'scan-col-num',
+      title: 'In the order read',
+      value: (r) => number.get(r.key)
+    },
     { key: 'item', label: mode === 'keys' ? 'Key' : 'Item', value: nameOf },
     ...(mode !== 'keys'
-      ? [{ key: 'count', label: 'Count', num: true, desc: true, value: (r: ScanRow) => r.count }]
+      ? [
+          {
+            key: 'count',
+            label: 'Count',
+            num: true,
+            desc: true,
+            className: 'scan-col-count',
+            value: (r: ScanRow) => r.count
+          }
+        ]
       : []),
     mode === 'keys'
       ? {
           key: 'keys',
           label: 'Your keys',
+          className: 'scan-col-do',
           title: 'New, then ticked, then not a key, then keys to pick',
           value: (r: ScanRow) =>
             !r.itemId || !items.has(r.itemId) ? 3 : !isKey(r.itemId) ? 2 : owned.has(r.itemId) ? 1 : 0
@@ -677,6 +694,7 @@ export default function ScavScan({
         ? {
             key: 'needed',
             label: 'Items needed',
+            className: 'scan-col-do',
             title: 'On the list (most needed first), then not on it',
             value: (r: ScanRow) => {
               const item = r.itemId ? items.get(r.itemId) : undefined
@@ -687,6 +705,7 @@ export default function ScavScan({
         : {
             key: 'do',
             label: 'Do',
+            className: 'scan-col-do',
             title: 'Keep, then sell on the flea, then sell to a trader, then no buyer',
             value: (r: ScanRow) => {
               const a = adviceOf.get(r.key)
@@ -694,8 +713,10 @@ export default function ScavScan({
               return a ? [doRank(a, known), -a.keep, -(worthOf(r) ?? 0)] : null
             }
           },
-    ...(mode !== 'keys' ? [{ key: 'worth', label: 'Worth', num: true, desc: true, value: worthOf }] : []),
-    { key: 'remove', label: '', ariaLabel: 'Remove' }
+    ...(mode !== 'keys'
+      ? [{ key: 'worth', label: 'Worth', num: true, desc: true, className: 'scan-col-worth', value: worthOf }]
+      : []),
+    { key: 'remove', label: '', ariaLabel: 'Remove', className: 'scan-col-remove' }
   ]
   const { sort, onSort, sorted } = useTableSort(`scan-${mode}`, columns)
   const shownRows = sorted(listed)
@@ -1410,7 +1431,7 @@ export default function ScavScan({
                         if (el) rowRefs.current.set(r.key, el)
                         else rowRefs.current.delete(r.key)
                       }}
-                      className={`${check ? 'check' : (mode === 'loot' ? a.keep : onList) ? 'keep' : ''} ${
+                      className={`${check ? 'unsure' : (mode === 'loot' ? a.keep : onList) ? 'keep' : ''} ${
                         hover === r.key ? 'hover' : ''
                       }`}
                       onMouseEnter={() => setHover(r.key)}

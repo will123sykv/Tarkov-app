@@ -354,6 +354,7 @@ export function sanitizeSettings(raw: unknown): Settings {
 }
 
 const TABLE_SORT_ID = /^[a-z0-9-]{1,40}$/
+const TABLE_SORT_KEY = /^[a-zA-Z0-9-]{1,40}$/
 const MAX_TABLE_SORTS = 40
 
 function sanitizeTableSorts(raw: unknown): Record<string, ColumnSort> {
@@ -361,7 +362,7 @@ function sanitizeTableSorts(raw: unknown): Record<string, ColumnSort> {
   const result: Record<string, ColumnSort> = {}
   for (const [id, v] of Object.entries(raw).slice(0, MAX_TABLE_SORTS)) {
     if (!TABLE_SORT_ID.test(id) || !isRecord(v)) continue
-    if (typeof v.key !== 'string' || !TABLE_SORT_ID.test(v.key)) continue
+    if (typeof v.key !== 'string' || !TABLE_SORT_KEY.test(v.key)) continue
     result[id] = { key: v.key, desc: v.desc === true }
   }
   return result

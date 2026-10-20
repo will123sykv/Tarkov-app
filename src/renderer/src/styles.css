@@ -3480,13 +3480,40 @@ button.link.small {
 
 .scan-table td {
   vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+/* Set column widths, so a long name or what to do wraps instead of widening the first column. */
+.scan-table {
+  table-layout: fixed;
+}
+
+.scan-table .scan-col-num,
+.scan-table .scan-col-remove {
+  width: 44px;
+}
+
+.scan-table .scan-col-count {
+  width: 76px;
+}
+
+.scan-table .scan-col-do {
+  width: 38%;
+}
+
+.scan-table .scan-col-worth {
+  width: 96px;
+}
+
+.scan-table .scan-advice .nowrap {
+  white-space: normal;
 }
 
 .scan-table tr.keep td:first-child {
   box-shadow: inset 3px 0 var(--ok);
 }
 
-.scan-table tr.check td:first-child {
+.scan-table tr.unsure td:first-child {
   box-shadow: inset 3px 0 var(--warn);
 }
 
@@ -3701,8 +3728,11 @@ button.link.small {
 }
 
 @media (max-width: 1250px) {
+  /* One under the other, each as tall as it is (the screenshot no longer covers the list). */
   .scan-body {
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
     overflow-y: auto;
   }
 
@@ -5997,4 +6027,9 @@ p.quest-before.done {
 .map-summary .summary-title {
   flex-wrap: wrap;
   margin-bottom: 0;
+}
+
+.sort:disabled {
+  cursor: default;
+  color: inherit;
 }

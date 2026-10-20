@@ -15,7 +15,7 @@ import { useStore } from '../store'
 import { useNow } from './useNow'
 
 /** Sorts that need buy and sell times; until any item has them, the list falls back to today's swing. */
-const PATTERN_SORTS: TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency']
+export const PATTERN_SORTS: readonly TrendSortKey[] = ['profit', 'spread', 'volatility', 'consistency']
 
 export interface TrendRanking {
   analysis: TrendAnalysis | undefined

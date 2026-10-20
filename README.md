@@ -47,6 +47,10 @@ next time you close the app.
 
 ## Features
 
+- **Sort any table by any column.** Click a column's header to sort by it (A to Z, or biggest
+  first), again to reverse it (▲ or ▼ shows which), and a third time to go back to the table's own
+  order. Empty cells (no price, —) stay at the bottom either way, and each table remembers how
+  it's sorted.
 - **Sidebars you can trim.** Point at a sidebar section and click its **×** to take it out; the
   line at the bottom of the sidebar lists what's hidden, to bring a section back (or **Show all**).
   **«** folds a tab's whole sidebar away so the page gets the full width, and **»** brings it back.
@@ -69,7 +73,7 @@ next time you close the app.
   your own copy or move to another PC: importing backs up what's there first and keeps the PC's own
   game logs folder and tray settings. The tarkov-market key never leaves the PC.
 - **Value per slot ranking.** Worth ÷ slots taken (width × height), sorted highest first. You can
-  also sort by worth, flea price, trader price, size or name.
+  also sort by worth, flea price, trader price, size, name or flea access.
 - **Live prices.** Flea and trader prices from [tarkov.dev](https://tarkov.dev), refreshed every
   5 minutes by default (1–60 minutes in Settings). The app reads the same data files tarkov.dev's
   website uses (`json.tarkov.dev`) and falls back to tarkov.dev's GraphQL API if they're down.
@@ -301,8 +305,8 @@ station's level in the sidebar (the Stash starts at level 1).
 - **Crafts** lists every hideout craft as a way to make money: what it makes, the station (and
   level) it takes, what it uses up, how long it takes, what buying what it uses up costs now (at the
   cheapest place for your level and loyalty; tools aren't used up), what what it makes sells for
-  (on the flea after the fee, or to a trader), the profit, and the profit per hour. Sort by **Per
-  hour**, **Profit** or **Quickest**, pick a station, or search. **Only crafts I can make** (on by
+  (on the flea after the fee, or to a trader), the profit, and the profit per hour, most per hour
+  first. Click any column to sort by it, pick a station, or search. **Only crafts I can make** (on by
   default) leaves out the ones whose station isn't built far enough or whose quest isn't done; with
   it off they're greyed, saying what they need. Fuel, skills and hideout bonuses aren't counted, and
   the Bitcoin farm's time depends on how many graphics cards it has.
@@ -342,7 +346,9 @@ needed is sold, marked **needed later** with what buying it back costs and where
 trade with (**trade with Mechanic LL2**), or where to craft it: needing 3 found in raid and 2 more of an item you can buy, it keeps 3 and sells 2. Untick it to
 keep everything the hideout and your quests need. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
 you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
-again). A haul that takes two screenshots can be read together with **Add another**.
+again). A haul that takes two screenshots can be read together with **Add another**. Click **Do**
+to sort the list by what to do (keep, then sell on the flea, then sell to a trader, then no buyer,
+the most valuable first in each), or any other column; the numbers stay the ones on the screenshot.
 
 **Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,
@@ -385,7 +391,7 @@ An opened station (or each one in List) has a card:
 - **For upgrades and quests:** every craft at that station that makes something still needed, with
   what it's for, how many are missing (and how many of those must be found in raid), runs, time,
   what the craft costs, what buying the item costs and the saving. Click any column's header to sort
-  by it, and again to reverse; the order is kept and used for every station.
+  by it (again to reverse, a third time for the app's order); the order is used for every station.
 - **For profit:** the station's three crafts that make the most per hour at today's prices. Only
   crafts that take at least **Profit crafts at least** (in **Settings › Hideout crafting**, 30
   minutes by default) are picked, so a station isn't left idle by short crafts.
