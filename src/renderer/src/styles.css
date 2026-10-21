@@ -4292,6 +4292,23 @@ tr:hover .favourite-star {
   margin-top: 4px;
 }
 
+/* A map's card in To do: what's on any map, which a raid here counts for too (since 1.63.0). */
+.todo-also-any {
+  display: grid;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.todo-also-any h4 {
+  width: auto;
+  margin: 0;
+}
+
+.todo-also-any .todo-anywhere {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
 /* Keys */
 
 .key-lists {

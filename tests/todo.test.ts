@@ -7,10 +7,12 @@ import {
   anyMapTake,
   takeToMap,
   inRaid,
+  isAnyMap,
   killObjectives,
   mapOverview,
   objectiveCategory,
   objectiveMapIds,
+  questPlaces,
   questSummary,
   shortObjective,
   todoPlan,
@@ -364,6 +366,7 @@ describe('the map overview', () => {
       missingKeys: 1,
       // A marker and the flash drive.
       bring: 2,
+      anyMapKills: 0,
       pickUp: 1
     })
     expect(mapOverview(todoPlan(rows, progress, groupOf).maps[0]).missingKeys).toBe(0)
@@ -460,6 +463,58 @@ describe('kill objectives for the banner over the map', () => {
     const b = quest('b', [objective('kill', 'shoot', { maps: [WOODS] })])
     const kills = killObjectives([row(a), row(b)], {}, new Set([WOODS]), { blocked: (q) => q.id === 'a' })
     expect(kills.map((k) => k.quest.id)).toEqual(['b'])
+  })
+})
+
+describe('kills on any map, on every page (since 1.63.0)', () => {
+  const groupKey = (id: string): string | undefined => groupOf(id)?.key
+  // tarkov.dev's way with many "any location" kills: a long list of maps (here, not Factory).
+  const seven = ['m1', 'm2', 'm3', 'm4', 'm5', CUSTOMS, WOODS]
+
+  it('counts an objective naming no map, saying "any location", or naming most maps as for any map', () => {
+    expect(isAnyMap(objective('none', 'shoot', { maps: [] }))).toBe(true)
+    expect(isAnyMap(objective('text', 'shoot', { description: 'Kill Scavs on any location' }))).toBe(true)
+    expect(isAnyMap(objective('seven', 'shoot', { maps: seven }), groupKey)).toBe(true)
+    // Factory and Night Factory are one map.
+    const five = ['m1', 'm2', 'm3', FACTORY, NIGHT_FACTORY, CUSTOMS]
+    expect(isAnyMap(objective('five', 'shoot', { maps: five }), groupKey)).toBe(false)
+    expect(isAnyMap(objective('one', 'shoot'))).toBe(false)
+  })
+
+  it('lists such a kill once for every map in To do, not on the maps it names', () => {
+    const anyLocation = objective('aug', 'shoot', { maps: seven, count: 15 })
+    const visit = objective('visit', 'visit')
+    const plan = todoPlan([row(quest('q', [anyLocation, visit]))], {}, groupOf)
+    expect(plan.anyMap.map((s) => s.objective.id)).toEqual(['aug'])
+    expect(plan.maps.map((p) => [p.group.key, p.steps.map((s) => s.objective.id)])).toEqual([
+      ['customs', ['visit']]
+    ])
+    // The visit is all that's left on a map: the quest finishes on Customs, the kill done there too.
+    expect(plan.maps[0].finishes.map((q) => q.id)).toEqual(['q'])
+    // Every map's tile counts its kills.
+    expect(mapOverview(plan.maps[0], null, 0, plan.anyMap)).toMatchObject({ kills: 0, anyMapKills: 15 })
+  })
+
+  it('shows it in the banner over a map its list leaves out', () => {
+    const anyLocation = objective('aug', 'shoot', { maps: seven })
+    const kills = killObjectives([row(quest('q', [anyLocation]))], {}, new Set(GROUPS.factory.mapIds), {
+      groupOf: groupKey
+    })
+    expect(kills.map((k) => [k.objective.id, k.anyMap])).toEqual([['aug', true]])
+  })
+
+  it('keeps the quest under every map in the Quests tab', () => {
+    const q = quest('q', [objective('aug', 'shoot', { maps: seven }), objective('visit', 'visit')])
+    expect(questPlaces(q, groupKey)).toEqual({ mapIds: [CUSTOMS], anyMap: true })
+    // Items to find in raid are listed apart, as To do has them.
+    const find = objective('find', 'findItem', { maps: [], items: ['x'] })
+    expect(questPlaces(quest('f', [find]), groupKey).anyMap).toBe(false)
+    // A hand-over names no map, but isn't done in raid.
+    const handOver = objective('give', 'giveItem', { maps: [], items: ['x'] })
+    expect(questPlaces(quest('h', [handOver, objective('visit', 'visit')]), groupKey)).toEqual({
+      mapIds: [CUSTOMS],
+      anyMap: false
+    })
   })
 })
 

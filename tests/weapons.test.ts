@@ -207,5 +207,9 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
       zones: [{ map: WOODS, position: { x: 0, y: 0, z: 0 }, outline: [] }]
     }
     expect(gunForObjective(zoned, byMap, groupOf)).toBe('m4a1')
+    // "Any location", with a list of maps that leaves Woods out (since 1.63.0): every map.
+    const anyLocation = kill('aug', ['m4a1'], [CUSTOMS], 15)
+    anyLocation.description = 'Eliminate Scavs on any location'
+    expect(gunForObjective(anyLocation, byMap, groupOf, 'customs')).toBe('m4a1')
   })
 })

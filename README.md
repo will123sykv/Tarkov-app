@@ -54,6 +54,12 @@ next time you close the app.
   (or a story step you're pinning) shows whichever is chosen. What to keep and collect (Items to
   collect, Keys, Loot's keep tags, Hideout crafts) still counts every quest, so nothing a hidden
   quest needs gets sold.
+- **Kills on any map show on every map.** One rule on every page: an objective naming no map, saying
+  "any location" or "any map", or naming six maps or more (tarkov.dev lists most maps for many "any
+  location" kills) can be done on any map. To do lists it on every map's card under **Also on any
+  map** and counts it on every tile; Weapons counts it on every map; the Maps tab's kill banner and
+  heading count it; the Quests tab's **Map** filter keeps its quest under every map, and the quest
+  says **Any map**.
 - **Sort any table by any column.** Click a column's header to sort by it (A to Z, or biggest
   first), again to reverse it (▲ or ▼ shows which), and a third time to go back to the table's own
   order. Empty cells (no price, —) stay at the bottom either way, and each table remembers how
@@ -174,7 +180,8 @@ by how many of those quests a raid there moves on. A quest with nothing left to 
 else counts twice and is marked **Finish here**: finishing quests is what opens up the next ones.
 
 - **Overview** (the default) shows a tile for each map, best first, the top one marked **Next
-  raid**: how many quests and objectives are left there, how many enemies to kill and objectives to
+  raid**: how many quests and objectives are left there, how many enemies to kill (and how many for
+  kills on any map, which a raid there counts for too: **5 kills · 15 on any map**) and objectives to
   locate, a bar of how many of its objectives you've done, the quests it finishes, quests held up by
   a key you don't have (or **Can't get in** without the Lab's keycard), the keys it needs (and how
   many you're missing), items to bring, quests you could pick up there, and the first few quests'
@@ -183,7 +190,9 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
   **List** shows every map with its quests on one page instead.
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
   what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
-  the Maps tab with your quests on it; coming back to To do keeps the map open.
+  the Maps tab with your quests on it; coming back to To do keeps the map open. Under its quests,
+  **Also on any map** lists the objectives that can be done on any map (an "any location" kill, a stim
+  to use), marked **any map**, with their counters and the gun their kills will be made with.
 - **Guns to bring:** when a kill quest on the map has to be made with particular weapons, the map shows
   a large picture of each gun chosen for it in the **Weapons** tab (one or two), the quests each is for,
   and **Change in Weapons**. They're the only guns the **Bring** list has (**★ AKMS (for Supply
@@ -618,7 +627,8 @@ the game's install folder, or its `build` folder.
 - **Kill objectives on the maps:** most kill objectives have no place to pin, so a **☠** banner at
   the top right of the map, above **★ Favourites**, lists your active quests' kills left on that map, the ones naming the
   fewest maps first, then the ones for any map (marked **any map**: ones naming no map, saying "any
-  location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills). Each gives the quest, what to
+  location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills), even on
+  a map tarkov.dev's list leaves out. The heading counts them (**3 kill objectives (1 on any map)**). Each gives the quest, what to
   kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.
   Click a quest to open its panel; click the banner's heading to fold it (it's remembered).
   **Only quests I can do** leaves out quests a key you don't have holds up. With guns chosen for the

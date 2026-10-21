@@ -1,5 +1,5 @@
 import type { Quest, QuestObjective } from './questTypes'
-import { objectiveMapIds, type MapGroup, type TodoStep } from './todo'
+import { isAnyMap, objectiveMapIds, type MapGroup, type TodoStep } from './todo'
 
 // The guns to bring to each map for kill quests that need particular weapons (the Weapons tab, since
 // 1.54.0): up to two per map (since 1.62.0; one before), chosen from every gun that counts for one of its
@@ -136,7 +136,7 @@ export function toggleGun(current: readonly string[], itemId: string): string[] 
 /**
  * The gun chosen in the Weapons tab that a kill objective will be made with: one chosen for `mapKey`
  * (the map it's shown under) when it counts, otherwise one chosen for another map it's on (by its maps,
- * zones or places; any map for a kill naming none) that counts for it. Null when none is.
+ * zones or places; every map for a kill on any map) that counts for it. Null when none is.
  */
 export function gunForObjective(
   objective: QuestObjective,
@@ -146,10 +146,16 @@ export function gunForObjective(
 ): string | null {
   const counts = new Set(objective.weapons ?? [])
   if (!counts.size) return null
-  const mapIds = objectiveMapIds(objective)
-  const keys = mapIds.length
-    ? [...new Set(mapIds.map((id) => groupOf(id)?.key).filter((k) => k !== undefined))]
-    : Object.keys(byMap)
+  // A kill for any map (`isAnyMap`, since 1.63.0 the same rule as every page) is on every map.
+  const keys = isAnyMap(objective, (id) => groupOf(id)?.key)
+    ? Object.keys(byMap)
+    : [
+        ...new Set(
+          objectiveMapIds(objective)
+            .map((id) => groupOf(id)?.key)
+            .filter((k) => k !== undefined)
+        )
+      ]
   const order = mapKey && keys.includes(mapKey) ? [mapKey, ...keys.filter((k) => k !== mapKey)] : keys
   for (const key of order) for (const id of byMap[key] ?? []) if (counts.has(id)) return id
   return null

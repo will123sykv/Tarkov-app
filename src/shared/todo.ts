@@ -71,6 +71,43 @@ export function objectiveMapIds(objective: Pick<QuestObjective, 'maps' | 'zones'
   ]
 }
 
+/** Maps an objective must name, counted as map groups, to count as one for any map. */
+export const ANY_MAP_GROUPS = 6
+
+/**
+ * Whether an objective can be done on any map (one rule for every page since 1.63.0): it names no map,
+ * says "any location" or "any map", or names `ANY_MAP_GROUPS` map groups or more (tarkov.dev lists most
+ * maps for many "any location" kills; `groupKey` gives a map id's group).
+ */
+export function isAnyMap(
+  objective: Pick<QuestObjective, 'maps' | 'zones' | 'locations' | 'description'>,
+  groupKey?: (mapId: string) => string | undefined
+): boolean {
+  const maps = objectiveMapIds(objective)
+  if (!maps.length || /\bany (location|map)\b/i.test(objective.description)) return true
+  return new Set(maps.map((id) => groupKey?.(id) ?? id)).size >= ANY_MAP_GROUPS
+}
+
+/**
+ * Where a quest is done, for the Quests tab (since 1.63.0): the maps it names (its own and its objectives',
+ * leaving out the lists of objectives for any map), and whether it has an objective for any map in raid
+ * (as To do's `anyMap`: items to find aside).
+ */
+export function questPlaces(
+  quest: Quest,
+  groupKey?: (mapId: string) => string | undefined
+): { mapIds: string[]; anyMap: boolean } {
+  const mapIds = new Set(quest.map ? [quest.map] : [])
+  let anyMap = false
+  for (const o of quest.objectives) {
+    if (isAnyMap(o, groupKey)) {
+      // Items to find in raid are anywhere too, but listed apart (To do's finds), as here.
+      if (!o.optional && inRaid(o) && o.type !== 'findItem') anyMap = true
+    } else for (const id of objectiveMapIds(o)) mapIds.add(id)
+  }
+  return { mapIds: [...mapIds], anyMap }
+}
+
 /** Whether an objective is done in a raid (a story step only when it names a map). */
 export function inRaid(objective: QuestObjective): boolean {
   if (OFF_RAID.has(objective.type)) return false
@@ -258,14 +295,19 @@ export function todoPlan(
     for (const map of mapIds) if (!entry.mapIds.includes(map)) entry.mapIds.push(map)
     toGet.set(id, entry)
   }
-  const groupsOf = (objective: QuestObjective): MapGroup[] => [
-    ...new Map(
-      objectiveMapIds(objective)
-        .map(groupOf)
-        .filter((g): g is MapGroup => g !== undefined)
-        .map((g) => [g.key, g])
-    ).values()
-  ]
+  const groupKey = (id: string): string | undefined => groupOf(id)?.key
+  // An objective for any map is on none in particular: it's listed once, for every map.
+  const groupsOf = (objective: QuestObjective): MapGroup[] =>
+    isAnyMap(objective, groupKey)
+      ? []
+      : [
+          ...new Map(
+            objectiveMapIds(objective)
+              .map(groupOf)
+              .filter((g): g is MapGroup => g !== undefined)
+              .map((g) => [g.key, g])
+          ).values()
+        ]
   const result: TodoPlan = {
     maps: [],
     anyMap: [],
@@ -365,6 +407,7 @@ export function todoPlan(
           inRaid(o) &&
           wanted(o) &&
           objectiveMapIds(o).some((id) => group.mapIds.includes(id)) &&
+          !isAnyMap(o, groupKey) &&
           objectiveValue(o, quest.id, objectives) >= objectiveTarget(o)
       ).length
       if (!here.some(canDo)) p.blocked.push(quest)
@@ -437,6 +480,8 @@ export interface MapOverview {
   missingKeys: number
   /** Items and quest items to take in, and the guns chosen for the map's kills. */
   bring: number
+  /** Enemies left to kill for objectives on any map, which a raid here counts for too (since 1.63.0). */
+  anyMapKills: number
   /** Quests to pick up that have objectives here. */
   pickUp: number
 }
@@ -445,7 +490,9 @@ export function mapOverview(
   plan: MapPlan,
   owned: ReadonlySet<string> | null = null,
   /** The guns chosen for the map's kills (since 1.62.0 up to two). */
-  guns = 0
+  guns = 0,
+  /** Objectives on any map (`TodoPlan.anyMap`). */
+  anyMap: readonly TodoStep[] = []
 ): MapOverview {
   const kills = plan.steps.filter((s) => objectiveCategory(s.objective) === 'kill')
   return {
@@ -459,6 +506,9 @@ export function mapOverview(
     keys: plan.keys.length,
     missingKeys: owned ? plan.keys.filter((k) => !opens(k, owned)).length : 0,
     bring: plan.bring.length + plan.questItems.length + guns,
+    anyMapKills: anyMap
+      .filter((s) => objectiveCategory(s.objective) === 'kill')
+      .reduce((n, s) => n + s.left, 0),
     pickUp: plan.available.length
   }
 }
@@ -556,20 +606,16 @@ export interface KillToDo {
   objective: QuestObjective
   done: number
   total: number
-  /** It counts on any map (it names none). */
+  /** It counts on any map (`isAnyMap`). */
   anyMap: boolean
 }
-
-/** Maps an objective must name, counted as map groups, to count as one for any map. */
-export const ANY_MAP_GROUPS = 6
 
 /**
  * The kill objectives of active quests left to do on a map (`mapIds`: its group's, Night Factory with
  * Factory): the ones for this map, then the ones for any map, each set by quest name (the ones naming
- * the fewest maps first). An objective counts for any map when it names no map, says "any location", or
- * names `ANY_MAP_GROUPS` map groups or more (tarkov.dev lists most maps for many "any location" kills;
- * `groupOf` gives a map id's group). One that names maps but not this one isn't listed. `blocked` leaves
- * out quests held up by a key the player doesn't have ("Only quests I can do").
+ * the fewest maps first). One for any map (`isAnyMap`; `groupOf` gives a map id's group) is listed on
+ * every map, even one its list of maps leaves out; one that names maps but not this one isn't listed.
+ * `blocked` leaves out quests held up by a key the player doesn't have ("Only quests I can do").
  */
 export function killObjectives(
   rows: readonly { quest: Quest; status: QuestStatus }[],
@@ -591,11 +637,8 @@ export function killObjectives(
       const done = objectiveValue(objective, quest.id, objectives)
       const total = objectiveTarget(objective)
       if (done >= total) continue
-      const maps = objectiveMapIds(objective)
-      if (maps.length && !maps.some((id) => mapIds.has(id))) continue
-      const groups = new Set(maps.map((id) => groupOf?.(id) ?? id)).size
-      const anyMap =
-        !maps.length || /\bany (location|map)\b/i.test(objective.description) || groups >= ANY_MAP_GROUPS
+      const anyMap = isAnyMap(objective, groupOf)
+      if (!anyMap && !objectiveMapIds(objective).some((id) => mapIds.has(id))) continue
       ;(anyMap ? anywhere : here).push({ quest, objective, done, total, anyMap })
     }
   }

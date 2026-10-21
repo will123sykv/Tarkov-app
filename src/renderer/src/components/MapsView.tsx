@@ -460,6 +460,7 @@ export default function MapsView({
     const left = all.filter((k) => !hiddenQuests.has(k.quest.id) || shownAnyway(k.quest.id))
     return doable && shut ? left.filter((k) => k.anyMap) : left
   }, [rows, done, mapIds, doable, blocked, shut, groupOf, hiddenQuests, shownAnyway])
+  const anyMapKills = kills.filter((k) => k.anyMap).length
   const mapNames = useMemo(() => maps.map((gm) => gm.name), [maps])
   // The header over the map: the quests with objectives here and the extracts for the side played.
   const activeHere = useMemo(
@@ -972,8 +973,9 @@ export default function MapsView({
             <div className="summary-title">
               <strong>{choices.find((c) => c.key === m.mapKey)?.name ?? mainMap.name}</strong>
               <span className="muted">
-                {plural(activeHere, 'quest')} with objectives here · {plural(kills.length, 'kill objective')}{' '}
-                · {plural(extractCount, m.faction === 'scav' ? 'Scav extract' : 'PMC extract')}
+                {plural(activeHere, 'quest')} with objectives here · {plural(kills.length, 'kill objective')}
+                {anyMapKills > 0 && ` (${anyMapKills} on any map)`} ·{' '}
+                {plural(extractCount, m.faction === 'scav' ? 'Scav extract' : 'PMC extract')}
               </span>
               {doable && (
                 <span className="muted small settings-note">

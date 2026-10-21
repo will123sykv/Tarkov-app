@@ -7,6 +7,8 @@ import {
   type QuestStatus
 } from '../../../shared/questProgress'
 import { ofKind } from '../../../shared/questKind'
+import { questPlaces } from '../../../shared/todo'
+import { mapGroups } from '../lib/mapGroups'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import { blockedByKeys } from '../../../shared/keys'
 import { nextWikiQuests } from '../../../shared/wikiQuests'
@@ -240,10 +242,26 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
       ...(dataset?.traders.filter((t) => giving.has(t.id)) ?? [])
     ]
   }, [dataset, all])
+  // Where each quest is done: the maps it names, and whether it has something to do on any map (since
+  // 1.63.0 a quest with a kill on any location is listed under every map).
+  const places = useMemo(() => {
+    const groupOf = mapGroups(dataset?.maps ?? [])
+    return new Map(everyRow.map((row) => [row.quest, questPlaces(row.quest, (id) => groupOf.get(id)?.key)]))
+  }, [dataset, everyRow])
+  const onMap = useCallback(
+    (quest: Quest, mapId: string): boolean => {
+      const p = places.get(quest)
+      return p ? p.anyMap || p.mapIds.includes(mapId) : questMaps(quest).has(mapId)
+    },
+    [places]
+  )
   const questMapList = useMemo(() => {
+    const anywhere = all.some((row) => places.get(row.quest)?.anyMap)
     const used = new Set(all.flatMap((row) => [...questMaps(row.quest)]))
-    return (dataset?.maps ?? []).filter((m) => used.has(m.id)).sort((a, b) => a.name.localeCompare(b.name))
-  }, [dataset, all])
+    return (dataset?.maps ?? [])
+      .filter((m) => anywhere || used.has(m.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [dataset, all, places])
 
   const counts = useMemo(() => {
     const c: Record<QuestStatus, number> = { available: 0, active: 0, locked: 0, completed: 0, failed: 0 }
@@ -262,7 +280,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
       ({ quest, status }) =>
         (term !== '' || q.statuses.includes(status)) &&
         (!q.traderId || quest.traderId === q.traderId) &&
-        (!q.mapId || questMaps(quest).has(q.mapId)) &&
+        (!q.mapId || onMap(quest, q.mapId)) &&
         (!q.kappaOnly || quest.kappaRequired) &&
         (!q.lightkeeperOnly || quest.lightkeeperRequired) &&
         (!term || quest.name.toLowerCase().includes(term))
@@ -276,7 +294,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         blockedByKeys(quest, owned, objectives).length === 0
     )
     return { shown, keyHidden: listed.length - shown.length }
-  }, [all, everyRow, q, term, doable, owned, objectives, selected])
+  }, [all, everyRow, q, term, doable, owned, objectives, selected, onMap])
 
   // Traders whose every quest the Show filters leave out (the BTR Driver's are all Locked until his
   // chain starts), with how many of each status: said under the list, so they don't seem missing.
@@ -287,7 +305,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
     for (const { quest, status } of all) {
       if (q.statuses.includes(status) || shownTraders.has(quest.traderId)) continue
       if (q.traderId && quest.traderId !== q.traderId) continue
-      if ((q.mapId && !questMaps(quest).has(q.mapId)) || (q.kappaOnly && !quest.kappaRequired)) continue
+      if ((q.mapId && !onMap(quest, q.mapId)) || (q.kappaOnly && !quest.kappaRequired)) continue
       if (q.lightkeeperOnly && !quest.lightkeeperRequired) continue
       const counts = byTrader.get(quest.traderId) ?? new Map<QuestStatus, number>()
       counts.set(status, (counts.get(status) ?? 0) + 1)
@@ -300,7 +318,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           : (dataset?.traders.find((t) => t.id === traderId)?.name ?? 'Other'),
       counts: [...counts]
     }))
-  }, [all, shown, q, term, dataset])
+  }, [all, shown, q, term, dataset, onMap])
   const hiddenStatuses = [...new Set(hiddenTraders.flatMap((t) => t.counts.map(([status]) => status)))]
 
   // Quests the logs mention that tarkov.dev doesn't list (story chapters, new or event quests).
@@ -351,15 +369,19 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
     (quest: Quest): string =>
       [
         ...requirementLabels(quest, questsById, ctx.traders),
-        [...questMaps(quest)]
-          .map((id) => mapsById.get(id)?.name)
+        [
+          ...(places.get(quest)?.mapIds ?? [...questMaps(quest)])
+            .map((id) => mapsById.get(id)?.name)
+            .filter(Boolean)
+            .slice(0, 2),
+          places.get(quest)?.anyMap ? 'Any map' : null
+        ]
           .filter(Boolean)
-          .slice(0, 2)
           .join(', ')
       ]
         .filter(Boolean)
         .join(' · '),
-    [questsById, mapsById, ctx.traders]
+    [questsById, mapsById, ctx.traders, places]
   )
   const onSelect = useCallback(
     (id: string) => selectQuest(useStore.getState().selectedQuest === id ? null : id),

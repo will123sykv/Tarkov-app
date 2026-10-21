@@ -16,7 +16,7 @@ import {
 } from '../../../shared/questProgress'
 import { guideImageMaps, mapAliases } from '../../../shared/guideMaps'
 import { STORY_TRADER, reachableSteps } from '../../../shared/storyQuests'
-import { objectiveMapIds } from '../../../shared/todo'
+import { inRaid, isAnyMap, objectiveMapIds } from '../../../shared/todo'
 import { squadShared } from '../../../shared/squad'
 import type {
   QuestGuideState,
@@ -295,7 +295,8 @@ function Objective({
   detected,
   completed,
   waiting = false,
-  mapKey
+  mapKey,
+  anyMap = false
 }: {
   quest: Quest
   objective: QuestObjective
@@ -308,6 +309,8 @@ function Objective({
   waiting?: boolean
   /** The map the panel is about, whose gun its kill tags name first. */
   mapKey?: string | null
+  /** Done in raid on any map (since 1.63.0): said so, rather than listing the maps. */
+  anyMap?: boolean
 }): React.JSX.Element {
   const showOnMap = useStore((s) => s.showOnMap)
   const owned = useOwnedKeys()
@@ -380,7 +383,11 @@ function Objective({
         </div>
       ))}
       <div className="objective-meta">
-        {mapNames.length > 0 && <span className="muted">{mapNames.join(', ')}</span>}
+        {anyMap ? (
+          <span className="tag">any map</span>
+        ) : (
+          mapNames.length > 0 && <span className="muted">{mapNames.join(', ')}</span>
+        )}
         {onMap && (
           <button
             className="link"
@@ -732,12 +739,22 @@ function QuestPanel({
     () => [...new Map([...groups.values()].map((g) => [g.key, g])).values()],
     [groups]
   )
+  // Objectives on any map (since 1.63.0) are on every map picked.
+  const anyMapObjectives = useMemo(
+    () =>
+      new Set(
+        quest.objectives.filter((o) => inRaid(o) && isAnyMap(o, (id) => groups.get(id)?.key)).map((o) => o.id)
+      ),
+    [quest, groups]
+  )
   const objectiveMaps = useMemo(
     () =>
-      quest.objectives.map((o) => [
-        ...new Set(objectiveMapIds(o).flatMap((id) => groups.get(id)?.key ?? []))
-      ]),
-    [quest, groups]
+      quest.objectives.map((o) =>
+        anyMapObjectives.has(o.id)
+          ? []
+          : [...new Set(objectiveMapIds(o).flatMap((id) => groups.get(id)?.key ?? []))]
+      ),
+    [quest, groups, anyMapObjectives]
   )
   const placed = useMemo(
     () =>
@@ -1041,6 +1058,7 @@ function QuestPanel({
                       completed={completed}
                       waiting={waiting}
                       mapKey={chosenMap ?? preferredMap}
+                      anyMap={anyMapObjectives.has(o.id)}
                     />
                   </Fragment>
                 )

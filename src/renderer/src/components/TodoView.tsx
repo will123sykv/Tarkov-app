@@ -82,7 +82,8 @@ function Step({
   objectives,
   detected,
   keyName,
-  items
+  items,
+  anyMap = false
 }: {
   step: TodoStep
   group: MapGroup | null
@@ -91,6 +92,8 @@ function Step({
   detected: DetectedProgress
   keyName: (keyId: string) => string
   items: Items
+  /** One for any map, listed under a map it can be done on too (since 1.63.0). */
+  anyMap?: boolean
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
   const { quest, objective, missing } = step
@@ -98,7 +101,7 @@ function Step({
   // Only on an alternate version of the map (say, Night Factory): name it.
   const here = group ? objectiveMapIds(objective).filter((id) => group.mapIds.includes(id)) : []
   const where =
-    group && group.mapIds.length > 1 && !here.includes(group.mapIds[0])
+    group && !anyMap && group.mapIds.length > 1 && !here.includes(group.mapIds[0])
       ? here.map((id) => mapsById.get(id)?.name ?? 'another version').join(' or ')
       : null
   return (
@@ -118,6 +121,7 @@ function Step({
           {objective.description || objective.type}
           {squadShared(quest, objective) && <SquadIcon />}
           {where && <span className="tag">{where}</span>}
+          {anyMap && <span className="tag">any map</span>}
           {objective.foundInRaid && objective.items.length > 0 && (
             <span className="tag fir">found in raid</span>
           )}
@@ -483,6 +487,35 @@ function MapCard({
           ))}
         </ul>
       )}
+      {anyMapSteps.length > 0 && (
+        <section className="todo-also-any" aria-label="Also on any map">
+          <h4 className="todo-take-label">Also on any map</h4>
+          <ul className="todo-anywhere">
+            {[...new Set(anyMapSteps.map((st) => st.quest))].map((quest) => (
+              <li key={quest.id}>
+                <QuestLink quest={quest} trader={traderOf(quest)} onOpen={onDetails} />
+                <ol className="objectives todo-steps">
+                  {anyMapSteps
+                    .filter((st) => st.quest === quest)
+                    .map((st) => (
+                      <Step
+                        key={st.objective.id}
+                        step={st}
+                        group={group}
+                        mapsById={mapsById}
+                        objectives={objectives}
+                        detected={detected}
+                        keyName={keyName}
+                        items={items}
+                        anyMap
+                      />
+                    ))}
+                </ol>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {gun && <MapGunPanel gun={gun} items={items} mapKey={plan.group.key} />}
       {(plan.keys.length > 0 || bring.length > 0 || plan.questItems.length > 0 || bringGun) && (
         <div className="todo-take">
@@ -559,7 +592,7 @@ function MapTile({
 }): React.JSX.Element {
   const group = plan.group
   const gun = useMapGun(plan, anyMapSteps)
-  const o = mapOverview(plan, owned, gun?.chosen ? gun.guns.length : 0)
+  const o = mapOverview(plan, owned, gun?.chosen ? gun.guns.length : 0, anyMapSteps)
   const total = o.done + o.left
   const shown = plan.quests.slice(0, 3)
   const more = plan.quests.length - shown.length
@@ -582,12 +615,20 @@ function MapTile({
       <span className="todo-tile-line">
         {plural(o.quests, 'quest')} · {plural(o.left, 'objective')} left
       </span>
-      {(o.kills > 0 || o.locate > 0) && (
+      {(o.kills > 0 || o.locate > 0 || o.anyMapKills > 0) && (
         <span className="todo-tile-stats">
-          {o.kills > 0 && (
-            <span title="Enemies left to kill here">
+          {(o.kills > 0 || o.anyMapKills > 0) && (
+            <span
+              title={
+                o.anyMapKills
+                  ? 'Enemies left to kill here, and for kill quests on any map (a raid here counts for them too)'
+                  : 'Enemies left to kill here'
+              }
+            >
               <Icon path={OBJECTIVE_ICONS.kill} className="kind" />
-              {plural(o.kills, 'kill')}
+              {o.kills > 0 && plural(o.kills, 'kill')}
+              {o.kills > 0 && o.anyMapKills > 0 && ' · '}
+              {o.anyMapKills > 0 && `${o.anyMapKills} on any map`}
             </span>
           )}
           {o.locate > 0 && (
