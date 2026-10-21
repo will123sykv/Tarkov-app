@@ -1054,7 +1054,7 @@ export default function MapsView({
                 open={m.killsOpen}
                 onToggle={() => set({ killsOpen: !m.killsOpen })}
                 onSelectQuest={onSelectQuest}
-                gun={gun?.chosen ? gun.itemId : null}
+                guns={gun?.chosen ? gun.itemIds : null}
                 items={items}
               />
             )}

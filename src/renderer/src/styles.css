@@ -5773,6 +5773,13 @@ p.quest-before.done {
   text-transform: uppercase;
 }
 
+/* Two guns chosen (since 1.62.0): side by side where there's room. */
+.map-guns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 8px;
+}
+
 /* No gun chosen: a prompt to choose one in the Weapons tab (since 1.55.0). */
 .map-gun.prompt {
   grid-template-columns: minmax(0, 1fr);
@@ -5828,11 +5835,33 @@ p.quest-before.done {
   font-size: 16px;
 }
 
+/* The map's guns (since 1.62.0 up to two): what they cover between them, then each with its picture. */
+.weapons-current-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
 .weapons-current {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 12px 16px;
+}
+
+.weapons-current-gun {
+  display: grid;
   grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
-  gap: 16px;
+  gap: 12px;
   align-items: center;
+}
+
+.weapons-current.n2 .weapons-current-gun {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.weapons-current.n2 .gun-picture.large {
+  height: 140px;
 }
 
 .weapons-current-text {
@@ -5852,6 +5881,16 @@ p.quest-before.done {
 
 .weapons-tile .gun-picture {
   height: 120px;
+}
+
+.weapons-tile-pictures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.weapons-options-hint {
+  margin: 6px 0 0;
 }
 
 .weapons-tile-gun {

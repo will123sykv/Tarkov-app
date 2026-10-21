@@ -435,7 +435,7 @@ export interface MapOverview {
   keys: number
   /** Of those, the ones none of the player's keys open (none when their keys aren't known). */
   missingKeys: number
-  /** Items and quest items to take in, and the gun chosen for the map's kills. */
+  /** Items and quest items to take in, and the guns chosen for the map's kills. */
   bring: number
   /** Quests to pick up that have objectives here. */
   pickUp: number
@@ -444,7 +444,8 @@ export interface MapOverview {
 export function mapOverview(
   plan: MapPlan,
   owned: ReadonlySet<string> | null = null,
-  gun = false
+  /** The guns chosen for the map's kills (since 1.62.0 up to two). */
+  guns = 0
 ): MapOverview {
   const kills = plan.steps.filter((s) => objectiveCategory(s.objective) === 'kill')
   return {
@@ -457,7 +458,7 @@ export function mapOverview(
     blocked: plan.blocked.length,
     keys: plan.keys.length,
     missingKeys: owned ? plan.keys.filter((k) => !opens(k, owned)).length : 0,
-    bring: plan.bring.length + plan.questItems.length + (gun ? 1 : 0),
+    bring: plan.bring.length + plan.questItems.length + guns,
     pickUp: plan.available.length
   }
 }

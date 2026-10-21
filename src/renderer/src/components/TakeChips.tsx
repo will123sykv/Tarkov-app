@@ -1,5 +1,5 @@
 import type { BringItem } from '../../../shared/todo'
-import type { MapGun } from '../../../shared/weapons'
+import type { BroughtGun } from '../../../shared/weapons'
 import type { useItemLookup } from '../lib/useItemLookup'
 
 // What to take into a raid, as chips: the To do tab's Bring and the map's reminder.
@@ -8,8 +8,8 @@ type Items = ReturnType<typeof useItemLookup>
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** A map's gun chosen in the Weapons tab (since 1.54.0), and the quests it's for. */
-export function MapGunChip({ gun, items }: { gun: MapGun; items: Items }): React.JSX.Element {
+/** A gun chosen for a map in the Weapons tab (since 1.54.0; up to two since 1.62.0), and the quests it's for. */
+export function MapGunChip({ gun, items }: { gun: BroughtGun; items: Items }): React.JSX.Element {
   const item = items.get(gun.itemId)
   const quests = [...new Set(gun.covers.map((k) => k.quest.name))].join(', ')
   return (

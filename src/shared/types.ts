@@ -189,10 +189,11 @@ export interface TodoSettings {
 /** The Weapons tab (since 1.54.0). */
 export interface WeaponsSettings {
   /**
-   * The gun chosen to bring to each map (by map group key, e.g. `customs`) for its kill quests, per game
-   * mode (since 1.58.0; 1.54–1.57 had one set for every mode, `byMap`).
+   * The guns chosen to bring to each map (by map group key, e.g. `customs`) for its kill quests, one or
+   * two in the order chosen (since 1.62.0; one before), per game mode (since 1.58.0; 1.54–1.57 had one
+   * set for every mode, `byMap`).
    */
-  byMode: Record<GameMode, Record<string, string>>
+  byMode: Record<GameMode, Record<string, string[]>>
   /** A tile per map to open, or every map's card one under another (since 1.58.0). */
   layout: 'tiles' | 'list'
 }

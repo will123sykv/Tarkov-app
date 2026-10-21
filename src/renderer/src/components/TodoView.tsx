@@ -229,7 +229,7 @@ function QuestCard({
   otherMaps: string[]
   keyName: (keyId: string) => string
   onDetails: (questId: string) => void
-  /** The gun for the map's kill quests (since 1.54.0). */
+  /** The guns for the map's kill quests (since 1.54.0; up to two since 1.62.0). */
   gun: MapGun | null
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
@@ -239,9 +239,11 @@ function QuestCard({
   const missing = [...new Map(steps.flatMap((s) => s.missing).map((k) => [k.join(), k])).values()]
   const reward = rewardLine(quest, items, trader)
   const blocked = plan.blocked.includes(quest)
-  // Its kills that need particular weapons, and whether the map's chosen gun covers them.
+  // Its kills that need particular weapons, and the map's chosen gun that covers them (if any).
   const kills = steps.some((s) => s.objective.weapons?.length)
-  const bringing = gun?.chosen && gun.covers.some((k) => k.quest === quest) ? gun.itemId : null
+  const bringing = gun?.chosen
+    ? (gun.guns.find((g) => g.covers.some((k) => k.quest === quest))?.itemId ?? null)
+    : null
   return (
     <li className={`todo-card ${blocked ? 'todo-blocked' : ''}`}>
       <div className="todo-quest-head">
@@ -508,7 +510,9 @@ function MapCard({
             <div>
               <span className="todo-take-label">Bring</span>
               <span className="todo-take-list">
-                {bringGun && <MapGunChip gun={bringGun} items={items} />}
+                {bringGun?.guns.map((g) => (
+                  <MapGunChip key={g.itemId} gun={g} items={items} />
+                ))}
                 {bring.map((b) => (
                   <BringChip key={`${b.itemIds.join()}${b.anyMap ? ':any' : ''}`} item={b} items={items} />
                 ))}
@@ -554,7 +558,8 @@ function MapTile({
   anyMapSteps?: readonly TodoStep[]
 }): React.JSX.Element {
   const group = plan.group
-  const o = mapOverview(plan, owned, !!useMapGun(plan, anyMapSteps)?.chosen)
+  const gun = useMapGun(plan, anyMapSteps)
+  const o = mapOverview(plan, owned, gun?.chosen ? gun.guns.length : 0)
   const total = o.done + o.left
   const shown = plan.quests.slice(0, 3)
   const more = plan.quests.length - shown.length

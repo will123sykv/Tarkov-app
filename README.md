@@ -14,8 +14,8 @@ prices, your PMC level and the game mode you play. It also has:
   quest's keys, items, rewards and the wiki's guide and pictures of where to go;
 - **To do:** which map to raid next to move your active quests on, each map at a glance and then
   its quests, what to take, and what to hand in, hand over or build before you go;
-- **Weapons:** the gun to bring to each map for kill quests that need particular weapons, chosen
-  per map (and per game mode) and shown fully built in To do and the map's reminder;
+- **Weapons:** the guns to bring to each map for kill quests that need particular weapons, up to two
+  per map (and per game mode), shown fully built in To do and the map's reminder;
 - **Items to collect:** what your hideout's upgrades and your quests' hand-ins still need (both, or
   just one of them), with the items you've put aside ticked off, which of those you could sell (and
   buy or craft back later), every hideout craft ranked by profit, and the items not to sell (rare
@@ -184,12 +184,13 @@ else counts twice and is marked **Finish here**: finishing quests is what opens 
 - An opened map (or each one in the list) shows the quests to do there, the **Keys** they need and
   what to **Bring** (markers, items to stash or use, quest items to plant, and the gun a kill has to be made with: the first that will do, "or 3 others", with the full list on hover; an objective on any map, a kill or a stim to use, adds its gun or item to every map, marked **any map**). An objective any one of several items will do for (stash any Obdolbos cocktail injector) lists the first, "or 1 other". **Show on map** opens the map in
   the Maps tab with your quests on it; coming back to To do keeps the map open.
-- **Gun to bring:** when a kill quest on the map has to be made with particular weapons, the map shows
-  a large picture of the gun chosen for it in the **Weapons** tab, the quests it's for, and **Change in
-  Weapons**. It's the only gun the **Bring** list has (**★ AKMS (for Supply Plans)**). With no gun
-  chosen, it asks you to choose one instead (**Choose a gun in Weapons ▶**) and Bring lists no guns.
-  Kill objectives say **★ Bringing AKMS** (in To do and the quest's details) or **No gun chosen**, and
-  the Maps tab's **Before you raid** shows the gun too.
+- **Guns to bring:** when a kill quest on the map has to be made with particular weapons, the map shows
+  a large picture of each gun chosen for it in the **Weapons** tab (one or two), the quests each is for,
+  and **Change in Weapons**. They're the only guns the **Bring** list has (**★ AKMS (for Supply
+  Plans)**). With no gun chosen, it asks you to choose instead (**Choose guns in Weapons ▶**) and Bring
+  lists no guns. Kill objectives say which of them they'll be made with (**★ Bringing AKMS**, in To do
+  and the quest's details) or **No gun chosen**, and the Maps tab's **Before you raid** shows the guns
+  too.
 - **Summary** (the default; switch in Settings) shows each quest in a few lines: up to three objectives, each kill with
   its count (Eliminate 5 Scavs, 2/5) and the rest by kind (Mark 3 spots, 1/3), a red line for a key
   you don't have (with **I have it**), the other maps it has objectives on, and its reward (money,
@@ -225,18 +226,21 @@ good as your ticks (and your keys ticked in the Keys tab).
 ### Weapons
 
 For kill quests that have to be made with particular weapons (Eliminate 5 Scavs with an AKM), the
-**Weapons** tab chooses the gun to bring to each map: one per map. It opens on a tile per map, like
-To do's, with a large picture of its gun, fully built: **★ Gun to bring** when you've chosen one, or
-**No gun chosen** with the one that covers the most **Suggested**, and how many of the map's kill
-quests it covers. Click a tile to open the map (**◀ All maps** goes back, and the buttons beside it
-step to the map before or after): its gun, then a row per kill quest, marked ✓ when the gun covers it
-and ✗ when it doesn't. Click a quest to unfold the guns that count for it, each saying how many of
-the map's kill quests it covers, and click one to bring it to the map; **Clear** goes back to the
-suggestion. When a quest has kills on other maps too (or on any map), **Bring … to every map with**
-the quest sets the gun on all of them at once, replacing what was chosen there (it says which). Kills
-on any map count on every map. Maps with kills of their own come first, in To do's order. **Open in
-To do** opens the map on the To do tab; To do's map and the Maps tab's **Before you raid** show the
-gun, and **Change in Weapons** there opens this tab on the map.
+**Weapons** tab chooses the guns to bring to each map: up to two per map. It opens on a tile per map,
+like To do's, with a large picture of its guns, fully built: **★ Guns to bring** when you've chosen
+them, or **No gun chosen** with the pair that covers the most **Suggested** (or just one gun, when one
+covers them all), and how many of the map's kill quests they cover. Click a tile to open the map
+(**◀ All maps** goes back, and the buttons beside it step to the map before or after): its guns, each
+with what it covers and **Remove**, then a row per kill quest, marked ✓ when one of the guns covers it
+and ✗ when neither does. Click a quest to unfold the guns that count for it, each saying how many of
+the map's kill quests it covers, and click one to bring it to the map; click a chosen one (★) again to
+take it off. With two chosen, a third replaces the first you picked (it says which). **Bring these**
+takes the suggestion as it is, and **Clear all** goes back to it. When a quest has kills on other maps
+too (or on any map), **Bring … to every map with** the quest adds the gun on all of them at once
+(replacing the first of two chosen there, and it says which). Kills on any map count on every map.
+Maps with kills of their own come first, in To do's order. **Open in To do** opens the map on the To
+do tab; To do's map and the Maps tab's **Before you raid** show the guns, and **Change in Weapons**
+there opens this tab on the map.
 
 Pictures are of the gun fully built (tarkov.dev's default preset of the weapon), not the bare
 receiver the quest names.
@@ -586,7 +590,7 @@ the game's install folder, or its `build` folder.
   raid there takes, until you click **Got it** (or press Esc): the keys your active quests need there
   (with which you have, and which friends have the ones you don't), what to **Bring** (markers, items
   to plant, use or extract with and quest items, with how many you've put aside), a large picture of the
-  map's **Gun** chosen in the Weapons tab (or a prompt to choose one), and found-in-raid
+  map's **Guns** chosen in the Weapons tab (or a prompt to choose them), and found-in-raid
   items to **Look out for**. It doesn't show when there's nothing to list.
 - **Extracts and transits:** click one on the map for what it needs, in a card at the bottom left
   until you close it (**✕** or Esc): who can use it, whether it's always open or once a raid, its
@@ -617,10 +621,10 @@ the game's install folder, or its `build` folder.
   location", or naming six maps or more, as tarkov.dev does for many gun and headshot kills). Each gives the quest, what to
   kill and with what (a gun, headshots, from a distance) and how many are done, such as **2 / 5**.
   Click a quest to open its panel; click the banner's heading to fold it (it's remembered).
-  **Only quests I can do** leaves out quests a key you don't have holds up. With a gun chosen for the
-  map in the **Weapons** tab, the kills it completes come first, highlighted with **★ AKMS**, the
-  heading counts them (**1 with your AKMS**), and kills that need another particular weapon say
-  **needs another gun**.
+  **Only quests I can do** leaves out quests a key you don't have holds up. With guns chosen for the
+  map in the **Weapons** tab, the kills they complete come first, highlighted with the gun that does
+  (**★ AKMS**), the heading counts them (**1 with your AKMS**, or **3 with your guns** for two), and
+  kills that need another particular weapon say **needs another gun**.
 - **Keys on the maps:** tick **Locks for keys your quests need** to see each locked door or
   container they open (green when you have the key) and the loose loot spots where the ones you
   don't have can spawn. A key opened from the Keys tab's **Show on map** is highlighted, with how many

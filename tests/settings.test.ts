@@ -579,16 +579,16 @@ describe('sanitizeSettings', () => {
   it('keeps the gun chosen for each map in the Weapons tab, per game mode (since 1.54.0)', () => {
     const none = { pvp: {}, pve: {}, season: {} }
     expect(DEFAULT_SETTINGS.weapons).toEqual({ byMode: none, layout: 'tiles' })
-    const byMode = { pvp: { customs: 'akms' }, pve: { woods: 'sv98' }, season: {} }
+    const byMode = { pvp: { customs: ['akms', 'm4a1'] }, pve: { woods: ['sv98'] }, season: {} }
     expect(sanitizeSettings({ view: 'weapons', weapons: { byMode, layout: 'list' } })).toMatchObject({
       view: 'weapons',
       weapons: { byMode, layout: 'list' }
     })
     // 1.54–1.57's one set for every mode (since 1.58.0, per mode): each mode starts from it.
     expect(sanitizeSettings({ weapons: { byMap: { customs: 'akms' } } }).weapons.byMode).toEqual({
-      pvp: { customs: 'akms' },
-      pve: { customs: 'akms' },
-      season: { customs: 'akms' }
+      pvp: { customs: ['akms'] },
+      pve: { customs: ['akms'] },
+      season: { customs: ['akms'] }
     })
     // Map keys and ids that aren't, and 1.53's guns per quest, are dropped.
     expect(
@@ -600,7 +600,19 @@ describe('sanitizeSettings', () => {
         todo: { guns: { 'q:o': { itemId: 'akm', favourite: true } } }
       })
     ).toMatchObject({ weapons: { byMode: none, layout: 'tiles' }, todo: DEFAULT_SETTINGS.todo })
-    expect(gunsFor({ gameMode: 'pve', weapons: { byMode, layout: 'tiles' } })).toEqual({ woods: 'sv98' })
+    expect(gunsFor({ gameMode: 'pve', weapons: { byMode, layout: 'tiles' } })).toEqual({ woods: ['sv98'] })
+  })
+
+  it('keeps up to two guns per map (since 1.62.0), and 1.54–1.61’s one gun as the first', () => {
+    const guns = (raw: unknown): unknown =>
+      sanitizeSettings({ weapons: { byMode: { pvp: raw } } }).weapons.byMode.pvp
+    // One gun, saved as a string before 1.62.0.
+    expect(guns({ customs: 'akms' })).toEqual({ customs: ['akms'] })
+    // In the order chosen; repeats, a third and ones that aren't ids dropped; a map left with none too.
+    expect(guns({ customs: ['m4a1', 'akms'] })).toEqual({ customs: ['m4a1', 'akms'] })
+    expect(guns({ customs: ['akms', 'akms', 'm4a1'] })).toEqual({ customs: ['akms', 'm4a1'] })
+    expect(guns({ customs: ['akms', 'm4a1', 'svd'] })).toEqual({ customs: ['akms', 'm4a1'] })
+    expect(guns({ customs: [5, '', 'svd'], woods: [], lab: [null] })).toEqual({ customs: ['svd'] })
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

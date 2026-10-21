@@ -1,9 +1,12 @@
 import type { Quest, QuestObjective } from './questTypes'
 import { objectiveMapIds, type MapGroup, type TodoStep } from './todo'
 
-// The gun to bring to each map for kill quests that need particular weapons (the Weapons tab, since
-// 1.54.0): one per map, chosen from every gun that counts for one of its kills, or suggested as the one
-// that covers the most.
+// The guns to bring to each map for kill quests that need particular weapons (the Weapons tab, since
+// 1.54.0): up to two per map (since 1.62.0; one before), chosen from every gun that counts for one of its
+// kills, or suggested as the pair that covers the most.
+
+/** At most this many guns chosen for a map (since 1.62.0). */
+export const MAX_MAP_GUNS = 2
 
 /** A kill objective on a map (or on any map) that has to be made with one of particular weapons. */
 export interface MapKill {
@@ -62,39 +65,82 @@ export function gunOptions(kills: readonly MapKill[]): GunOption[] {
   return options.sort((a, b) => b.covers.length - a.covers.length || own(b) - own(a))
 }
 
-/** The gun to bring to a map: chosen in the Weapons tab, or suggested; and the kills it does and doesn't cover. */
-export interface MapGun {
+/** One gun brought to a map, and the kills it counts for. */
+export interface BroughtGun {
   itemId: string
+  covers: MapKill[]
+}
+
+/**
+ * The guns to bring to a map: chosen in the Weapons tab, or suggested; and the kills they do and don't
+ * cover between them.
+ */
+export interface MapGun {
+  /** One or two guns, in the order they were chosen. */
+  guns: BroughtGun[]
+  itemIds: string[]
   chosen: boolean
   covers: MapKill[]
   misses: MapKill[]
 }
 
 /**
- * The gun for a map's kills: the one chosen when it still counts for one of them, otherwise the option
- * that covers the most, as a suggestion. Null when no kill there needs particular weapons.
+ * The best guns to bring for `kills` (since 1.62.0): the option that covers the most, then the one that
+ * covers the most of what that one doesn't, if any.
  */
-export function mapGun(kills: readonly MapKill[], chosen: string | undefined): MapGun | null {
+export function bestGuns(kills: readonly MapKill[]): GunOption[] {
   const options = gunOptions(kills)
-  const picked = chosen ? options.find((o) => o.itemId === chosen) : undefined
-  const option = picked ?? options[0]
-  if (!option) return null
+  const picked: GunOption[] = []
+  while (picked.length < MAX_MAP_GUNS) {
+    const covered = new Set(picked.flatMap((o) => o.covers))
+    const adds = (o: GunOption): number => o.covers.filter((k) => !covered.has(k)).length
+    let best: GunOption | undefined
+    for (const o of options)
+      if (!picked.includes(o) && adds(o) > 0 && (!best || adds(o) > adds(best))) best = o
+    if (!best) break
+    picked.push(best)
+  }
+  return picked
+}
+
+/**
+ * The guns for a map's kills: the ones chosen that still count for one of them, otherwise the best pair
+ * (or one gun, when it covers them all) as a suggestion. Null when no kill there needs particular weapons.
+ */
+export function mapGun(kills: readonly MapKill[], chosen: readonly string[] | undefined): MapGun | null {
+  const options = gunOptions(kills)
+  const picked = (chosen ?? [])
+    .map((id) => options.find((o) => o.itemId === id))
+    .filter((o) => o !== undefined)
+  const guns = picked.length ? picked : bestGuns(kills)
+  if (!guns.length) return null
+  const covers = kills.filter((k) => guns.some((g) => g.covers.includes(k)))
   return {
-    itemId: option.itemId,
-    chosen: picked !== undefined,
-    covers: option.covers,
-    misses: kills.filter((k) => !option.covers.includes(k))
+    guns: guns.map((g) => ({ itemId: g.itemId, covers: g.covers })),
+    itemIds: guns.map((g) => g.itemId),
+    chosen: picked.length > 0,
+    covers,
+    misses: kills.filter((k) => !covers.includes(k))
   }
 }
 
 /**
- * The gun chosen in the Weapons tab that a kill objective will be made with: the one chosen for `mapKey`
+ * The guns chosen for a map after clicking one (since 1.62.0): a chosen one is taken off; another is
+ * added, replacing the one chosen first when there are already two.
+ */
+export function toggleGun(current: readonly string[], itemId: string): string[] {
+  if (current.includes(itemId)) return current.filter((id) => id !== itemId)
+  return [...current, itemId].slice(-MAX_MAP_GUNS)
+}
+
+/**
+ * The gun chosen in the Weapons tab that a kill objective will be made with: one chosen for `mapKey`
  * (the map it's shown under) when it counts, otherwise one chosen for another map it's on (by its maps,
  * zones or places; any map for a kill naming none) that counts for it. Null when none is.
  */
 export function gunForObjective(
   objective: QuestObjective,
-  byMap: Readonly<Record<string, string>>,
+  byMap: Readonly<Record<string, readonly string[]>>,
   groupOf: (mapId: string) => MapGroup | undefined,
   mapKey?: string | null
 ): string | null {
@@ -105,7 +151,7 @@ export function gunForObjective(
     ? [...new Set(mapIds.map((id) => groupOf(id)?.key).filter((k) => k !== undefined))]
     : Object.keys(byMap)
   const order = mapKey && keys.includes(mapKey) ? [mapKey, ...keys.filter((k) => k !== mapKey)] : keys
-  for (const key of order) if (counts.has(byMap[key])) return byMap[key]
+  for (const key of order) for (const id of byMap[key] ?? []) if (counts.has(id)) return id
   return null
 }
 
@@ -124,15 +170,23 @@ export function questGunMaps(
     .map((m) => m.key)
 }
 
+/** Which of the guns brought (if any) a kill objective can be made with. */
+export function gunFor(
+  objective: QuestObjective,
+  itemIds: readonly string[] | null | undefined
+): string | null {
+  return itemIds?.find((id) => objective.weapons?.includes(id)) ?? null
+}
+
 /**
- * For the kill banner over a map (since 1.57.0): how a gun does for each kill objective. 'gun' when it's
- * one of the weapons the kill has to be made with, 'other' when the kill needs other particular weapons,
- * null when any weapon will do (or there's no gun).
+ * For the kill banner over a map (since 1.57.0): how the guns brought do for each kill objective. 'gun'
+ * when one of them is one of the weapons the kill has to be made with, 'other' when the kill needs other
+ * particular weapons, null when any weapon will do (or there's no gun).
  */
 export function killForGun(
   objective: QuestObjective,
-  itemId: string | null | undefined
+  itemIds: readonly string[] | null | undefined
 ): 'gun' | 'other' | null {
-  if (!itemId || !objective.weapons?.length) return null
-  return objective.weapons.includes(itemId) ? 'gun' : 'other'
+  if (!itemIds?.length || !objective.weapons?.length) return null
+  return gunFor(objective, itemIds) ? 'gun' : 'other'
 }

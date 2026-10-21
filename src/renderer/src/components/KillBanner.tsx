@@ -1,6 +1,6 @@
 import { squadShared } from '../../../shared/squad'
 import { shortObjective, type KillToDo } from '../../../shared/todo'
-import { killForGun } from '../../../shared/weapons'
+import { gunFor, killForGun } from '../../../shared/weapons'
 import type { useItemLookup } from '../lib/useItemLookup'
 import SquadIcon from './SquadIcon'
 
@@ -14,7 +14,7 @@ export default function KillBanner({
   open,
   onToggle,
   onSelectQuest,
-  gun,
+  guns,
   items
 }: {
   kills: readonly KillToDo[]
@@ -23,26 +23,28 @@ export default function KillBanner({
   open: boolean
   onToggle: () => void
   onSelectQuest: (questId: string) => void
-  /** The gun chosen for this map in the Weapons tab: the kills it completes are highlighted (since 1.57.0). */
-  gun?: string | null
+  /**
+   * The guns chosen for this map in the Weapons tab (up to two since 1.62.0): the kills they complete are
+   * highlighted (since 1.57.0).
+   */
+  guns?: readonly string[] | null
   items?: ReturnType<typeof useItemLookup>
 }): React.JSX.Element | null {
   if (!kills.length) return null
-  const gunName = gun ? (items?.get(gun)?.name ?? 'Unknown weapon') : null
-  const gunIcon = gun ? items?.get(gun)?.iconLink : null
-  // The kills the gun completes first, among this map's and among any map's, in their order otherwise.
-  const rank = (k: KillToDo): number => (killForGun(k.objective, gun) === 'gun' ? 0 : 1)
+  const gunName = (id: string): string => items?.get(id)?.name ?? 'Unknown weapon'
+  // The kills the guns complete first, among this map's and among any map's, in their order otherwise.
+  const rank = (k: KillToDo): number => (killForGun(k.objective, guns) === 'gun' ? 0 : 1)
   const shown = [
     ...kills.filter((k) => !k.anyMap).sort((a, b) => rank(a) - rank(b)),
     ...kills.filter((k) => k.anyMap).sort((a, b) => rank(a) - rank(b))
   ]
-  const withGun = kills.filter((k) => killForGun(k.objective, gun) === 'gun').length
+  const withGun = kills.filter((k) => killForGun(k.objective, guns) === 'gun').length
   const anyMap = kills.filter((k) => k.anyMap).length
   const here = kills.length - anyMap
   const counts = [
     here ? `${here} kill objective${here === 1 ? '' : 's'} here` : null,
     anyMap ? `${anyMap} on any map` : null,
-    withGun ? `${withGun} with your ${gunName}` : null
+    withGun && guns?.length ? `${withGun} with your ${guns.length > 1 ? 'guns' : gunName(guns[0])}` : null
   ]
     .filter(Boolean)
     .join(' · ')
@@ -65,7 +67,9 @@ export default function KillBanner({
       {open && (
         <ul className="kill-banner-list">
           {shown.map(({ quest, objective, done, total, anyMap }) => {
-            const fit = killForGun(objective, gun)
+            const fit = killForGun(objective, guns)
+            const gun = gunFor(objective, guns)
+            const icon = gun ? items?.get(gun)?.iconLink : null
             return (
               <li key={`${quest.id}/${objective.id}`} className={fit === 'gun' ? 'gun' : undefined}>
                 <button
@@ -79,12 +83,12 @@ export default function KillBanner({
                   {anyMap ? objective.description : shortObjective(objective.description, mapNames)}
                   {squadShared(quest, objective) && <SquadIcon />}
                   {anyMap && <span className="tag">any map</span>}
-                  {fit === 'gun' && (
+                  {fit === 'gun' && gun && (
                     <span
                       className="tag gun"
-                      title="The gun chosen for this map in the Weapons tab completes it"
+                      title="A gun chosen for this map in the Weapons tab completes it"
                     >
-                      {gunIcon && <img src={gunIcon} alt="" loading="lazy" />}★ Bringing {gunName}
+                      {icon && <img src={icon} alt="" loading="lazy" />}★ Bringing {gunName(gun)}
                     </span>
                   )}
                   {fit === 'other' && (

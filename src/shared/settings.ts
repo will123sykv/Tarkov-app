@@ -7,6 +7,7 @@ import {
 } from './constants'
 import { isGameMode } from './gameModes'
 import type { ColumnSort } from './tableSort'
+import { MAX_MAP_GUNS } from './weapons'
 import type { TrendSortKey } from './fleaTrends'
 import type {
   AppView,
@@ -416,13 +417,21 @@ function sanitizeTodo(raw: unknown): TodoSettings {
 /** At most this many maps with a gun chosen. */
 const MAX_WEAPON_MAPS = 100
 
-/** Map keys to gun ids, keeping only well-formed ones. */
-function sanitizeGuns(raw: unknown): Record<string, string> {
-  const guns: Record<string, string> = {}
+/**
+ * Map keys to up to two gun ids, keeping only well-formed ones (before 1.62.0 a map had one gun, a string:
+ * it's that gun alone now).
+ */
+function sanitizeGuns(raw: unknown): Record<string, string[]> {
+  const guns: Record<string, string[]> = {}
   if (isRecord(raw))
-    for (const [map, itemId] of Object.entries(raw).slice(0, MAX_WEAPON_MAPS))
-      if (/^[a-z0-9-]{1,40}$/.test(map) && typeof itemId === 'string' && itemId && itemId.length <= 64)
-        guns[map] = itemId
+    for (const [map, value] of Object.entries(raw).slice(0, MAX_WEAPON_MAPS)) {
+      if (!/^[a-z0-9-]{1,40}$/.test(map)) continue
+      const ids = (Array.isArray(value) ? value : [value]).filter(
+        (id): id is string => typeof id === 'string' && !!id && id.length <= 64
+      )
+      const kept = [...new Set(ids)].slice(0, MAX_MAP_GUNS)
+      if (kept.length) guns[map] = kept
+    }
   return guns
 }
 
@@ -435,13 +444,13 @@ function sanitizeWeapons(raw: unknown): WeaponsSettings {
   return {
     byMode: Object.fromEntries(
       modes.map((mode) => [mode, mode in byMode ? sanitizeGuns(byMode[mode]) : { ...shared }])
-    ) as Record<GameMode, Record<string, string>>,
+    ) as Record<GameMode, Record<string, string[]>>,
     layout: r.layout === 'list' ? 'list' : 'tiles'
   }
 }
 
-/** The guns chosen in the Weapons tab for the game mode played (since 1.58.0). */
-export const gunsFor = (settings: Pick<Settings, 'gameMode' | 'weapons'>): Record<string, string> =>
+/** The guns chosen in the Weapons tab for the game mode played (since 1.58.0), one or two per map. */
+export const gunsFor = (settings: Pick<Settings, 'gameMode' | 'weapons'>): Record<string, string[]> =>
   settings.weapons.byMode[settings.gameMode] ?? {}
 
 function sanitizeKeys(raw: unknown): KeysSettings {

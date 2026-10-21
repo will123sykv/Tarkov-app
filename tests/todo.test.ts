@@ -505,7 +505,8 @@ describe('a map’s count of things to bring', () => {
     const plan = todoPlan([row(quest('a', [shotgun, svd]))], {}, groupOf)
     const woods = plan.maps.find((p) => p.group.key === 'woods')!
     expect(mapOverview(woods).bring).toBe(0)
-    expect(mapOverview(woods, null, true).bring).toBe(1)
+    expect(mapOverview(woods, null, 1).bring).toBe(1)
+    expect(mapOverview(woods, null, 2).bring).toBe(2)
   })
 })
 

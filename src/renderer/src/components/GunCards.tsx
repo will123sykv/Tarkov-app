@@ -14,7 +14,7 @@ import { useStore } from '../store'
 type Items = ReturnType<typeof useItemLookup>
 
 const NO_PRESETS: Record<string, string> = {}
-const NO_GUNS: Record<string, string> = {}
+const NO_GUNS: Record<string, string[]> = {}
 
 /** Each weapon's default preset (the gun fully built), from the prices for the game mode played. */
 function usePresets(): Record<string, string> {
@@ -72,9 +72,9 @@ function useOpenWeapons(): (mapKey: string | null) => void {
 }
 
 /**
- * A map's gun as To do's map and the Maps tab's reminder show it: a large picture of the gun chosen in the
- * Weapons tab, the kill quests it's for and a way to change it; with none chosen, a prompt to choose one
- * (since 1.55.0 the suggestion stays in the Weapons tab).
+ * A map's guns as To do's map and the Maps tab's reminder show them: a large picture of each gun chosen
+ * in the Weapons tab (up to two since 1.62.0), the kill quests it's for and a way to change them; with
+ * none chosen, a prompt to choose (since 1.55.0 the suggestion stays in the Weapons tab).
  */
 export function MapGunPanel({
   gun,
@@ -104,27 +104,34 @@ export function MapGunPanel({
             weapons here.
           </span>
           <button className="button small primary" onClick={open}>
-            Choose a gun in Weapons ▶
+            Choose guns in Weapons ▶
           </button>
         </div>
       </div>
     )
   }
+  const two = gun.guns.length > 1
   return (
-    <div className="map-gun chosen">
-      <GunPicture id={gun.itemId} items={items} />
-      <div className="map-gun-text">
-        <span className="map-gun-label">★ Gun to bring</span>
-        <strong>{gunName(items, gun.itemId)}</strong>
-        <span className="muted">For {gun.covers.map((k) => killText(k)).join(', ')}</span>
-        <button
-          className="button small"
-          title="Choose another gun for this map in the Weapons tab"
-          onClick={open}
-        >
-          Change in Weapons ▶
-        </button>
-      </div>
+    <div className={`map-guns n${gun.guns.length}`}>
+      {gun.guns.map((g, i) => (
+        <div key={g.itemId} className="map-gun chosen">
+          <GunPicture id={g.itemId} items={items} />
+          <div className="map-gun-text">
+            <span className="map-gun-label">
+              ★ Gun to bring{two ? ` · ${i + 1} of ${gun.guns.length}` : ''}
+            </span>
+            <strong>{gunName(items, g.itemId)}</strong>
+            <span className="muted">For {g.covers.map((k) => killText(k)).join(', ')}</span>
+            <button
+              className="button small"
+              title={`Choose ${two ? 'other guns' : 'another gun, or a second one,'} for this map in the Weapons tab`}
+              onClick={open}
+            >
+              Change in Weapons ▶
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
