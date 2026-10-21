@@ -11,6 +11,7 @@ import { EMPTY_HIDEOUT, stationLevel, upgradeStatus } from '../../../shared/hide
 import { EMPTY_KEYS, opens } from '../../../shared/keys'
 import { objectiveValue, type ObjectiveProgress } from '../../../shared/questProgress'
 import type { GameMap, HideoutStation, Quest, QuestTrader } from '../../../shared/questTypes'
+import { ofKind } from '../../../shared/questKind'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
   anyMapTake,
@@ -46,6 +47,7 @@ import SquadIcon from './SquadIcon'
 import { KillGunTag, MapGunPanel } from './GunCards'
 import { BringChip, MapGunChip } from './TakeChips'
 import QuestDetail, { ItemChip, KeyChoice, ObjectiveTick } from './QuestDetail'
+import QuestKindSwitch from './QuestKindSwitch'
 import Sidebar, { SidebarSection } from './Sidebar'
 
 // The To do tab: which map to raid next to move your active quests on, what to take, and what can be
@@ -848,7 +850,7 @@ export default function TodoView({
 }): React.JSX.Element {
   const {
     questState,
-    rows,
+    rows: everyRow,
     objectives,
     detected,
     mapsById,
@@ -875,6 +877,8 @@ export default function TodoView({
   const keyName = (keyId: string): string => info(keyId).name
 
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
+  // All, the story or the side quests (since 1.61.0).
+  const rows = useMemo(() => ofKind(everyRow, settings.quests.kind), [everyRow, settings.quests.kind])
   const plan = useTodoPlan(settings, rows, objectives, groupOf, owned, progress.have)
   // Keys to buy: the ones holding up active quests, then the ones added from the Keys tab.
   const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
@@ -917,7 +921,7 @@ export default function TodoView({
   const questMaps = new Map<Quest, string[]>()
   for (const p of ranked)
     for (const q of p.quests) questMaps.set(q, [...(questMaps.get(q) ?? []), p.group.name])
-  const detailRow = detail ? (rows.find((r) => r.quest.id === detail) ?? null) : null
+  const detailRow = detail ? (everyRow.find((r) => r.quest.id === detail) ?? null) : null
   const beforeCount = plan.turnIn.length + plan.handOvers.length + buildable.length
   // The map opened from the overview (it stays open when the filters leave nothing there, saying so).
   const openedName =
@@ -1170,6 +1174,7 @@ export default function TodoView({
               ] as const,
               (kinds) => setTodo({ kinds })
             )}
+            <QuestKindSwitch settings={settings} />
           </div>
         </div>
         {openedName && todoMap ? (

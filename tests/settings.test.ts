@@ -295,6 +295,14 @@ describe('sanitizeSettings', () => {
     expect(saved(3, {})).toBe(true)
   })
 
+  it('keeps which quests the quest pages show: all, the story or side quests (since 1.61.0)', () => {
+    expect(DEFAULT_SETTINGS.quests.kind).toBe('all')
+    expect(sanitizeSettings({ quests: { kind: 'story' } }).quests.kind).toBe('story')
+    expect(sanitizeSettings({ quests: { kind: 'side' } }).quests.kind).toBe('side')
+    expect(sanitizeSettings({ quests: { kind: 'main' } }).quests.kind).toBe('all')
+    expect(sanitizeSettings({}).quests.kind).toBe('all')
+  })
+
   it('keeps how each table is sorted, and drops what isn’t a table’s sort (since 1.59.0)', () => {
     expect(DEFAULT_SETTINGS.tableSorts).toEqual({})
     expect(

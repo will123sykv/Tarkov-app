@@ -71,7 +71,8 @@ export const DEFAULT_SETTINGS: Settings = {
     faction: null,
     wikiQuests: [],
     wikiCorrections: true,
-    wikiOnlyQuests: true
+    wikiOnlyQuests: true,
+    kind: 'all'
   },
   maps: {
     mapKey: 'customs',
@@ -154,7 +155,8 @@ function sanitizeQuests(raw: unknown): QuestSettings {
         ].slice(0, MAX_WIKI_QUESTS)
       : [],
     wikiCorrections: r.wikiCorrections !== false,
-    wikiOnlyQuests: r.wikiOnlyQuests !== false
+    wikiOnlyQuests: r.wikiOnlyQuests !== false,
+    kind: r.kind === 'story' || r.kind === 'side' ? r.kind : 'all'
   }
 }
 

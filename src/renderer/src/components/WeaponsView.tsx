@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
+import { ofKind } from '../../../shared/questKind'
 import { gunsFor } from '../../../shared/settings'
 import type { MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
@@ -13,6 +14,7 @@ import { useStore } from '../store'
 import { GunPicture } from './GunCards'
 import LoadError from './LoadError'
 import OverviewNav from './OverviewNav'
+import QuestKindSwitch from './QuestKindSwitch'
 import SettingsLink from './SettingsLink'
 
 // The Weapons tab (since 1.54.0): for each map with kill quests that have to be made with particular
@@ -36,7 +38,9 @@ export default function WeaponsView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState, rows, objectives } = useQuestRows(settings)
+  const { questState, rows: everyRow, objectives } = useQuestRows(settings)
+  // All, the story or the side quests (since 1.61.0).
+  const rows = useMemo(() => ofKind(everyRow, settings.quests.kind), [everyRow, settings.quests.kind])
   const items = useItemLookup(priceState)
   const updateSettings = useStore((s) => s.updateSettings)
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
@@ -46,7 +50,7 @@ export default function WeaponsView({
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
   const plan = useKillPlan(settings, rows, objectives, groupOf, owned, progress.have)
   // Every quest's kills, for which maps still have any (a map hidden by Only quests I can do keeps its gun).
-  const allPlan = useKillPlan(settings, rows, objectives, groupOf, owned, progress.have, true)
+  const allPlan = useKillPlan(settings, everyRow, objectives, groupOf, owned, progress.have, true)
   // Maps with kills of their own that need particular weapons first, then the ones where only kills on
   // any map do, each in To do's order.
   const maps = useMemo(() => {
@@ -105,7 +109,7 @@ export default function WeaponsView({
               maps.length ? (
                 `${plural(maps.length, 'map')} with kill quests that need particular weapons · ${chosenCount} with a gun chosen`
               ) : (
-                'None of your active quests has kills that need particular weapons.'
+                `None of your active ${settings.quests.kind === 'all' ? '' : `${settings.quests.kind} `}quests has kills that need particular weapons.`
               )
             ) : questState?.error ? (
               <LoadError what="quests" error={questState.error} />
@@ -124,28 +128,31 @@ export default function WeaponsView({
           quests (kills on any map count everywhere). Until you do, the one that covers the most is suggested.
           To do and the map&rsquo;s Before you raid show it. Each game mode keeps its own.
         </p>
-        <div className="segmented small" role="radiogroup" aria-label="How to show maps">
-          {(
-            [
-              ['tiles', 'Overview', 'A tile per map with its gun: click one to change it'],
-              ['list', 'List', 'Every map with its kill quests, one under another']
-            ] as const
-          ).map(([id, text, title]) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={settings.weapons.layout === id}
-              className={settings.weapons.layout === id ? 'active' : ''}
-              title={title}
-              onClick={() => {
-                // Overview also goes back from an opened map.
-                openMap(null)
-                void updateSettings({ weapons: { ...settings.weapons, layout: id } })
-              }}
-            >
-              {text}
-            </button>
-          ))}
+        <div className="weapons-controls">
+          <div className="segmented small" role="radiogroup" aria-label="How to show maps">
+            {(
+              [
+                ['tiles', 'Overview', 'A tile per map with its gun: click one to change it'],
+                ['list', 'List', 'Every map with its kill quests, one under another']
+              ] as const
+            ).map(([id, text, title]) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={settings.weapons.layout === id}
+                className={settings.weapons.layout === id ? 'active' : ''}
+                title={title}
+                onClick={() => {
+                  // Overview also goes back from an opened map.
+                  openMap(null)
+                  void updateSettings({ weapons: { ...settings.weapons, layout: id } })
+                }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+          <QuestKindSwitch settings={settings} />
         </div>
       </div>
       {dataset && !maps.length ? (

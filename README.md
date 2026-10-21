@@ -47,6 +47,13 @@ next time you close the app.
 
 ## Features
 
+- **All · Story · Side.** The Quests, To do, Maps and Weapons tabs each have an **All · Story ·
+  Side** switch: every quest, just the main story's chapters (Tour, Falling Skies…), or just the
+  side quests (traders' and event quests). It's one setting, so switching on one tab switches them
+  all, and it's remembered. A search in Quests still looks through every kind, and a quest you open
+  (or a story step you're pinning) shows whichever is chosen. What to keep and collect (Items to
+  collect, Keys, Loot's keep tags, Hideout crafts) still counts every quest, so nothing a hidden
+  quest needs gets sold.
 - **Sort any table by any column.** Click a column's header to sort by it (A to Z, or biggest
   first), again to reverse it (▲ or ▼ shows which), and a third time to go back to the table's own
   order. Empty cells (no price, —) stay at the bottom either way, and each table remembers how

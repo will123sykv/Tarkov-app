@@ -288,7 +288,14 @@ export interface QuestSettings {
   wikiCorrections: boolean
   /** List the quests only the wiki has (since 1.37.0). */
   wikiOnlyQuests: boolean
+  /**
+   * Which quests the quest pages (Quests, To do, Maps, Weapons) show: every one, the main story's
+   * chapters, or the side quests (traders' and event quests). Since 1.61.0.
+   */
+  kind: QuestKindFilter
 }
+
+export type QuestKindFilter = 'all' | 'story' | 'side'
 
 export interface MapSettings {
   /** The map shown, by its normalized name (e.g. `customs`). */

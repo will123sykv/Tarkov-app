@@ -5472,6 +5472,13 @@ p.quest-before.done {
 
 .weapons-page .summary .segmented {
   width: fit-content;
+}
+
+.weapons-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
   margin-top: 6px;
 }
 
@@ -6097,4 +6104,17 @@ p.quest-before.done {
 .sort:disabled {
   cursor: default;
   color: inherit;
+}
+
+/* The quest pages' All · Story · Side switch (since 1.61.0). */
+.quest-kind {
+  flex: none;
+}
+
+.map-summary .quest-kind {
+  margin-left: auto;
+}
+
+.map-summary .settings-note + .quest-kind {
+  margin-left: 0;
 }

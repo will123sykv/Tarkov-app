@@ -11,6 +11,7 @@ import {
 } from '../../../shared/keys'
 import { objectiveTarget, objectiveValue, tickAll, type TickChange } from '../../../shared/questProgress'
 import type { GameMap, MapLabel, Quest, QuestObjective, Vec3 } from '../../../shared/questTypes'
+import { ofKind, questKind } from '../../../shared/questKind'
 import { reachableSteps, STORY_TRADER } from '../../../shared/storyQuests'
 import { gunsFor } from '../../../shared/settings'
 import { anyMapTake, killObjectives, takeToMap } from '../../../shared/todo'
@@ -43,6 +44,7 @@ import KillBanner from './KillBanner'
 import MapReminder, { hasReminder, type RaidReminder } from './MapReminder'
 import MapCanvas, { MARKER_COLORS, type FindAreaMark, type KeyMarks, type MapLayers } from './MapCanvas'
 import QuestDetail from './QuestDetail'
+import QuestKindSwitch from './QuestKindSwitch'
 import SettingsLink from './SettingsLink'
 import Sidebar, { SidebarSection } from './Sidebar'
 
@@ -260,7 +262,19 @@ export default function MapsView({
   settings: PublicSettings
   priceState: PriceState | null
 }): React.JSX.Element {
-  const { questState, rows, ctx, questsById, mapsById, objectives: done, detected } = useQuestRows(settings)
+  const {
+    questState,
+    rows: everyRow,
+    ctx,
+    questsById,
+    mapsById,
+    objectives: done,
+    detected
+  } = useQuestRows(settings)
+  // All, the story or the side quests (since 1.61.0); the quest shown or being pinned shows anyway.
+  const kind = settings.quests.kind
+  const rows = useMemo(() => ofKind(everyRow, kind), [everyRow, kind])
+  const ofKindShown = useCallback((q: Quest) => kind === 'all' || questKind(q) === kind, [kind])
   const progress = useStore((s) => s.questProgress[settings.gameMode])
   const updateSettings = useStore((s) => s.updateSettings)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -367,9 +381,9 @@ export default function MapsView({
     if (m.questScope === 'none') return []
     const traders = new Map((dataset?.traders ?? []).map((t) => [t.id, t]))
     const result: ObjectiveMarker[] = []
-    for (const { quest, status } of rows) {
+    for (const { quest, status } of everyRow) {
       const focused = focus?.questId === quest.id || selectedQuest === quest.id
-      if (status !== 'active' && !focused) continue
+      if ((status !== 'active' || !ofKindShown(quest)) && !focused) continue
       const trader = quest.story ? STORY_TRADER : traders.get(quest.traderId)
       // A story chapter's later steps wait for the ones before them.
       const reachable = reachableSteps(quest, done)
@@ -384,7 +398,7 @@ export default function MapsView({
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, focus, selectedQuest, dataset, done])
+  }, [everyRow, ofKindShown, m.questScope, mapIds, focus, selectedQuest, dataset, done])
   // "Only quests I can do" leaves out every quest a key the player doesn't have holds up, on any map
   // (not the quest shown from "Show on map").
   const blocked = useCallback((q: Quest) => blockedByKeys(q, owned, done).length > 0, [owned, done])
@@ -470,10 +484,14 @@ export default function MapsView({
   // Story chapters' steps here (in scope, or the one being pinned), pinned or not.
   const storySteps = useMemo<StepHere[]>(() => {
     const result: StepHere[] = []
-    for (const { quest, status } of rows) {
+    for (const { quest, status } of everyRow) {
       if (!quest.story) continue
       const chosen = placing?.questId === quest.id || selectedQuest === quest.id
-      if (!chosen && (m.questScope === 'none' || status !== 'active' || hiddenQuests.has(quest.id))) continue
+      if (
+        !chosen &&
+        (m.questScope === 'none' || status !== 'active' || hiddenQuests.has(quest.id) || !ofKindShown(quest))
+      )
+        continue
       const reachable = reachableSteps(quest, done)
       for (const objective of quest.objectives) {
         const pinning = placing?.questId === quest.id && placing.objectiveId === objective.id
@@ -486,9 +504,22 @@ export default function MapsView({
       }
     }
     return result
-  }, [rows, m.questScope, mapIds, placing, selectedQuest, done, doable, shut, blocked, hiddenQuests, owned])
+  }, [
+    everyRow,
+    ofKindShown,
+    m.questScope,
+    mapIds,
+    placing,
+    selectedQuest,
+    done,
+    doable,
+    shut,
+    blocked,
+    hiddenQuests,
+    owned
+  ])
   const placingStep = placing
-    ? (rows
+    ? (everyRow
         .find((r) => r.quest.id === placing.questId)
         ?.quest.objectives.find((o) => o.id === placing.objectiveId) ?? null)
     : null
@@ -496,7 +527,7 @@ export default function MapsView({
   const onPlace = useCallback(
     (position: Vec3) => {
       if (!placing) return
-      const step = rows
+      const step = everyRow
         .find((r) => r.quest.id === placing.questId)
         ?.quest.objectives.find((o) => o.id === placing.objectiveId)
       // On the map the step names, when it's one of this image's versions (Factory, not Night Factory).
@@ -504,7 +535,7 @@ export default function MapsView({
       setPlacing(null)
       if (map) void setStoryPin(placing.questId, placing.objectiveId, { map, position })
     },
-    [placing, rows, mapIds, maps, setPlacing, setStoryPin]
+    [placing, everyRow, mapIds, maps, setPlacing, setStoryPin]
   )
 
   // Locks and key spawns: the key looked at from the Keys tab, and (when asked) the keys quests need.
@@ -631,7 +662,7 @@ export default function MapsView({
   const onTick = useCallback(
     (questId: string, objectiveIds: string[]) => {
       if (placing) return
-      const quest = rows.find((r) => r.quest.id === questId)?.quest
+      const quest = everyRow.find((r) => r.quest.id === questId)?.quest
       if (!quest) return
       const changes = tickAll(
         quest.objectives.filter((o) => objectiveIds.includes(o.id)),
@@ -643,7 +674,7 @@ export default function MapsView({
       setLastTick({ quest, changes })
       void apply(questId, changes)
     },
-    [placing, rows, ticked, done, apply]
+    [placing, everyRow, ticked, done, apply]
   )
   const undoTick = (): void => {
     if (!lastTick) return
@@ -664,7 +695,7 @@ export default function MapsView({
         'an objective')
       : `${lastTick.changes.length} objectives`
     : ''
-  const selected = rows.find((r) => r.quest.id === selectedQuest) ?? null
+  const selected = everyRow.find((r) => r.quest.id === selectedQuest) ?? null
   // The sidebar lists each quest once, with how many of its objectives are here.
   const questsHere = useMemo(() => {
     const list: { marker: ObjectiveMarker; count: number }[] = []
@@ -949,6 +980,7 @@ export default function MapsView({
                   Only quests I can do · <SettingsLink section="quests" />
                 </span>
               )}
+              <QuestKindSwitch settings={settings} />
             </div>
           </div>
         )}

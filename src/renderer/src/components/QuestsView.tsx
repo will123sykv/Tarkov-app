@@ -6,6 +6,7 @@ import {
   type ObjectiveProgress,
   type QuestStatus
 } from '../../../shared/questProgress'
+import { ofKind } from '../../../shared/questKind'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import { blockedByKeys } from '../../../shared/keys'
 import { nextWikiQuests } from '../../../shared/wikiQuests'
@@ -20,6 +21,7 @@ import EventQuestPicker from './EventQuestPicker'
 import FavouriteStar from './FavouriteStar'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
+import QuestKindSwitch from './QuestKindSwitch'
 import SettingsLink from './SettingsLink'
 import TabSidebar, { SidebarSection } from './Sidebar'
 
@@ -207,7 +209,15 @@ function Sidebar({
 }
 
 export default function QuestsView({ settings, priceState }: Props): React.JSX.Element {
-  const { questState, rows: all, ctx, questsById, mapsById, objectives, detected } = useQuestRows(settings)
+  const {
+    questState,
+    rows: everyRow,
+    ctx,
+    questsById,
+    mapsById,
+    objectives,
+    detected
+  } = useQuestRows(settings)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
   const selected = useStore((s) => s.selectedQuest)
   const selectQuest = useStore((s) => s.selectQuest)
@@ -219,12 +229,14 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
 
   const dataset = questState?.dataset ?? null
   const q = settings.quests
+  // All, the story or the side quests (since 1.61.0); a search looks through every kind.
+  const all = useMemo(() => ofKind(everyRow, q.kind), [everyRow, q.kind])
   const level = settings.playerLevels[settings.gameMode]
   // From every quest listed (the wiki's too: the BTR Driver gives only those).
   const traders = useMemo(() => {
     const giving = new Set(all.map((row) => row.quest.traderId))
     return [
-      ...(dataset?.storyChapters.length ? [STORY_TRADER] : []),
+      ...(dataset?.storyChapters.length && giving.has(STORY_TRADER.id) ? [STORY_TRADER] : []),
       ...(dataset?.traders.filter((t) => giving.has(t.id)) ?? [])
     ]
   }, [dataset, all])
@@ -246,7 +258,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const doable = settings.todo.show === 'doable' && term === ''
   const { shown, keyHidden } = useMemo(() => {
     // A search looks through every status, so a quest is found wherever it is.
-    const listed = all.filter(
+    const listed = (term ? everyRow : all).filter(
       ({ quest, status }) =>
         (term !== '' || q.statuses.includes(status)) &&
         (!q.traderId || quest.traderId === q.traderId) &&
@@ -264,7 +276,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
         blockedByKeys(quest, owned, objectives).length === 0
     )
     return { shown, keyHidden: listed.length - shown.length }
-  }, [all, q, term, doable, owned, objectives, selected])
+  }, [all, everyRow, q, term, doable, owned, objectives, selected])
 
   // Traders whose every quest the Show filters leave out (the BTR Driver's are all Locked until his
   // chain starts), with how many of each status: said under the list, so they don't seem missing.
@@ -353,7 +365,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
     (id: string) => selectQuest(useStore.getState().selectedQuest === id ? null : id),
     [selectQuest]
   )
-  const selectedRow = all.find((r) => r.quest.id === selected) ?? null
+  const selectedRow = everyRow.find((r) => r.quest.id === selected) ?? null
   const kappa = all.filter((r) => r.quest.kappaRequired)
 
   return (
@@ -418,7 +430,10 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
                 onChange={(e) => setSearch(e.target.value)}
               />
             )}
-            {tab === 'quests' && term && <span className="muted">Searching every status</span>}
+            <QuestKindSwitch settings={settings} />
+            {tab === 'quests' && term && (
+              <span className="muted">Searching every status{q.kind !== 'all' ? ' and kind' : ''}</span>
+            )}
             {questState?.fromCache && questState.error && (
               <span className="muted">Offline: showing saved quest data.</span>
             )}
