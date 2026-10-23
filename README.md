@@ -369,6 +369,13 @@ you're keeping for the hideout and your quests to the **Have** counts (**Undo** 
 again). A haul that takes two screenshots can be read together with **Add another**. Click **Do**
 to sort the list by what to do (keep, then sell on the flea, then sell to a trader, then no buyer,
 the most valuable first in each), or any other column; the numbers stay the ones on the screenshot.
+**Highlight: All · Flea · Traders** (remembered) picks out what to sell one way: **Flea** keeps only
+the items to sell on the flea bright on the screenshot and in the list, and **Traders** only the
+ones to sell to traders, each trader in its own colour (Prapor red, Therapist pink, Skier light
+blue, Peacekeeper teal, Mechanic orange, Ragman purple, Jaeger green, Ref yellow, Fence grey) on
+the screenshot and on its **Sell to** badge, with a chip per trader saying how many items and what
+they fetch (**Therapist · 10 items · ₽151,739**). The rest fade, kept items too (a stack partly kept
+counts by where the rest is sold), and **Show all** goes back. The totals stay the whole haul's.
 
 **Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,

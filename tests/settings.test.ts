@@ -243,6 +243,7 @@ describe('sanitizeSettings', () => {
       keepOnly: false,
       sellOnly: false,
       scanSellBuyable: true,
+      scanHighlight: 'all',
       tab: 'items',
       craftsReadyOnly: true
     })
@@ -613,6 +614,16 @@ describe('sanitizeSettings', () => {
     expect(guns({ customs: ['akms', 'akms', 'm4a1'] })).toEqual({ customs: ['akms', 'm4a1'] })
     expect(guns({ customs: ['akms', 'm4a1', 'svd'] })).toEqual({ customs: ['akms', 'm4a1'] })
     expect(guns({ customs: [5, '', 'svd'], woods: [], lab: [null] })).toEqual({ customs: ['svd'] })
+  })
+
+  it('keeps what the Screenshots page highlights (since 1.64.0)', () => {
+    expect(DEFAULT_SETTINGS.hideout.scanHighlight).toBe('all')
+    const highlight = (scanHighlight: unknown): unknown =>
+      sanitizeSettings({ hideout: { scanHighlight } }).hideout.scanHighlight
+    expect(highlight('flea')).toBe('flea')
+    expect(highlight('traders')).toBe('traders')
+    expect(highlight('prapor')).toBe('all')
+    expect(highlight(undefined)).toBe('all')
   })
 
   it('keeps the Loot tab’s "only items to save" filter', () => {

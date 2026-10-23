@@ -101,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
     keepOnly: false,
     sellOnly: false,
     scanSellBuyable: true,
+    scanHighlight: 'all',
     tab: 'items',
     craftsReadyOnly: true
   },
@@ -218,6 +219,7 @@ function sanitizeHideout(raw: unknown, version: number): HideoutSettings {
     sellOnly: r.sellOnly === true && r.keepOnly !== true,
     // On by default since 1.25.0, so turned on for settings saved before then.
     scanSellBuyable: version < 3 || r.scanSellBuyable !== false,
+    scanHighlight: r.scanHighlight === 'flea' || r.scanHighlight === 'traders' ? r.scanHighlight : 'all',
     tab: r.tab === 'upgrades' || r.tab === 'crafts' || r.tab === 'scav' ? r.tab : 'items',
     craftsReadyOnly: r.craftsReadyOnly !== false
   }

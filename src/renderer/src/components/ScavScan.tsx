@@ -15,9 +15,13 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  sellsVia,
   stashCounts,
+  traderColour,
+  traderTotals,
   type CountChange,
-  type ScanAdvice
+  type ScanAdvice,
+  type ScanHighlight
 } from '../../../shared/scavAdvice'
 import { EMPTY_KEYS, keyScanChanges } from '../../../shared/keys'
 import type { OcrJob } from '../../../shared/scanTypes'
@@ -452,9 +456,12 @@ function Advice({
   advice,
   item,
   firOnly,
-  getLater
+  getLater,
+  trader
 }: {
   advice: ScanAdvice
+  /** Traders highlighted (since 1.64.0): the trader it's sold to, whose colour its badge takes. */
+  trader?: string | null
   item: LootItem | undefined
   /** The kept ones are only the copies that must be found in raid (the rest can be got back). */
   firOnly: boolean
@@ -489,7 +496,15 @@ function Advice({
       {advice.sell > 0 &&
         (advice.via ? (
           <span>
-            <span className="badge info">
+            <span
+              className={`badge info ${trader !== undefined ? 'by-trader' : ''}`}
+              style={
+                trader !== undefined
+                  ? ({ '--trader': traderColour(trader) } as React.CSSProperties)
+                  : undefined
+              }
+            >
+              {trader !== undefined && <span className="scan-trader-swatch" aria-hidden />}
               {advice.keep ? `Sell ${advice.sell}` : 'Sell'} {where}
             </span>
             {getLater && (
@@ -719,7 +734,17 @@ export default function ScavScan({
     { key: 'remove', label: '', ariaLabel: 'Remove', className: 'scan-col-remove' }
   ]
   const { sort, onSort, sorted } = useTableSort(`scan-${mode}`, columns)
-  const shownRows = sorted(listed)
+  // New loot: every item, or only what to sell on the flea or to traders (since 1.64.0). The rows keep
+  // their numbers; the others fade on the screenshot and leave the list.
+  const highlight: ScanHighlight = mode === 'loot' ? settings.hideout.scanHighlight : 'all'
+  const picked = (r: ScanRow): boolean => {
+    const a = adviceOf.get(r.key)
+    return !a || sellsVia(a, highlight)
+  }
+  const shownRows = sorted(listed).filter(picked)
+  const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
+  const setHighlight = (scanHighlight: ScanHighlight): void =>
+    void updateSettings({ hideout: { ...settings.hideout, scanHighlight } })
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
   const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
   const added = advice.reduce((n, a) => n + a.stored, 0)
@@ -1182,10 +1207,16 @@ export default function ScavScan({
                             ? 'keep'
                             : 'sell'
                   const t = r.tile
+                  // With a highlight, the rest fade; traders' items take their trader's colour.
+                  const shown = kind === 'off' || !a || sellsVia(a, highlight)
+                  const trader = highlight === 'traders' && shown && a?.via === 'trader'
                   return (
                     <g
                       key={r.key}
-                      className={`scan-box ${kind} ${hover === r.key ? 'hover' : ''}`}
+                      className={`scan-box ${shown ? (trader ? 'trader' : kind) : 'faded'} ${hover === r.key ? 'hover' : ''}`}
+                      style={
+                        trader ? ({ '--trader': traderColour(a.trader) } as React.CSSProperties) : undefined
+                      }
                       onMouseEnter={() => n && setHover(r.key)}
                       onMouseLeave={() => setHover(null)}
                       onClick={() => n && focusRow(r.key)}
@@ -1272,6 +1303,54 @@ export default function ScavScan({
                   />
                   Sell what I can buy or craft later
                 </label>
+                <div className="scan-highlight">
+                  <span className="muted">Highlight</span>
+                  <div className="segmented small" role="radiogroup" aria-label="Which items to highlight">
+                    {(
+                      [
+                        ['all', 'All', 'Every item: what to keep and what to sell'],
+                        ['flea', 'Flea', 'Only what to sell on the flea'],
+                        ['traders', 'Traders', 'Only what to sell to traders, a colour each']
+                      ] as const
+                    ).map(([id, text, title]) => (
+                      <button
+                        key={id}
+                        role="radio"
+                        aria-checked={highlight === id}
+                        className={highlight === id ? 'active' : ''}
+                        title={title}
+                        onClick={() => setHighlight(id)}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                  {highlight !== 'all' && (
+                    <span className="muted">
+                      Showing {shownRows.length} of {listed.length}: to sell{' '}
+                      {highlight === 'flea' ? 'on the flea' : 'to traders'} ·{' '}
+                      <button className="link small" onClick={() => setHighlight('all')}>
+                        Show all
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {highlight === 'traders' && byTrader.length > 0 && (
+                  <ul className="scan-traders" aria-label="What goes to each trader">
+                    {byTrader.map((t) => (
+                      <li
+                        key={t.trader}
+                        style={{ '--trader': traderColour(t.trader) } as React.CSSProperties}
+                      >
+                        <span className="scan-trader-swatch" aria-hidden />
+                        <strong>{t.trader}</strong>
+                        <span className="muted">
+                          {t.stacks} item{t.stacks === 1 ? '' : 's'} · {formatRub(t.total)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
             {stash && (
@@ -1512,6 +1591,7 @@ export default function ScavScan({
                           <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
                         ) : (
                           <Advice
+                            trader={highlight === 'traders' && a.via === 'trader' ? a.trader : undefined}
                             advice={a}
                             item={item}
                             firOnly={sellBuyable && !!r.itemId && getBack(r.itemId) !== null}

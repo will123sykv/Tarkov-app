@@ -123,6 +123,57 @@ export function scanTotals(advice: readonly ScanAdvice[]): ScanTotals {
   return totals
 }
 
+/** Which stacks the Screenshots page highlights (since 1.64.0): all, or just what to sell one way. */
+export type ScanHighlight = 'all' | 'flea' | 'traders'
+
+/** Whether a stack is one the highlight picks out: some of it sold on the flea, or to a trader. */
+export function sellsVia(advice: ScanAdvice, highlight: ScanHighlight): boolean {
+  if (highlight === 'all') return true
+  return advice.sell > 0 && advice.via === (highlight === 'flea' ? 'flea' : 'trader')
+}
+
+/** What goes to each trader: how many stacks and for how much, in the order they're first read. */
+export interface TraderTotal {
+  trader: string
+  stacks: number
+  total: number
+}
+
+export function traderTotals(advice: readonly ScanAdvice[]): TraderTotal[] {
+  const byTrader = new Map<string, TraderTotal>()
+  for (const a of advice) {
+    if (!sellsVia(a, 'traders')) continue
+    const name = a.trader ?? 'A trader'
+    const entry = byTrader.get(name) ?? { trader: name, stacks: 0, total: 0 }
+    entry.stacks++
+    entry.total += a.total
+    byTrader.set(name, entry)
+  }
+  return [...byTrader.values()]
+}
+
+/** A colour for each trader, told apart on a dark screenshot (since 1.64.0). */
+const TRADER_COLOURS: Record<string, string> = {
+  Prapor: '#ef5350',
+  Therapist: '#f06292',
+  Fence: '#b0bec5',
+  Skier: '#4fc3f7',
+  Peacekeeper: '#26a69a',
+  Mechanic: '#ffa726',
+  Ragman: '#ab47bc',
+  Jaeger: '#9ccc65',
+  Ref: '#ffee58'
+}
+/** For traders not listed, picked by name so one keeps its colour. */
+const SPARE_COLOURS = ['#8d6e63', '#7986cb', '#4db6ac', '#d4e157', '#ff8a65', '#ba68c8']
+
+export function traderColour(name: string | null): string {
+  if (name && TRADER_COLOURS[name]) return TRADER_COLOURS[name]
+  let hash = 0
+  for (const c of name ?? '') hash = (hash * 31 + c.charCodeAt(0)) >>> 0
+  return SPARE_COLOURS[hash % SPARE_COLOURS.length]
+}
+
 /** A change to one of the hideout's counts. */
 export interface CountChange {
   itemId: string

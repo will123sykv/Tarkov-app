@@ -28,7 +28,10 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  sellsVia,
   stashCounts,
+  traderColour,
+  traderTotals,
   type ScanAdvice
 } from '../src/shared/scavAdvice'
 import type { LootItem } from '../src/shared/types'
@@ -608,5 +611,49 @@ describe('sorting what was read by what to do with it', () => {
     expect(adviceWorth(advice({ keep: 1, sell: 2, via: 'flea', each: 100, total: 200 }))).toBe(200)
     expect(adviceWorth(advice({ keep: 3, each: 100 }))).toBe(300)
     expect(adviceWorth(advice({}))).toBe(0)
+  })
+
+  it('picks out what to sell on the flea, or to traders, for the highlight (since 1.64.0)', () => {
+    const keepAll = advice({ keep: 2 })
+    const keepSome = advice({ keep: 1, sell: 2, via: 'flea', each: 100, total: 200 })
+    const prapor = advice({ sell: 1, via: 'trader', trader: 'Prapor', each: 50, total: 50 })
+    const none = advice({ sell: 1 })
+    const all = [keepAll, keepSome, prapor, none]
+    expect(all.map((a) => sellsVia(a, 'all'))).toEqual([true, true, true, true])
+    expect(all.map((a) => sellsVia(a, 'flea'))).toEqual([false, true, false, false])
+    expect(all.map((a) => sellsVia(a, 'traders'))).toEqual([false, false, true, false])
+  })
+
+  it('adds up what goes to each trader, in the order read', () => {
+    const to = (trader: string, total: number) =>
+      advice({ sell: 1, via: 'trader', trader, each: total, total })
+    expect(
+      traderTotals([
+        to('Therapist', 300),
+        advice({ sell: 1, via: 'flea', total: 900 }),
+        to('Prapor', 50),
+        to('Therapist', 200)
+      ])
+    ).toEqual([
+      { trader: 'Therapist', stacks: 2, total: 500 },
+      { trader: 'Prapor', stacks: 1, total: 50 }
+    ])
+  })
+
+  it('gives each trader its own colour, and one not listed the same one every time', () => {
+    const names = [
+      'Prapor',
+      'Therapist',
+      'Fence',
+      'Skier',
+      'Peacekeeper',
+      'Mechanic',
+      'Ragman',
+      'Jaeger',
+      'Ref'
+    ]
+    expect(new Set(names.map(traderColour)).size).toBe(names.length)
+    expect(traderColour('Lightkeeper')).toBe(traderColour('Lightkeeper'))
+    expect(traderColour('Lightkeeper')).toMatch(/^#[0-9a-f]{6}$/)
   })
 })

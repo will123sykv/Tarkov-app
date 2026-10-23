@@ -3437,6 +3437,27 @@ button.link.small {
   stroke-width: 1;
 }
 
+/* Highlighting only what to sell on the flea or to traders (since 1.64.0): the rest fade, and each
+   trader's items take its colour. */
+.scan-box.faded {
+  pointer-events: none;
+}
+
+.scan-box.faded rect {
+  stroke: var(--muted);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.scan-box.faded text {
+  opacity: 0.4;
+}
+
+.scan-box.trader rect {
+  stroke: var(--trader);
+  fill: color-mix(in srgb, var(--trader) 14%, transparent);
+}
+
 .scan-box.hover rect {
   fill: rgba(200, 178, 122, 0.22);
   stroke: var(--accent-strong);
@@ -6173,4 +6194,47 @@ p.quest-before.done {
 
 .map-summary .settings-note + .quest-kind {
   margin-left: 0;
+}
+
+/* The Screenshots page's highlight toggle and what goes to each trader (since 1.64.0). */
+.scan-highlight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.scan-traders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scan-traders li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--trader);
+  border-radius: 999px;
+  font-size: 12.5px;
+}
+
+.scan-trader-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--trader);
+}
+
+.badge.by-trader {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--trader);
 }
