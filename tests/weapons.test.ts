@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { NO_REWARDS } from '../src/main/quests/questData'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
-import { todoPlan, type MapGroup } from '../src/shared/todo'
+import { emptyMapPlan, todoPlan, type MapGroup } from '../src/shared/todo'
 import {
   bestGuns,
   gunFor,
@@ -11,7 +11,8 @@ import {
   mapGun,
   mapKills,
   questGunMaps,
-  toggleGun
+  toggleGun,
+  weaponMaps
 } from '../src/shared/weapons'
 
 const CUSTOMS = 'customs-id'
@@ -211,5 +212,26 @@ describe('the gun to bring to each map (since 1.54.0)', () => {
     const anyLocation = kill('aug', ['m4a1'], [CUSTOMS], 15)
     anyLocation.description = 'Eliminate Scavs on any location'
     expect(gunForObjective(anyLocation, byMap, groupOf, 'customs')).toBe('m4a1')
+  })
+
+  it('lists every map for a kill on any map, even when no map has anything else (since 1.65.0)', () => {
+    const groups = [...GROUPS, { key: 'factory', name: 'Factory', mapIds: ['factory-id'] }]
+    // Only an any-map kill left: every map, by name, for it alone.
+    const only = todoPlan([{ quest: quest('c', [anywhere]), status: 'active' as const }], {}, groupOf)
+    expect(only.maps).toEqual([])
+    const listed = weaponMaps(only.maps, only.anyMap, groups, (g) => emptyMapPlan(g))
+    expect(listed.map((m) => [m.plan.group.key, ids(m.kills)])).toEqual([
+      ['customs', ['anywhere']],
+      ['factory', ['anywhere']],
+      ['woods', ['anywhere']]
+    ])
+    // With kills of their own: those maps first (in To do's order), then the rest for the any-map kill.
+    const mixed = weaponMaps(plan.maps, plan.anyMap, groups, (g) => emptyMapPlan(g))
+    expect(mixed.map((m) => m.plan.group.key)).toEqual([...plan.maps.map((p) => p.group.key), 'factory'])
+    // No kill on any map: only the maps with kills.
+    const none = todoPlan([{ quest: quest('a', [akm]), status: 'active' as const }], {}, groupOf)
+    expect(
+      weaponMaps(none.maps, none.anyMap, groups, (g) => emptyMapPlan(g)).map((m) => m.plan.group.key)
+    ).toEqual(['customs'])
   })
 })

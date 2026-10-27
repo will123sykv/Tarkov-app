@@ -95,8 +95,13 @@ export default function App(): React.JSX.Element {
       },
       settings.sort
     )
-    // Only what to save: needed, and can't be bought now or rare.
-    return keepOnly ? rows.filter((r) => keep.get(r.item.id)?.scarce) : rows
+    // Only what to save: needed, and can't be bought now or rare, or must be found in raid (bought copies
+    // won't do), as Items to collect has it.
+    const toSave = (id: string): boolean => {
+      const info = keep.get(id)
+      return !!info && (!!info.scarce || info.fir.hideout + info.fir.quests > 0)
+    }
+    return keepOnly ? rows.filter((r) => toSave(r.item.id)) : rows
   }, [dataset, settings, ctx, containerFilter, search, lootView, keepOnly, keep])
 
   if (initError) {
@@ -115,9 +120,14 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="app">
-      <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
-      <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
-      <QuickSearch settings={settings} />
+      {/* Each bar keeps its own errors: one breaking doesn't blank the window (since 1.65.0). */}
+      <ErrorBoundary what="the top bar" variant="bar">
+        <TopBar settings={settings} priceState={priceState} fleaMinLevel={fleaMinLevel} />
+        <ModeBanner gameMode={settings.gameMode} priceState={priceState} />
+      </ErrorBoundary>
+      <ErrorBoundary what="the search" variant="bar">
+        <QuickSearch settings={settings} />
+      </ErrorBoundary>
       <ErrorBoundary key={view} what="this tab" variant="tab">
         {view === 'trends' ? (
           <TrendsView settings={settings} priceState={priceState} ranking={trendRanking} />
@@ -167,13 +177,17 @@ export default function App(): React.JSX.Element {
           </div>
         )}
       </ErrorBoundary>
-      <StatusBar
-        priceState={priceState}
-        shown={trendsView ? trendRanking.rows.length : lootView ? ranked.length : null}
-        total={dataset?.items.length ?? 0}
-        playerLevel={playerLevel}
-      />
-      <SettingsDialog />
+      <ErrorBoundary what="the status bar" variant="bar">
+        <StatusBar
+          priceState={priceState}
+          shown={trendsView ? trendRanking.rows.length : lootView ? ranked.length : null}
+          total={dataset?.items.length ?? 0}
+          playerLevel={playerLevel}
+        />
+      </ErrorBoundary>
+      <ErrorBoundary what="Settings" variant="bar">
+        <SettingsDialog />
+      </ErrorBoundary>
     </div>
   )
 }

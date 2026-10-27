@@ -236,6 +236,51 @@ describe('createPlayerStore', () => {
     t
   })
 
+  it('keeps log events applied while the window loads the file at the same time (since 1.65.0)', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const store = createPlayerStore({ file, now: () => 1_000 })
+    // At startup the log watcher and the window both read the file before either has it.
+    const [applied] = await Promise.all([
+      store.applyEvents([quest('pvp', Q.debut, 'started', 10)], false),
+      store.progress('pvp')
+    ])
+    expect(applied.changed).toEqual(new Set(['pvp']))
+    expect((await store.progress('pvp'))[Q.debut]?.status).toBe('active')
+    expect((await createPlayerStore({ file }).progress('pvp'))[Q.debut]?.status).toBe('active')
+  })
+
+  it('keeps a raid or flea sale read twice once (since 1.65.0)', async () => {
+    const store = createPlayerStore({ file: join(await tempDir(), 'player.json') })
+    const raid: LogEvent = {
+      kind: 'raid',
+      mode: 'pvp',
+      raid: {
+        map: 'bigmap',
+        raidId: 'A',
+        side: 'pmc',
+        online: true,
+        queueSeconds: 1,
+        loadSeconds: 2,
+        foundAt: 40,
+        startedAt: 41,
+        endedAt: 50
+      }
+    }
+    const sold: LogEvent = {
+      kind: 'fleaSold',
+      t: 30,
+      mode: 'pvp',
+      itemId: 'x',
+      count: 1,
+      buyer: 'B',
+      payment: { currency: 'RUB', amount: 5 }
+    }
+    await store.applyEvents([raid, sold], false)
+    await store.applyEvents([raid, sold], false)
+    const history = await store.history('pvp')
+    expect([history.raids.length, history.flea.length]).toEqual([1, 1])
+  })
+
   it('applies log events per game mode and keeps raids and flea sales newest first', async () => {
     const file = join(await tempDir(), 'player.json')
     const store = createPlayerStore({ file, now: () => 1_000 })

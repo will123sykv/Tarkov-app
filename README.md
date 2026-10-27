@@ -54,10 +54,13 @@ next time you close the app.
   (or a story step you're pinning) shows whichever is chosen. What to keep and collect (Items to
   collect, Keys, Loot's keep tags, Hideout crafts) still counts every quest, so nothing a hidden
   quest needs gets sold.
-- **Kills on any map show on every map.** One rule on every page: an objective naming no map, saying
-  "any location" or "any map", or naming six maps or more (tarkov.dev lists most maps for many "any
-  location" kills) can be done on any map. To do lists it on every map's card under **Also on any
-  map** and counts it on every tile; Weapons counts it on every map; the Maps tab's kill banner and
+- **Kills on any map show on every map.** One rule on every page: an objective naming no map, or one
+  with no particular place to go to (no zones or item spots) that says "any location" or "any map" or
+  names six maps or more (tarkov.dev lists most maps for many "any location" kills), can be done on
+  any map. To do lists it on every map's card under **Also on any
+  map** and counts it on every tile (with nothing left on a particular map, an **Any map** card lists
+  it, and a map opened with nothing of its own shows it); Weapons lists every map for it, so a gun
+  can be chosen wherever you raid; the Maps tab's kill banner and
   heading count it; the Quests tab's **Map** filter keeps its quest under every map, and the quest
   says **Any map**.
 - **Sort any table by any column.** Click a column's header to sort by it (A to Z, or biggest
@@ -337,7 +340,7 @@ station's level in the sidebar (the Stash starts at level 1).
   level and trader loyalty get an amber **Can't buy yet** badge. Hover either for why; ones a
   trader sells you get neither.
 - **What to save right now:** tick **Can't buy or rare only** in the Items to collect list, or **Only
-  items to save (can't buy or rare)** in the Loot tab's filters, to see just the items you still
+  items to save (can't buy, rare or found in raid)** in the Loot tab's filters, to see just the items you still
   need that you can't buy at your level and trader loyalty, that must be found in raid, or that
   are rare.
 
@@ -375,7 +378,8 @@ ones to sell to traders, each trader in its own colour (Prapor red, Therapist pi
 blue, Peacekeeper teal, Mechanic orange, Ragman purple, Jaeger green, Ref yellow, Fence grey) on
 the screenshot and on its **Sell to** badge, with a chip per trader saying how many items and what
 they fetch (**Therapist · 10 items · ₽151,739**). The rest fade, kept items too (a stack partly kept
-counts by where the rest is sold), and **Show all** goes back. The totals stay the whole haul's.
+counts by where the rest is sold), and **Show all** goes back; items to check stay listed whatever
+the highlight. The totals stay the whole haul's.
 
 **Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,

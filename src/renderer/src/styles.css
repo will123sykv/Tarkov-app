@@ -6238,3 +6238,11 @@ p.quest-before.done {
   gap: 5px;
   border: 1px solid var(--trader);
 }
+
+/* A bar (top bar, search, status bar, Settings) that broke: one line saying so (since 1.65.0). */
+.error-bar {
+  padding: 4px 16px;
+  background: rgba(229, 83, 75, 0.12);
+  border-bottom: 1px solid rgba(229, 83, 75, 0.4);
+  font-size: 12.5px;
+}

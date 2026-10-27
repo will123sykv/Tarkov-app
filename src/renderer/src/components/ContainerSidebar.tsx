@@ -167,14 +167,14 @@ export default function ContainerSidebar({
         </label>
         <label
           className="check"
-          title="Items the hideout or your active quests still need that you can't buy now (at your level and trader loyalty) or that are rare"
+          title="Items the hideout or your active quests still need that you can't buy now (at your level and trader loyalty), that are rare, or that must be found in raid"
         >
           <input
             type="checkbox"
             checked={settings.keepOnly}
             onChange={(e) => void updateSettings({ keepOnly: e.target.checked })}
           />
-          Only items to save (can&rsquo;t buy or rare)
+          Only items to save (can&rsquo;t buy, rare or found in raid)
         </label>
         <label className="field">
           <span>Min ₽ per slot</span>

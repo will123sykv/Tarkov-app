@@ -76,15 +76,19 @@ export const ANY_MAP_GROUPS = 6
 
 /**
  * Whether an objective can be done on any map (one rule for every page since 1.63.0): it names no map,
- * says "any location" or "any map", or names `ANY_MAP_GROUPS` map groups or more (tarkov.dev lists most
- * maps for many "any location" kills; `groupKey` gives a map id's group).
+ * or, with no particular place to go to (no zones or item spots), says "any location" or "any map" or
+ * names `ANY_MAP_GROUPS` map groups or more (tarkov.dev lists most maps for many "any location" kills;
+ * `groupKey` gives a map id's group).
  */
 export function isAnyMap(
   objective: Pick<QuestObjective, 'maps' | 'zones' | 'locations' | 'description'>,
   groupKey?: (mapId: string) => string | undefined
 ): boolean {
   const maps = objectiveMapIds(objective)
-  if (!maps.length || /\bany (location|map)\b/i.test(objective.description)) return true
+  if (!maps.length) return true
+  // Places to go to on particular maps (zones, where its items can be) keep it on those maps.
+  if (objective.zones.length || objective.locations.length) return false
+  if (/\bany (location|map)\b/i.test(objective.description)) return true
   return new Set(maps.map((id) => groupKey?.(id) ?? id)).size >= ANY_MAP_GROUPS
 }
 
@@ -251,6 +255,21 @@ export interface KeyToGet {
 
 const score = (plan: MapPlan): number => plan.quests.length + plan.finishes.length
 
+/** A map with nothing to do yet (for a map listed only for what's on any map). */
+export const emptyMapPlan = (group: MapGroup, noAccess: string[] | null = null): MapPlan => ({
+  group,
+  steps: [],
+  quests: [],
+  done: 0,
+  finishes: [],
+  available: [],
+  blocked: [],
+  noAccess,
+  keys: [],
+  bring: [],
+  questItems: []
+})
+
 /**
  * Where to raid next for the active quests, and what can be done without a raid. `groupOf` says which
  * map (group) a map id belongs to. With `owned` (the player's keys), objectives behind a lock none of them
@@ -270,19 +289,7 @@ export function todoPlan(
     let p = plans.get(group.key)
     if (!p) {
       const shut = owned && group.accessKeys?.length && !opens(group.accessKeys, owned)
-      p = {
-        group,
-        steps: [],
-        quests: [],
-        done: 0,
-        finishes: [],
-        available: [],
-        blocked: [],
-        noAccess: shut ? group.accessKeys! : null,
-        keys: [],
-        bring: [],
-        questItems: []
-      }
+      p = emptyMapPlan(group, shut ? group.accessKeys! : null)
       plans.set(group.key, p)
     }
     return p
@@ -370,13 +377,18 @@ export function todoPlan(
 
     const onMaps = raid.filter((s) => s.groups.length)
     const onMapsAll = raidAll.filter((s) => s.groups.length)
-    // "Only quests I can do": a lock none of the player's keys open, anywhere in the quest, holds it all up.
-    const keyBlocked = hideBlocked && open.some((s) => s.missing.length > 0)
+    // "Only quests I can do": a lock none of the player's keys open, anywhere in the quest, holds it all up
+    // (a story chapter's locked step is left out on its own: the chapter isn't held up as a whole).
+    const keyBlocked = hideBlocked && !quest.story && open.some((s) => s.missing.length > 0)
     if (keyBlocked) hidden.add(quest)
+    // The keys to get, from every step left whatever kind is shown: the Kill filter still lists the key a
+    // locate step needs, when that's what holds the quest up.
+    for (const step of raidAll)
+      for (const keyIds of step.missing)
+        needKey(keyIds, quest, step.groups.length ? objectiveMapIds(step.objective) : [], false)
     for (const step of raid) {
       if (step.groups.length) continue
       if (step.objective.type !== 'findItem') {
-        for (const keyIds of step.missing) needKey(keyIds, quest, [], false)
         // A story step behind a lock is left out on its own (the chapter isn't held up as a whole).
         if (!keyBlocked && !(hideBlocked && quest.story && step.missing.length)) result.anyMap.push(step)
       } else {
@@ -393,8 +405,6 @@ export function todoPlan(
       // can get onto.
       const canDo = (st: TodoStep): boolean => !p.noAccess && !st.missing.length
       if (p.noAccess) needKey(p.noAccess, quest, group.mapIds.slice(0, 1), true)
-      for (const { objective, missing } of all)
-        for (const keyIds of missing) needKey(keyIds, quest, objective.maps, false)
       if (keyBlocked) continue
       const here = hideBlocked ? all.filter(canDo) : all
       if (here.length < all.length) hidden.add(quest)
@@ -419,8 +429,14 @@ export function todoPlan(
           if (keyIds.length && !p.keys.some((k) => k.join() === keyIds.join())) p.keys.push(keyIds)
         // Any one of the items will do (an Obdolbos or an Obdolbos 2).
         if (BRING.has(objective.type) && objective.items.length) addBring(p.bring, objective.items, left)
-        if (objective.type === 'plantQuestItem' && objective.questItem)
-          p.questItems.push({ name: objective.questItem.name, questId: quest.id })
+        // Once each (two steps planting the same quest item bring it once).
+        const name = objective.questItem?.name
+        if (
+          objective.type === 'plantQuestItem' &&
+          name &&
+          !p.questItems.some((q) => q.questId === quest.id && q.name === name)
+        )
+          p.questItems.push({ name, questId: quest.id })
       }
       // tarkov.dev's own list of the quest's keys on this map, for locks no objective names.
       const named = new Set(quest.objectives.flatMap((o) => o.requiredKeys.flat()))

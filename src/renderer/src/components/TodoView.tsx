@@ -15,6 +15,7 @@ import { ofKind } from '../../../shared/questKind'
 import { STORY_TRADER } from '../../../shared/storyQuests'
 import {
   anyMapTake,
+  emptyMapPlan,
   mapOverview,
   objectiveMapIds,
   questSummary,
@@ -384,22 +385,27 @@ function MapCard({
   const bringGun = gun?.chosen ? gun : null
   const setKey = useStore((s) => s.setKey)
   const group = plan.group as Group
-  const reason = [
-    `Moves ${plural(plan.quests.length, 'active quest')} on`,
-    plural(plan.steps.length, 'objective'),
-    plan.finishes.length ? `finishes ${plan.finishes.length}` : null,
-    plan.blocked.length
-      ? `${plan.blocked.length} need${plan.blocked.length === 1 ? 's' : ''} a key you don't have`
-      : null
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  // A map with nothing of its own left (or the Any map card) is listed for what's on any map.
+  const reason = !plan.quests.length
+    ? 'Nothing of its own left: what can be done on any map'
+    : [
+        `Moves ${plural(plan.quests.length, 'active quest')} on`,
+        plural(plan.steps.length, 'objective'),
+        plan.finishes.length ? `finishes ${plan.finishes.length}` : null,
+        plan.blocked.length
+          ? `${plan.blocked.length} need${plan.blocked.length === 1 ? 's' : ''} a key you don't have`
+          : null
+      ]
+        .filter(Boolean)
+        .join(' · ')
   return (
     <article className={`todo-map ${best ? 'best' : ''} ${wide ? 'wide' : ''}`}>
       <header>
-        <span className="todo-rank" aria-label={`Number ${rank}`}>
-          {rank}
-        </span>
+        {rank > 0 && (
+          <span className="todo-rank" aria-label={`Number ${rank}`}>
+            {rank}
+          </span>
+        )}
         <div>
           <strong>{best ? `Next raid: ${group.name}` : group.name}</strong>
           <span className="muted">{reason}</span>
@@ -970,19 +976,19 @@ export default function TodoView({
   const detailRow = detail ? (everyRow.find((r) => r.quest.id === detail) ?? null) : null
   const beforeCount = plan.turnIn.length + plan.handOvers.length + buildable.length
   // The map opened from the overview (it stays open when the filters leave nothing there, saying so).
-  const openedName =
-    t.layout === 'maps' && todoMap
-      ? ([...groups.values()].find((g) => g.key === todoMap)?.name ?? null)
-      : null
+  const openedGroup =
+    t.layout === 'maps' && todoMap ? ([...groups.values()].find((g) => g.key === todoMap) ?? null) : null
+  const openedName = openedGroup?.name ?? null
   const openedRank = ranked.findIndex((p) => p.group.key === todoMap)
   // Weapons and items for objectives on any map: they can be done on whichever map is raided.
   const anyMap = useMemo(() => anyMapTake(plan), [plan])
+  // Rank 0: a map listed only for what's on any map (or the Any map card), not in the ranking.
   const mapCard = (p: MapPlan, rank: number, wide = false): React.JSX.Element => (
     <MapCard
       key={p.group.key}
       plan={p}
       rank={rank}
-      best={rank === 1}
+      best={rank === 1 && p.quests.length > 0}
       items={items}
       traderOf={traderOf}
       mapsById={mapsById}
@@ -1235,6 +1241,8 @@ export default function TodoView({
             />
             {openedRank >= 0 ? (
               mapCard(ranked[openedRank], openedRank + 1, true)
+            ) : plan.anyMap.length > 0 && openedGroup ? (
+              mapCard(emptyMapPlan(openedGroup), 0, true)
             ) : (
               <div className="empty todo-nothing">
                 <p>Nothing left to do on {openedName} that the filters show.</p>
@@ -1245,6 +1253,11 @@ export default function TodoView({
                 </p>
               </div>
             )}
+          </div>
+        ) : dataset && ranked.length === 0 && plan.anyMap.length > 0 ? (
+          // Nothing left on a particular map, but some on any map: one card for whichever map is raided.
+          <div key="any" className="todo-maps">
+            {mapCard(emptyMapPlan({ key: 'any-map', name: 'Any map', mapIds: [] }), 0, true)}
           </div>
         ) : dataset && ranked.length === 0 ? (
           <div className="empty">

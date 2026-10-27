@@ -10,7 +10,7 @@ import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
 import { createBackgroundMode, launchedHidden } from './background'
 import { registerIpc } from './ipc'
-import { locateLogsDir } from './logs/locate'
+import { createLogsLocator } from './logs/locate'
 import { createLogWatcher } from './logs/watcher'
 import { createBackups } from './backups'
 import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
@@ -166,9 +166,10 @@ async function bootstrap(): Promise<void> {
   const backUp = (): void => void backups.daily().catch((err) => log(`Backing up failed: ${err}`))
   backUp()
   setInterval(backUp, 60 * 60_000).unref()
+  const locateLogs = createLogsLocator()
   const logs = createLogWatcher({
     stateFile: join(userData, 'logs', 'state.json'),
-    locate: () => locateLogsDir(settings.get().gameLogsDir),
+    locate: () => locateLogs(settings.get().gameLogsDir),
     onEvents: async (events, reset) => {
       const { changed, completed } = await player.applyEvents(events, reset)
       for (const gameMode of changed) {

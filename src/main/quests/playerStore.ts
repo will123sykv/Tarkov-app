@@ -100,6 +100,9 @@ const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']
 export function createPlayerStore(opts: { file: string; now?: () => number }) {
   const now = opts.now ?? Date.now
   let data: Saved | null = null
+  // The first read, shared: the log watcher and the window both load at startup, and two reads would
+  // each make their own copy, one of them losing the other's changes (since 1.65.0).
+  let loading: Promise<Saved> | null = null
 
   /** Saved data as read from a file (or an imported one), cleaned up; anything else starts empty. */
   function fromRaw(input: unknown): Saved {
@@ -138,8 +141,12 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
 
   async function load(): Promise<Saved> {
     if (data) return data
-    data = fromRaw(await readJsonFile(opts.file))
-    return data
+    loading ??= readJsonFile(opts.file).then((raw) => {
+      // An import while it was read wins.
+      data ??= fromRaw(raw)
+      return data
+    })
+    return loading
   }
 
   const save = (): Promise<void> => writeJsonFileAtomic(opts.file, data)
@@ -388,6 +395,11 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             changed.add(e.mode)
           }
         } else if (e.kind === 'raid') {
+          // A raid read twice (logs re-read after a restart mid-scan) is kept once.
+          const seen = d.history[e.mode].raids.some(
+            (r) => r.raidId === e.raid.raidId && r.foundAt === e.raid.foundAt
+          )
+          if (seen) continue
           const raids: RaidRecord[] = [e.raid, ...d.history[e.mode].raids]
           d.history[e.mode] = { ...d.history[e.mode], raids: raids.slice(0, MAX_RAIDS) }
           changed.add(e.mode)
@@ -396,6 +408,10 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
             e.kind === 'fleaSold'
               ? { kind: 'sold', t: e.t, itemId: e.itemId, count: e.count, buyer: e.buyer, payment: e.payment }
               : { kind: 'expired', t: e.t, itemId: e.itemId, count: e.count, buyer: null, payment: null }
+          const seen = d.history[e.mode].flea.some(
+            (f) => f.t === record.t && f.itemId === record.itemId && f.kind === record.kind
+          )
+          if (seen) continue
           d.history[e.mode] = {
             ...d.history[e.mode],
             flea: [record, ...d.history[e.mode].flea].slice(0, MAX_FLEA)

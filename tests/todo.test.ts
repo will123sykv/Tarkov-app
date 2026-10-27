@@ -479,6 +479,12 @@ describe('kills on any map, on every page (since 1.63.0)', () => {
     const five = ['m1', 'm2', 'm3', FACTORY, NIGHT_FACTORY, CUSTOMS]
     expect(isAnyMap(objective('five', 'shoot', { maps: five }), groupKey)).toBe(false)
     expect(isAnyMap(objective('one', 'shoot'))).toBe(false)
+    // Places to go to on particular maps keep it on those maps, however many (since 1.65.0).
+    const zone = (map: string) => ({ map, position: { x: 0, y: 0, z: 0 }, outline: [] })
+    const visits = objective('visits', 'visit', { maps: seven, zones: seven.map(zone) })
+    expect(isAnyMap(visits, groupKey)).toBe(false)
+    const zoned = objective('zoned', 'shoot', { description: 'Kill on any location', zones: [zone(WOODS)] })
+    expect(isAnyMap(zoned, groupKey)).toBe(false)
   })
 
   it('lists such a kill once for every map in To do, not on the maps it names', () => {
@@ -550,6 +556,42 @@ describe('story chapters on the To do tab', () => {
     })
     expect(withKey.maps.flatMap((p) => p.steps.map((s) => s.objective.id))).toEqual(['locked'])
     expect(blockedByKeys(keyed, new Set(), progress)).toEqual([])
+  })
+
+  it('keeps the chapter’s other steps when one is behind a key the player doesn’t have (since 1.65.0)', () => {
+    // Two paths worked on at once: one step is behind a lock, the other isn't.
+    const open = objective('open', 'story', { maps: [CUSTOMS], branch: 'Help Prapor' })
+    const shut = objective('shut', 'story', {
+      maps: [WOODS],
+      requiredKeys: [['engine-key']],
+      branch: 'Help Ragman'
+    })
+    const paths = quest('paths', [open, shut], { story: STORY })
+    const plan = todoPlan([row(paths)], {}, groupOf, { owned: new Set(), hideBlocked: true })
+    expect(plan.maps.flatMap((p) => p.steps.map((s) => s.objective.id))).toEqual(['open'])
+    expect(plan.keysToGet.map((k) => k.keyIds)).toEqual([['engine-key']])
+  })
+})
+
+describe('the To do tab’s keys and quest items (since 1.65.0)', () => {
+  it('lists the key a locate step needs under Keys to buy with the Kill filter on', () => {
+    const kill = objective('kill', 'shoot', { maps: [WOODS] })
+    const visit = objective('visit', 'visit', { requiredKeys: [['dorm-key']] })
+    const plan = todoPlan([row(quest('q', [kill, visit]))], {}, groupOf, {
+      owned: new Set(),
+      hideBlocked: true,
+      kinds: 'kill'
+    })
+    expect(plan.hidden).toBe(1)
+    expect(plan.keysToGet.map((k) => [k.keyIds, k.mapIds])).toEqual([[['dorm-key'], [CUSTOMS]]])
+  })
+
+  it('brings a quest item to plant once, however many steps plant it', () => {
+    const questItem = { id: 'flash', name: 'Flash drive' }
+    const plant = (id: string) =>
+      objective(id, 'plantQuestItem', { questItem: questItem as QuestObjective['questItem'] })
+    const plan = todoPlan([row(quest('q', [plant('a'), plant('b')]))], {}, groupOf)
+    expect(plan.maps[0].questItems).toEqual([{ name: 'Flash drive', questId: 'q' }])
   })
 })
 

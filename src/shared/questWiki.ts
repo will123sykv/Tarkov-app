@@ -20,3 +20,24 @@ export function isWikiUrl(url: string): boolean {
 export function wikiPageUrl(wikiLink: string | null | undefined): string | null {
   return wikiLink && wikiLink.startsWith(WIKI_PAGE) && isWikiUrl(wikiLink) ? wikiLink : null
 }
+
+/** How long after a click or key press a link off the wiki may open in the browser. */
+export const GESTURE_MS = 1500
+
+/**
+ * Whether the user just clicked or pressed a key in the wiki panel (since 1.65.0): a link off the wiki
+ * opens in their browser only then, so an ad that opens a window or navigates by itself can't.
+ */
+export function gestureGate(now: () => number = Date.now): {
+  input: (type: string | undefined) => void
+  recent: () => boolean
+} {
+  let last = -Infinity
+  return {
+    input(type) {
+      if (type === 'mouseDown' || type === 'mouseUp' || type === 'keyDown' || type === 'rawKeyDown')
+        last = now()
+    },
+    recent: () => now() - last <= GESTURE_MS
+  }
+}

@@ -77,14 +77,22 @@ export function createTarkovDevHistory(opts: HistoryOptions) {
   const refreshing = new Map<DataMode, Promise<void>>()
   const path = (dataMode: DataMode): string => join(opts.dir, dataMode, 'tarkovdev-history.json')
 
+  // One read per mode, shared by callers that ask at once (each would otherwise keep its own copy).
+  const reading = new Map<DataMode, Promise<CacheFile>>()
   async function cached(dataMode: DataMode): Promise<CacheFile> {
-    let file = files.get(dataMode)
-    if (!file) {
-      const raw = (await readJsonFile(path(dataMode))) as Partial<CacheFile> | undefined
-      file = { version: 1, items: raw?.version === 1 && raw.items ? raw.items : {} }
-      files.set(dataMode, file)
+    const file = files.get(dataMode)
+    if (file) return file
+    let read = reading.get(dataMode)
+    if (!read) {
+      read = (async () => {
+        const raw = (await readJsonFile(path(dataMode))) as Partial<CacheFile> | undefined
+        const loaded: CacheFile = { version: 1, items: raw?.version === 1 && raw.items ? raw.items : {} }
+        files.set(dataMode, files.get(dataMode) ?? loaded)
+        return files.get(dataMode)!
+      })()
+      reading.set(dataMode, read)
     }
-    return file
+    return read
   }
 
   async function refresh(dataset: PriceDataset): Promise<void> {

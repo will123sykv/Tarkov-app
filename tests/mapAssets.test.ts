@@ -17,7 +17,10 @@ describe('createMapAssetHandler', () => {
     const url = 'tarkov-map://assets/maps/customs_0.16/main/3/4/3.png'
     const [a, b] = await Promise.all([handle(request(url)), handle(request(url))])
     expect(fetchFn).toHaveBeenCalledTimes(1)
-    expect(fetchFn).toHaveBeenCalledWith('https://assets.tarkov.dev/maps/customs_0.16/main/3/4/3.png')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'https://assets.tarkov.dev/maps/customs_0.16/main/3/4/3.png',
+      expect.anything()
+    )
     expect(a.headers.get('content-type')).toBe('image/png')
     expect([...new Uint8Array(await b.arrayBuffer())]).toEqual([1, 2, 3])
     expect([...(await readFile(join(cacheDir, 'maps/customs_0.16/main/3/4/3.png')))]).toEqual([1, 2, 3])
@@ -27,6 +30,18 @@ describe('createMapAssetHandler', () => {
       fetchFn: async () => Promise.reject(new Error('offline'))
     })
     expect((await offline(request(url))).status).toBe(200)
+  })
+
+  it('doesn’t keep a web page served instead of the image (since 1.65.0)', async () => {
+    const cacheDir = await tempDir()
+    const portal = createMapAssetHandler({
+      cacheDir,
+      fetchFn: async () => new Response('<html>Sign in</html>', { headers: { 'content-type': 'text/html' } })
+    })
+    const url = 'tarkov-map://assets/maps/customs_0.16/main/3/4/3.png'
+    expect((await portal(request(url))).status).toBe(404)
+    const online = createMapAssetHandler({ cacheDir, fetchFn: async () => new Response(new Uint8Array([1])) })
+    expect((await online(request(url))).status).toBe(200)
   })
 
   it('serves SVGs with their type and reports missing images', async () => {
@@ -71,7 +86,8 @@ describe('Re3MR images', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/jpeg')
     expect(fetchFn).toHaveBeenCalledWith(
-      `https://raw.githubusercontent.com/the-hideout/tarkov-dev/${RE3MR_COMMIT}/public/maps/factory-2d.jpg`
+      `https://raw.githubusercontent.com/the-hideout/tarkov-dev/${RE3MR_COMMIT}/public/maps/factory-2d.jpg`,
+      expect.anything()
     )
     expect([...(await readFile(join(cacheDir, 're3mr', RE3MR_COMMIT, 'factory-2d.jpg')))]).toEqual([9, 9])
   })
@@ -100,7 +116,8 @@ describe('db4tarkov tiles', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/webp')
     expect(fetchFn).toHaveBeenCalledWith(
-      'https://cdn.db4tarkov.com/webp/map/ground_zero/ground_zero-5-13-2.webp'
+      'https://cdn.db4tarkov.com/webp/map/ground_zero/ground_zero-5-13-2.webp',
+      expect.anything()
     )
     expect([...(await readFile(join(cacheDir, 'db4tarkov', 'ground_zero-2024', '5-13-2.webp')))]).toEqual([7])
   })
@@ -140,7 +157,7 @@ describe('the wiki’s map images', () => {
     const res = await handle(request('tarkov-map://wiki/the-lab'))
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/webp')
-    expect(fetchFn).toHaveBeenCalledWith(WIKI_MAPS['the-lab'].url)
+    expect(fetchFn).toHaveBeenCalledWith(WIKI_MAPS['the-lab'].url, expect.anything())
     const cached = join(cacheDir, 'wiki', `the-lab-${WIKI_MAPS['the-lab'].version}.img`)
     expect([...(await readFile(cached))]).toEqual([...webp])
 

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { INITIAL_STATE, interpretEntries, sessionMode, type LogEvent } from '../src/main/logs/interpret'
 import {
   listLogFolders,
+  createLogsLocator,
   locateLogsDir,
   parseRegQuery,
   steamLibraries,
@@ -224,6 +225,37 @@ describe('locating the logs', () => {
     expect(await locateLogsDir(null, deps({}, []))).toBeNull()
   })
 
+  it('remembers the folder it found, and searches again at most once a minute (since 1.65.0)', async () => {
+    let reads = 0
+    let dirs = [join('/eft', 'Logs')]
+    let t = 0
+    const counting: LocateDeps = {
+      readRegistry: async (key, value) => {
+        reads++
+        return key === uninstall && value === 'InstallLocation' ? '/eft' : null
+      },
+      isDir: async (path) => dirs.includes(path),
+      readText: async () => null
+    }
+    const locate = createLogsLocator(counting, () => t)
+    expect(await locate(null)).toBe(join('/eft', 'Logs'))
+    const searched = reads
+    expect(await locate(null)).toBe(join('/eft', 'Logs'))
+    expect(reads).toBe(searched)
+    // Gone: searched again once, then not until a minute has passed.
+    dirs = []
+    t = 120_000
+    expect(await locate(null)).toBeNull()
+    const again = reads
+    expect(again).toBeGreaterThan(searched)
+    t += 5_000
+    expect(await locate(null)).toBeNull()
+    expect(reads).toBe(again)
+    // A folder chosen in Settings is used as is.
+    dirs = ['/mine']
+    expect(await locate('/mine')).toBe('/mine')
+  })
+
   it('lists session folders oldest first', async () => {
     const dir = await tempDir()
     for (const name of [
@@ -334,6 +366,25 @@ describe('createLogWatcher', () => {
     expect(JSON.parse(await readFile(join(root, 'state.json'), 'utf8')).done).toEqual([
       'log_2026.09.19_10-00-00_1.0'
     ])
+  })
+
+  it('reads events again when they couldn’t be taken, rather than losing them (since 1.65.0)', async () => {
+    const { root, logs } = await setup()
+    const batches: LogEvent[][] = []
+    let fail = true
+    const watcher = createLogWatcher({
+      stateFile: join(root, 'state.json'),
+      locate: async () => logs,
+      onEvents: (events) => {
+        if (fail) throw new Error('saving failed')
+        batches.push(events)
+      }
+    })
+    await watcher.poll()
+    expect(watcher.status()).toMatchObject({ state: 'error', error: 'saving failed' })
+    fail = false
+    await watcher.poll()
+    expect(batches.map(kinds)).toEqual([['pvp:completed'], ['pve:started', 'pve:completed', 'fleaSold']])
   })
 
   it('rescans from scratch and reports a missing folder', async () => {

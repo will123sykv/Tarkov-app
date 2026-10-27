@@ -167,10 +167,12 @@ const TRADER_COLOURS: Record<string, string> = {
 /** For traders not listed, picked by name so one keeps its colour. */
 const SPARE_COLOURS = ['#8d6e63', '#7986cb', '#4db6ac', '#d4e157', '#ff8a65', '#ba68c8']
 
-export function traderColour(name: string | null): string {
-  if (name && TRADER_COLOURS[name]) return TRADER_COLOURS[name]
+export function traderColour(trader: string | null): string {
+  // No name: the same one the trader totals give it.
+  const name = trader ?? 'A trader'
+  if (TRADER_COLOURS[name]) return TRADER_COLOURS[name]
   let hash = 0
-  for (const c of name ?? '') hash = (hash * 31 + c.charCodeAt(0)) >>> 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) >>> 0
   return SPARE_COLOURS[hash % SPARE_COLOURS.length]
 }
 

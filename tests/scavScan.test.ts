@@ -655,5 +655,7 @@ describe('sorting what was read by what to do with it', () => {
     expect(new Set(names.map(traderColour)).size).toBe(names.length)
     expect(traderColour('Lightkeeper')).toBe(traderColour('Lightkeeper'))
     expect(traderColour('Lightkeeper')).toMatch(/^#[0-9a-f]{6}$/)
+    // No name: the colour the trader totals give it (since 1.65.0).
+    expect(traderColour(null)).toBe(traderColour('A trader'))
   })
 })

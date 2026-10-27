@@ -402,13 +402,17 @@ export function createWikiQuestService(deps: {
   const now = deps.now ?? Date.now
   const file = join(deps.cacheDir, 'wiki-quests.json')
   let cache: Cache | null = null
+  // One read, shared by callers that ask at once (each would otherwise keep its own copy).
+  let loading: Promise<Cache> | null = null
 
   async function load(): Promise<Cache> {
-    if (!cache) {
-      const raw = (await readJsonFile(file)) as Partial<Cache> | undefined
-      cache = { pages: raw?.pages && typeof raw.pages === 'object' ? raw.pages : {}, list: raw?.list }
-    }
-    return cache
+    if (cache) return cache
+    loading ??= readJsonFile(file).then((input) => {
+      const raw = input as Partial<Cache> | undefined
+      cache ??= { pages: raw?.pages && typeof raw.pages === 'object' ? raw.pages : {}, list: raw?.list }
+      return cache
+    })
+    return loading
   }
   const save = (): Promise<void> => writeJsonFileAtomic(file, cache)
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { ofKind } from '../../../shared/questKind'
 import { gunsFor } from '../../../shared/settings'
-import type { MapPlan } from '../../../shared/todo'
+import { emptyMapPlan, type MapPlan } from '../../../shared/todo'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import {
   gunOptions,
@@ -12,6 +12,7 @@ import {
   MAX_MAP_GUNS,
   questGunMaps,
   toggleGun,
+  weaponMaps,
   type MapGun,
   type MapKill
 } from '../../../shared/weapons'
@@ -63,37 +64,39 @@ export default function WeaponsView({
   // Every quest's kills, for which maps still have any (a map hidden by Only quests I can do keeps its gun).
   const allPlan = useKillPlan(settings, everyRow, objectives, groupOf, owned, progress.have, true)
   // Maps with kills of their own that need particular weapons first, then the ones where only kills on
-  // any map do, each in To do's order.
-  const maps = useMemo(() => {
-    const withKills = plan.maps
-      .map((p) => ({ plan: p, kills: mapKills(p.steps, plan.anyMap) }))
-      .filter((m) => m.kills.length > 0)
-    const own = (m: (typeof withKills)[number]): boolean => m.kills.some((k) => !k.anyMap)
-    return [...withKills.filter(own), ...withKills.filter((m) => !own(m))]
-  }, [plan])
+  // any map do, each in To do's order, then the other maps for kills on any map.
+  const groupList = useMemo(() => [...groups.values()], [groups])
+  const maps = useMemo(
+    () => weaponMaps(plan.maps, plan.anyMap, groupList, (g) => emptyMapPlan(g)),
+    [plan, groupList]
+  )
   // The guns chosen for the game mode played (since 1.58.0 each mode keeps its own).
   const byMap = gunsFor(settings)
-  // Every quest's kills by map, so a gun chosen for a quest hidden by the switch or the filter is kept.
-  const allKills = useMemo(
-    () => new Map(allPlan.maps.map((p) => [p.group.key, mapKills(p.steps, allPlan.anyMap)])),
-    [allPlan]
-  )
-  // The guns chosen for a map that still count for one of its kills.
+  // Every quest's kills by map, so a gun chosen for a quest hidden by the switch or the filter is kept
+  // (a map with none of its own has the kills on any map).
+  const allKills = useMemo(() => {
+    const byKey = new Map(allPlan.maps.map((p) => [p.group.key, mapKills(p.steps, allPlan.anyMap)]))
+    const anywhere = mapKills([], allPlan.anyMap)
+    return (mapKey: string): MapKill[] => byKey.get(mapKey) ?? anywhere
+  }, [allPlan])
+  // The guns chosen for a map that still count for one of its kills, in the order chosen.
   const chosenFor = (mapKey: string): string[] => {
-    const gun = mapGun(allKills.get(mapKey) ?? [], byMap[mapKey])
+    const gun = mapGun(allKills(mapKey), gunsFor(useStore.getState().settings ?? settings)[mapKey])
     return gun?.chosen ? gun.itemIds : []
   }
   // The guns for some maps (none to go back to the suggestion). Choices for maps left with no kill
-  // quests that need particular weapons go at the same time.
+  // quests that need particular weapons go at the same time. Built on the settings as saved last, so
+  // quick clicks don't undo each other.
   const setGuns = (changes: Readonly<Record<string, readonly string[]>>): void => {
-    const next = Object.fromEntries(Object.entries(byMap).filter(([key]) => allKills.get(key)?.length))
+    const current = useStore.getState().settings ?? settings
+    const next = Object.fromEntries(Object.entries(gunsFor(current)).filter(([key]) => allKills(key).length))
     for (const [key, ids] of Object.entries(changes)) {
       if (ids.length) next[key] = [...ids]
       else delete next[key]
     }
-    const { byMode } = settings.weapons
+    const { byMode } = current.weapons
     void updateSettings({
-      weapons: { ...settings.weapons, byMode: { ...byMode, [settings.gameMode]: next } }
+      weapons: { ...current.weapons, byMode: { ...byMode, [current.gameMode]: next } }
     })
   }
   // A gun clicked: added (replacing the one chosen first when there are two already) or taken off.
@@ -349,12 +352,18 @@ function MapWeapons({
       if (!next.delete(killKey(k))) next.add(killKey(k))
       return next
     })
-  const full = gun.chosen && gun.itemIds.length >= MAX_MAP_GUNS
+  // Two chosen already (counting one for a quest the switch hides): a third replaces the first.
+  const full = chosen.length >= MAX_MAP_GUNS
+  const replaced = full
+    ? `${name(chosen[0])}${gun.itemIds.includes(chosen[0]) ? '' : ' (for a quest not shown)'}`
+    : ''
   return (
     <article id={`weapons-${plan.group.key}`} className={`weapons-map ${gun.chosen ? 'chosen' : ''}`}>
       <header>
         <strong>{plan.group.name}</strong>
-        <span className="muted">{plural(kills.length, 'kill quest')} that need particular weapons</span>
+        <span className="muted">
+          {plural(kills.length, 'kill quest')} that need{kills.length === 1 ? 's' : ''} particular weapons
+        </span>
         <button className="button small" title="Open this map on the To do tab" onClick={onOpenTodo}>
           Open in To do ▶
         </button>
@@ -438,7 +447,7 @@ function MapWeapons({
                 <>
                   <p className="weapons-options-hint muted small">
                     Click a gun to bring it, up to {MAX_MAP_GUNS}; click it again to take it off.
-                    {full && ` A third replaces ${name(gun.itemIds[0])}, the first you picked.`}
+                    {full && ` A third replaces ${replaced}, the first you picked.`}
                   </p>
                   <div className="weapons-options" role="group" aria-label={`Guns for ${k.quest.name}`}>
                     {k.itemIds.map((id) => {
@@ -453,7 +462,7 @@ function MapWeapons({
                             selected
                               ? `Stop bringing it to ${plan.group.name}`
                               : full
-                                ? `Bring it to ${plan.group.name} instead of ${name(gun.itemIds[0])}`
+                                ? `Bring it to ${plan.group.name} instead of ${replaced}`
                                 : `Bring it to ${plan.group.name}`
                           }
                           onClick={() => onToggle(id)}

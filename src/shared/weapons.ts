@@ -42,6 +42,33 @@ export function mapKills(steps: readonly TodoStep[], anyMap: readonly TodoStep[]
   return kills
 }
 
+/**
+ * The maps the Weapons tab lists, with their kills that need particular weapons: the maps with kills of
+ * their own first, then the ones where only kills on any map count, in To do's order; then, when a kill
+ * on any map needs particular weapons, every other map (`groups`, by name) for those kills alone (since
+ * 1.65.0: a kill on any map is listed somewhere even when no map has anything else to do).
+ */
+export function weaponMaps<P extends { group: MapGroup; steps: readonly TodoStep[] }>(
+  maps: readonly P[],
+  anyMap: readonly TodoStep[],
+  groups: readonly MapGroup[],
+  empty: (group: MapGroup) => P
+): { plan: P; kills: MapKill[] }[] {
+  const withKills = maps
+    .map((p) => ({ plan: p, kills: mapKills(p.steps, anyMap) }))
+    .filter((m) => m.kills.length)
+  const own = (m: { kills: MapKill[] }): boolean => m.kills.some((k) => !k.anyMap)
+  const anywhere = mapKills([], anyMap)
+  const listed = new Set(maps.map((p) => p.group.key))
+  const rest = anywhere.length
+    ? [...new Map(groups.map((g) => [g.key, g])).values()]
+        .filter((g) => !listed.has(g.key))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((g) => ({ plan: empty(g), kills: anywhere }))
+    : []
+  return [...withKills.filter(own), ...withKills.filter((m) => !own(m)), ...rest]
+}
+
 /** A gun that counts for some of a map's kills, and which. */
 export interface GunOption {
   itemId: string

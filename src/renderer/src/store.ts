@@ -240,8 +240,14 @@ export const useStore = create<AppStore>((set, get) => ({
       }
     })
     const request = ++settingsRequest
-    const saved = await window.api.updateSettings(patch)
-    if (request === settingsRequest) set({ settings: saved })
+    try {
+      const saved = await window.api.updateSettings(patch)
+      if (request === settingsRequest) set({ settings: saved })
+    } catch (err) {
+      // Not saved: show what is (since 1.65.0 the change doesn't stay on screen as if it were).
+      console.error('Saving settings failed', err)
+      if (request === settingsRequest) set({ settings: await window.api.getSettings() })
+    }
   },
 
   async setGameMode(gameMode) {

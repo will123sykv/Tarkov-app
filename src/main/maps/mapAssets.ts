@@ -60,6 +60,9 @@ function resolve(url: URL): { source: string; cachePath: string } | null {
   return null
 }
 
+/** How long a map image may take to download. */
+const DOWNLOAD_TIMEOUT_MS = 60_000
+
 /**
  * Serves map images from a disk cache, downloading each (from assets.tarkov.dev, Re3MR's from GitHub,
  * db4tarkov's and the wiki's from their CDNs) the first time it's needed, so maps opened once also
@@ -69,8 +72,10 @@ export function createMapAssetHandler(deps: { cacheDir: string; fetchFn: FetchFn
   const inFlight = new Map<string, Promise<Buffer | null>>()
 
   async function download(source: string, file: string): Promise<Buffer | null> {
-    const res = await deps.fetchFn(source)
-    if (!res.ok) return null
+    // A stalled download gives up (the next request tries again); a page instead of a picture (a
+    // captive portal's, an error page) isn't kept as the map.
+    const res = await deps.fetchFn(source, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+    if (!res.ok || /^text\/html/i.test(res.headers.get('content-type') ?? '')) return null
     const body = Buffer.from(await res.arrayBuffer())
     await mkdir(dirname(file), { recursive: true })
     const tmp = `${file}.${process.pid}.tmp`

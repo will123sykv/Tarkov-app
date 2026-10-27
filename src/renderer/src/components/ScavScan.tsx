@@ -104,6 +104,8 @@ interface Shot {
 
 interface ScanState {
   mode: ScanMode
+  /** The Items to collect tab's own mode, kept while the Keys tab reads keys (since 1.65.0). */
+  itemsMode: 'loot' | 'stash'
   shots: Shot[]
   /** The screenshot being shown. */
   active: number | null
@@ -120,7 +122,7 @@ interface ScanState {
   } | null
 }
 
-const EMPTY: Omit<ScanState, 'mode'> = {
+const EMPTY: Omit<ScanState, 'mode' | 'itemsMode'> = {
   shots: [],
   active: null,
   busy: false,
@@ -130,7 +132,7 @@ const EMPTY: Omit<ScanState, 'mode'> = {
 }
 
 // Kept while the app runs, so switching tabs doesn't lose a scan.
-const useScan = create<ScanState>(() => ({ mode: 'loot', ...EMPTY }))
+const useScan = create<ScanState>(() => ({ mode: 'loot', itemsMode: 'loot', ...EMPTY }))
 const patch = (p: Partial<ScanState>): void => useScan.setState(p)
 let nextKey = 1
 let nextShot = 1
@@ -142,7 +144,11 @@ export function startStashCount(): void {
 
 function setMode(mode: ScanMode): void {
   const { shots } = useScan.getState()
-  patch({ mode, shots: shots.map((s) => ({ ...s, shown: defaultShown(s.grids, mode) })) })
+  patch({
+    mode,
+    ...(mode !== 'keys' ? { itemsMode: mode } : {}),
+    shots: shots.map((s) => ({ ...s, shown: defaultShown(s.grids, mode) }))
+  })
 }
 
 async function decode(blob: Blob): Promise<RgbaImage> {
@@ -574,8 +580,9 @@ export default function ScavScan({
   variant?: 'items' | 'keys'
 }): React.JSX.Element {
   const state = useScan()
-  // The scan is shared between the tabs: each shows it in its own mode, keeping the screenshots.
-  const mode: ScanMode = variant === 'keys' ? 'keys' : state.mode === 'keys' ? 'stash' : state.mode
+  // The scan is shared between the tabs: each shows it in its own mode, keeping the screenshots (the
+  // Items to collect tab goes back to the mode it was in, not "Everything I have", after the Keys tab).
+  const mode: ScanMode = variant === 'keys' ? 'keys' : state.itemsMode
   useEffect(() => {
     if (useScan.getState().mode !== mode) setMode(mode)
   }, [mode])
@@ -737,11 +744,13 @@ export default function ScavScan({
   // New loot: every item, or only what to sell on the flea or to traders (since 1.64.0). The rows keep
   // their numbers; the others fade on the screenshot and leave the list.
   const highlight: ScanHighlight = mode === 'loot' ? settings.hideout.scanHighlight : 'all'
+  // Rows to check stay listed whatever the highlight: they may well be ones to sell that way.
   const picked = (r: ScanRow): boolean => {
     const a = adviceOf.get(r.key)
-    return !a || sellsVia(a, highlight)
+    return !a || unsure(r) || sellsVia(a, highlight)
   }
   const shownRows = sorted(listed).filter(picked)
+  const checking = shownRows.filter(unsure).length
   const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
   const setHighlight = (scanHighlight: ScanHighlight): void =>
     void updateSettings({ hideout: { ...settings.hideout, scanHighlight } })
@@ -1208,8 +1217,8 @@ export default function ScavScan({
                             : 'sell'
                   const t = r.tile
                   // With a highlight, the rest fade; traders' items take their trader's colour.
-                  const shown = kind === 'off' || !a || sellsVia(a, highlight)
-                  const trader = highlight === 'traders' && shown && a?.via === 'trader'
+                  const shown = kind === 'off' || kind === 'check' || !a || sellsVia(a, highlight)
+                  const trader = highlight === 'traders' && kind !== 'check' && shown && a?.via === 'trader'
                   return (
                     <g
                       key={r.key}
@@ -1327,8 +1336,9 @@ export default function ScavScan({
                   </div>
                   {highlight !== 'all' && (
                     <span className="muted">
-                      Showing {shownRows.length} of {listed.length}: to sell{' '}
-                      {highlight === 'flea' ? 'on the flea' : 'to traders'} ·{' '}
+                      Showing {shownRows.length - checking} of {listed.length - toCheck}: to sell{' '}
+                      {highlight === 'flea' ? 'on the flea' : 'to traders'}
+                      {checking > 0 && `, and ${checking} to check`} ·{' '}
                       <button className="link small" onClick={() => setHighlight('all')}>
                         Show all
                       </button>
@@ -1551,7 +1561,13 @@ export default function ScavScan({
                                 guesses={r.guesses}
                                 prefer={mode === 'keys' ? isKey : undefined}
                                 onPick={(id) => {
-                                  updateRow(r.key, { itemId: id, confidence: 'high' })
+                                  // Another item: what was added for the old one isn't this one's (Undo
+                                  // still takes the old one's off).
+                                  updateRow(r.key, {
+                                    itemId: id,
+                                    confidence: 'high',
+                                    ...(id !== r.itemId ? { stored: 0 } : {})
+                                  })
                                   setPicking(null)
                                 }}
                                 onClose={() => setPicking(null)}

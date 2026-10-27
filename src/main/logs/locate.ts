@@ -89,6 +89,28 @@ export async function locateLogsDir(
   return null
 }
 
+/**
+ * `locateLogsDir`, remembering the folder it found (since 1.65.0): the install search reads the
+ * registry several times, so it runs again only when that folder goes, and while none is found at most
+ * once a minute, not on every poll.
+ */
+export function createLogsLocator(
+  deps: LocateDeps = nodeLocateDeps,
+  now: () => number = Date.now
+): (chosen: string | null) => Promise<string | null> {
+  let found: string | null = null
+  let searchedAt = -Infinity
+  return async (chosen) => {
+    if (chosen) return locateLogsDir(chosen, deps)
+    if (found && (await deps.isDir(found))) return found
+    found = null
+    if (now() - searchedAt < 60_000) return null
+    searchedAt = now()
+    found = await locateLogsDir(null, deps)
+    return found
+  }
+}
+
 /** The session folders in a Logs folder, oldest first. */
 export async function listLogFolders(logsDir: string): Promise<string[]> {
   const names = await readdir(logsDir).catch(() => [] as string[])

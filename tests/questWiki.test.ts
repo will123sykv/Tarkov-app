@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isWikiUrl, wikiPageUrl } from '../src/shared/questWiki'
+import { GESTURE_MS, gestureGate, isWikiUrl, wikiPageUrl } from '../src/shared/questWiki'
 
 describe('the quest wiki in the panel', () => {
   it('lets only the Escape from Tarkov wiki load in the panel', () => {
@@ -20,5 +20,20 @@ describe('the quest wiki in the panel', () => {
     expect(wikiPageUrl('https://tarkov.dev/task/supply-plans')).toBeNull()
     expect(wikiPageUrl('https://escapefromtarkov.fandom.com/')).toBeNull()
     expect(wikiPageUrl(null)).toBeNull()
+  })
+
+  it('opens a link off the wiki in the browser only just after a click or key press (since 1.65.0)', () => {
+    let t = 1_000
+    const gate = gestureGate(() => t)
+    // An ad opening a window by itself.
+    expect(gate.recent()).toBe(false)
+    gate.input('mouseMove')
+    expect(gate.recent()).toBe(false)
+    gate.input('mouseUp')
+    expect(gate.recent()).toBe(true)
+    t += GESTURE_MS + 1
+    expect(gate.recent()).toBe(false)
+    gate.input('keyDown')
+    expect(gate.recent()).toBe(true)
   })
 })

@@ -160,6 +160,10 @@ export function createLogWatcher(deps: LogWatcherDeps) {
     let resetSent = false
     for (const folder of pending) {
       const newest = folder === folders.at(-1)
+      // What was read so far, put back if the events can't be taken (so they're read again next time,
+      // not lost).
+      const offsets = { ...current.offsets }
+      const interpreter = current.folders[folder]
       const events = await readFolder(logsDir, folder, !newest)
       if (!newest) {
         done.add(folder)
@@ -173,9 +177,20 @@ export function createLogWatcher(deps: LogWatcherDeps) {
           const t = e.kind === 'raid' ? (e.raid.endedAt ?? e.raid.foundAt) : e.t
           current.lastEventAt = Math.max(current.lastEventAt ?? 0, t)
         }
-        await deps.onEvents(events, reset && !resetSent)
+        try {
+          await deps.onEvents(events, reset && !resetSent)
+        } catch (err) {
+          current.offsets = offsets
+          if (interpreter) current.folders[folder] = interpreter
+          else delete current.folders[folder]
+          done.delete(folder)
+          throw err
+        }
         resetSent = true
       }
+      // Saved after each folder, so quitting during the first read doesn't read it all again.
+      if (firstRun)
+        await writeJsonFileAtomic(deps.stateFile, { ...current, done: folders.filter((f) => done.has(f)) })
       if (firstRun) setStatus({ foldersRead: done.size, events: { ...current.events } })
     }
     if (reset && !resetSent) await deps.onEvents([], true)

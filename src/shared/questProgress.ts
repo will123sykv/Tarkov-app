@@ -375,7 +375,10 @@ export function neededItems(
       const key = `${itemId}:${objective.foundInRaid}`
       const entry = byKey.get(key) ?? { itemId, count: 0, foundInRaid: objective.foundInRaid, quests: [] }
       entry.count += count
-      entry.quests.push({ questId: quest.id, name: quest.name, count })
+      // A quest handing over the same item twice (once to stash, once to hand in) is listed once.
+      const same = entry.quests.find((q) => q.questId === quest.id)
+      if (same) same.count += count
+      else entry.quests.push({ questId: quest.id, name: quest.name, count })
       byKey.set(key, entry)
     }
   }
