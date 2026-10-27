@@ -626,13 +626,35 @@ input:focus {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
   margin-bottom: 4px;
 }
 
 .summary-title strong {
+  flex: none;
   font-size: 15px;
   color: var(--accent-strong);
   white-space: nowrap;
+}
+
+/* The description stays on one line, cut off with "…" (the full text shows on hover), so what's
+   under it never moves (since 1.67.0). An error with a Retry button still wraps, to keep the button,
+   and a note at the end (with its Settings link) is kept whole. */
+.summary-title > .muted {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-title > .muted:has(.load-error) {
+  white-space: normal;
+}
+
+.summary-title > .settings-note {
+  flex: none;
+  overflow: visible;
 }
 
 .summary-stats {
@@ -1524,8 +1546,10 @@ button.link {
 }
 
 /* Ten views don't fit beside the rest in narrow windows (down to the 1200px the window can be): the
-   tabs get a row of their own under it, and the refresh button is just its icon (its title says what). */
-@media (max-width: 1360px) {
+   tabs get a row of their own under it, and the refresh button is just its icon (its title says what).
+   Everything on one row takes about 1,550px, so below 1,600px they wrap (since 1.67.0; it was 1,360px,
+   which squeezed the bar and pushed its buttons off the edge in between). */
+@media (max-width: 1599px) {
   .topbar {
     flex-wrap: wrap;
     gap: 6px 12px;
@@ -4602,9 +4626,9 @@ tr:hover .favourite-star {
   grid-template-columns: var(--sidebar-w, 270px) minmax(0, 1fr) 400px;
 }
 
+/* Under the title like every tab's controls (since 1.67.0). */
 .todo-filters {
   gap: 8px 12px;
-  margin-top: 6px;
 }
 
 .todo-cards {

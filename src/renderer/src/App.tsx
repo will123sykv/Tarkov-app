@@ -12,6 +12,7 @@ import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
 import KeysView from './components/KeysView'
 import { useKeepList, useValuation } from './lib/useKeepList'
+import { useSummaryTitles } from './lib/useSummaryTitles'
 import QuestsView from './components/QuestsView'
 import RaidsView from './components/RaidsView'
 import ModeBanner from './components/ModeBanner'
@@ -40,6 +41,7 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     void init()
   }, [init])
+  useSummaryTitles()
 
   const dataMode = settings ? dataModeFor(settings.gameMode) : 'pvp'
   const priceState = prices[dataMode] ?? null

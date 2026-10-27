@@ -5,11 +5,11 @@ import { useStore } from '../store'
 export default function LoadError({ what, error }: { what: string; error: string }): React.JSX.Element {
   const loadQuestData = useStore((s) => s.loadQuestData)
   return (
-    <>
+    <span className="load-error">
       Couldn&rsquo;t load {what}: {friendlyError(error)}.{' '}
       <button className="link" onClick={() => void loadQuestData(true)}>
         Retry
       </button>
-    </>
+    </span>
   )
 }
