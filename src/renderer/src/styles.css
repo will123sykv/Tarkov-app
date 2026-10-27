@@ -6382,3 +6382,22 @@ p.quest-before.done {
   font-size: 11px;
   white-space: nowrap;
 }
+
+/* After a raid: that map's objectives to tick off (since 1.66.0). Over the whole window. */
+.after-raid-backdrop {
+  position: fixed;
+}
+
+.after-raid-quest + .after-raid-quest {
+  margin-top: 8px;
+}
+
+.after-raid-quest ul {
+  margin-top: 4px;
+}
+
+.after-raid-quest li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

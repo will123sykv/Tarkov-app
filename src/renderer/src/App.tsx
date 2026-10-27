@@ -3,6 +3,7 @@ import { DEFAULT_FLEA_MIN_LEVEL } from '../../shared/constants'
 import { rankContainers, valuesById } from '../../shared/containerValue'
 import { dataModeFor } from '../../shared/gameModes'
 import { rankItems, type ContainerFilter } from '../../shared/valuation'
+import AfterRaid from './components/AfterRaid'
 import ErrorBoundary from './components/ErrorBoundary'
 import ContainerSidebar from './components/ContainerSidebar'
 import ContainerSummary from './components/ContainerSummary'
@@ -185,6 +186,11 @@ export default function App(): React.JSX.Element {
       <ErrorBoundary what="Settings" variant="bar">
         <SettingsDialog />
       </ErrorBoundary>
+      {settings && (
+        <ErrorBoundary what="the after-raid popup" variant="bar">
+          <AfterRaid settings={settings} />
+        </ErrorBoundary>
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
 import { createBackgroundMode, launchedHidden } from './background'
 import { registerIpc } from './ipc'
+import { raidsToAsk } from './logs/afterRaid'
 import { createLogsLocator } from './logs/locate'
 import { createLogWatcher } from './logs/watcher'
 import { createBackups } from './backups'
@@ -45,6 +46,9 @@ protocol.registerSchemesAsPrivileged([
     privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true }
   }
 ])
+
+/** Raids already asked about after they ended (since 1.66.0), so none is asked about twice. */
+const askedRaids = new Set<string>()
 
 function send(channel: string, payload: unknown): void {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
@@ -189,6 +193,9 @@ async function bootstrap(): Promise<void> {
       }
       for (const gameMode of handedIn)
         send(IPC.hideoutProgressChanged, { gameMode, hideout: await player.hideout(gameMode) })
+      // A PMC raid just ended: offer to tick off what got done on its map (since 1.66.0).
+      if (settings.get().quests.askAfterRaid)
+        for (const ended of raidsToAsk(events, Date.now(), reset, askedRaids)) send(IPC.logsRaidEnded, ended)
     },
     onStatus: (status) => send(IPC.logsStatusChanged, status)
   })

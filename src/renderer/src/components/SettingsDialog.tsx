@@ -230,6 +230,19 @@ export default function SettingsDialog(): React.JSX.Element | null {
 
       <div className="dialog-logs" id="settings-logs">
         <LogStatusPanel />
+        <label
+          className="check"
+          title="When the logs see a PMC raid end, a popup lists that map's objectives (and any map's) to tick off"
+        >
+          <input
+            type="checkbox"
+            checked={settings.quests.askAfterRaid}
+            onChange={(e) =>
+              void updateSettings({ quests: { ...settings.quests, askAfterRaid: e.target.checked } })
+            }
+          />
+          Ask what I did after each raid
+        </label>
       </div>
 
       <ProgressSection />

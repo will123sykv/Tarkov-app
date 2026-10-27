@@ -314,6 +314,8 @@ export interface QuestSettings {
    * chapters, or the side quests (traders' and event quests). Since 1.61.0.
    */
   kind: QuestKindFilter
+  /** After a PMC raid the logs saw end, offer to tick off that map's objectives (since 1.66.0). */
+  askAfterRaid: boolean
 }
 
 export type QuestKindFilter = 'all' | 'story' | 'side'

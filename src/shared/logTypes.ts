@@ -1,3 +1,5 @@
+import type { GameMode } from './types'
+
 export interface FleaPayment {
   currency: 'RUB' | 'USD' | 'EUR'
   amount: number
@@ -27,6 +29,12 @@ export interface FleaRecord {
   count: number | null
   buyer: string | null
   payment: FleaPayment | null
+}
+
+/** A PMC raid the logs just saw end, for the after-raid popup (since 1.66.0). */
+export interface RaidEnded {
+  gameMode: GameMode
+  raid: RaidRecord
 }
 
 /** Raids and flea activity read from the logs, for one game mode, newest first. */

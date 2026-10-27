@@ -543,6 +543,11 @@ the game's install folder, or its `build` folder.
   objectives are done (3/5), done objectives leave the map, and what's been handed over comes off
   **Items needed** and the Keep tags (9 more cigarettes, not 15). A completed quest shows every
   objective ticked.
+- **After a raid:** when the game's logs see a PMC raid end, a popup lists what your active quests
+  had left on that map, and on any map, to tick off (or count up kills) there and then; it's saved
+  as you go, and **Done** or Esc closes it. Scav raids, raids that ended over 15 minutes ago and
+  reading the logs again from scratch don't ask. Turn it off with **Ask what I did after each raid**
+  in Settings, under the game's logs.
 - **Objectives ticked off for you:** the game's logs only say when a quest starts, finishes or
   fails, not its objectives, but some the app can tell by itself, marked **auto** (point at it to
   see why): "reach level N" from your PMC level, "reach loyalty level N with a trader" from the

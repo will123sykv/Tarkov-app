@@ -3,7 +3,7 @@ import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
 import { haveCount, type HaveCounts, type HaveKind, type HideoutProgress } from '../../shared/hideout'
 import type { KeyInventory } from '../../shared/keys'
-import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
+import type { LogHistory, LogWatcherStatus, RaidEnded } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
 import type { QuestDataState, WikiQuest } from '../../shared/questTypes'
 import type { StoryPin, StoryPins } from '../../shared/storyPlaces'
@@ -63,6 +63,8 @@ interface AppStore {
   wikiQuests: { key: string; quests: WikiQuest[]; errors: Record<string, string>; loading: boolean } | null
   logHistory: Partial<Record<GameMode, LogHistory>>
   logStatus: LogWatcherStatus | null
+  /** A PMC raid that just ended, to ask what got done in it (since 1.66.0). */
+  raidEnded: RaidEnded | null
   selectedQuest: string | null
   /** A quest objective to centre the map on. */
   mapFocus: { questId: string; objectiveId: string | null } | null
@@ -110,6 +112,7 @@ interface AppStore {
   /** Open the Maps tab on a map with a key's locks and spawns on it (null: stop showing them). */
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   openTodoMap(mapKey: string | null): void
+  closeRaidEnded(): void
   openCraftingStation(stationId: string | null): void
   openWeaponsMap(mapKey: string | null): void
   setHideoutHaveMany(counts: HaveCounts): Promise<void>
@@ -179,6 +182,7 @@ export const useStore = create<AppStore>((set, get) => ({
   wikiQuests: null,
   logHistory: {},
   logStatus: null,
+  raidEnded: null,
   selectedQuest: null,
   mapFocus: null,
   storyPins: {},
@@ -207,7 +211,8 @@ export const useStore = create<AppStore>((set, get) => ({
       api.onHideoutProgress(({ gameMode, hideout }) =>
         set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
       ),
-      api.onLogStatus((logStatus) => set({ logStatus }))
+      api.onLogStatus((logStatus) => set({ logStatus })),
+      api.onRaidEnded((raidEnded) => set({ raidEnded }))
     ]
     void api.getLogStatus().then((logStatus) => set((s) => (s.logStatus ? s : { logStatus })))
     void get().loadProgressInfo()
@@ -484,6 +489,7 @@ export const useStore = create<AppStore>((set, get) => ({
   },
 
   openTodoMap: (todoMap) => set({ todoMap }),
+  closeRaidEnded: () => set({ raidEnded: null }),
   openCraftingStation: (craftingStation) => set({ craftingStation }),
   openWeaponsMap: (weaponsMap) => set({ weaponsMap }),
 

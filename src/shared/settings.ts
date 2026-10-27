@@ -73,6 +73,7 @@ export const DEFAULT_SETTINGS: Settings = {
     wikiQuests: [],
     wikiCorrections: true,
     wikiOnlyQuests: true,
+    askAfterRaid: true,
     kind: 'all'
   },
   maps: {
@@ -158,6 +159,7 @@ function sanitizeQuests(raw: unknown): QuestSettings {
       : [],
     wikiCorrections: r.wikiCorrections !== false,
     wikiOnlyQuests: r.wikiOnlyQuests !== false,
+    askAfterRaid: r.askAfterRaid !== false,
     kind: r.kind === 'story' || r.kind === 'side' ? r.kind : 'all'
   }
 }

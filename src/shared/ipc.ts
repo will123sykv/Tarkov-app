@@ -1,6 +1,6 @@
 import type { HaveCounts, HaveKind, HideoutProgress } from './hideout'
 import type { KeyInventory } from './keys'
-import type { LogHistory, LogWatcherStatus } from './logTypes'
+import type { LogHistory, LogWatcherStatus, RaidEnded } from './logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
 import type { StoryPin, StoryPins } from './storyPlaces'
 import type { QuestDataState, QuestGuideState, WikiQuest, WikiQuestEntry } from './questTypes'
@@ -61,6 +61,7 @@ export const IPC = {
   scanLatestScreenshot: 'scan:latest-screenshot',
   logsHistory: 'logs:history',
   logsHistoryChanged: 'logs:history-changed',
+  logsRaidEnded: 'logs:raid-ended',
   logsStatus: 'logs:status',
   logsStatusChanged: 'logs:status-changed',
   logsRescan: 'logs:rescan',
@@ -184,6 +185,8 @@ export interface TarkovApi {
   chooseLogsFolder(): Promise<PublicSettings | null>
   onQuestProgress(listener: (update: { gameMode: GameMode; progress: QuestProgress }) => void): () => void
   onLogHistory(listener: (update: { gameMode: GameMode; history: LogHistory }) => void): () => void
+  /** A PMC raid the logs just saw end (since 1.66.0): to offer ticking off its map's objectives. */
+  onRaidEnded(listener: (update: RaidEnded) => void): () => void
   /** Items put aside changed outside the Items to collect tab, e.g. a quest the logs say was handed in. */
   onHideoutProgress(listener: (update: { gameMode: GameMode; hideout: HideoutProgress }) => void): () => void
   onLogStatus(listener: (status: LogWatcherStatus) => void): () => void
