@@ -49,8 +49,9 @@ next time you close the app.
 
 - **Steady page headers.** Each tab's grey summary next to its title stays on one line, cut off with
   "…" when it's long (point at it for all of it), so the tabs and filters under it are always in the
-  same place. Below 1,600px wide the tab names get a row of their own in the top bar, so nothing
-  squeezes or runs off the edge.
+  same place. The tabs along the top stay put too, whichever is open (the top left shows just the
+  app's name; point at a tab for what it's for). Below 1,600px wide the tab names get a row of their
+  own in the top bar, so nothing squeezes or runs off the edge.
 - **All · Story · Side.** The Quests, To do, Maps and Weapons tabs each have an **All · Story ·
   Side** switch: every quest, just the main story's chapters (Tour, Falling Skies…), or just the
   side quests (traders' and event quests). It's one setting, so switching on one tab switches them

@@ -27,9 +27,10 @@ export default function TopBar({ settings, priceState, fleaMinLevel }: Props): R
         <span className="brand-mark" aria-hidden>
           ₽
         </span>
+        {/* Just the name: a line per tab here moved the tabs beside it (since 1.69.0). Each tab's
+            tooltip says what it's for. */}
         <div>
           <h1>Tarkov Loot Optimiser</h1>
-          <p>{VIEWS.find((v) => v.id === settings.view)?.subtitle}</p>
         </div>
       </div>
 

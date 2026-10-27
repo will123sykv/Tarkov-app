@@ -82,6 +82,7 @@ select {
 
 .brand {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 10px;
 }
@@ -91,12 +92,6 @@ select {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
-}
-
-.brand p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
 }
 
 .brand-mark {
