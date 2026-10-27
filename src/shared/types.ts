@@ -12,6 +12,16 @@ export type PriceSource = 'tarkov.dev' | 'tarkov-market'
 export interface TraderPrice {
   name: string
   price: number
+  /** The trader's id, when known (since 1.66.0). */
+  traderId?: string
+}
+
+/** What one trader pays for an item (since 1.66.0). */
+export interface TraderSale {
+  traderId: string
+  trader: string
+  /** Roubles. */
+  price: number
 }
 
 export interface LootItem {
@@ -34,7 +44,10 @@ export interface LootItem {
   fleaPrice: number | null
   /** Flea listing fee for selling one unit at fleaPrice. */
   fleaFee: number | null
+  /** What the best-paying trader gives, whether or not the player has them unlocked. */
   bestTrader: TraderPrice | null
+  /** What every trader pays, to pick the best unlocked one; tarkov.dev only (since 1.66.0). */
+  sellTo?: TraderSale[]
   // Optional: absent from tarkov-market data and from caches written by older versions.
   /** Handbook base price; the flea fee is computed from it. */
   basePrice?: number | null
@@ -42,6 +55,8 @@ export interface LootItem {
   offerCount?: number | null
   low24hPrice?: number | null
   high24hPrice?: number | null
+  /** The flea's average price over the last 24 hours (since 1.66.0). */
+  avg24hPrice?: number | null
   /** What traders sell it for (cash), at a loyalty level and maybe after a quest; tarkov.dev only. */
   buyFrom?: TraderOffer[]
 }

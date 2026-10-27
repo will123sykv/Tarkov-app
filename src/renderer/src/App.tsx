@@ -10,7 +10,7 @@ import CraftingView from './components/CraftingView'
 import HideoutView from './components/HideoutView'
 import ItemTable from './components/ItemTable'
 import KeysView from './components/KeysView'
-import { useKeepList } from './lib/useKeepList'
+import { useKeepList, useValuation } from './lib/useKeepList'
 import QuestsView from './components/QuestsView'
 import RaidsView from './components/RaidsView'
 import ModeBanner from './components/ModeBanner'
@@ -45,7 +45,6 @@ export default function App(): React.JSX.Element {
   const dataset = priceState?.dataset ?? null
   const fleaMinLevel = dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
   const playerLevel = settings ? settings.playerLevels[settings.gameMode] : 1
-  const subtractFleaFee = settings?.subtractFleaFee ?? true
   const mapId = settings?.pool.mapId ?? null
   const containerId = settings?.pool.containerId ?? null
 
@@ -54,10 +53,8 @@ export default function App(): React.JSX.Element {
   const lootView = view === 'loot'
   const trendRanking = useTrendRanking(settings, dataset, trendsView)
 
-  const ctx = useMemo(
-    () => ({ playerLevel, fleaMinLevel, subtractFleaFee }),
-    [playerLevel, fleaMinLevel, subtractFleaFee]
-  )
+  // Traders not unlocked yet aren't suggested (since 1.66.0).
+  const ctx = useValuation(settings, priceState)
   // What every item is worth to this player; shared by the container ranking and summary.
   // The loot view is hidden while the trends view is open, so skip the work.
   const values = useMemo(

@@ -103,6 +103,10 @@ next time you close the app.
 - **Flea access by level.** Enter your PMC level (1–62). Each item is marked **Sellable**,
   **Locked · Lv N** (the flea opens at 15, and some categories unlock later) or **Flea banned**.
   Items you can't sell on the flea are valued at the best trader price. You can hide them.
+- **Only traders you've unlocked.** Jaeger, Ref, Lightkeeper and the BTR Driver are only suggested
+  (in Loot, Screenshots, Items to collect, crafting and To do) once a quest that unlocks them is
+  done. Until then, the Trader column's hover says who would pay more once unlocked, and which
+  quest unlocks them.
 - **Game modes.** Switch between PvP, PvE and PvP Season. Each mode keeps its own PMC level,
   because each is a separate character in game.
 - **Time in raid.** Next to the game modes, the two times a raid can start at right now (Tarkov's

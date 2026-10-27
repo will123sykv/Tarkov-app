@@ -180,9 +180,17 @@ function ItemRow({
       <div className={`num ${row.access.status !== 'sellable' ? 'dim' : ''}`} title={fleaTitle}>
         {formatRub(row.fleaNet)}
       </div>
-      <div className="num">
-        {formatRub(item.bestTrader?.price)}
-        {item.bestTrader && <small>{item.bestTrader.name}</small>}
+      <div
+        className="num"
+        title={
+          row.lockedBetter
+            ? `${row.lockedBetter.name} pays ${formatRub(row.lockedBetter.price)} once unlocked` +
+              (row.lockedBetter.unlockedBy.length ? ` (${row.lockedBetter.unlockedBy.join(' or ')})` : '')
+            : undefined
+        }
+      >
+        {formatRub(row.trader?.price)}
+        {row.trader && <small>{row.trader.name}</small>}
       </div>
       <div className="num">
         {formatRub(row.worth)}

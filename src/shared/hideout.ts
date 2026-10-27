@@ -244,6 +244,8 @@ export interface BuyContext {
   traderNames?: ReadonlyMap<string, string>
   /** As if every level, loyalty and quest were unlocked. */
   unlockAll?: boolean
+  /** Traders not unlocked yet, never suggested to sell to (since 1.66.0). */
+  lockedTraders?: ReadonlyMap<string, readonly string[]>
 }
 
 export interface BuyOption {
@@ -735,7 +737,8 @@ export function sellAdvice(
     ? evaluateItem(item, {
         playerLevel: ctx.playerLevel,
         fleaMinLevel: ctx.fleaMinLevel,
-        subtractFleaFee: true
+        subtractFleaFee: true,
+        lockedTraders: ctx.unlockAll ? undefined : ctx.lockedTraders
       })
     : null
   return {
@@ -744,11 +747,7 @@ export function sellAdvice(
     keepFir: easy ? firKept : 0,
     sellEach: value && value.worth > 0 ? value.worth : null,
     sellVia:
-      value?.via === 'flea'
-        ? 'flea'
-        : value?.via === 'trader'
-          ? (item?.bestTrader?.name ?? 'a trader')
-          : null,
+      value?.via === 'flea' ? 'flea' : value?.via === 'trader' ? (value.trader?.name ?? 'a trader') : null,
     buyBack: back?.kind === 'buy' ? back.option : null,
     barterBack: back?.kind === 'barter' ? back.option : null,
     craftBack: back?.kind === 'craft' ? back.option : null

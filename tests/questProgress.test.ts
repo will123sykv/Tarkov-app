@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { LogEvent } from '../src/main/logs/interpret'
-import { normalizeQuestData } from '../src/main/quests/questData'
+import { NO_REWARDS, normalizeQuestData } from '../src/main/quests/questData'
 import { createPlayerStore, MAX_PINS } from '../src/main/quests/playerStore'
 import {
   tickAll,
@@ -10,6 +10,7 @@ import {
   forFaction,
   levelRequirement,
   lockReasons,
+  lockedTraders,
   markUpTo,
   neededItems,
   objectiveSummary,
@@ -422,5 +423,29 @@ describe('ticking off a pin’s objectives in one go', () => {
     expect(tickAll(objectives.slice(0, 1), 'other', undefined)).toEqual([
       { objectiveId: 'kill', value: 5, previous: 0 }
     ])
+  })
+})
+
+describe('lockedTraders (since 1.66.0)', () => {
+  const rewards = (traderUnlocks: string[]) => ({ ...NO_REWARDS, traderUnlocks })
+  const quests = [
+    { id: 'intro', name: 'Introduction', rewards: rewards(['jaeger']) },
+    { id: 'other', name: 'Another way in', rewards: rewards(['jaeger']) },
+    { id: 'ref', name: 'Shooting Cans', rewards: rewards(['ref']) },
+    { id: 'plain', name: 'Debut', rewards: rewards([]) }
+  ]
+
+  it('locks a trader a quest unlocks until one of those quests is completed', () => {
+    expect(lockedTraders(quests, {})).toEqual(
+      new Map([
+        ['jaeger', ['Introduction', 'Another way in']],
+        ['ref', ['Shooting Cans']]
+      ])
+    )
+    const done: QuestProgress = {
+      other: { status: 'completed', at: 1, source: 'manual' },
+      ref: { status: 'active', at: 1, source: 'log' }
+    }
+    expect([...lockedTraders(quests, done).keys()]).toEqual(['ref'])
   })
 })

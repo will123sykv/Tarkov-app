@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { DEFAULT_FLEA_MIN_LEVEL } from '../../../shared/constants'
+import { dataModeFor } from '../../../shared/gameModes'
 import {
   EMPTY_HIDEOUT,
   hideoutNeeds,
@@ -8,13 +9,39 @@ import {
   type CraftContext,
   type KeepInfo
 } from '../../../shared/hideout'
-import { neededItems } from '../../../shared/questProgress'
+import { lockedTraders, neededItems } from '../../../shared/questProgress'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import type { PriceState, PublicSettings } from '../../../shared/types'
+import type { ValuationContext } from '../../../shared/valuation'
 import { useStore } from '../store'
 import { useItemLookup } from './useItemLookup'
 import { useHaveShare } from './useHaveShare'
 import { useQuestRows } from './useQuestRows'
+
+/** Traders not unlocked yet, by id, with the quests that unlock each (since 1.66.0). */
+export function useLockedTraders(current: PublicSettings | null): ReadonlyMap<string, readonly string[]> {
+  const settings = current ?? DEFAULT_SETTINGS
+  // Straight from the store, so it's cheap to use anywhere.
+  const quests = useStore((s) => s.questData[dataModeFor(settings.gameMode)]?.dataset?.quests)
+  const progress = useStore((s) => s.questProgress[settings.gameMode])
+  return useMemo(() => lockedTraders(quests ?? [], progress), [quests, progress])
+}
+
+/** How to value what the player sells: level, the flea, its fee and the traders unlocked. */
+export function useValuation(
+  current: PublicSettings | null,
+  priceState: PriceState | null
+): ValuationContext {
+  const settings = current ?? DEFAULT_SETTINGS
+  const locked = useLockedTraders(current)
+  const playerLevel = settings.playerLevels[settings.gameMode]
+  const fleaMinLevel = priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
+  const subtractFleaFee = settings.subtractFleaFee
+  return useMemo(
+    () => ({ playerLevel, fleaMinLevel, subtractFleaFee, lockedTraders: locked }),
+    [playerLevel, fleaMinLevel, subtractFleaFee, locked]
+  )
+}
 
 /** What the player can buy: their level, the flea's unlock level, trader loyalty and finished quests. */
 export function useBuyContext(current: PublicSettings | null, priceState: PriceState | null): BuyContext {
@@ -26,6 +53,7 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
   const fleaMinLevel = priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL
   const quests = questState?.dataset?.quests
   const traderList = questState?.dataset?.traders
+  const locked = useLockedTraders(current)
   return useMemo(
     () => ({
       playerLevel,
@@ -37,9 +65,10 @@ export function useBuyContext(current: PublicSettings | null, priceState: PriceS
           .map(([id]) => id)
       ),
       questNames: new Map((quests ?? []).map((q) => [q.id, q.name])),
-      traderNames: new Map((traderList ?? []).map((t) => [t.id, t.name]))
+      traderNames: new Map((traderList ?? []).map((t) => [t.id, t.name])),
+      lockedTraders: locked
     }),
-    [playerLevel, fleaMinLevel, traders, progress, quests, traderList]
+    [playerLevel, fleaMinLevel, traders, progress, quests, traderList, locked]
   )
 }
 

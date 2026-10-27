@@ -96,7 +96,7 @@ export function adviseScan(
       scarce: kept ? (keep.get(item.id)?.scarce ?? null) : null,
       sell,
       via,
-      trader: via === 'trader' ? (item.bestTrader?.name ?? null) : null,
+      trader: via === 'trader' ? (value.trader?.name ?? null) : null,
       each,
       total: each * sell
     }

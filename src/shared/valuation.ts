@@ -1,5 +1,5 @@
 import { compareCells, type Cell } from './tableSort'
-import type { LootItem, SortState } from './types'
+import type { LootItem, SortState, TraderPrice, TraderSale } from './types'
 
 export type FleaStatus = 'sellable' | 'locked' | 'banned'
 
@@ -14,6 +14,11 @@ export interface ValuationContext {
   /** Global flea market unlock level for the current mode. */
   fleaMinLevel: number
   subtractFleaFee: boolean
+  /**
+   * Traders the player hasn't unlocked yet (Jaeger, Ref…), by id, with the quests that unlock each:
+   * they're never suggested to sell to (since 1.66.0).
+   */
+  lockedTraders?: ReadonlyMap<string, readonly string[]>
 }
 
 export interface RankedItem {
@@ -24,6 +29,10 @@ export interface RankedItem {
   /** What the item is worth to this player: best of flea (if sellable) and traders. */
   worth: number
   via: 'flea' | 'trader' | null
+  /** The best-paying trader the player can sell to (since 1.66.0). */
+  trader: TraderPrice | null
+  /** A locked trader that would pay more, and the quests that unlock them. */
+  lockedBetter: (TraderPrice & { unlockedBy: readonly string[] }) | null
   valuePerSlot: number
   /** Share of the selected container's rolls that are this item; null without a container. */
   chance: number | null
@@ -58,10 +67,32 @@ export function fleaNetPrice(item: LootItem, subtractFleaFee: boolean): number |
   return Math.max(0, item.fleaPrice - fee)
 }
 
+/** The best-paying of some traders' offers. */
+export function bestSale(sales: readonly TraderSale[]): TraderPrice | null {
+  let best: TraderSale | null = null
+  for (const s of sales) if (!best || s.price > best.price) best = s
+  return best ? { name: best.trader, price: best.price, traderId: best.traderId } : null
+}
+
+/**
+ * The best trader to sell an item to, leaving out traders not unlocked yet. Prices saved by versions
+ * before 1.66.0 (and tarkov-market's) only know the best trader, and name no locked one.
+ */
+export function traderSale(item: LootItem, locked: ValuationContext['lockedTraders']): TraderPrice | null {
+  if (!item.sellTo) return item.bestTrader
+  return bestSale(locked?.size ? item.sellTo.filter((s) => !locked.has(s.traderId)) : item.sellTo)
+}
+
 export function evaluateItem(item: LootItem, ctx: ValuationContext): RankedItem {
   const access = fleaAccess(item, ctx.playerLevel, ctx.fleaMinLevel)
   const fleaNet = fleaNetPrice(item, ctx.subtractFleaFee)
-  const trader = item.bestTrader?.price ?? 0
+  const best = traderSale(item, ctx.lockedTraders)
+  const trader = best?.price ?? 0
+  const top = item.bestTrader
+  const lockedBetter =
+    top?.traderId && top.price > trader && ctx.lockedTraders?.has(top.traderId)
+      ? { ...top, unlockedBy: ctx.lockedTraders.get(top.traderId) ?? [] }
+      : null
 
   let worth = 0
   let via: RankedItem['via'] = null
@@ -79,6 +110,8 @@ export function evaluateItem(item: LootItem, ctx: ValuationContext): RankedItem 
     fleaNet,
     worth,
     via,
+    trader: best,
+    lockedBetter,
     valuePerSlot: worth / Math.max(1, item.slots),
     chance: null,
     searchChance: null
@@ -104,7 +137,7 @@ function sortValue(r: RankedItem, key: SortState['key']): Cell {
     case 'flea':
       return r.fleaNet
     case 'trader':
-      return r.item.bestTrader?.price ?? null
+      return r.trader?.price ?? null
     case 'slots':
       return r.item.slots
     case 'name':

@@ -27,7 +27,14 @@
         "wikiLink": "https://escapefromtarkov.fandom.com/wiki/LEDX_Skin_Transilluminator",
         "category": { "name": "Medical supplies" },
         "sellFor": [
-          { "priceRUB": 265000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
+          {
+            "priceRUB": 265000,
+            "vendor": {
+              "name": "Therapist",
+              "normalizedName": "therapist",
+              "trader": { "id": "54cb57776803fa99248b456e" }
+            }
+          },
           { "priceRUB": 1100000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
         ]
       },
@@ -47,8 +54,22 @@
         "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Graphics_card",
         "category": { "name": "Electronics" },
         "sellFor": [
-          { "priceRUB": 99000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
-          { "priceRUB": 105600, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } },
+          {
+            "priceRUB": 99000,
+            "vendor": {
+              "name": "Therapist",
+              "normalizedName": "therapist",
+              "trader": { "id": "54cb57776803fa99248b456e" }
+            }
+          },
+          {
+            "priceRUB": 105600,
+            "vendor": {
+              "name": "Mechanic",
+              "normalizedName": "mechanic",
+              "trader": { "id": "5a7c2eca46aef81a7ca2145d" }
+            }
+          },
           { "priceRUB": 540000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
         ]
       },
@@ -67,7 +88,16 @@
         "iconLink": "https://assets.tarkov.dev/5c1d0efb86f7744baf2e7b7b-icon.webp",
         "wikiLink": null,
         "category": { "name": "Keycard" },
-        "sellFor": [{ "priceRUB": 700000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } }]
+        "sellFor": [
+          {
+            "priceRUB": 700000,
+            "vendor": {
+              "name": "Therapist",
+              "normalizedName": "therapist",
+              "trader": { "id": "54cb57776803fa99248b456e" }
+            }
+          }
+        ]
       },
       {
         "id": "59faff1d86f7746c51718c9c",
@@ -85,7 +115,14 @@
         "wikiLink": "https://escapefromtarkov.fandom.com/wiki/Physical_bitcoin",
         "category": { "name": "Info" },
         "sellFor": [
-          { "priceRUB": 400000, "vendor": { "name": "Therapist", "normalizedName": "therapist" } },
+          {
+            "priceRUB": 400000,
+            "vendor": {
+              "name": "Therapist",
+              "normalizedName": "therapist",
+              "trader": { "id": "54cb57776803fa99248b456e" }
+            }
+          },
           { "priceRUB": 930000, "vendor": { "name": "Flea Market", "normalizedName": "flea-market" } }
         ]
       },
@@ -104,7 +141,16 @@
         "iconLink": null,
         "wikiLink": null,
         "category": { "name": "Mechanical Key" },
-        "sellFor": [{ "priceRUB": 3500, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } }]
+        "sellFor": [
+          {
+            "priceRUB": 3500,
+            "vendor": {
+              "name": "Mechanic",
+              "normalizedName": "mechanic",
+              "trader": { "id": "5a7c2eca46aef81a7ca2145d" }
+            }
+          }
+        ]
       },
       {
         "id": "5447a9cd4bdc2dbd208b4567-preset",
@@ -121,7 +167,16 @@
         "iconLink": null,
         "wikiLink": null,
         "category": { "name": "Assault rifle" },
-        "sellFor": [{ "priceRUB": 60000, "vendor": { "name": "Mechanic", "normalizedName": "mechanic" } }]
+        "sellFor": [
+          {
+            "priceRUB": 60000,
+            "vendor": {
+              "name": "Mechanic",
+              "normalizedName": "mechanic",
+              "trader": { "id": "5a7c2eca46aef81a7ca2145d" }
+            }
+          }
+        ]
       },
       {
         "id": "quest-item-no-price",

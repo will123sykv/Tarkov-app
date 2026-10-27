@@ -397,3 +397,26 @@ export function questMaps(quest: Quest): Set<string> {
   }
   return maps
 }
+
+/**
+ * Traders the player hasn't unlocked yet, with the names of the quests that unlock each (since
+ * 1.66.0): a trader some quest's rewards unlock (Jaeger, Ref, Lightkeeper, the BTR driver) is locked
+ * until one of those quests is completed.
+ */
+export function lockedTraders(
+  quests: readonly Pick<Quest, 'id' | 'name' | 'rewards'>[],
+  progress: QuestProgress | undefined
+): Map<string, string[]> {
+  const unlockedBy = new Map<string, string[]>()
+  const unlocked = new Set<string>()
+  for (const quest of quests) {
+    for (const traderId of quest.rewards.traderUnlocks) {
+      if (progress?.[quest.id]?.status === 'completed') unlocked.add(traderId)
+      const names = unlockedBy.get(traderId) ?? []
+      names.push(quest.name)
+      unlockedBy.set(traderId, names)
+    }
+  }
+  for (const id of unlocked) unlockedBy.delete(id)
+  return unlockedBy
+}

@@ -5,7 +5,8 @@ import {
 } from '../../shared/constants'
 import { DEFAULT_FLEA_FEE_RATES, fleaMarketFee } from '../../shared/fleaFee'
 import { TARKOV_DEV_GAME_MODE } from '../../shared/gameModes'
-import type { DataMode, LootItem, PriceDataset, TraderOffer, TraderPrice } from '../../shared/types'
+import { bestSale } from '../../shared/valuation'
+import type { DataMode, LootItem, PriceDataset, TraderOffer, TraderSale } from '../../shared/types'
 import { fetchJson, type FetchFn } from './http'
 
 // json.tarkov.dev serves the raw data behind tarkov.dev's GraphQL API as static files:
@@ -158,15 +159,19 @@ export function normalizeTarkovDevJson(
     sellRequirementFeeRate: flea?.sellRequirementFeeRate ?? DEFAULT_FLEA_FEE_RATES.sellRequirementFeeRate
   }
 
-  function bestTrader(raw: JsonItem): TraderPrice | null {
-    let best: TraderPrice | null = null
+  function sellTo(raw: JsonItem): TraderSale[] {
+    const sales: TraderSale[] = []
     for (const offer of raw.sellToTrader ?? []) {
       const price = positive(offer?.priceRUB)
-      if (!price || (best && price <= best.price)) continue
+      if (!price || !offer.trader) continue
       const trader = input.traders[offer.trader]
-      best = { name: traderText(trader?.name) ?? trader?.normalizedName ?? 'Trader', price }
+      sales.push({
+        traderId: offer.trader,
+        trader: traderText(trader?.name) ?? trader?.normalizedName ?? 'Trader',
+        price
+      })
     }
-    return best
+    return sales
   }
 
   function buyFrom(raw: JsonItem): TraderOffer[] {
@@ -194,6 +199,7 @@ export function normalizeTarkovDevJson(
     const height = Math.max(1, raw.height ?? 1)
     const types = raw.types ?? []
     const fleaPrice = positive(raw.lastLowPrice) ?? positive(raw.avg24hPrice)
+    const sales = sellTo(raw)
     const basePrice = positive(raw.basePrice)
     const categoryId = raw.bsgCategoryId ?? raw.categories?.[0]
     const categoryInfo = categoryId ? input.items.itemCategories?.[categoryId] : undefined
@@ -216,11 +222,13 @@ export function normalizeTarkovDevJson(
       minLevelForFlea: positive(raw.minLevelForFlea),
       fleaPrice,
       fleaFee: fleaPrice && basePrice ? fleaMarketFee(basePrice, fleaPrice, feeRates) : null,
-      bestTrader: bestTrader(raw),
+      bestTrader: bestSale(sales),
+      sellTo: sales,
       basePrice,
       offerCount: typeof raw.lastOfferCount === 'number' ? raw.lastOfferCount : null,
       low24hPrice: positive(raw.low24hPrice),
       high24hPrice: positive(raw.high24hPrice),
+      avg24hPrice: positive(raw.avg24hPrice),
       buyFrom: buyFrom(raw)
     })
   }

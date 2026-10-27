@@ -695,9 +695,10 @@ export default function HideoutView({
     () => ({
       playerLevel: settings.playerLevels[settings.gameMode],
       fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
-      subtractFleaFee: settings.subtractFleaFee
+      subtractFleaFee: settings.subtractFleaFee,
+      lockedTraders: ctx.lockedTraders
     }),
-    [settings.playerLevels, settings.gameMode, settings.subtractFleaFee, priceState]
+    [settings.playerLevels, settings.gameMode, settings.subtractFleaFee, priceState, ctx.lockedTraders]
   )
   const [search, setSearch] = useState('')
   const h = settings.hideout

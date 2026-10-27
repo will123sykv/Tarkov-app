@@ -1,7 +1,8 @@
 import { DEFAULT_FLEA_MIN_LEVEL, PRICE_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import { DEFAULT_FLEA_FEE_RATES } from '../../shared/fleaFee'
 import { TARKOV_DEV_GAME_MODE } from '../../shared/gameModes'
-import type { DataMode, LootItem, PriceDataset, TraderPrice } from '../../shared/types'
+import type { DataMode, LootItem, PriceDataset, TraderSale } from '../../shared/types'
+import { bestSale } from '../../shared/valuation'
 import { tarkovDevQuery, type FetchFn } from './http'
 
 export const PRICES_QUERY = `query LootPrices($gameMode: GameMode) {
@@ -24,7 +25,7 @@ export const PRICES_QUERY = `query LootPrices($gameMode: GameMode) {
     iconLink
     wikiLink
     category { name }
-    sellFor { priceRUB vendor { name normalizedName } }
+    sellFor { priceRUB vendor { name normalizedName ... on TraderOffer { trader { id } } } }
   }
 }`
 
@@ -46,7 +47,12 @@ export interface TarkovDevItem {
   iconLink: string | null
   wikiLink: string | null
   category: { name: string } | null
-  sellFor: { priceRUB: number | null; vendor: { name: string; normalizedName: string } | null }[] | null
+  sellFor:
+    | {
+        priceRUB: number | null
+        vendor: { name: string; normalizedName: string; trader?: { id: string } | null } | null
+      }[]
+    | null
 }
 
 export interface TarkovDevPricesResponse {
@@ -66,14 +72,18 @@ function positive(n: number | null | undefined): number | null {
   return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
 }
 
-function bestTraderOffer(item: TarkovDevItem): TraderPrice | null {
-  let best: TraderPrice | null = null
+function traderSales(item: TarkovDevItem): TraderSale[] {
+  const sales: TraderSale[] = []
   for (const offer of item.sellFor ?? []) {
     const price = positive(offer?.priceRUB)
     if (!price || !offer.vendor || offer.vendor.normalizedName === FLEA_VENDOR) continue
-    if (!best || price > best.price) best = { name: offer.vendor.name, price }
+    sales.push({
+      traderId: offer.vendor.trader?.id ?? offer.vendor.normalizedName,
+      trader: offer.vendor.name,
+      price
+    })
   }
-  return best
+  return sales
 }
 
 export function normalizeTarkovDevItem(raw: TarkovDevItem): LootItem | null {
@@ -81,6 +91,7 @@ export function normalizeTarkovDevItem(raw: TarkovDevItem): LootItem | null {
   const width = Math.max(1, raw.width ?? 1)
   const height = Math.max(1, raw.height ?? 1)
   const types = raw.types ?? []
+  const sales = traderSales(raw)
   return {
     id: raw.id,
     name: raw.name,
@@ -96,11 +107,13 @@ export function normalizeTarkovDevItem(raw: TarkovDevItem): LootItem | null {
     minLevelForFlea: positive(raw.minLevelForFlea),
     fleaPrice: positive(raw.lastLowPrice) ?? positive(raw.avg24hPrice),
     fleaFee: positive(raw.fleaMarketFee),
-    bestTrader: bestTraderOffer(raw),
+    bestTrader: bestSale(sales),
+    sellTo: sales,
     basePrice: positive(raw.basePrice),
     offerCount: typeof raw.lastOfferCount === 'number' ? raw.lastOfferCount : null,
     low24hPrice: positive(raw.low24hPrice),
-    high24hPrice: positive(raw.high24hPrice)
+    high24hPrice: positive(raw.high24hPrice),
+    avg24hPrice: positive(raw.avg24hPrice)
   }
 }
 

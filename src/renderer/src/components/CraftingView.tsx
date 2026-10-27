@@ -200,7 +200,8 @@ export default function CraftingView({
     const valuation = {
       playerLevel: settings.playerLevels[settings.gameMode],
       fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
-      subtractFleaFee: settings.subtractFleaFee
+      subtractFleaFee: settings.subtractFleaFee,
+      lockedTraders: ctx.lockedTraders
     }
     return craftingPlan(
       needs,

@@ -635,7 +635,8 @@ export default function ScavScan({
   const ctx: ValuationContext = {
     playerLevel: settings.playerLevels[settings.gameMode],
     fleaMinLevel: priceState?.dataset?.fleaMinLevel ?? DEFAULT_FLEA_MIN_LEVEL,
-    subtractFleaFee: settings.subtractFleaFee
+    subtractFleaFee: settings.subtractFleaFee,
+    lockedTraders: buyCtx.lockedTraders
   }
   const shotsById = new Map(shots.map((s) => [s.id, s]))
   const shotNumber = new Map(shots.map((s, i) => [s.id, i + 1]))

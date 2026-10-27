@@ -28,6 +28,7 @@ import {
 import { gunsFor } from '../../../shared/settings'
 import { mapGun, mapKills, type MapGun } from '../../../shared/weapons'
 import { squadShared } from '../../../shared/squad'
+import { traderSale } from '../../../shared/valuation'
 import type { HideoutSettings, PriceState, PublicSettings, TodoSettings } from '../../../shared/types'
 import { OBJECTIVE_ICONS, OBJECTIVE_KIND_LABEL, objectiveKind } from '../lib/questPins'
 import type { Group } from '../lib/mapGroups'
@@ -38,7 +39,7 @@ import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useTodoPlan } from '../lib/useTodoPlan'
 import { useHaveShare, useHaveTotals } from '../lib/useHaveShare'
-import { useBuyContext } from '../lib/useKeepList'
+import { useBuyContext, useLockedTraders } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import LoadError from './LoadError'
@@ -196,7 +197,12 @@ function QuestRef({
 }
 
 /** What a quest gives: money, what its items are worth now, experience and the trader's reputation. */
-function rewardLine(quest: Quest, items: Items, trader: QuestTrader | undefined): string | null {
+function rewardLine(
+  quest: Quest,
+  items: Items,
+  trader: QuestTrader | undefined,
+  locked: ReadonlyMap<string, readonly string[]>
+): string | null {
   const parts: string[] = []
   let worth = 0
   for (const { itemId, count } of quest.rewards.items) {
@@ -204,7 +210,7 @@ function rewardLine(quest: Quest, items: Items, trader: QuestTrader | undefined)
     if (money) parts.push(money)
     else {
       const item = items.get(itemId)
-      worth += Math.max(item?.fleaPrice ?? 0, item?.bestTrader?.price ?? 0) * count
+      worth += Math.max(item?.fleaPrice ?? 0, (item && traderSale(item, locked)?.price) ?? 0) * count
     }
   }
   if (worth > 0) parts.push(`items ≈ ${formatRub(worth)}`)
@@ -239,11 +245,12 @@ function QuestCard({
   gun: MapGun | null
 }): React.JSX.Element {
   const setKey = useStore((s) => s.setKey)
+  const locked = useLockedTraders(useStore((s) => s.settings))
   const steps = plan.steps.filter((s) => s.quest === quest)
   const group = plan.group as Group
   const { lines, more } = questSummary(quest, objectives, steps, group, [group.name])
   const missing = [...new Map(steps.flatMap((s) => s.missing).map((k) => [k.join(), k])).values()]
-  const reward = rewardLine(quest, items, trader)
+  const reward = rewardLine(quest, items, trader, locked)
   const blocked = plan.blocked.includes(quest)
   // Its kills that need particular weapons, and the map's chosen gun that covers them (if any).
   const kills = steps.some((s) => s.objective.weapons?.length)

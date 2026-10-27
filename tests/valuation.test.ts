@@ -174,3 +174,38 @@ describe('searchChance', () => {
     expect(searchChance(1, 1.5)).toBe(1)
   })
 })
+
+describe('traders not unlocked yet (since 1.66.0)', () => {
+  const ledx = byName('LEDX')
+  // Jaeger would pay more than Therapist, but only once Introduction is done.
+  const withJaeger = {
+    ...ledx,
+    sellTo: [...(ledx.sellTo ?? []), { traderId: 'jaeger', trader: 'Jaeger', price: 900_000 }],
+    bestTrader: { name: 'Jaeger', price: 900_000, traderId: 'jaeger' }
+  }
+  const locked = new Map([['jaeger', ['Introduction']]])
+
+  it('never suggests selling to a locked trader, and says who would pay more', () => {
+    const r = evaluateItem(withJaeger, { ...ctx(1), lockedTraders: locked })
+    expect(r.trader).toMatchObject({ name: 'Therapist', price: 265_000 })
+    expect(r).toMatchObject({ worth: 265_000, via: 'trader' })
+    expect(r.lockedBetter).toMatchObject({ name: 'Jaeger', price: 900_000, unlockedBy: ['Introduction'] })
+  })
+
+  it('suggests them once unlocked', () => {
+    const r = evaluateItem(withJaeger, { ...ctx(1), lockedTraders: new Map() })
+    expect(r.trader).toMatchObject({ name: 'Jaeger', price: 900_000 })
+    expect(r.lockedBetter).toBeNull()
+  })
+
+  it('falls back to the best trader for prices saved before every offer was kept', () => {
+    const { sellTo: _, ...old } = withJaeger
+    expect(evaluateItem(old, { ...ctx(1), lockedTraders: locked }).trader?.name).toBe('Jaeger')
+  })
+
+  it('keeps every trader’s offer from tarkov.dev', () => {
+    expect(ledx.sellTo).toEqual([
+      { traderId: '54cb57776803fa99248b456e', trader: 'Therapist', price: 265_000 }
+    ])
+  })
+})
