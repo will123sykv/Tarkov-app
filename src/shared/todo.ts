@@ -669,3 +669,22 @@ export function killObjectives(
   const maps = (k: KillToDo): number => objectiveMapIds(k.objective).length
   return [...here.sort((a, b) => maps(a) - maps(b) || byQuest(a, b)), ...anywhere.sort(byQuest)]
 }
+
+/**
+ * What a raid on one map could have got done (since 1.68.0), for the popup after it: the plan's steps on
+ * that map (its group's key), then the ones for any map, leaving out quests taken off the map (Quests on
+ * this map). Build the plan as the map does (`owned`, and `hideBlocked` with Only quests I can do).
+ */
+export function afterRaidSteps(
+  plan: Pick<TodoPlan, 'maps' | 'anyMap'>,
+  groupKey: string | undefined,
+  hidden: ReadonlySet<string>
+): { here: TodoStep[]; anyMap: TodoStep[] } {
+  const shown = (s: TodoStep): boolean => !hidden.has(s.quest.id)
+  const here = (groupKey ? plan.maps.find((p) => p.group.key === groupKey)?.steps : undefined) ?? []
+  const seen = new Set(here.map((s) => `${s.quest.id}:${s.objective.id}`))
+  return {
+    here: here.filter(shown),
+    anyMap: plan.anyMap.filter((s) => shown(s) && !seen.has(`${s.quest.id}:${s.objective.id}`))
+  }
+}

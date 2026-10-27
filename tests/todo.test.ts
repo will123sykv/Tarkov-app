@@ -4,6 +4,7 @@ import { blockedByKeys } from '../src/shared/keys'
 import type { QuestStatus } from '../src/shared/questProgress'
 import type { Quest, QuestObjective } from '../src/shared/questTypes'
 import {
+  afterRaidSteps,
   anyMapTake,
   takeToMap,
   inRaid,
@@ -630,5 +631,33 @@ describe('items to bring', () => {
     expect(anyMap.bring).toEqual([{ itemIds: ['stim'], count: 2, anyMap: true }])
     const customs = plan.maps.find((p) => p.group.key === 'customs')!
     expect(takeToMap(customs, anyMap).bring).toEqual([{ itemIds: ['stim'], count: 2, anyMap: true }])
+  })
+})
+
+describe('afterRaidSteps (since 1.68.0)', () => {
+  const KEY = 'key-1'
+  const plain = quest('plain', [objective('visit', 'visit', { zones: [{ map: CUSTOMS }] as never })])
+  const locked = quest('locked', [
+    objective('room', 'visit', { zones: [{ map: CUSTOMS }] as never, requiredKeys: [[KEY]] })
+  ])
+  const anywhere = quest('anywhere', [objective('kill', 'shoot', { maps: [], count: 5 })])
+  const rows = [row(plain), row(locked), row(anywhere)]
+  const ids = (steps: { quest: Quest; objective: QuestObjective }[]): string[] =>
+    steps.map((s) => `${s.quest.id}:${s.objective.id}`)
+
+  it('lists the map’s steps then any map’s, leaving out quests taken off the map', () => {
+    const plan = todoPlan(rows, {}, groupOf)
+    expect(ids(afterRaidSteps(plan, 'customs', new Set()).here)).toEqual(['plain:visit', 'locked:room'])
+    expect(ids(afterRaidSteps(plan, 'customs', new Set()).anyMap)).toEqual(['anywhere:kill'])
+    const hidden = afterRaidSteps(plan, 'customs', new Set(['plain', 'anywhere']))
+    expect([ids(hidden.here), ids(hidden.anyMap)]).toEqual([['locked:room'], []])
+    expect(ids(afterRaidSteps(plan, undefined, new Set()).here)).toEqual([])
+  })
+
+  it('leaves out a quest a key you don’t have holds up, with Only quests I can do', () => {
+    const doable = todoPlan(rows, {}, groupOf, { owned: new Set(), hideBlocked: true })
+    expect(ids(afterRaidSteps(doable, 'customs', new Set()).here)).toEqual(['plain:visit'])
+    const withKey = todoPlan(rows, {}, groupOf, { owned: new Set([KEY]), hideBlocked: true })
+    expect(ids(afterRaidSteps(withKey, 'customs', new Set()).here)).toEqual(['plain:visit', 'locked:room'])
   })
 })

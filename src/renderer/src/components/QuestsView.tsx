@@ -275,28 +275,69 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   // "Only quests I can do" (Settings) leaves out quests still to do that a key the player doesn't have
   // holds up (friends' keys count when that's on). A search, and the quest opened, still find them.
   const { owned } = useFriendKeys(settings)
-  const doable = settings.todo.show === 'doable' && term === ''
+  const onlyDoable = settings.todo.show === 'doable'
+  // The sidebar's filters, for the quest list and (since 1.68.0) Path and Items to hand over.
+  const sidebarMatch = useCallback(
+    ({ quest }: QuestRow): boolean =>
+      (!q.traderId || quest.traderId === q.traderId) &&
+      (!q.mapId || onMap(quest, q.mapId)) &&
+      (!q.kappaOnly || quest.kappaRequired) &&
+      (!q.lightkeeperOnly || quest.lightkeeperRequired),
+    [q.traderId, q.mapId, q.kappaOnly, q.lightkeeperOnly, onMap]
+  )
+  const canDo = useCallback(
+    ({ quest, status }: QuestRow): boolean =>
+      !onlyDoable ||
+      status === 'completed' ||
+      status === 'failed' ||
+      quest.id === selected ||
+      blockedByKeys(quest, owned, objectives).length === 0,
+    [onlyDoable, selected, owned, objectives]
+  )
+  const matches = useCallback(
+    (row: QuestRow): boolean => q.statuses.includes(row.status) && sidebarMatch(row) && canDo(row),
+    [q.statuses, sidebarMatch, canDo]
+  )
   const { shown, keyHidden } = useMemo(() => {
     // A search looks through every status, so a quest is found wherever it is.
     const listed = (term ? everyRow : all).filter(
-      ({ quest, status }) =>
-        (term !== '' || q.statuses.includes(status)) &&
-        (!q.traderId || quest.traderId === q.traderId) &&
-        (!q.mapId || onMap(quest, q.mapId)) &&
-        (!q.kappaOnly || quest.kappaRequired) &&
-        (!q.lightkeeperOnly || quest.lightkeeperRequired) &&
-        (!term || quest.name.toLowerCase().includes(term))
+      (row) =>
+        (term !== '' || q.statuses.includes(row.status)) &&
+        sidebarMatch(row) &&
+        (!term || row.quest.name.toLowerCase().includes(term))
     )
-    if (!doable) return { shown: listed, keyHidden: 0 }
-    const shown = listed.filter(
-      ({ quest, status }) =>
-        status === 'completed' ||
-        status === 'failed' ||
-        quest.id === selected ||
-        blockedByKeys(quest, owned, objectives).length === 0
-    )
+    // A search finds quests a key holds up too.
+    const shown = term ? listed : listed.filter(canDo)
     return { shown, keyHidden: listed.length - shown.length }
-  }, [all, everyRow, q, term, doable, owned, objectives, selected, onMap])
+  }, [all, everyRow, q.statuses, term, sidebarMatch, canDo])
+  // What the sidebar narrows Path and Items to hand over to, said over them, with a way back.
+  const narrowing = [
+    q.traderId ? (dataset?.traders.find((t) => t.id === q.traderId)?.name ?? 'one trader') : null,
+    q.mapId ? (mapsById.get(q.mapId)?.name ?? 'one map') : null,
+    q.kappaOnly ? 'needed for Kappa' : null,
+    q.lightkeeperOnly ? 'needed for Lightkeeper' : null
+  ].filter((x): x is string => x !== null)
+  const filterNote = (
+    <span className="hint">
+      {narrowing.length > 0 && (
+        <>
+          Only {narrowing.join(' · ')}.{' '}
+          <button
+            className="link small"
+            onClick={() =>
+              void updateSettings({
+                quests: { ...q, traderId: null, mapId: null, kappaOnly: false, lightkeeperOnly: false }
+              })
+            }
+          >
+            Clear filters
+          </button>{' '}
+        </>
+      )}
+      Filtered by the sidebar
+      {onlyDoable ? ' and Only quests I can do' : ''} (Show, trader, map, Kappa, Lightkeeper).
+    </span>
+  )
 
   // Traders whose every quest the Show filters leave out (the BTR Driver's are all Locked until his
   // chain starts), with how many of each status: said under the list, so they don't seem missing.
@@ -487,12 +528,21 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           </div>
         </div>
         {tab === 'items' ? (
-          <NeededItems rows={all} objectives={objectives} settings={settings} priceState={priceState} />
+          <NeededItems
+            rows={all.filter(matches)}
+            objectives={objectives}
+            settings={settings}
+            priceState={priceState}
+            note={filterNote}
+            activeShown={q.statuses.includes('active')}
+          />
         ) : (
           <div className="quests-main">
             {tab === 'path' ? (
               <QuestPath
                 rows={pathRows}
+                filter={matches}
+                note={filterNote}
                 traders={dataset?.traders ?? []}
                 selected={selected}
                 onSelect={onSelect}

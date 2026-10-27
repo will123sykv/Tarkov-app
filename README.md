@@ -543,13 +543,16 @@ the game's install folder, or its `build` folder.
   key you don't have holds up leave the list, and a line above it says how many (a search still
   finds them). **Items to hand over** lists what your active
   quests still want handed over or planted, flagging found-in-raid
-  items, with how many you've put aside in Items to collect (**Have**, ticked when it's enough).
+  items, with how many you've put aside in Items to collect (**Have**, ticked when it's enough). The
+  sidebar's filters apply to it as to the quest list (**Show**, trader, map, Kappa, Lightkeeper and
+  **Only quests I can do**); a line over it says what they narrow it to, with **Clear filters**.
 - **Path** (Quests tab): which quests to do next for **Kappa** or **Lightkeeper**. Each quest you
   can take now (or once you level up, with what it's waiting on) shows how many of that collector's
   quests left it is or leads to, directly or further down its chain, most first (ties go to the
   lower level, then to quests already started). The line at the top says how many are done and
-  left, and how many wait only on your level. The All · Story · Side switch and **Only quests I can
-  do** apply, and clicking a quest opens it.
+  left, and how many wait only on your level. The All · Story · Side switch and the sidebar's filters
+  (**Show**, trader, map, Kappa, Lightkeeper, **Only quests I can do**) pick which quests are listed,
+  while the counts still take every quest into account; clicking a quest opens it.
 - **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
   the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
   for Bad Habit handed over (per game mode, kept with your progress). The quest list shows how many
@@ -559,8 +562,11 @@ the game's install folder, or its `build` folder.
 - **After a raid:** when the game's logs see a PMC raid end, a popup lists what your active quests
   had left on that map, and on any map, to tick off (or count up kills) there and then; it's saved
   as you go, and **Done** or Esc closes it. Scav raids, raids that ended over 15 minutes ago and
-  reading the logs again from scratch don't ask. Turn it off with **Ask what I did after each raid**
-  in Settings, under the game's logs.
+  reading the logs again from scratch don't ask. It follows the map's filters: quests taken off the
+  map (**Quests on this map**) and of the kind not shown (All · Story · Side) are left out, and with
+  **Only quests I can do** so is a quest a key you don't have holds up (friends' keys count with
+  **Count friends' keys**), and on a map you can't get onto only what's for any map is listed. Turn
+  it off with **Ask what I did after each raid** in Settings, under the game's logs.
 - **Objectives ticked off for you:** the game's logs only say when a quest starts, finishes or
   fails, not its objectives, but some the app can tell by itself, marked **auto** (point at it to
   see why): "reach level N" from your PMC level, "reach loyalty level N with a trader" from the

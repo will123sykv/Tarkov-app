@@ -19,13 +19,20 @@ export default function NeededItems({
   rows,
   objectives,
   settings,
-  priceState
+  priceState,
+  note,
+  activeShown = true
 }: {
+  /** The quests the Quests tab's sidebar filters leave in (since 1.68.0). */
   rows: QuestRow[]
   /** How far along each objective is (hand-overs already made aren't needed). */
   objectives: ObjectiveProgress
   settings: PublicSettings
   priceState: PriceState | null
+  /** Says what the sidebar filters by. */
+  note?: React.ReactNode
+  /** Whether Show includes Active quests (none are listed without). */
+  activeShown?: boolean
 }) {
   const selectQuest = useStore((s) => s.selectQuest)
   // What's put aside for each quest, shared with the hideout and other quests (since 1.66.0).
@@ -96,10 +103,17 @@ export default function NeededItems({
         <span className="hint">
           For your active quests. Have is what you&rsquo;ve put aside in Items to collect.
         </span>
+        {note}
       </div>
       {needed.length === 0 && anyOf.length === 0 ? (
         <div className="empty">
-          <p>Nothing to hand over for your active quests.</p>
+          <p>
+            {!activeShown
+              ? 'Tick Active under Show on the left to list what your active quests need.'
+              : note
+                ? 'Nothing to hand over for the active quests the filters leave in.'
+                : 'Nothing to hand over for your active quests.'}
+          </p>
         </div>
       ) : (
         <table className="values-table needed-table">

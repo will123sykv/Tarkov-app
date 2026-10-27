@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RaidEnded } from '../../../shared/logTypes'
 import { objectiveValue } from '../../../shared/questProgress'
 import type { Quest, QuestObjective } from '../../../shared/questTypes'
-import { todoPlan } from '../../../shared/todo'
+import { ofKind } from '../../../shared/questKind'
+import { afterRaidSteps, todoPlan } from '../../../shared/todo'
 import type { PublicSettings } from '../../../shared/types'
 import { mapGroups } from '../lib/mapGroups'
 import { raidMapLookup } from '../lib/storyMaps'
+import { useFriendKeys } from '../lib/useFriendKeys'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
 import { ObjectiveTick } from './QuestDetail'
@@ -37,7 +39,13 @@ function AfterRaidDialog({
   settings: PublicSettings
   onClose: () => void
 }): React.JSX.Element | null {
-  const { rows, questState, objectives, detected } = useQuestRows(settings)
+  const { rows: everyRow, questState, objectives, detected } = useQuestRows(settings)
+  // The map's filters (since 1.68.0): All · Story · Side, quests taken off the map, and Only quests I
+  // can do (your keys, and friends' with Count friends' keys on).
+  const rows = useMemo(() => ofKind(everyRow, settings.quests.kind), [everyRow, settings.quests.kind])
+  const { owned } = useFriendKeys(settings)
+  const doable = settings.todo.show === 'doable'
+  const hidden = useMemo(() => new Set(settings.maps.hiddenQuests), [settings.maps.hiddenQuests])
   const maps = questState?.dataset?.maps
   const groups = useMemo(() => mapGroups(maps ?? []), [maps])
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
@@ -49,17 +57,12 @@ function AfterRaidDialog({
   // What was left to do when the raid ended, kept while the popup is open so ticked steps stay listed.
   const [steps, setSteps] = useState<{ here: Step[]; anyMap: Step[] } | null>(null)
   useEffect(() => {
-    if (steps || !maps || !rows.length) return
-    const plan = todoPlan(rows, objectives, groupOf)
-    const here = (group ? plan.maps.find((p) => p.group.key === group.key)?.steps : undefined) ?? []
-    const seen = new Set(here.map((s) => `${s.quest.id}:${s.objective.id}`))
-    setSteps({
-      here: here.map(({ quest, objective }) => ({ quest, objective })),
-      anyMap: plan.anyMap
-        .filter((s) => !seen.has(`${s.quest.id}:${s.objective.id}`))
-        .map(({ quest, objective }) => ({ quest, objective }))
-    })
-  }, [steps, maps, rows, objectives, groupOf, group])
+    if (steps || !maps || !everyRow.length) return
+    const plan = todoPlan(rows, objectives, groupOf, { owned, hideBlocked: doable })
+    const { here, anyMap } = afterRaidSteps(plan, group?.key, hidden)
+    const strip = ({ quest, objective }: Step): Step => ({ quest, objective })
+    setSteps({ here: here.map(strip), anyMap: anyMap.map(strip) })
+  }, [steps, maps, everyRow, rows, objectives, groupOf, group, owned, doable, hidden])
 
   const nothing = steps !== null && steps.here.length + steps.anyMap.length === 0
   useEffect(() => {
@@ -78,7 +81,7 @@ function AfterRaidDialog({
 
   if (!steps || nothing) return null
   const { raid } = ended
-  const completed = new Set(rows.filter((r) => r.status === 'completed').map((r) => r.quest.id))
+  const completed = new Set(everyRow.filter((r) => r.status === 'completed').map((r) => r.quest.id))
   const list = (title: string, items: Step[]): React.JSX.Element | null => {
     if (!items.length) return null
     const byQuest = new Map<Quest, QuestObjective[]>()

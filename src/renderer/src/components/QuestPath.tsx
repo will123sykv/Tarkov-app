@@ -15,7 +15,9 @@ export default function QuestPath({
   traders,
   selected,
   onSelect,
-  lockText
+  lockText,
+  filter,
+  note
 }: {
   rows: readonly QuestRow[]
   traders: readonly QuestTrader[]
@@ -23,9 +25,15 @@ export default function QuestPath({
   onSelect: (id: string) => void
   /** Why a quest can't be taken yet (empty when it can). */
   lockText: (row: QuestRow) => string
+  /** The quest list's sidebar filters (since 1.68.0): only the quests listed, not what's counted. */
+  filter: (row: QuestRow) => boolean
+  /** Says what the sidebar filters by. */
+  note: React.ReactNode
 }): React.JSX.Element {
   const [target, setTarget] = useState<PathTarget>('kappa')
   const scores = useMemo(() => pathScores(rows, target), [rows, target])
+  // Counted over every quest of the kind shown, so the numbers stay true; listed as the sidebar says.
+  const listed = useMemo(() => scores.rows.filter(filter), [scores.rows, filter])
   const traderName = useMemo(() => new Map(traders.map((t) => [t.id, t.name])), [traders])
   const label = TARGET_LABEL[target]
   return (
@@ -53,17 +61,20 @@ export default function QuestPath({
         Quests you can do now, or once you level up, by how many of the {label} quests left each one is or
         leads to. Click one to open it.
       </p>
-      {scores.rows.length === 0 ? (
+      <p className="quest-list-note">{note}</p>
+      {listed.length === 0 ? (
         <div className="empty">
           <p>
-            {scores.left
-              ? `Nothing you can take now leads to a ${label} quest.`
-              : `Every ${label} quest is done.`}
+            {scores.rows.length
+              ? 'No quests match the filters on the left.'
+              : scores.left
+                ? `Nothing you can take now leads to a ${label} quest.`
+                : `Every ${label} quest is done.`}
           </p>
         </div>
       ) : (
         <ul>
-          {scores.rows.map((r) => {
+          {listed.map((r) => {
             const lock = r.status === 'locked' ? lockText(r) : ''
             return (
               <li key={r.quest.id} className="quest-item">
