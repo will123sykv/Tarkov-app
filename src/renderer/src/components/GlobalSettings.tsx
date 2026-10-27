@@ -203,6 +203,18 @@ export function CraftingSettingsSection({ settings }: { settings: PublicSettings
         isn&rsquo;t left waiting on you every few minutes. They&rsquo;re crafted next only when nothing your
         upgrades and quests need can be made there.
       </p>
+      <label className="check" title="Started on a craft times it; when it's done, Windows says so">
+        <input
+          type="checkbox"
+          checked={c.notifyDone}
+          onChange={(e) => void updateSettings({ crafting: { ...c, notifyDone: e.target.checked } })}
+        />
+        Notify me when crafts are done
+      </label>
+      <p className="hint">
+        <em>Started</em> times the craft (at its usual time; skills and bonuses can make it quicker), and a
+        Windows notification says when it&rsquo;s done, from the tray too with background recording on.
+      </p>
     </section>
   )
 }

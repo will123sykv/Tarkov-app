@@ -27,6 +27,7 @@ import { useItemLookup } from '../lib/useItemLookup'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
+import CraftTimers from './CraftTimers'
 import LoadError from './LoadError'
 import OverviewNav from './OverviewNav'
 import { ItemChip } from './QuestDetail'
@@ -236,6 +237,7 @@ export default function CraftingView({
     )
   }, [rows, objectives, stations, progress])
   const setHaveMany = useStore((s) => s.setHideoutHaveMany)
+  const startTimer = useStore((s) => s.startCraftTimer)
   const [started, setStarted] = useState<Started | null>(null)
   const message = (err: unknown): string => (err instanceof Error ? err.message : String(err))
   const startCraft = (craft: HideoutCraft, station: string): void => {
@@ -253,6 +255,15 @@ export default function CraftingView({
       .join(', ')
     const id = ++startedId
     setStarted({ id, what, station, before, after, error: null, undoing: false, undoFailed: false })
+    // Timed, to say when it's done (since 1.66.0).
+    startTimer({
+      stationId: craft.stationId,
+      craftId: craft.id,
+      label: `${what} at the ${station}`,
+      seconds: craft.duration
+    }).catch((err: unknown) =>
+      setStarted((s) => (s?.id === id ? { ...s, error: `Couldn’t time it: ${message(err)}` } : s))
+    )
     if (!Object.values(after).some((counts) => Object.keys(counts).length)) return
     setHaveMany(after).catch((err: unknown) =>
       setStarted((s) =>
@@ -410,6 +421,7 @@ export default function CraftingView({
             </label>
           </div>
         </div>
+        <CraftTimers gameMode={settings.gameMode} />
         {opened ? (
           <div key={`station:${opened.stationId}`} className="crafting-stations opened">
             <OverviewNav

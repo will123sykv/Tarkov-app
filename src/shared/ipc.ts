@@ -19,6 +19,7 @@ import type {
   UpdaterStatus
 } from './types'
 import type { FavouriteKind, Favourites } from './favourites'
+import type { CraftStart, CraftTimer } from './craftTimers'
 
 export const IPC = {
   settingsGet: 'settings:get',
@@ -56,6 +57,10 @@ export const IPC = {
   copyText: 'clipboard:copy-text',
   favouritesGet: 'favourites:get',
   favouritesSet: 'favourites:set',
+  craftsGet: 'crafts:get',
+  craftsStart: 'crafts:start',
+  craftsClear: 'crafts:clear',
+  craftsChanged: 'crafts:changed',
   scanReadText: 'scan:read-text',
   scanGridImage: 'scan:grid-image',
   scanLatestScreenshot: 'scan:latest-screenshot',
@@ -168,6 +173,11 @@ export interface TarkovApi {
   copyText(text: string): Promise<void>
   /** Items, upgrades and quests the player starred (per game mode). */
   getFavourites(gameMode: GameMode): Promise<Favourites>
+  /** Crafts put on, timed to say when they're done (since 1.66.0). */
+  getCraftTimers(gameMode: GameMode): Promise<CraftTimer[]>
+  startCraftTimer(gameMode: GameMode, start: CraftStart): Promise<CraftTimer[]>
+  clearCraftTimer(gameMode: GameMode, stationId: string): Promise<CraftTimer[]>
+  onCraftTimers(listener: (update: { gameMode: GameMode; crafts: CraftTimer[] }) => void): () => void
   /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */
   setFavourite(gameMode: GameMode, kind: FavouriteKind, id: string, on: boolean): Promise<Favourites>
   /** Read labels cut out of a screenshot (OCR, offline). */

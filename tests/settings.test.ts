@@ -446,8 +446,10 @@ describe('sanitizeSettings', () => {
       sort: { key: 'priority', desc: false },
       firOnly: false,
       currentOnly: false,
-      layout: 'tiles'
+      layout: 'tiles',
+      notifyDone: true
     })
+    expect(sanitizeSettings({ crafting: { notifyDone: false } }).crafting.notifyDone).toBe(false)
     expect(
       sanitizeSettings({
         view: 'crafting',
@@ -478,7 +480,8 @@ describe('sanitizeSettings', () => {
       sort: { key: 'priority', desc: false },
       firOnly: false,
       currentOnly: false,
-      layout: 'tiles'
+      layout: 'tiles',
+      notifyDone: true
     })
   })
 

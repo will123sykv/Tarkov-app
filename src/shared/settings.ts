@@ -114,7 +114,8 @@ export const DEFAULT_SETTINGS: Settings = {
     sort: { key: 'priority', desc: false },
     firOnly: false,
     currentOnly: false,
-    layout: 'tiles'
+    layout: 'tiles',
+    notifyDone: true
   },
   sidebars: {},
   tableSorts: {}
@@ -402,7 +403,8 @@ function sanitizeCrafting(raw: unknown): CraftingSettings {
     },
     firOnly: r.firOnly === true,
     currentOnly: r.currentOnly === true,
-    layout: r.layout === 'list' ? 'list' : 'tiles'
+    layout: r.layout === 'list' ? 'list' : 'tiles',
+    notifyDone: r.notifyDone !== false
   }
 }
 

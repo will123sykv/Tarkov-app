@@ -37,6 +37,10 @@ const api: TarkovApi = {
   setOwnedKeys: (gameMode, keyIds) => ipcRenderer.invoke(IPC.keysSetOwned, gameMode, keyIds),
   copyText: (text) => ipcRenderer.invoke(IPC.copyText, text),
   getFavourites: (gameMode) => ipcRenderer.invoke(IPC.favouritesGet, gameMode),
+  getCraftTimers: (gameMode) => ipcRenderer.invoke(IPC.craftsGet, gameMode),
+  startCraftTimer: (gameMode, start) => ipcRenderer.invoke(IPC.craftsStart, gameMode, start),
+  clearCraftTimer: (gameMode, stationId) => ipcRenderer.invoke(IPC.craftsClear, gameMode, stationId),
+  onCraftTimers: (listener) => subscribe(IPC.craftsChanged, listener),
   setFavourite: (gameMode, kind, id, on) => ipcRenderer.invoke(IPC.favouritesSet, gameMode, kind, id, on),
   setStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),

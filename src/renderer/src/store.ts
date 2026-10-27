@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
 import { haveCount, type HaveCounts, type HaveKind, type HideoutProgress } from '../../shared/hideout'
+import type { CraftStart, CraftTimer } from '../../shared/craftTimers'
 import type { KeyInventory } from '../../shared/keys'
 import type { LogHistory, LogWatcherStatus, RaidEnded } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
@@ -51,6 +52,8 @@ interface AppStore {
   keys: Partial<Record<GameMode, KeyInventory>>
   /** Items, upgrades and quests starred, per game mode (listed over the map). */
   favourites: Partial<Record<GameMode, Favourites>>
+  /** Crafts put on, timed (since 1.66.0). */
+  craftTimers: Partial<Record<GameMode, CraftTimer[]>>
   /** A key to show the locks and spawns of on the Maps tab. */
   keyFocus: string | null
   /** The map opened from the To do tab's overview (a map group's key), or null for the overview. */
@@ -113,6 +116,8 @@ interface AppStore {
   showKeyOnMap(keyId: string | null, mapKey?: string): Promise<void>
   openTodoMap(mapKey: string | null): void
   closeRaidEnded(): void
+  startCraftTimer(start: CraftStart): Promise<void>
+  clearCraftTimer(stationId: string): Promise<void>
   openCraftingStation(stationId: string | null): void
   openWeaponsMap(mapKey: string | null): void
   setHideoutHaveMany(counts: HaveCounts): Promise<void>
@@ -175,6 +180,7 @@ export const useStore = create<AppStore>((set, get) => ({
   hideoutProgress: {},
   keys: {},
   favourites: {},
+  craftTimers: {},
   keyFocus: null,
   todoMap: null,
   craftingStation: null,
@@ -212,7 +218,10 @@ export const useStore = create<AppStore>((set, get) => ({
         set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
       ),
       api.onLogStatus((logStatus) => set({ logStatus })),
-      api.onRaidEnded((raidEnded) => set({ raidEnded }))
+      api.onRaidEnded((raidEnded) => set({ raidEnded })),
+      api.onCraftTimers(({ gameMode, crafts }) =>
+        set((s) => ({ craftTimers: { ...s.craftTimers, [gameMode]: crafts } }))
+      )
     ]
     void api.getLogStatus().then((logStatus) => set((s) => (s.logStatus ? s : { logStatus })))
     void get().loadProgressInfo()
@@ -407,17 +416,19 @@ export const useStore = create<AppStore>((set, get) => ({
     const settings = get().settings
     if (!settings) return
     const gameMode = settings.gameMode
-    const [progress, history, hideout, objectives, storyPins, keys, favourites] = await Promise.all([
+    const [progress, history, hideout, objectives, storyPins, keys, favourites, crafts] = await Promise.all([
       window.api.getQuestProgress(gameMode),
       window.api.getLogHistory(gameMode),
       window.api.getHideoutProgress(gameMode),
       window.api.getObjectiveProgress(gameMode),
       window.api.getStoryPins(),
       window.api.getKeys(gameMode),
-      window.api.getFavourites(gameMode)
+      window.api.getFavourites(gameMode),
+      window.api.getCraftTimers(gameMode)
     ])
     set((s) => ({
       storyPins,
+      craftTimers: { ...s.craftTimers, [gameMode]: crafts },
       keys: { ...s.keys, [gameMode]: keys },
       favourites: { ...s.favourites, [gameMode]: favourites },
       questProgress: { ...s.questProgress, [gameMode]: progress },
@@ -490,6 +501,18 @@ export const useStore = create<AppStore>((set, get) => ({
 
   openTodoMap: (todoMap) => set({ todoMap }),
   closeRaidEnded: () => set({ raidEnded: null }),
+  async startCraftTimer(start) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const crafts = await window.api.startCraftTimer(gameMode, start)
+    set((s) => ({ craftTimers: { ...s.craftTimers, [gameMode]: crafts } }))
+  },
+  async clearCraftTimer(stationId) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const crafts = await window.api.clearCraftTimer(gameMode, stationId)
+    set((s) => ({ craftTimers: { ...s.craftTimers, [gameMode]: crafts } }))
+  },
   openCraftingStation: (craftingStation) => set({ craftingStation }),
   openWeaponsMap: (weaponsMap) => set({ weaponsMap }),
 

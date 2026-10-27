@@ -1,3 +1,4 @@
+import { craftResources, FUEL_TANKS, unitCost, WATER_FILTERS } from './hideoutResources'
 import { CURRENCIES } from './constants'
 import { neededItems, type NeededItem, type ObjectiveProgress } from './questProgress'
 import type { HideoutCraft, HideoutLevel, HideoutStation, Quest, TraderBarter } from './questTypes'
@@ -406,6 +407,9 @@ export interface CraftProfit {
   unbuyable: string[]
   /** What it makes sells for (roubles); null when something it makes has no price. */
   value: number | null
+  /** Roubles of fuel and water filter it burns (an estimate; since 1.66.0), taken off the profit. */
+  fuel: number | null
+  filter: number | null
   profit: number | null
   /** Profit per hour of crafting time. */
   perHour: number | null
@@ -413,14 +417,19 @@ export interface CraftProfit {
 
 /**
  * Every craft with its cost (inputs at the cheapest place to buy them now) and value (outputs at what
- * `worth` says they sell for). Tools aren't used up, so they cost nothing; fuel, skills and hideout
- * bonuses aren't counted.
+ * `worth` says they sell for), less the fuel and water filter it burns. Tools aren't used up, so they
+ * cost nothing; skills and hideout bonuses aren't counted.
  */
 export function craftProfits(
   cc: CraftContext,
   ctx: BuyContext,
   worth: (item: LootItem) => number
 ): CraftProfit[] {
+  const price = (id: string): number | null => unitPrice(id, cc.items, ctx)
+  const fuelUnit = unitCost(FUEL_TANKS, price)
+  const filterUnit = unitCost(WATER_FILTERS, price)
+  const solar = [...cc.stations.values()].find((s) => s.normalizedName === 'solar-power')
+  const solarPower = !!solar && stationLevel(solar, cc.progress) >= 1
   return cc.crafts.map((craft) => {
     const station = cc.stations.get(craft.stationId)
     const level = station ? stationLevel(station, cc.progress) : 0
@@ -436,7 +445,8 @@ export function craftProfits(
       const item = cc.items.get(output.itemId)
       value = value !== null && item ? value + worth(item) * output.count : null
     }
-    const profit = cost !== null && value !== null ? value - cost : null
+    const { fuel, filter } = craftResources(craft, station, solarPower, fuelUnit, filterUnit)
+    const profit = cost !== null && value !== null ? value - cost - (fuel ?? 0) - (filter ?? 0) : null
     return {
       craft,
       stationName: station?.name ?? 'the hideout',
@@ -447,6 +457,8 @@ export function craftProfits(
       cost,
       unbuyable,
       value,
+      fuel,
+      filter,
       profit,
       perHour: profit !== null ? (profit * 3600) / Math.max(1, craft.duration) : null
     }

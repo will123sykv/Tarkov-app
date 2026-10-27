@@ -1,3 +1,4 @@
+import { sanitizeCraftTimers, withTimer, type CraftTimer } from '../../shared/craftTimers'
 import {
   EMPTY_HIDEOUT,
   haveCount,
@@ -49,6 +50,8 @@ interface Saved {
   keys: Record<GameMode, KeyInventory>
   /** Items, upgrades and quests the player starred, listed over the map. Since 1.27.0. */
   favourites: Record<GameMode, Favourites>
+  /** Crafts put on, timed to say when they're done. Since 1.66.0. */
+  crafts: Record<GameMode, CraftTimer[]>
 }
 
 /** Item counts are whole and at least 0; a count of 0 isn't kept. */
@@ -70,7 +73,8 @@ const empty = (): Saved => ({
   objectives: { pvp: {}, pve: {}, season: {} },
   pins: {},
   keys: { pvp: EMPTY_KEYS, pve: EMPTY_KEYS, season: EMPTY_KEYS },
-  favourites: { pvp: EMPTY_FAVOURITES, pve: EMPTY_FAVOURITES, season: EMPTY_FAVOURITES }
+  favourites: { pvp: EMPTY_FAVOURITES, pve: EMPTY_FAVOURITES, season: EMPTY_FAVOURITES },
+  crafts: { pvp: [], pve: [], season: [] }
 })
 
 /** A saved key list: ids only, each once (files from before 1.17.0 have none). */
@@ -172,7 +176,10 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
           ) as Saved['keys'],
           favourites: Object.fromEntries(
             MODES.map((mode) => [mode, sanitizeFavourites(raw.favourites?.[mode])])
-          ) as Saved['favourites']
+          ) as Saved['favourites'],
+          crafts: Object.fromEntries(
+            MODES.map((mode) => [mode, sanitizeCraftTimers(raw.crafts?.[mode])])
+          ) as Saved['crafts']
         }
       : base
   }
@@ -292,6 +299,35 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       d.favourites[mode] = { ...current, [kind]: on ? [...without, id] : without }
       await save()
       return d.favourites[mode]
+    },
+
+    async crafts(mode: GameMode): Promise<CraftTimer[]> {
+      return (await load()).crafts[mode]
+    },
+
+    /** Time a craft put on, in place of the station's last one (since 1.66.0). */
+    async startCraft(mode: GameMode, timer: CraftTimer): Promise<CraftTimer[]> {
+      const d = await load()
+      d.crafts[mode] = withTimer(d.crafts[mode], timer)
+      await save()
+      return d.crafts[mode]
+    },
+
+    /** A station's craft collected (or no longer timed). */
+    async clearCraft(mode: GameMode, stationId: string): Promise<CraftTimer[]> {
+      const d = await load()
+      d.crafts[mode] = d.crafts[mode].filter((t) => t.stationId !== stationId)
+      await save()
+      return d.crafts[mode]
+    },
+
+    /** Crafts whose "done" has been said. */
+    async markCraftsNotified(mode: GameMode, stationIds: string[]): Promise<CraftTimer[]> {
+      const d = await load()
+      const said = new Set(stationIds)
+      d.crafts[mode] = d.crafts[mode].map((t) => (said.has(t.stationId) ? { ...t, notified: true } : t))
+      await save()
+      return d.crafts[mode]
     },
 
     async pins(): Promise<StoryPins> {

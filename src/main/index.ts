@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, net, Notification, protocol, safeStorage, shell } from 'electron'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { dataModeFor } from '../shared/gameModes'
@@ -14,6 +14,7 @@ import { raidsToAsk } from './logs/afterRaid'
 import { createLogsLocator } from './logs/locate'
 import { createLogWatcher } from './logs/watcher'
 import { createBackups } from './backups'
+import { createCraftNotifier } from './craftTimers'
 import { createMapAssetHandler, MAP_SCHEME } from './maps/mapAssets'
 import { createPriceController } from './pricing/priceController'
 import { createPriceService } from './pricing/priceService'
@@ -204,7 +205,28 @@ async function bootstrap(): Promise<void> {
     isEnabled: () => settings.get().backgroundRecording,
     getWindow: () => mainWindow
   })
+  // Craft timers (since 1.66.0): a Windows notification when one's done, that opens the app.
+  const MODES: GameMode[] = ['pvp', 'pve', 'season']
+  const craftNotifier = createCraftNotifier({
+    timers: async () => Promise.all(MODES.map(async (mode) => ({ mode, timers: await player.crafts(mode) }))),
+    markNotified: async (mode, stationIds) => {
+      send(IPC.craftsChanged, { gameMode: mode, crafts: await player.markCraftsNotified(mode, stationIds) })
+    },
+    isEnabled: () => settings.get().crafting.notifyDone,
+    notify: (done) => {
+      if (!Notification.isSupported()) return
+      const note = new Notification({
+        title: done.length === 1 ? 'Craft done' : `${done.length} crafts done`,
+        body: done.map((t) => t.label).join('\n')
+      })
+      note.on('click', () => background.showWindow())
+      note.show()
+    }
+  })
+  void craftNotifier.reschedule().catch((err) => log(`Craft timers failed: ${err}`))
+
   registerIpc({
+    onCraftsChanged: () => void craftNotifier.reschedule().catch((err) => log(`Craft timers failed: ${err}`)),
     settings,
     prices,
     containers,

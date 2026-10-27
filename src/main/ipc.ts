@@ -1,3 +1,4 @@
+import { MAX_CRAFT_SECONDS, sanitizeCraftTimer, type CraftStart } from '../shared/craftTimers'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -132,6 +133,8 @@ export function registerIpc(deps: {
   /** Damaged files put back at startup. */
   recoveries: Recovery[]
   onSettingsChanged?: (previous: Settings, current: Settings) => void
+  /** A craft timer started or cleared (since 1.66.0). */
+  onCraftsChanged?: () => void
 }): void {
   const { settings, prices, containers, trends, questData, questGuides, wikiQuests, player, logs, scan } =
     deps
@@ -350,6 +353,25 @@ export function registerIpc(deps: {
     if (list !== 'owned' && list !== 'toDo') throw new Error('Invalid key list')
     if (typeof on !== 'boolean') throw new Error('Invalid key state')
     return player.setKey(requireGameMode(gameMode), requireId(keyId, 'item'), list, on)
+  })
+  ipcMain.handle(IPC.craftsGet, (_e, gameMode: unknown) => player.crafts(requireGameMode(gameMode)))
+  ipcMain.handle(IPC.craftsStart, async (_e, gameMode: unknown, start: unknown) => {
+    const s = start && typeof start === 'object' ? (start as Partial<CraftStart>) : {}
+    const seconds = s.seconds
+    if (typeof seconds !== 'number' || !(seconds >= 0 && seconds <= MAX_CRAFT_SECONDS))
+      throw new Error('Invalid craft time')
+    const now = Date.now()
+    const timer = sanitizeCraftTimer({ ...s, startedAt: now, endsAt: now + seconds * 1000, notified: false })
+    if (!timer) throw new Error('Invalid craft')
+    const crafts = await player.startCraft(requireGameMode(gameMode), timer)
+    deps.onCraftsChanged?.()
+    return crafts
+  })
+  ipcMain.handle(IPC.craftsClear, async (_e, gameMode: unknown, stationId: unknown) => {
+    if (typeof stationId !== 'string' || !/^[\w:-]{1,80}$/.test(stationId)) throw new Error('Invalid station')
+    const crafts = await player.clearCraft(requireGameMode(gameMode), stationId)
+    deps.onCraftsChanged?.()
+    return crafts
   })
   ipcMain.handle(IPC.favouritesGet, (_e, gameMode: unknown) => player.favourites(requireGameMode(gameMode)))
   ipcMain.handle(IPC.favouritesSet, (_e, gameMode: unknown, kind: unknown, id: unknown, on: unknown) => {

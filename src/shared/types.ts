@@ -231,6 +231,8 @@ export interface CraftingSettings {
   currentOnly: boolean
   /** A tile per station (open one for its list), or every station's list one under another (since 1.51.0). */
   layout: 'tiles' | 'list'
+  /** A Windows notification when a craft put on with Started is done (since 1.66.0). */
+  notifyDone: boolean
 }
 
 export interface KeysSettings {

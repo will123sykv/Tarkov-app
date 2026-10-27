@@ -341,11 +341,15 @@ station's level in the sidebar (the Stash starts at level 1).
 - **Crafts** lists every hideout craft as a way to make money: what it makes, the station (and
   level) it takes, what it uses up, how long it takes, what buying what it uses up costs now (at the
   cheapest place for your level and loyalty; tools aren't used up), what what it makes sells for
-  (on the flea after the fee, or to a trader), the profit, and the profit per hour, most per hour
-  first. Click any column to sort by it, pick a station, or search. **Only crafts I can make** (on by
+  (on the flea after the fee, or to a trader), the **Fuel** it burns, the profit, and the profit per
+  hour, most per hour first. Fuel is an estimate, as if the Generator ran just for that craft: about
+  4.2 units an hour (a 60-unit tank lasts 14 h 26 min; half with Solar Power built) at the cheapest
+  tank per unit, plus, at the Water Collector, the water filter it wears down (one lasts about 8 h 12
+  min) unless the craft already lists it; hover the cell for the split. It comes off the profit.
+  Click any column to sort by it, pick a station, or search. **Only crafts I can make** (on by
   default) leaves out the ones whose station isn't built far enough or whose quest isn't done; with
-  it off they're greyed, saying what they need. Fuel, skills and hideout bonuses aren't counted, and
-  the Bitcoin farm's time depends on how many graphics cards it has.
+  it off they're greyed, saying what they need. Skills and hideout bonuses aren't counted, and the
+  Bitcoin farm's time depends on how many graphics cards it has.
 - **Don't sell:** in the Loot tab, items the hideout or your active quests still need carry a
   **Keep** tag saying how many each wants. Ones that are hard to replace get a red **Rare: don't
   sell** badge: no trader sells them, and on the flea they're banned, cost ₽75,000 or more, or
@@ -451,7 +455,12 @@ When you put a craft on in the game, click its **Started** button (on a tile, on
 row of the list and on each craft for profit) to keep Items to collect up to date. It counts one run:
 what the craft makes goes onto **Have** (found in raid, as crafted items are) when your upgrades or quests need it, and what it uses comes
 off Have (bought copies first) when you're keeping it (tools aren't used up, and ingredients you don't track are left alone).
-A notice at the bottom says what changed, with **Undo**.
+A notice at the bottom says what changed, with **Undo**. **Started** also times the craft (at its
+usual time; skills and bonuses can make it quicker): **Crafting now** at the top of the Hideout tab
+counts each down, one per station, then says **Ready**, with **Collected** to clear it (or **Cancel**
+before then). When one's done, a Windows notification says so (click it to open the app), from the
+tray too with background recording on, and crafts that finished while the app was closed are said
+when it starts. Turn it off with **Notify me when crafts are done** in Settings › Hideout crafting.
 
 Two filters at the top narrow the lists for upgrades and quests (and so what's crafted next):
 

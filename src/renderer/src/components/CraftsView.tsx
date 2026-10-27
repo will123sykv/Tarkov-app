@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { craftProfits, type BuyContext, type CraftContext, type CraftProfit } from '../../../shared/hideout'
 import type { HideoutSettings, LootItem } from '../../../shared/types'
 import { evaluateItem, type ValuationContext } from '../../../shared/valuation'
+import { FUEL_PER_HOUR } from '../../../shared/hideoutResources'
 import { formatDuration, formatRub } from '../lib/format'
 import type { useItemLookup } from '../lib/useItemLookup'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
@@ -19,6 +20,27 @@ const byPerHour = (a: CraftProfit, b: CraftProfit): number =>
 /** Roubles, a loss with a minus sign in front (−₽5,000). */
 const money = (value: number | null): string =>
   value === null ? '—' : value < 0 ? `−${formatRub(-value)}` : formatRub(value)
+
+/** The fuel and water filter a craft burns, together (null when they can't be bought now). */
+const burns = (p: CraftProfit): number | null =>
+  p.fuel === null || p.filter === null ? null : p.fuel + p.filter
+
+/** What the Fuel cell's hover says. */
+function burnsTitle(p: CraftProfit): string {
+  const parts = [
+    p.fuel === null
+      ? "Fuel can't be bought now"
+      : p.fuel > 0
+        ? `Fuel ${formatRub(Math.round(p.fuel))}`
+        : 'No fuel',
+    p.filter === null
+      ? "Water filters can't be bought now"
+      : p.filter > 0
+        ? `Water filter ${formatRub(Math.round(p.filter))}`
+        : ''
+  ].filter(Boolean)
+  return `${parts.join(' · ')}.\nAn estimate: the generator burns about ${FUEL_PER_HOUR.toFixed(1)} units of fuel an hour (half with Solar Power) whatever's crafting, and a water filter lasts about 8 hours.`
+}
 
 /** Why a craft can't be made now, or null when it can. */
 function blocker(p: CraftProfit): string | null {
@@ -83,6 +105,14 @@ export default function CraftsView({
       { key: 'uses', label: 'Uses', value: (p) => name(p.craft.inputs[0]?.itemId) },
       { key: 'time', label: 'Time', num: true, desc: true, value: (p) => p.craft.duration },
       { key: 'cost', label: 'Cost', num: true, desc: true, value: (p) => p.cost },
+      {
+        key: 'fuel',
+        label: 'Fuel',
+        num: true,
+        desc: true,
+        title: 'Fuel (and water filter) it burns: an estimate, as if the generator ran just for it',
+        value: (p) => burns(p)
+      },
       { key: 'value', label: 'Sells for', num: true, desc: true, value: (p) => p.value },
       { key: 'profit', label: 'Profit', num: true, desc: true, value: (p) => p.profit },
       { key: 'perHour', label: 'Per hour', num: true, desc: true, value: (p) => p.perHour }
@@ -121,8 +151,9 @@ export default function CraftsView({
       </div>
       <p className="hint">
         What goes in at the cheapest place to buy it now (at your level and loyalty), and what comes out at
-        what it sells for (flea after the fee, or a trader). Tools aren&rsquo;t used up; fuel, skills and
-        hideout bonuses aren&rsquo;t counted, and the Bitcoin farm&rsquo;s time depends on its graphics cards.
+        what it sells for (flea after the fee, or a trader), less an estimate of the fuel (and water filter)
+        it burns. Tools aren&rsquo;t used up; skills and hideout bonuses aren&rsquo;t counted, and the Bitcoin
+        farm&rsquo;s time depends on its graphics cards.
       </p>
       {shown.length === 0 ? (
         <p className="hint">
@@ -179,6 +210,15 @@ export default function CraftsView({
                         Can&rsquo;t buy{' '}
                         {p.unbuyable.map((id) => items.get(id)?.shortName ?? 'an item').join(', ')}
                       </span>
+                    )}
+                  </td>
+                  <td className="num" title={burnsTitle(p)}>
+                    {burns(p) === null ? (
+                      '—'
+                    ) : burns(p)! > 0 ? (
+                      formatRub(Math.round(burns(p)!))
+                    ) : (
+                      <span className="muted">—</span>
                     )}
                   </td>
                   <td className="num">{money(p.value)}</td>
