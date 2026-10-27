@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react'
 import {
+  lockReasons,
   objectiveSummary,
   questMaps,
   requirementLabels,
@@ -24,6 +25,7 @@ import FavouriteStar from './FavouriteStar'
 import NeededItems from './NeededItems'
 import QuestDetail from './QuestDetail'
 import QuestKindSwitch from './QuestKindSwitch'
+import QuestPath from './QuestPath'
 import SettingsLink from './SettingsLink'
 import TabSidebar, { SidebarSection } from './Sidebar'
 
@@ -224,7 +226,7 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   const selected = useStore((s) => s.selectedQuest)
   const selectQuest = useStore((s) => s.selectQuest)
   const updateSettings = useStore((s) => s.updateSettings)
-  const [tab, setTab] = useState<'quests' | 'items'>('quests')
+  const [tab, setTab] = useState<'quests' | 'items' | 'path'>('quests')
   const [search, setSearch] = useState('')
   const [picking, setPicking] = useState(false)
   const wiki = useStore((s) => s.wikiQuests)
@@ -389,6 +391,20 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   )
   const selectedRow = everyRow.find((r) => r.quest.id === selected) ?? null
   const kappa = all.filter((r) => r.quest.kappaRequired)
+  // The Path tab (since 1.66.0) counts every quest of the kind shown; "Only quests I can do" leaves out
+  // ones a missing key holds up.
+  const pathRows = useMemo(
+    () =>
+      settings.todo.show === 'doable'
+        ? all.filter(
+            ({ quest, status }) =>
+              status === 'completed' ||
+              status === 'failed' ||
+              blockedByKeys(quest, owned, objectives).length === 0
+          )
+        : all,
+    [all, settings.todo.show, owned, objectives]
+  )
 
   return (
     <div className="quests">
@@ -441,6 +457,15 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
               >
                 Items to hand over
               </button>
+              <button
+                role="tab"
+                aria-selected={tab === 'path'}
+                className={tab === 'path' ? 'active' : ''}
+                title="Which quests to do next for Kappa or Lightkeeper"
+                onClick={() => setTab('path')}
+              >
+                Path
+              </button>
             </div>
             {tab === 'quests' && (
               <input
@@ -465,93 +490,103 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           <NeededItems rows={all} objectives={objectives} settings={settings} priceState={priceState} />
         ) : (
           <div className="quests-main">
-            <div className="quest-list">
-              {keyHidden > 0 && (
-                <p className="hint quest-list-note">
-                  {keyHidden === 1 ? '1 quest hidden: it needs' : `${keyHidden} quests hidden: they need`} a
-                  key you don&rsquo;t have (Only quests I can do). <SettingsLink section="quests" />
-                </p>
-              )}
-              {hiddenTraders.length > 0 && (
-                <section className="quests-hidden-traders">
-                  <p className="hint">
-                    Hidden by <strong>Show</strong>:{' '}
-                    {hiddenTraders
-                      .map(
-                        (t) =>
-                          `${t.name} (${t.counts.map(([status, n]) => `${n} ${STATUS_LABEL[status].toLowerCase()}`).join(', ')})`
-                      )
-                      .join(' · ')}
+            {tab === 'path' ? (
+              <QuestPath
+                rows={pathRows}
+                traders={dataset?.traders ?? []}
+                selected={selected}
+                onSelect={onSelect}
+                lockText={(row) => lockReasons(row.quest, progress ?? {}, ctx, questsById).join(' · ')}
+              />
+            ) : (
+              <div className="quest-list">
+                {keyHidden > 0 && (
+                  <p className="hint quest-list-note">
+                    {keyHidden === 1 ? '1 quest hidden: it needs' : `${keyHidden} quests hidden: they need`} a
+                    key you don&rsquo;t have (Only quests I can do). <SettingsLink section="quests" />
                   </p>
-                  <div className="button-row">
-                    {hiddenStatuses.map((status) => (
-                      <button
-                        key={status}
-                        className="button small"
-                        onClick={() =>
-                          void updateSettings({ quests: { ...q, statuses: [...q.statuses, status] } })
-                        }
-                      >
-                        Show {STATUS_LABEL[status].toLowerCase()}
-                      </button>
-                    ))}
+                )}
+                {hiddenTraders.length > 0 && (
+                  <section className="quests-hidden-traders">
+                    <p className="hint">
+                      Hidden by <strong>Show</strong>:{' '}
+                      {hiddenTraders
+                        .map(
+                          (t) =>
+                            `${t.name} (${t.counts.map(([status, n]) => `${n} ${STATUS_LABEL[status].toLowerCase()}`).join(', ')})`
+                        )
+                        .join(' · ')}
+                    </p>
+                    <div className="button-row">
+                      {hiddenStatuses.map((status) => (
+                        <button
+                          key={status}
+                          className="button small"
+                          onClick={() =>
+                            void updateSettings({ quests: { ...q, statuses: [...q.statuses, status] } })
+                          }
+                        >
+                          Show {STATUS_LABEL[status].toLowerCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {groups.map((group) => (
+                  <section key={group.traderId}>
+                    <h3>
+                      {group.name} <span className="muted">{group.rows.length}</span>
+                    </h3>
+                    <ul>
+                      {group.rows.map((row) => (
+                        <QuestListRow
+                          key={row.quest.id}
+                          row={row}
+                          selected={row.quest.id === selected}
+                          details={detailsFor(row.quest)}
+                          objectives={objectives}
+                          onSelect={onSelect}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+                {fromLogs.named.length + fromLogs.unnamed > 0 && (
+                  <section className="quests-from-logs">
+                    <h3>
+                      From your game logs <span className="muted">{fromLogs.named.length}</span>
+                    </h3>
+                    <p className="hint">
+                      tarkov.dev doesn&rsquo;t list these (new or event quests), so there are no objectives or
+                      requirements to show.
+                      {fromLogs.unnamed > 0 &&
+                        ` Plus ${fromLogs.unnamed} operational or daily task${fromLogs.unnamed === 1 ? '' : 's'}.`}
+                    </p>
+                    <ul>
+                      {fromLogs.named.map((entry) => (
+                        <li key={entry.id} className="quest-row static">
+                          <span className={`badge ${STATUS_BADGE[entry.status]}`}>
+                            {STATUS_LABEL[entry.status]}
+                          </span>
+                          <span className="quest-name">
+                            <span>{entry.name}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {dataset && shown.length === 0 && fromLogs.named.length === 0 && (
+                  <div className="empty">
+                    <p>
+                      {keyHidden
+                        ? 'Every quest that matches needs a key you don’t have.'
+                        : 'No quests match. Tick more statuses on the left, or clear the filters.'}
+                    </p>
                   </div>
-                </section>
-              )}
-              {groups.map((group) => (
-                <section key={group.traderId}>
-                  <h3>
-                    {group.name} <span className="muted">{group.rows.length}</span>
-                  </h3>
-                  <ul>
-                    {group.rows.map((row) => (
-                      <QuestListRow
-                        key={row.quest.id}
-                        row={row}
-                        selected={row.quest.id === selected}
-                        details={detailsFor(row.quest)}
-                        objectives={objectives}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ))}
-              {fromLogs.named.length + fromLogs.unnamed > 0 && (
-                <section className="quests-from-logs">
-                  <h3>
-                    From your game logs <span className="muted">{fromLogs.named.length}</span>
-                  </h3>
-                  <p className="hint">
-                    tarkov.dev doesn&rsquo;t list these (new or event quests), so there are no objectives or
-                    requirements to show.
-                    {fromLogs.unnamed > 0 &&
-                      ` Plus ${fromLogs.unnamed} operational or daily task${fromLogs.unnamed === 1 ? '' : 's'}.`}
-                  </p>
-                  <ul>
-                    {fromLogs.named.map((entry) => (
-                      <li key={entry.id} className="quest-row static">
-                        <span className={`badge ${STATUS_BADGE[entry.status]}`}>
-                          {STATUS_LABEL[entry.status]}
-                        </span>
-                        <span className="quest-name">
-                          <span>{entry.name}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-              {dataset && shown.length === 0 && fromLogs.named.length === 0 && (
-                <div className="empty">
-                  <p>
-                    {keyHidden
-                      ? 'Every quest that matches needs a key you don’t have.'
-                      : 'No quests match. Tick more statuses on the left, or clear the filters.'}
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
             {selectedRow && dataset ? (
               <QuestDetail
                 row={selectedRow}

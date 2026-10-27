@@ -6360,3 +6360,25 @@ p.quest-before.done {
   min-width: 80px;
   text-align: right;
 }
+
+/* Quests → Path: which quests lead to the most of Kappa or Lightkeeper (since 1.66.0). */
+.quest-path-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 16px 0;
+}
+
+.quest-path-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+
+.quest-path-count small {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}

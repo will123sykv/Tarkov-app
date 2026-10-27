@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { LogEvent } from '../src/main/logs/interpret'
+import type { Quest } from '../src/shared/questTypes'
 import { NO_REWARDS, normalizeQuestData } from '../src/main/quests/questData'
 import { createPlayerStore, MAX_PINS } from '../src/main/quests/playerStore'
 import {
@@ -16,6 +17,7 @@ import {
   objectiveSummary,
   objectiveTarget,
   objectiveValue,
+  pathScores,
   questMaps,
   setObjective,
   questStatus,
@@ -447,5 +449,49 @@ describe('lockedTraders (since 1.66.0)', () => {
       ref: { status: 'active', at: 1, source: 'log' }
     }
     expect([...lockedTraders(quests, done).keys()]).toEqual(['ref'])
+  })
+})
+
+describe('pathScores (since 1.66.0)', () => {
+  const q = (id: string, requires: string[], extra: Partial<Quest> = {}): Quest =>
+    ({
+      id,
+      name: id,
+      traderId: 'prapor',
+      minPlayerLevel: 1,
+      requires: requires.map((questId) => ({ questId, status: ['complete'] })),
+      kappaRequired: true,
+      lightkeeperRequired: false,
+      ...extra
+    }) as Quest
+  // a → b → c (and d), a → e (not Kappa); f stands alone; g waits on level 30.
+  const rows = [
+    { quest: q('a', []), status: 'available' as const },
+    { quest: q('b', ['a']), status: 'locked' as const },
+    { quest: q('c', ['b']), status: 'locked' as const },
+    { quest: q('d', ['b']), status: 'locked' as const },
+    { quest: q('e', ['a'], { kappaRequired: false }), status: 'locked' as const },
+    { quest: q('f', []), status: 'active' as const },
+    { quest: q('g', [], { minPlayerLevel: 30 }), status: 'locked' as const },
+    { quest: q('done', []), status: 'completed' as const }
+  ]
+
+  it('ranks what can be done by how many Kappa quests left it is or leads to', () => {
+    const scores = pathScores(rows, 'kappa')
+    expect(scores).toMatchObject({ done: 1, left: 6, levelOnly: 1 })
+    expect(scores.rows.map((r) => [r.quest.id, r.unlocks])).toEqual([
+      ['a', 4],
+      ['f', 1],
+      ['g', 1]
+    ])
+  })
+
+  it('counts Lightkeeper quests instead when asked, leaving out quests that lead to none', () => {
+    const lk = rows.map((r) =>
+      r.quest.id === 'c' ? { ...r, quest: { ...r.quest, lightkeeperRequired: true } } : r
+    )
+    const scores = pathScores(lk, 'lightkeeper')
+    expect(scores).toMatchObject({ done: 0, left: 1 })
+    expect(scores.rows.map((r) => [r.quest.id, r.unlocks])).toEqual([['a', 1]])
   })
 })

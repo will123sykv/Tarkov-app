@@ -420,3 +420,93 @@ export function lockedTraders(
   for (const id of unlocked) unlockedBy.delete(id)
   return unlockedBy
 }
+
+/** Which collector's quests the path view counts (since 1.66.0). */
+export type PathTarget = 'kappa' | 'lightkeeper'
+
+export interface PathRow {
+  quest: Quest
+  status: QuestStatus
+  /** The target's quests left that it is, or leads to (directly or further on). */
+  unlocks: number
+  /** Whether it's one of the target's quests itself. */
+  target: boolean
+}
+
+export interface PathScores {
+  /** The target's quests done, and still to do (failed ones can't be). */
+  done: number
+  left: number
+  /** Target quests held up only by the player's level. */
+  levelOnly: number
+  /** Quests to do now (active, available, or waiting only on level), most of the target first. */
+  rows: PathRow[]
+}
+
+const isTarget = (quest: Quest, target: PathTarget): boolean =>
+  target === 'kappa' ? quest.kappaRequired : quest.lightkeeperRequired
+
+/**
+ * Which quests to do next for Kappa or Lightkeeper: each quest that can be done now (or once the player
+ * levels up) with how many of the target's quests left it is or leads to. Most first; ties go to the
+ * lower level, then to quests already started.
+ */
+export function pathScores(
+  rows: readonly { quest: Quest; status: QuestStatus }[],
+  target: PathTarget
+): PathScores {
+  const statusOf = new Map(rows.map((r) => [r.quest.id, r.status]))
+  const dependents = new Map<string, Quest[]>()
+  for (const { quest } of rows)
+    for (const req of quest.requires) {
+      const list = dependents.get(req.questId) ?? []
+      list.push(quest)
+      dependents.set(req.questId, list)
+    }
+  const open = (s: QuestStatus | undefined): boolean => s !== 'completed' && s !== 'failed'
+  const counts = (quest: Quest): number => {
+    const seen = new Set([quest.id])
+    const queue = [quest]
+    let n = 0
+    while (queue.length) {
+      const q = queue.pop()!
+      if (isTarget(q, target) && open(statusOf.get(q.id))) n++
+      for (const next of dependents.get(q.id) ?? [])
+        if (!seen.has(next.id)) {
+          seen.add(next.id)
+          queue.push(next)
+        }
+    }
+    return n
+  }
+  // Locked only by level: every quest it needs is where it must be.
+  const met = (s: QuestStatus | undefined, wanted: RequirementStatus[]): boolean =>
+    (wanted.includes('complete') && s === 'completed') ||
+    (wanted.includes('active') && (s === 'active' || s === 'completed')) ||
+    (wanted.includes('failed') && s === 'failed')
+  const levelOnly = (quest: Quest, status: QuestStatus): boolean =>
+    status === 'locked' && quest.requires.every((r) => met(statusOf.get(r.questId), r.status))
+
+  let done = 0
+  let left = 0
+  let waiting = 0
+  const result: PathRow[] = []
+  for (const { quest, status } of rows) {
+    const mine = isTarget(quest, target)
+    if (mine && status === 'completed') done++
+    if (mine && open(status)) left++
+    if (mine && levelOnly(quest, status)) waiting++
+    if (status !== 'active' && status !== 'available' && !levelOnly(quest, status)) continue
+    const unlocks = counts(quest)
+    if (unlocks > 0) result.push({ quest, status, unlocks, target: mine })
+  }
+  const rank = (s: QuestStatus): number => (s === 'active' ? 0 : s === 'available' ? 1 : 2)
+  result.sort(
+    (a, b) =>
+      b.unlocks - a.unlocks ||
+      a.quest.minPlayerLevel - b.quest.minPlayerLevel ||
+      rank(a.status) - rank(b.status) ||
+      a.quest.name.localeCompare(b.quest.name)
+  )
+  return { done, left, levelOnly: waiting, rows: result }
+}

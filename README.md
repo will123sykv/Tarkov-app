@@ -531,6 +531,12 @@ the game's install folder, or its `build` folder.
   finds them). **Items to hand over** lists what your active
   quests still want handed over or planted, flagging found-in-raid
   items, with how many you've put aside in Items to collect (**Have**, ticked when it's enough).
+- **Path** (Quests tab): which quests to do next for **Kappa** or **Lightkeeper**. Each quest you
+  can take now (or once you level up, with what it's waiting on) shows how many of that collector's
+  quests left it is or leads to, directly or further down its chain, most first (ties go to the
+  lower level, then to quests already started). The line at the top says how many are done and
+  left, and how many wait only on your level. The All · Story · Side switch and **Only quests I can
+  do** apply, and clicking a quest opens it.
 - **Objectives you tick off:** in a quest's panel, tick each objective off as you do it, or count
   the ones that take several (**−**/**+**, type a number, or **All**): say 6 of the 15 cigarettes
   for Bad Habit handed over (per game mode, kept with your progress). The quest list shows how many
