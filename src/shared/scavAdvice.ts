@@ -1,4 +1,5 @@
 import { CURRENCIES } from './constants'
+import { fleaMarketFee, type FleaFeeRates } from './fleaFee'
 import type { HideoutNeed, KeepInfo, Scarcity } from './hideout'
 import type { LootItem } from './types'
 import { evaluateItem, type ValuationContext } from './valuation'
@@ -174,6 +175,106 @@ export function traderColour(trader: string | null): string {
   let hash = 0
   for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) >>> 0
   return SPARE_COLOURS[hash % SPARE_COLOURS.length]
+}
+
+/** One item to sell in the checklist: every stack of it sold the same way, added up (since 1.66.0). */
+export interface ChecklistLine {
+  /** The group and item, which a tick is kept by. */
+  key: string
+  itemId: string
+  count: number
+  /** What each fetches, and all of them. */
+  each: number
+  total: number
+}
+
+/** The items to sell one way: on the flea, or to one trader. */
+export interface ChecklistGroup {
+  /** "flea", or the trader's name. */
+  id: string
+  via: 'flea' | 'trader'
+  trader: string | null
+  lines: ChecklistLine[]
+  total: number
+}
+
+/**
+ * What to sell from a scan, grouped for selling: the flea first, then each trader in the order first
+ * read, the most valuable first in each. Stacks of one item sold the same way are added up.
+ */
+export function sellChecklist(
+  stacks: readonly { itemId: string | null; advice: ScanAdvice }[]
+): ChecklistGroup[] {
+  const groups = new Map<string, ChecklistGroup>()
+  for (const { itemId, advice: a } of stacks) {
+    if (!itemId || a.sell <= 0 || !a.via) continue
+    const id = a.via === 'flea' ? 'flea' : (a.trader ?? 'A trader')
+    let group = groups.get(id)
+    if (!group) {
+      group = { id, via: a.via, trader: a.via === 'trader' ? id : null, lines: [], total: 0 }
+      groups.set(id, group)
+    }
+    const key = `${id}:${itemId}`
+    const line = group.lines.find((l) => l.key === key)
+    if (line) {
+      line.count += a.sell
+      line.total += a.total
+    } else group.lines.push({ key, itemId, count: a.sell, each: a.each, total: a.total })
+    group.total += a.total
+  }
+  const list = [...groups.values()]
+  for (const g of list) g.lines.sort((x, y) => y.total - x.total)
+  return [...list.filter((g) => g.via === 'flea'), ...list.filter((g) => g.via === 'trader')]
+}
+
+/** What to list an item for on the flea (since 1.66.0). */
+export interface ListPrice {
+  /** Roubles for one. */
+  price: number
+  fee: number
+  /** What one gets after the fee. */
+  net: number
+  /** Raised so it fetches no less than a trader would. */
+  traderFloor: boolean
+  /** The 24-hour average, when the lowest listing is well under it (perhaps a bait listing). */
+  wellUnderAverage: number | null
+}
+
+/** Rounding to 4 significant figures: ₽36,543 goes in steps of ₽10, ₽1,100,000 in ₽1,000. */
+const step = (price: number): number => Math.pow(10, Math.max(0, Math.floor(Math.log10(price)) - 3))
+
+/**
+ * A price to list one at: just under the lowest listing, rounded, but never so low that it fetches less
+ * after the fee than `traderPrice` (the best unlocked trader).
+ */
+export function suggestedListPrice(
+  item: Pick<LootItem, 'fleaPrice' | 'fleaFee' | 'basePrice' | 'avg24hPrice'>,
+  traderPrice: number,
+  rates?: FleaFeeRates
+): ListPrice | null {
+  const low = item.fleaPrice
+  if (!low || low <= 0) return null
+  // Without the fee rates the prices came with, the fee at the lowest listing is as good a guess.
+  const fee = (price: number): number =>
+    (rates && item.basePrice ? fleaMarketFee(item.basePrice, price, rates) : null) ?? item.fleaFee ?? 0
+  const s = step(low)
+  let price = Math.max(s, Math.floor((low - 1) / s) * s)
+  let traderFloor = false
+  if (traderPrice > 0 && price - fee(price) < traderPrice) {
+    // The fee grows with the price, so step up until it's covered.
+    let p = traderPrice + fee(traderPrice)
+    for (let i = 0; i < 8 && p - fee(p) < traderPrice; i++) p = traderPrice + fee(p)
+    price = Math.ceil(p / step(p)) * step(p)
+    traderFloor = true
+  }
+  const avg = item.avg24hPrice ?? null
+  return {
+    price,
+    fee: fee(price),
+    net: price - fee(price),
+    traderFloor,
+    wellUnderAverage: avg && low < avg * 0.7 ? avg : null
+  }
 }
 
 /** A change to one of the hideout's counts. */

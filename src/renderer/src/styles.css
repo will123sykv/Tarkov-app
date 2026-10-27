@@ -6286,3 +6286,77 @@ p.quest-before.done {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* Screenshots → New loot: what to sell, to tick off while selling (since 1.66.0). */
+.sell-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.sell-checklist-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.sell-group {
+  border-left: 3px solid var(--trader, var(--accent));
+  padding-left: 10px;
+}
+
+.sell-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.sell-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sell-group li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.sell-group li:last-child {
+  border-bottom: 0;
+}
+
+.sell-group li .check {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.sell-group li.done .sell-name {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.sell-list-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.sell-group li .num {
+  min-width: 80px;
+  text-align: right;
+}

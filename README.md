@@ -393,6 +393,13 @@ the screenshot and on its **Sell to** badge, with a chip per trader saying how m
 they fetch (**Therapist · 10 items · ₽151,739**). The rest fade, kept items too (a stack partly kept
 counts by where the rest is sold), and **Show all** goes back; items to check stay listed whatever
 the highlight. The totals stay the whole haul's.
+**Sell checklist** lists what to sell grouped for selling: **Flea market** first, then each trader
+in their colour, the most valuable first, with stacks of one item added up. Tick each off as you
+sell it (ticks are kept until **Start over**); each group and the whole list say how much is sold so
+far. Each flea item has a price to list it at: just under the lowest listing, rounded, but never so
+low that it fetches less after the fee than a trader pays. Hover it for the fee and what you get,
+and a **Check price** badge warns when the lowest listing is well under the 24-hour average
+(perhaps a bait listing). Rows to check aren't listed until they're sorted out.
 
 **Everything I have:** add a screenshot of each page of your stash (scroll down between them) and of
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,

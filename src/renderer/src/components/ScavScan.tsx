@@ -15,6 +15,7 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  sellChecklist,
   sellsVia,
   stashCounts,
   traderColour,
@@ -26,7 +27,7 @@ import {
 import { EMPTY_KEYS, keyScanChanges } from '../../../shared/keys'
 import type { OcrJob } from '../../../shared/scanTypes'
 import type { LootItem, PriceState, PublicSettings } from '../../../shared/types'
-import type { ValuationContext } from '../../../shared/valuation'
+import { evaluateItem, type ValuationContext } from '../../../shared/valuation'
 import { formatRub } from '../lib/format'
 import {
   countLabel,
@@ -54,6 +55,7 @@ import { useKeyInfo } from '../lib/useKeyInfo'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
+import SellChecklist from './SellChecklist'
 import { SortHead } from './SortHeader'
 
 // The screenshot scanner, in the Items to collect tab and the Keys tab. New loot (a scav case haul, a
@@ -120,19 +122,24 @@ interface ScanState {
     /** The keys the player had before. */
     keysBefore?: string[]
   } | null
+  /** Whether new loot shows as a sell checklist (since 1.66.0). */
+  checklist: boolean
+  /** The checklist's lines ticked off as sold, kept for the scan. */
+  sold: ReadonlySet<string>
 }
 
-const EMPTY: Omit<ScanState, 'mode' | 'itemsMode'> = {
+const EMPTY: Omit<ScanState, 'mode' | 'itemsMode' | 'checklist'> = {
   shots: [],
   active: null,
   busy: false,
   error: null,
   rows: [],
-  applied: null
+  applied: null,
+  sold: new Set()
 }
 
 // Kept while the app runs, so switching tabs doesn't lose a scan.
-const useScan = create<ScanState>(() => ({ mode: 'loot', itemsMode: 'loot', ...EMPTY }))
+const useScan = create<ScanState>(() => ({ mode: 'loot', itemsMode: 'loot', checklist: false, ...EMPTY }))
 const patch = (p: Partial<ScanState>): void => useScan.setState(p)
 let nextKey = 1
 let nextShot = 1
@@ -753,6 +760,13 @@ export default function ScavScan({
   const shownRows = sorted(listed).filter(picked)
   const checking = shownRows.filter(unsure).length
   const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
+  // What to sell, grouped for selling and ticked off as it goes (since 1.66.0); rows to check aren't in it.
+  const checklist =
+    mode === 'loot' && state.checklist
+      ? sellChecklist(
+          counted.filter((r) => !unsure(r)).map((r) => ({ itemId: r.itemId, advice: adviceOf.get(r.key)! }))
+        )
+      : null
   const setHighlight = (scanHighlight: ScanHighlight): void =>
     void updateSettings({ hideout: { ...settings.hideout, scanHighlight } })
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.haveFir ?? {}) : null
@@ -1347,6 +1361,14 @@ export default function ScavScan({
                     </span>
                   )}
                 </div>
+                <button
+                  className={`button small ${state.checklist ? 'active' : ''}`}
+                  aria-pressed={state.checklist}
+                  title="What to sell, grouped by the flea and each trader, to tick off as you sell (with a price to list each at on the flea)"
+                  onClick={() => patch({ checklist: !state.checklist })}
+                >
+                  Sell checklist
+                </button>
                 {highlight === 'traders' && byTrader.length > 0 && (
                   <ul className="scan-traders" aria-label="What goes to each trader">
                     {byTrader.map((t) => (
@@ -1364,6 +1386,23 @@ export default function ScavScan({
                   </ul>
                 )}
               </div>
+            )}
+            {checklist && (
+              <SellChecklist
+                groups={checklist}
+                items={items}
+                ticked={state.sold}
+                onTick={(key, on) => {
+                  const sold = new Set(useScan.getState().sold)
+                  if (on) sold.add(key)
+                  else sold.delete(key)
+                  patch({ sold })
+                }}
+                onClear={() => patch({ sold: new Set() })}
+                traderPrice={(item) => evaluateItem(item, ctx).trader?.price ?? 0}
+                rates={priceState?.dataset?.fleaFeeRates}
+                left={toCheck}
+              />
             )}
             {stash && (
               <div className="scan-totals">

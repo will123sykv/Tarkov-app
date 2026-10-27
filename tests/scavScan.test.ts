@@ -21,6 +21,7 @@ import {
   type RgbaImage,
   type ScanTile
 } from '../src/renderer/src/lib/scavScan'
+import { DEFAULT_FLEA_FEE_RATES } from '../src/shared/fleaFee'
 import { keepOnlyHardToReplace, type HideoutNeed, type KeepInfo } from '../src/shared/hideout'
 import {
   adviceWorth,
@@ -28,8 +29,10 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  sellChecklist,
   sellsVia,
   stashCounts,
+  suggestedListPrice,
   traderColour,
   traderTotals,
   type ScanAdvice
@@ -660,5 +663,63 @@ describe('sorting what was read by what to do with it', () => {
     expect(traderColour('Lightkeeper')).toMatch(/^#[0-9a-f]{6}$/)
     // No name: the colour the trader totals give it (since 1.65.0).
     expect(traderColour(null)).toBe(traderColour('A trader'))
+  })
+})
+
+describe('the sell checklist (since 1.66.0)', () => {
+  const advice = (a: Partial<ScanAdvice>): ScanAdvice => ({
+    keep: 0,
+    keepFor: { hideout: 0, quests: 0 },
+    stored: 0,
+    scarce: null,
+    sell: 0,
+    via: null,
+    trader: null,
+    each: 0,
+    total: 0,
+    ...a
+  })
+
+  it('groups what to sell: the flea first, then each trader, adding up stacks of one item', () => {
+    const groups = sellChecklist([
+      {
+        itemId: 'bolts',
+        advice: advice({ sell: 2, via: 'trader', trader: 'Mechanic', each: 10, total: 20 })
+      },
+      { itemId: 'gpu', advice: advice({ sell: 1, via: 'flea', each: 300, total: 300 }) },
+      {
+        itemId: 'bolts',
+        advice: advice({ sell: 3, via: 'trader', trader: 'Mechanic', each: 10, total: 30 })
+      },
+      { itemId: 'ledx', advice: advice({ keep: 1 }) },
+      {
+        itemId: 'salewa',
+        advice: advice({ sell: 1, via: 'trader', trader: 'Therapist', each: 90, total: 90 })
+      },
+      { itemId: null, advice: advice({ sell: 1, via: 'flea', each: 5, total: 5 }) }
+    ])
+    expect(groups.map((g) => [g.id, g.total, g.lines.map((l) => [l.key, l.count, l.total])])).toEqual([
+      ['flea', 300, [['flea:gpu', 1, 300]]],
+      ['Mechanic', 50, [['Mechanic:bolts', 5, 50]]],
+      ['Therapist', 90, [['Therapist:salewa', 1, 90]]]
+    ])
+  })
+
+  it('suggests a listing just under the lowest one, rounded', () => {
+    const item = { fleaPrice: 36_543, fleaFee: 1_000, basePrice: 20_000, avg24hPrice: 38_000 }
+    const list = suggestedListPrice(item, 0)!
+    expect(list.price).toBe(36_540)
+    expect(list.net).toBe(list.price - list.fee)
+    expect(list).toMatchObject({ traderFloor: false, wellUnderAverage: null })
+    expect(suggestedListPrice({ ...item, fleaPrice: 1_100_000 }, 0)!.price).toBe(1_099_000)
+    expect(suggestedListPrice({ ...item, fleaPrice: null }, 0)).toBeNull()
+  })
+
+  it('never lists for less than a trader pays, and warns when the lowest is well under the average', () => {
+    const item = { fleaPrice: 30_000, fleaFee: 2_000, basePrice: 20_000, avg24hPrice: 60_000 }
+    const list = suggestedListPrice(item, 29_000, DEFAULT_FLEA_FEE_RATES)!
+    expect(list.traderFloor).toBe(true)
+    expect(list.net).toBeGreaterThanOrEqual(29_000)
+    expect(list.wellUnderAverage).toBe(60_000)
   })
 })
