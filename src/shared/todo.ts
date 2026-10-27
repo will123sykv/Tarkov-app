@@ -232,8 +232,13 @@ export interface TodoPlan {
 }
 
 export interface TodoOptions {
-  /** What's put aside, for hand-overs and items to find. */
+  /** What's put aside (both kinds together), for hand-overs and items to find. */
   have?: Readonly<Record<string, number>>
+  /**
+   * What the shared Have gives a quest's hand-over of an item (since 1.66.0): a hand-over is ready only
+   * when its own copies are there, not ones the hideout or another quest counts on. Without it, `have`.
+   */
+  handOverShare?: (questId: string, itemId: string, foundInRaid: boolean) => number
   /** The player's keys, to tell which objectives are behind a lock they can't open; null: not checked. */
   owned?: ReadonlySet<string> | null
   /** Leave out objectives behind a lock the player can't open, or on a map they can't get onto. */
@@ -280,7 +285,7 @@ export function todoPlan(
   rows: readonly { quest: Quest; status: QuestStatus }[],
   objectives: ObjectiveProgress | undefined,
   groupOf: (mapId: string) => MapGroup | undefined,
-  { have = {}, owned = null, hideBlocked = false, kinds = 'all' }: TodoOptions = {}
+  { have = {}, handOverShare, owned = null, hideBlocked = false, kinds = 'all' }: TodoOptions = {}
 ): TodoPlan {
   const wanted = (o: QuestObjective): boolean => kinds === 'all' || objectiveCategory(o) === kinds
   const hidden = new Set<Quest>()
@@ -364,7 +369,9 @@ export function todoPlan(
     for (const step of open) {
       const itemId = handOverItemOf(step.objective)
       if (itemId) {
-        const count = have[itemId] ?? 0
+        const count = handOverShare
+          ? handOverShare(quest.id, itemId, step.objective.foundInRaid)
+          : (have[itemId] ?? 0)
         if (count >= step.left) result.handOvers.push({ ...step, itemId, count: step.left, have: count })
       } else if (step.objective.type === 'giveQuestItem' && step.objective.questItem) {
         // Ready once the quest's own "find" of the same quest item is done.

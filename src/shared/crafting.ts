@@ -3,8 +3,11 @@ import {
   canCraft,
   craftOptions,
   craftProfits,
+  haveCount,
   stationLevel,
   unitPrice,
+  usedUp,
+  type HaveCounts,
   type BuyContext,
   type CraftContext,
   type CraftOption,
@@ -102,7 +105,7 @@ export function craftingPlan(
     if (need.missing <= 0 || CURRENCIES[need.itemId]) continue
     const craft = craftOptions(need.itemId, cc, ctx).find(canCraft)
     if (!craft || craft.makes <= 0) continue
-    const fir = Math.min(need.missing, need.firNeeded)
+    const fir = need.missingFir ?? Math.min(need.missing, need.firNeeded)
     const runs = Math.ceil(need.missing / craft.makes)
     const cost = craft.costEach !== null ? craft.costEach * craft.makes * runs : null
     const each = need.missing > fir ? unitPrice(need.itemId, cc.items, ctx) : null
@@ -165,25 +168,39 @@ export function craftingPlan(
 }
 
 /**
- * The Have counts after starting one run of `craft` (since 1.52.0), only for items that change: what it
- * makes goes up when something still needs it (`tracked`), and what it uses up comes off when it's
- * counted (never below 0). Tools aren't used up, and money isn't counted.
+ * The Have counts after starting one run of `craft` (since 1.52.0), only for counts that change: what
+ * it makes goes up when something still needs it (`tracked`), as found in raid (crafted items count as
+ * found in raid), and what it uses up comes off when it's counted, bought copies first (never below 0).
+ * Tools aren't used up, and money isn't counted.
  */
 export function craftRunCounts(
   craft: HideoutCraft,
-  have: Readonly<Record<string, number>>,
+  progress: Pick<HideoutProgress, 'have' | 'haveFir'>,
   tracked: ReadonlySet<string>
-): Record<string, number> {
-  const delta = new Map<string, number>()
-  const add = (itemId: string, n: number): void => void delta.set(itemId, (delta.get(itemId) ?? 0) + n)
-  for (const { itemId, count } of craft.outputs) if (tracked.has(itemId)) add(itemId, count)
-  for (const { itemId, count } of craft.inputs) if ((have[itemId] ?? 0) > 0) add(itemId, -count)
-  const counts: Record<string, number> = {}
-  for (const [itemId, n] of delta) {
-    if (CURRENCIES[itemId]) continue
-    const before = have[itemId] ?? 0
-    const after = Math.max(0, before + n)
-    if (after !== before) counts[itemId] = after
+): HaveCounts {
+  const next: Pick<HideoutProgress, 'have' | 'haveFir'> = {
+    have: { ...progress.have },
+    haveFir: { ...progress.haveFir }
   }
+  const touched = new Set<string>()
+  for (const { itemId, count } of craft.inputs) {
+    if (CURRENCIES[itemId] || haveCount(next, itemId) <= 0) continue
+    const left = usedUp(next, itemId, count, false)
+    next.have[itemId] = left.any
+    next.haveFir![itemId] = left.fir
+    touched.add(itemId)
+  }
+  for (const { itemId, count } of craft.outputs) {
+    if (CURRENCIES[itemId] || !tracked.has(itemId)) continue
+    next.haveFir![itemId] = haveCount(next, itemId, 'fir') + count
+    touched.add(itemId)
+  }
+  const counts: HaveCounts = {}
+  for (const itemId of touched)
+    for (const kind of ['fir', 'any'] as const) {
+      const before = haveCount(progress, itemId, kind)
+      const after = haveCount(next, itemId, kind)
+      if (after !== before) counts[kind] = { ...counts[kind], [itemId]: after }
+    }
   return counts
 }

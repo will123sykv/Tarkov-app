@@ -13,6 +13,7 @@ import { containerMapId, findScore, whereToFind, type WhereToFind } from '../../
 import { containerLootKey, loadContainerLoot, useStore } from '../store'
 import { configFor } from './questUi'
 import { useItemLookup } from './useItemLookup'
+import { useHaveShare } from './useHaveShare'
 import { useBuyContext, useCraftContext } from './useKeepList'
 import { useQuestRows } from './useQuestRows'
 
@@ -29,6 +30,7 @@ export function useFavouriteNeeds(settings: PublicSettings, priceState: PriceSta
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
   const cc = useCraftContext(settings, priceState)
+  const share = useHaveShare(settings)
   const stations = questState?.dataset?.stations
   return useMemo(() => {
     const finished = new Set(
@@ -49,12 +51,13 @@ export function useFavouriteNeeds(settings: PublicSettings, priceState: PriceSta
       finished: (id) => finished.has(id),
       objectives,
       progress,
+      share,
       canGet: (itemId) => {
         const item = items.get(itemId)
         return item !== undefined && getBackNow(item, ctx, cc) !== null
       }
     })
-  }, [favourites, rows, stations, progress, objectives, questsById, items, ctx, cc])
+  }, [favourites, rows, stations, progress, objectives, questsById, items, ctx, cc, share])
 }
 
 /** Where an item can be found on the map shown, and the map that gives clearly more chances, if any. */

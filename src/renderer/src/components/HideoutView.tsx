@@ -33,6 +33,7 @@ import type { HideoutSettings, LootItem, PriceState, PublicSettings } from '../.
 import { formatDuration, formatRub } from '../lib/format'
 import { formatMoney } from '../lib/questSummary'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useHaveShare } from '../lib/useHaveShare'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
@@ -57,18 +58,24 @@ const MAX_HAVE = 100_000
 const SCARCE_ORDER = (s: Scarcity | null, find: number): number =>
   s?.kind === 'rare' ? 2 : s || find ? 1 : 0
 
-/** − count + for how many of an item the player has put aside. */
+/** − count + for how many of an item the player has put aside (of one kind, when labelled). */
 function HaveCounter({
   value,
   needed,
-  onChange
+  onChange,
+  label,
+  title
 }: {
   value: number
   needed: number
   onChange: (value: number) => void
+  /** "FIR" or "Bought", when the row counts the two apart (since 1.66.0). */
+  label?: string
+  title?: string
 }): React.JSX.Element {
   return (
-    <span className={`have-counter ${value >= needed ? 'done' : ''}`}>
+    <span className={`have-counter ${value >= needed ? 'done' : ''}`} title={title}>
+      {label && <span className="have-kind">{label}</span>}
       <button
         className="button icon small"
         aria-label="One fewer"
@@ -81,7 +88,7 @@ function HaveCounter({
         type="number"
         min={0}
         value={value}
-        aria-label="How many you have"
+        aria-label={label ? `How many you have (${title ?? label})` : 'How many you have'}
         onChange={(e) => {
           const n = Number(e.target.value)
           if (Number.isFinite(n)) onChange(Math.min(MAX_HAVE, Math.max(0, Math.round(n))))
@@ -220,6 +227,14 @@ function ItemsNeeded({
   onOpenQuest: (questId: string) => void
 }): React.JSX.Element {
   const setHave = useStore((s) => s.setHideoutHave)
+  const setHaveMany = useStore((s) => s.setHideoutHaveMany)
+  /** One count for both kinds: more are bought ones; fewer come off bought ones first. */
+  const setTotal = (need: HideoutNeed, total: number): void => {
+    const delta = total - need.have
+    const any = Math.max(0, need.haveAny + delta)
+    const fir = Math.max(0, need.haveFir + Math.min(0, need.haveAny + delta))
+    void setHaveMany({ any: { [need.itemId]: any }, fir: { [need.itemId]: fir } })
+  }
   const rows = useMemo<NeededRow[]>(
     () =>
       needs
@@ -350,11 +365,30 @@ function ItemsNeeded({
                 </div>
               </td>
               <td>
-                <HaveCounter
-                  value={need.have}
-                  needed={need.needed}
-                  onChange={(n) => void setHave(need.itemId, n)}
-                />
+                {need.firNeeded > 0 ? (
+                  // Found-in-raid copies counted apart from bought ones (since 1.66.0): only they do
+                  // where found in raid is needed.
+                  <span className="have-pair">
+                    <HaveCounter
+                      label="FIR"
+                      title="Found in raid"
+                      value={need.haveFir}
+                      needed={need.firNeeded}
+                      onChange={(n) => void setHave(need.itemId, n, 'fir')}
+                    />
+                    {(need.needed > need.firNeeded || need.haveAny > 0) && (
+                      <HaveCounter
+                        label="Bought"
+                        title="Bought (they don't count where found in raid is needed)"
+                        value={need.haveAny}
+                        needed={need.needed - need.firNeeded}
+                        onChange={(n) => void setHave(need.itemId, n, 'any')}
+                      />
+                    )}
+                  </span>
+                ) : (
+                  <HaveCounter value={need.have} needed={need.needed} onChange={(n) => setTotal(need, n)} />
+                )}
               </td>
               <td className="num">
                 {firOnly ? (
@@ -655,6 +689,7 @@ export default function HideoutView({
   const updateSettings = useStore((s) => s.updateSettings)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
+  const share = useHaveShare(settings)
   const cc = useCraftContext(settings, priceState)
   const valuation = useMemo(
     () => ({
@@ -748,7 +783,13 @@ export default function HideoutView({
       return { station, next: station.levels.find((l) => l.level === current + 1) }
     })
     .filter((u): u is { station: HideoutStation; next: HideoutLevel } => u.next !== undefined)
-    .map((u) => ({ ...u, status: upgradeStatus(u.next, progress, ctx, items, stationsById, cc.crafts) }))
+    .map((u) => ({
+      ...u,
+      // What's put aside is shared: two upgrades can't both be ready on the same copies (since 1.66.0).
+      status: upgradeStatus(u.next, progress, ctx, items, stationsById, cc.crafts, (itemId, fir) =>
+        share.level(u.station.id, u.next.level, itemId, fir)
+      )
+    }))
     // Ready first, then what can be bought (cheapest first), then waiting, then what can be crafted
     // (cheapest first), then the rest.
     .sort(
@@ -835,6 +876,11 @@ export default function HideoutView({
             Quest items are the ones to hand over or plant (quests that take any of several items are in the
             Quests tab&rsquo;s Items to hand over). Handing them over, or finishing the quest, takes them off
             Have.
+          </p>
+          <p className="hint">
+            Have is split into <strong>FIR</strong> (found in raid) and <strong>Bought</strong>. Items that
+            must be found in raid count only FIR copies. What you have is shared out in order: upgrades in
+            scope, active quests, later upgrades, then other quests, so two needs never count the same copies.
           </p>
           <p className="hint">
             <strong>Hideout only</strong> and <strong>Quests only</strong> count each against what you have;{' '}

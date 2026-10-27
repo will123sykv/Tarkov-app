@@ -496,7 +496,10 @@ describe('what to keep and what to sell', () => {
       needed: 5,
       firNeeded: 0,
       have: 0,
+      haveFir: 0,
+      haveAny: 0,
       missing: 5,
+      missingFir: 0,
       uses: [],
       quests: []
     })

@@ -100,7 +100,7 @@ describe('hideoutNeeds', () => {
   it('adds up what every level still to build needs, less what the player has', () => {
     const needs = hideoutNeeds(
       stations,
-      { levels: { lav: 1 }, have: { bolts: 5, ledx: 3 }, traders: {} },
+      { levels: { lav: 1 }, have: { bolts: 5 }, haveFir: { ledx: 3 }, traders: {} },
       'all'
     )
     expect(needs.map((n) => [n.itemId, n.needed, n.firNeeded, n.have, n.missing, n.foundInRaid])).toEqual([
@@ -110,6 +110,15 @@ describe('hideoutNeeds', () => {
       // The Lavatory wants its LEDX found in raid, the Workbench takes any.
       ['ledx', 2, 1, 3, 0, true]
     ])
+    // Bought LEDX don't count for the one that must be found in raid (since 1.66.0).
+    const bought = hideoutNeeds(stations, { levels: { lav: 1 }, have: { ledx: 3 }, traders: {} }, 'all')
+    expect(bought.find((n) => n.itemId === 'ledx')).toMatchObject({
+      have: 3,
+      haveFir: 0,
+      haveAny: 3,
+      missing: 1,
+      missingFir: 1
+    })
     expect(needs.find((n) => n.itemId === 'bolts')!.uses).toEqual([
       { stationId: 'lav', stationName: 'Lavatory', level: 2, count: 6, foundInRaid: false },
       { stationId: 'lav', stationName: 'Lavatory', level: 3, count: 10, foundInRaid: false },
@@ -435,7 +444,14 @@ describe('upgradeStatus', () => {
       ['screws', 2]
     ])
     const crafts = [craft('c', 'gen', 1, [['screws', 3]], [['bolts', 1]])]
-    const status = upgradeStatus(fir, progress({ bolts: 1 }), ctx(), items, stations, crafts)
+    const status = upgradeStatus(
+      fir,
+      { ...progress({}), haveFir: { bolts: 1 } },
+      ctx(),
+      items,
+      stations,
+      crafts
+    )
     // The bolt left to get isn't bought: only the screws are priced.
     expect(status).toMatchObject({ state: 'short', unbuyable: 0, toFind: 1, partsCost: 18_000 })
     expect(status.parts.map((p) => [p.itemId, p.missing, p.find, p.best?.label ?? null])).toEqual([
@@ -444,7 +460,11 @@ describe('upgradeStatus', () => {
     ])
     expect(status.parts[0].crafts.map((c) => [c.stationName, c.costEach])).toEqual([['Generator', 27_000]])
     // With the bolts in hand, the rest can be bought.
-    expect(upgradeStatus(fir, progress({ bolts: 2 }), ctx(), items, stations).state).toBe('buyable')
+    expect(upgradeStatus(fir, { ...progress({}), haveFir: { bolts: 2 } }, ctx(), items, stations).state).toBe(
+      'buyable'
+    )
+    // Bought bolts don't do (since 1.66.0).
+    expect(upgradeStatus(fir, progress({ bolts: 2 }), ctx(), items, stations).state).toBe('short')
   })
 
   it('plans crafting every part that must be found in raid, when each can be made now', () => {
@@ -690,23 +710,23 @@ describe('hideout progress', () => {
     await store.setHave('pve', 'bolts', 2)
     await store.setTraderLevel('pvp', 'mechanic', 3)
     await store.setTraderLevel('pvp', 'skier', 9)
-    expect(await store.build('pvp', 'lav', 2, LAVATORY.levels[1].items)).toEqual({
+    const built = {
       levels: { lav: 2 },
       have: { bolts: 2 },
+      haveFir: {},
+      haveSplit: true,
       traders: { mechanic: 3, skier: 4 },
       haveAt: { bolts: 1_000 }
-    })
+    }
+    expect(await store.build('pvp', 'lav', 2, LAVATORY.levels[1].items)).toEqual(built)
     // Saved, and each mode is its own.
     const reopened = createPlayerStore({ file })
-    expect(await reopened.hideout('pvp')).toEqual({
-      levels: { lav: 2 },
-      have: { bolts: 2 },
-      traders: { mechanic: 3, skier: 4 },
-      haveAt: { bolts: 1_000 }
-    })
+    expect(await reopened.hideout('pvp')).toEqual(built)
     expect(await reopened.hideout('pve')).toEqual({
       levels: {},
       have: { bolts: 2 },
+      haveFir: {},
+      haveSplit: true,
       traders: {},
       haveAt: { bolts: 1_000 }
     })
@@ -718,8 +738,14 @@ describe('hideout progress', () => {
     const store = createPlayerStore({ file })
     await store.setHave('pvp', 'bolts', 8)
     await store.setHave('pvp', 'toilet', 1)
-    expect(await store.setHaveMany('pvp', { bolts: 3, screws: 5.4, toilet: 0, wires: 1e9 })).toMatchObject({
-      have: { bolts: 3, screws: 5, wires: 100_000 }
+    expect(
+      await store.setHaveMany('pvp', {
+        any: { bolts: 3, screws: 5.4, toilet: 0, wires: 1e9 },
+        fir: { ledx: 2 }
+      })
+    ).toMatchObject({
+      have: { bolts: 3, screws: 5, wires: 100_000 },
+      haveFir: { ledx: 2 }
     })
     expect((await createPlayerStore({ file }).hideout('pvp')).have).toEqual({
       bolts: 3,
@@ -738,6 +764,38 @@ describe('hideout progress', () => {
     expect(await createPlayerStore({ file }).hideout('pve')).toEqual(EMPTY_HIDEOUT)
   })
 
+  it('takes counts saved before 1.66.0 as found in raid, once', async () => {
+    const file = join(await tempDir(), 'player.json')
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        progress: {},
+        history: {},
+        hideout: { pvp: { levels: {}, have: { ledx: 2 }, traders: {}, haveAt: { ledx: 5 } } }
+      })
+    )
+    const store = createPlayerStore({ file })
+    expect(await store.hideout('pvp')).toMatchObject({ have: {}, haveFir: { ledx: 2 }, haveSplit: true })
+    // Bought ones set after: kept apart, and not moved again on the next load.
+    await store.setHave('pvp', 'ledx', 1, 'any')
+    expect(await createPlayerStore({ file }).hideout('pvp')).toMatchObject({
+      have: { ledx: 1 },
+      haveFir: { ledx: 2 }
+    })
+  })
+
+  it('uses found-in-raid copies for found-in-raid parts, and bought ones first for the rest', async () => {
+    const store = createPlayerStore({ file: join(await tempDir(), 'player.json') })
+    await store.setHaveMany('pvp', { any: { bolts: 2, ledx: 1 }, fir: { bolts: 3, ledx: 2 } })
+    const built = await store.build('pvp', 'x', 1, [
+      { itemId: 'bolts', count: 4, foundInRaid: false },
+      { itemId: 'ledx', count: 2, foundInRaid: true }
+    ])
+    // Bolts: both bought, then two found in raid. LEDX: the two found in raid; the bought one stays.
+    expect([built.have, built.haveFir]).toEqual([{ ledx: 1 }, { bolts: 1 }])
+  })
+
   it('reads a 1.8.0 hideout without trader levels', async () => {
     const file = join(await tempDir(), 'player.json')
     await writeFile(
@@ -752,6 +810,8 @@ describe('hideout progress', () => {
     expect(await createPlayerStore({ file }).hideout('pvp')).toEqual({
       levels: { lav: 1 },
       have: {},
+      haveFir: {},
+      haveSplit: true,
       traders: {}
     })
   })
@@ -769,7 +829,7 @@ describe('quest items in the tracker', () => {
     ]
     const needs = hideoutNeeds(
       [LAVATORY],
-      { levels: { lav: 2 }, have: { [BOTTLE]: 1 }, traders: {} },
+      { levels: { lav: 2 }, have: {}, haveFir: { [BOTTLE]: 1 }, traders: {} },
       'all',
       fromQuests
     )
@@ -779,7 +839,10 @@ describe('quest items in the tracker', () => {
       needed: 2,
       firNeeded: 2,
       have: 1,
+      haveFir: 1,
+      haveAny: 0,
       missing: 1,
+      missingFir: 1,
       uses: [],
       quests: [{ questId: Q.debut, name: 'Debut', count: 2, foundInRaid: true }]
     })
@@ -792,7 +855,12 @@ describe('quest items in the tracker', () => {
   })
 
   it('lists counts put aside that nothing left needs', () => {
-    const progress = { levels: {}, have: { bolts: 2, junk: 4, [ROUBLES]: 9 }, traders: {} }
+    const progress = {
+      levels: {},
+      have: { bolts: 2, junk: 4, [ROUBLES]: 9 },
+      haveFir: { junk: 1 },
+      traders: {}
+    }
     const needs = hideoutNeeds([LAVATORY], progress, 'all')
     expect(unneededHave(progress, needs)).toEqual([
       {
@@ -800,8 +868,11 @@ describe('quest items in the tracker', () => {
         foundInRaid: false,
         needed: 0,
         firNeeded: 0,
-        have: 4,
+        have: 5,
+        haveFir: 1,
+        haveAny: 4,
         missing: 0,
+        missingFir: 0,
         uses: [],
         quests: []
       }
@@ -809,9 +880,9 @@ describe('quest items in the tracker', () => {
   })
 
   it('works out what a quest still wants handed over', () => {
-    expect(handOversLeft(debut, undefined)).toEqual([{ itemId: BOTTLE, count: 2 }])
+    expect(handOversLeft(debut, undefined)).toEqual([{ itemId: BOTTLE, count: 2, foundInRaid: true }])
     expect(handOversLeft(debut, setObjective({}, Q.debut, 'o-debut-give', 1))).toEqual([
-      { itemId: BOTTLE, count: 1 }
+      { itemId: BOTTLE, count: 1, foundInRaid: true }
     ])
     expect(handOversLeft(debut, setObjective({}, Q.debut, 'o-debut-give', 2))).toEqual([])
   })

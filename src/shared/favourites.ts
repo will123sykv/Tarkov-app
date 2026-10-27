@@ -1,5 +1,5 @@
 import { CURRENCIES } from './constants'
-import { stationLevel, type HideoutNeed, type HideoutProgress } from './hideout'
+import { haveCount, stationLevel, type HideoutNeed, type HideoutProgress } from './hideout'
 import { neededItems, objectiveTarget, objectiveValue, type ObjectiveProgress } from './questProgress'
 import type { HideoutStation, Quest } from './questTypes'
 
@@ -53,7 +53,10 @@ export interface FavouriteNeed {
 export interface FavouriteInput {
   favourites: Favourites
   /** Each item's need over every level and quest left (Items to collect's list), by item. */
-  everything: ReadonlyMap<string, Pick<HideoutNeed, 'missing' | 'firNeeded'>>
+  everything: ReadonlyMap<
+    string,
+    Pick<HideoutNeed, 'missing' | 'firNeeded'> & Partial<Pick<HideoutNeed, 'missingFir'>>
+  >
   stations: readonly HideoutStation[]
   quests: ReadonlyMap<string, Quest>
   /** Quests done with (completed or failed): nothing left to get for them. */
@@ -62,6 +65,14 @@ export interface FavouriteInput {
   progress: HideoutProgress
   /** Whether the item can be bought, traded for or crafted now. */
   canGet: (itemId: string) => boolean
+  /**
+   * What the shared Have gives a level's part or a quest's hand-over (since 1.66.0), so a starred
+   * upgrade or quest counts only its own copies. Without it, everything put aside of the right kind.
+   */
+  share?: {
+    level(stationId: string, level: number, itemId: string, foundInRaid: boolean): number
+    quest(questId: string, itemId: string, foundInRaid: boolean): number
+  }
 }
 
 const ORDER: Record<FavouriteReason, number> = { cantGet: 0, fir: 1, questItem: 2 }
@@ -91,17 +102,24 @@ export function favouriteNeeds(input: FavouriteInput): FavouriteNeed[] {
     if (ORDER[reason] < ORDER[entry.reason]) entry.reason = reason
     if (!entry.for.includes(label)) entry.for.push(label)
   }
+  /** A starred item's other reason, without counting its copies twice. */
+  const mention = (itemId: string, missing: number, label: string): void => {
+    const entry = byItem.get(itemId)
+    if (missing > 0 && entry && !entry.for.includes(label)) entry.for.push(label)
+  }
   /** Of `missing`, what to look for: all when it can't be got, else the copies that must be found in raid. */
   const look = (itemId: string, missing: number, fir: number, label: string): void => {
     if (CURRENCIES[itemId] || missing <= 0) return
     if (!canGet(itemId)) add(itemId, missing, 'cantGet', label)
     else add(itemId, Math.min(missing, fir), 'fir', label)
   }
-  const have = (itemId: string): number => Math.max(0, progress.have[itemId] ?? 0)
+  const have = (itemId: string, fir: boolean): number =>
+    fir ? haveCount(progress, itemId, 'fir') : haveCount(progress, itemId)
+  const starred = new Set(favourites.items)
 
   for (const itemId of favourites.items) {
     const need = input.everything.get(itemId)
-    if (need) look(itemId, need.missing, need.firNeeded, 'Starred')
+    if (need) look(itemId, need.missing, need.missingFir ?? need.firNeeded, 'Starred')
   }
   for (const key of favourites.upgrades) {
     const [stationId, levelText] = key.split(':')
@@ -110,16 +128,25 @@ export function favouriteNeeds(input: FavouriteInput): FavouriteNeed[] {
     if (!station || !level || level.level <= stationLevel(station, progress)) continue
     const label = `${station.name} ${level.level}`
     for (const part of level.items) {
-      const missing = Math.max(0, part.count - have(part.itemId))
-      look(part.itemId, missing, part.foundInRaid ? missing : 0, label)
+      const got = input.share
+        ? input.share.level(station.id, level.level, part.itemId, part.foundInRaid)
+        : have(part.itemId, part.foundInRaid)
+      const missing = Math.max(0, part.count - got)
+      // A starred item already counts every level's and quest's need of it: just say what it's for.
+      if (starred.has(part.itemId)) mention(part.itemId, missing, label)
+      else look(part.itemId, missing, part.foundInRaid ? missing : 0, label)
     }
   }
   for (const questId of favourites.quests) {
     const quest = input.quests.get(questId)
     if (!quest || input.finished(questId)) continue
     for (const n of neededItems([quest], input.objectives).items) {
-      const missing = Math.max(0, n.count - have(n.itemId))
-      look(n.itemId, missing, n.foundInRaid ? missing : 0, quest.name)
+      const got = input.share
+        ? input.share.quest(quest.id, n.itemId, n.foundInRaid)
+        : have(n.itemId, n.foundInRaid)
+      const missing = Math.max(0, n.count - got)
+      if (starred.has(n.itemId)) mention(n.itemId, missing, quest.name)
+      else look(n.itemId, missing, n.foundInRaid ? missing : 0, quest.name)
     }
     for (const o of quest.objectives) {
       if (!o.questItem || o.type !== 'findQuestItem') continue

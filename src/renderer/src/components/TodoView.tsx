@@ -37,6 +37,7 @@ import { useFriendKeys } from '../lib/useFriendKeys'
 import { useKeyInfo, type KeyInfo } from '../lib/useKeyInfo'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useTodoPlan } from '../lib/useTodoPlan'
+import { useHaveShare, useHaveTotals } from '../lib/useHaveShare'
 import { useBuyContext } from '../lib/useKeepList'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useStore } from '../store'
@@ -915,6 +916,7 @@ export default function TodoView({
   const selectQuest = useStore((s) => s.selectQuest)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
+  const share = useHaveShare(settings)
   const inventory = useStore((s) => s.keys[settings.gameMode]) ?? EMPTY_KEYS
   const { info, groups } = useKeyInfo(settings, priceState)
   const dataset = questState?.dataset ?? null
@@ -931,7 +933,8 @@ export default function TodoView({
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
   // All, the story or the side quests (since 1.61.0).
   const rows = useMemo(() => ofKind(everyRow, settings.quests.kind), [everyRow, settings.quests.kind])
-  const plan = useTodoPlan(settings, rows, objectives, groupOf, owned, progress.have)
+  const haveAll = useHaveTotals(settings)
+  const plan = useTodoPlan(settings, rows, objectives, groupOf, owned, haveAll, share.quest)
   // Keys to buy: the ones holding up active quests, then the ones added from the Keys tab.
   const listed = new Set(plan.keysToGet.flatMap((k) => k.keyIds))
   const addedKeys = inventory.toDo.filter((id) => !listed.has(id) && !owned.has(id))
@@ -948,8 +951,13 @@ export default function TodoView({
         next: station.levels.find((l) => l.level === stationLevel(station, progress) + 1)
       }))
       .filter((u): u is { station: HideoutStation; next: NonNullable<typeof u.next> } => u.next !== undefined)
-      .filter((u) => upgradeStatus(u.next, progress, ctx, items, byId).state === 'ready')
-  }, [dataset, progress, ctx, items])
+      .filter(
+        (u) =>
+          upgradeStatus(u.next, progress, ctx, items, byId, [], (itemId, fir) =>
+            share.level(u.station.id, u.next.level, itemId, fir)
+          ).state === 'ready'
+      )
+  }, [dataset, progress, ctx, items, share])
 
   const openQuest = (questId: string): void => {
     selectQuest(questId)
@@ -1084,7 +1092,8 @@ export default function TodoView({
             </ul>
           )}
           <p className="hint">
-            Hand-overs and upgrades count what you&rsquo;ve put aside in Items to collect.
+            Hand-overs and upgrades count what you&rsquo;ve put aside in Items to collect, shared out so two
+            needs never count the same copies.
           </p>
         </SidebarSection>
         <SidebarSection title="Keys to buy">

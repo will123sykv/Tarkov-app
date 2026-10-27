@@ -10,8 +10,15 @@ import { evaluateItem } from './valuation'
 export interface HideoutProgress {
   /** Built level per station id; a station not in here is at its starting level. */
   levels: Record<string, number>
-  /** How many of each item the player has put aside for the hideout and quests. */
+  /**
+   * How many of each item the player has put aside for the hideout and quests: bought copies (or any
+   * kind) since 1.66.0, the found-in-raid ones being in `haveFir`; before then, every copy.
+   */
   have: Record<string, number>
+  /** Copies put aside that were found in raid (since 1.66.0). */
+  haveFir?: Record<string, number>
+  /** Set once `have` was split into bought and found-in-raid copies (since 1.66.0). */
+  haveSplit?: boolean
   /** Loyalty level per trader id, for what traders sell; a trader not in here is at level 1. */
   traders: Record<string, number>
   /**
@@ -21,14 +28,67 @@ export interface HideoutProgress {
   haveAt?: Record<string, number>
 }
 
-export const EMPTY_HIDEOUT: HideoutProgress = { levels: {}, have: {}, traders: {} }
+export const EMPTY_HIDEOUT: HideoutProgress = {
+  levels: {},
+  have: {},
+  haveFir: {},
+  traders: {},
+  haveSplit: true
+}
+
+/** Found-in-raid copies, or bought ones (bought ones never count where found in raid is needed). */
+export type HaveKind = 'fir' | 'any'
+
+/** Counts to set, by kind (an item left out keeps its count; 0 clears one). */
+export type HaveCounts = Partial<Record<HaveKind, Record<string, number>>>
+
+/** How many of an item are put aside: found in raid, bought, or both (no kind). */
+export function haveCount(
+  progress: Pick<HideoutProgress, 'have' | 'haveFir'>,
+  itemId: string,
+  kind?: HaveKind
+): number {
+  const fir = Math.max(0, progress.haveFir?.[itemId] ?? 0)
+  const any = Math.max(0, progress.have[itemId] ?? 0)
+  return kind === 'fir' ? fir : kind === 'any' ? any : fir + any
+}
+
+/** Every item's count put aside, both kinds together (for what doesn't care which). */
+export function haveTotals(progress: Pick<HideoutProgress, 'have' | 'haveFir'>): Record<string, number> {
+  const totals: Record<string, number> = { ...progress.have }
+  for (const [id, n] of Object.entries(progress.haveFir ?? {})) totals[id] = (totals[id] ?? 0) + n
+  return totals
+}
+
+/**
+ * The counts left after `count` of an item is used up (handed over, built, crafted): a need that must
+ * be found in raid takes found-in-raid copies; any other takes bought copies first, then found-in-raid
+ * ones. A negative count puts copies back (to the kind the need takes).
+ */
+export function usedUp(
+  progress: Pick<HideoutProgress, 'have' | 'haveFir'>,
+  itemId: string,
+  count: number,
+  foundInRaid: boolean
+): Record<HaveKind, number> {
+  const fir = haveCount(progress, itemId, 'fir')
+  const any = haveCount(progress, itemId, 'any')
+  if (count < 0) return foundInRaid ? { fir: fir - count, any } : { fir, any: any - count }
+  if (foundInRaid) return { fir: Math.max(0, fir - count), any }
+  const fromAny = Math.min(any, count)
+  return { fir: Math.max(0, fir - (count - fromAny)), any: any - fromAny }
+}
 
 /** Items a quest consumes that are still to hand over or plant, one entry per objective. */
 export function handOversLeft(
   quest: Quest,
   objectives: ObjectiveProgress | undefined
-): { itemId: string; count: number }[] {
-  return neededItems([quest], objectives).items.map((n) => ({ itemId: n.itemId, count: n.count }))
+): { itemId: string; count: number; foundInRaid: boolean }[] {
+  return neededItems([quest], objectives).items.map((n) => ({
+    itemId: n.itemId,
+    count: n.count,
+    foundInRaid: n.foundInRaid
+  }))
 }
 
 export const maxLevel = (station: HideoutStation): number =>
@@ -58,8 +118,14 @@ export interface HideoutNeed {
   needed: number
   /** How many of `needed` must be found in raid (the rest take any). */
   firNeeded: number
+  /** Put aside, both kinds together. */
   have: number
+  /** Of `have`, how many were found in raid, and how many bought (since 1.66.0). */
+  haveFir: number
+  haveAny: number
   missing: number
+  /** Of `missing`, how many must be found in raid: bought copies don't count for those (since 1.66.0). */
+  missingFir: number
   uses: { stationId: string; stationName: string; level: number; count: number; foundInRaid: boolean }[]
   /** Quests that want it handed over or planted. */
   quests: { questId: string; name: string; count: number; foundInRaid: boolean }[]
@@ -86,7 +152,10 @@ export function hideoutNeeds(
         needed: 0,
         firNeeded: 0,
         have: 0,
+        haveFir: 0,
+        haveAny: 0,
         missing: 0,
+        missingFir: 0,
         uses: [],
         quests: []
       }
@@ -124,11 +193,32 @@ export function hideoutNeeds(
     for (const q of quests) need.quests.push({ ...q, foundInRaid })
   }
   const result = [...byItem.values()]
-  for (const need of result) {
-    need.have = Math.max(0, progress.have[need.itemId] ?? 0)
-    need.missing = Math.max(0, need.needed - need.have)
-  }
+  for (const need of result) Object.assign(need, coverage(progress, need.itemId, need.needed, need.firNeeded))
   return result.sort((a, b) => b.missing - a.missing || a.itemId.localeCompare(b.itemId))
+}
+
+/**
+ * What's put aside of an item and what it leaves missing of `needed` (`firNeeded` of them found in
+ * raid): found-in-raid copies go to those first, and only they count for them; the rest of the need
+ * takes bought copies, then any found-in-raid ones left.
+ */
+export function coverage(
+  progress: Pick<HideoutProgress, 'have' | 'haveFir'>,
+  itemId: string,
+  needed: number,
+  firNeeded: number
+): Pick<HideoutNeed, 'have' | 'haveFir' | 'haveAny' | 'missing' | 'missingFir'> {
+  const haveFir = haveCount(progress, itemId, 'fir')
+  const haveAny = haveCount(progress, itemId, 'any')
+  const firCovered = Math.min(firNeeded, haveFir)
+  const otherCovered = Math.min(needed - firNeeded, haveAny + haveFir - firCovered)
+  return {
+    have: haveFir + haveAny,
+    haveFir,
+    haveAny,
+    missing: Math.max(0, needed - firCovered - otherCovered),
+    missingFir: Math.max(0, firNeeded - firCovered)
+  }
 }
 
 /** Fewer flea offers than this and an item is scarce (offer counts swing, so this is low)... */
@@ -408,16 +498,19 @@ export interface GetInfo {
 }
 
 /**
- * As the keep list does, copies put aside are taken to be ones that needn't be found in raid, so this
- * errs towards finding: of what's missing, as many as must be found in raid are to find or craft.
+ * How to get what's missing of a need: of it, the copies that must be found in raid are to find or
+ * craft, the rest can be bought.
  */
 export function howToGet(
-  need: Pick<HideoutNeed, 'itemId' | 'needed' | 'firNeeded' | 'missing'>,
+  need: Pick<HideoutNeed, 'itemId' | 'needed' | 'firNeeded' | 'missing'> & { missingFir?: number },
   cc: CraftContext,
   ctx: BuyContext
 ): GetInfo {
   const count = need.missing > 0 ? need.missing : need.needed
-  const find = Math.min(count, need.firNeeded)
+  // Of what's missing, the ones that must be found in raid (since 1.66.0 the found-in-raid copies put
+  // aside are known; before, every copy was taken to be bought).
+  const find =
+    need.missing > 0 && need.missingFir !== undefined ? need.missingFir : Math.min(count, need.firNeeded)
   const buyCount = count - find
   const item = cc.items.get(need.itemId)
   return {
@@ -490,14 +583,16 @@ export interface KeepInfo {
 
 /**
  * Items the hideout or active quests still need, with the hard-to-replace ones marked. What's put
- * aside (`have`) covers the hideout's needs first, then the quests'.
+ * aside covers the hideout's needs first, then the quests' (`share`, the shared Have: what covers each
+ * quest's hand-over; without it, what the hideout leaves of `have`).
  */
 export function keepList(
   hideout: readonly HideoutNeed[],
   quests: readonly NeededItem[],
   items: ReadonlyMap<string, LootItem>,
   ctx: BuyContext,
-  have: Readonly<Record<string, number>> = {}
+  have: Readonly<Record<string, number>> = {},
+  share?: (questId: string, itemId: string, fir: boolean) => number
 ): Map<string, KeepInfo> {
   const result = new Map<string, KeepInfo>()
   const entry = (itemId: string): KeepInfo => {
@@ -519,8 +614,21 @@ export function keepList(
     if (need.missing > 0 && !CURRENCIES[need.itemId]) {
       const info = entry(need.itemId)
       info.hideout += need.missing
-      info.fir.hideout += Math.min(need.missing, need.firNeeded)
+      info.fir.hideout += need.missingFir ?? Math.min(need.missing, need.firNeeded)
     }
+  if (share) {
+    for (const need of quests) {
+      if (CURRENCIES[need.itemId]) continue
+      for (const q of need.quests) {
+        const left = q.count - share(q.questId, need.itemId, need.foundInRaid)
+        if (left <= 0) continue
+        const info = entry(need.itemId)
+        info.quests += left
+        if (need.foundInRaid) info.fir.quests += left
+      }
+    }
+    return result
+  }
   const hideoutNeeded = new Map(hideout.map((n) => [n.itemId, n.needed]))
   const questNeeded = new Map<string, { count: number; fir: number }>()
   for (const need of quests)
@@ -561,15 +669,14 @@ export function keepOnlyHardToReplace(
 /** Items put aside that nothing left needs (no level still to build, no quest left), as rows of 0 needed. */
 export function unneededHave(progress: HideoutProgress, everything: readonly HideoutNeed[]): HideoutNeed[] {
   const needed = new Set(everything.map((n) => n.itemId))
-  return Object.entries(progress.have)
+  return Object.entries(haveTotals(progress))
     .filter(([itemId, have]) => have > 0 && !needed.has(itemId) && !CURRENCIES[itemId])
-    .map(([itemId, have]) => ({
+    .map(([itemId]) => ({
       itemId,
       foundInRaid: false,
       needed: 0,
       firNeeded: 0,
-      have,
-      missing: 0,
+      ...coverage(progress, itemId, 0, 0),
       uses: [],
       quests: []
     }))
@@ -605,17 +712,24 @@ export interface SellAdvice {
  * copies that must be found in raid. Otherwise only the extras.
  */
 export function sellAdvice(
-  everything: Pick<HideoutNeed, 'have' | 'needed' | 'firNeeded'>,
+  everything: Pick<HideoutNeed, 'have' | 'needed' | 'firNeeded'> &
+    Partial<Pick<HideoutNeed, 'haveFir' | 'missing'>>,
   item: LootItem | undefined,
   ctx: BuyContext,
   cc?: CraftContext
 ): SellAdvice | null {
   const have = everything.have
   if (have <= 0 || (item && CURRENCIES[item.id])) return null
-  const extra = Math.max(0, have - everything.needed)
+  // Copies nothing left needs: what's put aside beyond what it covers (bought copies don't cover a
+  // need found in raid, so they're extra then).
+  const covered =
+    everything.missing !== undefined ? everything.needed - everything.missing : everything.needed
+  const extra = Math.max(0, have - covered)
   const back = item ? getBackNow(item, ctx, cc) : null
   const easy = back !== null
-  const sellable = easy ? Math.max(0, have - everything.firNeeded) : extra
+  // Found-in-raid copies put aside for needs that must be found in raid are kept; the rest can go.
+  const firKept = Math.min(everything.haveFir ?? have, everything.firNeeded)
+  const sellable = easy ? Math.max(0, have - firKept) : extra
   if (sellable <= 0) return null
   const value = item
     ? evaluateItem(item, {
@@ -627,7 +741,7 @@ export function sellAdvice(
   return {
     count: sellable,
     reason: sellable > extra ? 'buyBack' : 'extra',
-    keepFir: easy ? Math.min(have, everything.firNeeded) : 0,
+    keepFir: easy ? firKept : 0,
     sellEach: value && value.worth > 0 ? value.worth : null,
     sellVia:
       value?.via === 'flea'
@@ -743,7 +857,12 @@ export function upgradeStatus(
   ctx: BuyContext,
   items: ReadonlyMap<string, LootItem>,
   stationsById: ReadonlyMap<string, HideoutStation>,
-  crafts: readonly HideoutCraft[] = []
+  crafts: readonly HideoutCraft[] = [],
+  /**
+   * The copies the shared Have gives this level's part (since 1.66.0: so two upgrades can't both be
+   * ready on the same copies); without it, every copy put aside of the kind the part takes.
+   */
+  covered?: (itemId: string, foundInRaid: boolean) => number
 ): UpgradeStatus {
   const parts: UpgradePart[] = []
   const money: { itemId: string; count: number }[] = []
@@ -756,7 +875,9 @@ export function upgradeStatus(
       moneyCost = moneyCost !== null && rate !== null ? moneyCost + count * rate : null
       continue
     }
-    const have = Math.max(0, progress.have[itemId] ?? 0)
+    const have = covered
+      ? covered(itemId, foundInRaid)
+      : Math.min(count, foundInRaid ? haveCount(progress, itemId, 'fir') : haveCount(progress, itemId))
     const missing = Math.max(0, count - have)
     const find = foundInRaid ? missing : 0
     const item = items.get(itemId)

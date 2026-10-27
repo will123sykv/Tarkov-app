@@ -111,11 +111,39 @@ describe('favourites on the map', () => {
     ])
   })
 
+  it('counts a starred item once when a starred upgrade needs it too (since 1.66.0)', () => {
+    const favourites = { ...EMPTY_FAVOURITES, items: ['drill'], upgrades: ['wb:2'] }
+    expect(rows(input({ favourites })).find((r) => r[0] === 'drill')).toEqual([
+      'drill',
+      3,
+      'fir',
+      ['Starred', 'Workbench 2']
+    ])
+  })
+
+  it('counts only the copies the shared Have gives a starred upgrade (since 1.66.0)', () => {
+    const favourites = { ...EMPTY_FAVOURITES, upgrades: ['wb:2'] }
+    // Two drills found in raid, but another need comes first and takes one.
+    const share = { level: () => 1, quest: () => 0 }
+    const progress2 = { ...progress(), haveFir: { drill: 2 } }
+    expect(rows(input({ favourites, progress: progress2, share })).find((r) => r[0] === 'drill')).toEqual([
+      'drill',
+      1,
+      'fir',
+      ['Workbench 2']
+    ])
+  })
+
   it('lists a starred upgrade’s parts, leaving out money and what’s put aside or easy to get', () => {
     const favourites = { ...EMPTY_FAVOURITES, upgrades: ['wb:2'] }
-    expect(rows(input({ favourites, progress: progress({ drill: 1 }) }))).toEqual([
+    expect(rows(input({ favourites, progress: { ...progress(), haveFir: { drill: 1 } } }))).toEqual([
       ['ledx', 1, 'cantGet', ['Workbench 2']],
       ['drill', 1, 'fir', ['Workbench 2']]
+    ])
+    // A bought drill doesn't count where it must be found in raid (since 1.66.0).
+    expect(rows(input({ favourites, progress: progress({ drill: 1 }) }))).toEqual([
+      ['ledx', 1, 'cantGet', ['Workbench 2']],
+      ['drill', 2, 'fir', ['Workbench 2']]
     ])
     // Once built, it's done with.
     expect(rows(input({ favourites, progress: progress({}, 2) }))).toEqual([])

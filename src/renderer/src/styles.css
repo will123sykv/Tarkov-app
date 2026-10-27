@@ -6246,3 +6246,43 @@ p.quest-before.done {
   border-bottom: 1px solid rgba(229, 83, 75, 0.4);
   font-size: 12.5px;
 }
+
+/* Settings → Your progress: the backups to put back (since 1.66.0). */
+.backup-list summary {
+  cursor: pointer;
+  font-size: 12.5px;
+}
+
+.backup-list ul {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  margin: 6px 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.backup-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: 10px;
+  align-items: baseline;
+}
+
+/* Items to collect: found-in-raid and bought copies counted apart (since 1.66.0). */
+.have-pair {
+  display: inline-grid;
+  gap: 3px;
+  justify-items: start;
+}
+
+.have-kind {
+  min-width: 46px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

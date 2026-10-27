@@ -1,7 +1,7 @@
 import { readdir, readFile, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { createBackups, KEEP_DAILY } from '../src/main/backups'
+import { createBackups, KEEP_BEFORE, KEEP_DAILY, KEEP_MONTHLY, KEEP_WEEKLY } from '../src/main/backups'
 import { createPlayerStore } from '../src/main/quests/playerStore'
 import { PROGRESS_APP, progressFile, readProgressFile } from '../src/main/progressFile'
 import { DEFAULT_SETTINGS } from '../src/shared/settings'
@@ -18,7 +18,8 @@ const player = (marker: string): unknown => ({
 /** Backups made in a test all have this moment's time: give each its day's, as if made then. */
 async function datedByName(dir: string): Promise<void> {
   for (const n of await backupNames(dir)) {
-    const day = Date.parse(n.match(/\d{4}-\d\d-\d\d/)![0])
+    const [date] = n.match(/\d{4}-\d\d(-\d\d)?/)!
+    const day = Date.parse(date.length === 7 ? `${date}-01` : date)
     await utimes(join(dir, 'backups', n), new Date(day), new Date(day))
   }
 }
@@ -26,6 +27,50 @@ async function datedByName(dir: string): Promise<void> {
 async function backupNames(dir: string): Promise<string[]> {
   return (await readdir(join(dir, 'backups')).catch(() => [])).sort()
 }
+
+describe('weekly and monthly backups (since 1.66.0)', () => {
+  it('keeps the newest 4 weeks and 6 months', async () => {
+    const dir = await tempDir()
+    let now = START
+    const backups = createBackups({ dir, now: () => now })
+    await writeFile(join(dir, 'player.json'), JSON.stringify(player('a')))
+    for (let i = 0; i < 400; i += 3) {
+      now = START + i * DAY
+      await backups.scheduled()
+      await datedByName(dir)
+    }
+    const names = await backupNames(dir)
+    expect(names.filter((n) => n.startsWith('player-weekly-'))).toHaveLength(KEEP_WEEKLY)
+    expect(names.filter((n) => n.startsWith('player-monthly-'))).toHaveLength(KEEP_MONTHLY)
+    expect(names.filter((n) => /^player-\d/.test(n))).toHaveLength(KEEP_DAILY)
+    // The newest month is kept, the first long gone.
+    expect(names).toContain(`player-monthly-${new Date(now).toISOString().slice(0, 7)}.json`)
+    expect(names).not.toContain('player-monthly-2026-10.json')
+  })
+
+  it('backs up before a rescan, keeping the last 3, and lists what can be put back', async () => {
+    const dir = await tempDir()
+    let now = START
+    const backups = createBackups({ dir, now: () => now })
+    await writeFile(join(dir, 'player.json'), JSON.stringify(player('a')))
+    await writeFile(join(dir, 'settings.json'), JSON.stringify({ gameMode: 'pve' }))
+    for (let i = 0; i < 5; i++) {
+      now = START + i * 1000
+      await backups.before('rescan')
+    }
+    const rescans = (await backupNames(dir)).filter((n) => n.includes('before-rescan'))
+    expect(rescans.filter((n) => n.startsWith('player-'))).toHaveLength(KEEP_BEFORE)
+    const listed = await backups.list()
+    expect(listed.map((b) => b.kind)).toEqual(['before-rescan', 'before-rescan', 'before-rescan'])
+    // Read back with its settings; names that aren't a backup's, or a broken backup, are refused.
+    const read = await backups.read(listed[0].name)
+    expect(read).toEqual({ player: player('a'), settings: { gameMode: 'pve' } })
+    expect(await backups.read('../player.json')).toBeNull()
+    expect(await backups.read('settings-2026-10-01.json')).toBeNull()
+    await writeFile(join(dir, 'backups', 'player-2026-10-02.json'), '{"version":1, "pro')
+    expect(await backups.read('player-2026-10-02.json')).toBeNull()
+  })
+})
 
 describe('daily backups', () => {
   it('copies the progress and settings once a day, keeping the newest 7 days', async () => {
@@ -38,7 +83,15 @@ describe('daily backups', () => {
 
     await backups.daily()
     await backups.daily()
-    expect(await backupNames(dir)).toEqual(['player-2026-10-01.json', 'settings-2026-10-01.json'])
+    // 1 October 2026 is a Thursday: the week's backup is named after its Monday.
+    expect(await backupNames(dir)).toEqual([
+      'player-2026-10-01.json',
+      'player-monthly-2026-10.json',
+      'player-weekly-2026-09-28.json',
+      'settings-2026-10-01.json',
+      'settings-monthly-2026-10.json',
+      'settings-weekly-2026-09-28.json'
+    ])
 
     for (let i = 1; i <= 9; i++) {
       now = START + i * DAY
@@ -46,7 +99,7 @@ describe('daily backups', () => {
       await datedByName(dir)
     }
     const names = await backupNames(dir)
-    expect(names.filter((n) => n.startsWith('player-'))).toHaveLength(KEEP_DAILY)
+    expect(names.filter((n) => /^player-\d/.test(n))).toHaveLength(KEEP_DAILY)
     expect(names).toContain('player-2026-10-10.json')
     expect(names).not.toContain('player-2026-10-01.json')
     expect(names.some((n) => n.startsWith('secrets'))).toBe(false)

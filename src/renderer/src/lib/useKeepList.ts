@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import { useStore } from '../store'
 import { useItemLookup } from './useItemLookup'
+import { useHaveShare } from './useHaveShare'
 import { useQuestRows } from './useQuestRows'
 
 /** What the player can buy: their level, the flea's unlock level, trader loyalty and finished quests. */
@@ -74,6 +75,7 @@ export function useKeepList(
   const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(current, priceState)
+  const share = useHaveShare(current)
   const scope = settings.hideout.scope
   const stations = questState?.dataset?.stations
   return useMemo(() => {
@@ -82,6 +84,7 @@ export function useKeepList(
       rows.filter((r) => r.status === 'active').map((r) => r.quest),
       objectives
     ).items
-    return keepList(hideout, quests, items, ctx, progress.have)
-  }, [stations, progress, scope, rows, items, ctx, objectives])
+    // Each quest's hand-over less the copies the shared Have gives it (the hideout's come first).
+    return keepList(hideout, quests, items, ctx, {}, share.quest)
+  }, [stations, progress, scope, rows, items, ctx, objectives, share])
 }

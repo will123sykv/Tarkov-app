@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatDateTime } from '../lib/format'
 import type { UpdaterStatus } from '../../../shared/types'
+import type { BackupInfo } from '../../../shared/ipc'
 import { useStore } from '../store'
 import BackgroundToggles from './BackgroundToggles'
 import {
@@ -33,6 +34,59 @@ function describeUpdater(status: UpdaterStatus): string {
     case 'error':
       return `Update check failed: ${status.message ?? 'unknown error'}`
   }
+}
+
+const BACKUP_KIND: Record<BackupInfo['kind'], string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  'before-import': 'Before an import',
+  'before-rescan': 'Before reading the logs again',
+  'before-restore': 'Before a restore'
+}
+
+/** The backups there are, each with Restore (since 1.66.0). */
+function BackupList({ onRestored }: { onRestored: () => Promise<void> }): React.JSX.Element {
+  const [backups, setBackups] = useState<BackupInfo[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const load = (): void => void window.api.listBackups().then(setBackups, () => setBackups([]))
+  const restore = async (b: BackupInfo): Promise<void> => {
+    if (
+      !window.confirm(
+        `Put back your progress and settings from ${formatDateTime(b.at)} (${BACKUP_KIND[b.kind].toLowerCase()})? What you have now is backed up first.`
+      )
+    )
+      return
+    const result = await window.api.restoreBackup(b.name)
+    if (result.ok) await onRestored()
+    else setError(result.error)
+  }
+  return (
+    <details
+      className="backup-list"
+      onToggle={(e) => (e.currentTarget.open && !backups ? load() : undefined)}
+    >
+      <summary>Backups to put back…</summary>
+      {!backups ? (
+        <p className="hint">Loading…</p>
+      ) : backups.length === 0 ? (
+        <p className="hint">No backups yet.</p>
+      ) : (
+        <ul>
+          {backups.map((b) => (
+            <li key={b.name}>
+              <span>{formatDateTime(b.at)}</span>
+              <span className="muted">{BACKUP_KIND[b.kind]}</span>
+              <button className="link small" onClick={() => void restore(b)}>
+                Restore
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && <p className="hint error">{error}</p>}
+    </details>
+  )
 }
 
 /** Backups of the progress, and exporting or importing it as a file (since 1.47.0). */
@@ -69,7 +123,8 @@ function ProgressSection(): React.JSX.Element {
       <h3>Your progress</h3>
       <p className="hint">
         Quests, objectives, hideout, items put aside, keys, loyalty, pins and favourites are backed up each
-        day (the last 7 days are kept), and put back from there if the file is ever damaged.{' '}
+        day, week and month (the last 7 days, 4 weeks and 6 months are kept) and just before an import,
+        reading the logs again or a restore, and put back from there if the file is ever damaged.{' '}
         {info?.lastBackupAt ? `Last backup: ${formatDateTime(info.lastBackupAt)}.` : 'No backup yet.'}
       </p>
       <div className="inline">
@@ -84,6 +139,13 @@ function ProgressSection(): React.JSX.Element {
         </button>
       </div>
       {message && <p className={`hint ${message.tone === 'error' ? 'error' : ''}`}>{message.text}</p>}
+      <BackupList
+        onRestored={async () => {
+          await loadProgressInfo()
+          // Everything shown comes from the progress: start the page again from the restored one.
+          window.location.reload()
+        }}
+      />
       <p className="hint">
         Export to keep your own copy or move to another PC; the tarkov-market key isn&rsquo;t included.
       </p>

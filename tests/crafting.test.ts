@@ -84,7 +84,10 @@ const need = (
   needed: missing,
   firNeeded,
   have: 0,
+  haveFir: 0,
+  haveAny: 0,
   missing,
+  missingFir: firNeeded,
   uses: [
     { stationId: 'med', stationName: 'Medstation', level: 1, count: missing, foundInRaid: firNeeded > 0 }
   ],
@@ -206,20 +209,30 @@ describe('what to craft at each station', () => {
     // Two bolts from four screws, with a toolset that isn't used up.
     const bolts = { ...crafts[0], tools: ['toolset'] }
     const tracked = new Set(['bolts', 'screws', 'toolset'])
-    // Bolts are needed: +2. Screws are counted: -4. The toolset stays.
-    expect(craftRunCounts(bolts, { bolts: 1, screws: 6, toolset: 1 }, tracked)).toEqual({
-      bolts: 3,
-      screws: 2
+    const have = (any: Record<string, number>, fir: Record<string, number> = {}) => ({
+      have: any,
+      haveFir: fir
+    })
+    // Bolts are needed: +2, found in raid (crafted). Screws are counted: -4, bought ones first.
+    expect(craftRunCounts(bolts, have({ screws: 2, toolset: 1 }, { bolts: 1, screws: 4 }), tracked)).toEqual({
+      fir: { bolts: 3, screws: 2 },
+      any: { screws: 0 }
     })
     // Fewer screws counted than it uses: down to 0, not below.
-    expect(craftRunCounts(bolts, { screws: 3 }, tracked)).toEqual({ bolts: 2, screws: 0 })
+    expect(craftRunCounts(bolts, have({ screws: 3 }), tracked)).toEqual({
+      fir: { bolts: 2 },
+      any: { screws: 0 }
+    })
     // Screws not counted are left alone; bolts nothing needs aren't added.
-    expect(craftRunCounts(bolts, {}, new Set(['screws']))).toEqual({})
-    // Something it both uses and makes: the difference.
+    expect(craftRunCounts(bolts, have({}), new Set(['screws']))).toEqual({})
+    // Something it both uses and makes: the bought one used, three found in raid made.
     const swap = craft('swap', 'wb', 1, [['wire', 1]], [['wire', 3]], 600)
-    expect(craftRunCounts(swap, { wire: 2 }, new Set(['wire']))).toEqual({ wire: 4 })
+    expect(craftRunCounts(swap, have({ wire: 2 }), new Set(['wire']))).toEqual({
+      fir: { wire: 3 },
+      any: { wire: 1 }
+    })
     // Money it costs isn't counted.
     const paid = craft('paid', 'wb', 1, [[ROUBLES, 5_000]], [['wire', 1]], 600)
-    expect(craftRunCounts(paid, { [ROUBLES]: 10_000 }, new Set(['wire']))).toEqual({ wire: 1 })
+    expect(craftRunCounts(paid, have({ [ROUBLES]: 10_000 }), new Set(['wire']))).toEqual({ fir: { wire: 1 } })
   })
 })

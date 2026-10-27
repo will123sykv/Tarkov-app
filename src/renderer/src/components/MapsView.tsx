@@ -35,6 +35,7 @@ import { configFor, MAP_CONFIGS, STATUS_LABEL } from '../lib/questUi'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useWhereToFind } from '../lib/useFavourites'
 import { useFriendKeys } from '../lib/useFriendKeys'
+import { useHaveTotals } from '../lib/useHaveShare'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useKillPlan, useTodoPlan } from '../lib/useTodoPlan'
 import { useStore } from '../store'
@@ -244,7 +245,6 @@ function StorySteps({
 
 const NO_LABELS: MapLabel[] = []
 const NO_MAPS: GameMap[] = []
-const NO_HAVE: Record<string, number> = {}
 
 const LAYERS: { key: keyof MapSettings & `show${string}`; label: string }[] = [
   { key: 'showLabels', label: 'Place names' },
@@ -418,7 +418,7 @@ export default function MapsView({
 
   // What to take into a raid here, as the To do tab has it: shown each time a map is opened, until
   // closed (Got it), when there's anything to take or look out for.
-  const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
+  const have = useHaveTotals(settings)
   const groupFor = useCallback((id: string) => groupOf.get(id), [groupOf])
   const todo = useTodoPlan(settings, rows, done, groupFor, owned, have)
   // The gun from kills only, as the Weapons tab has it, so To do's Locate filter doesn't hide it.

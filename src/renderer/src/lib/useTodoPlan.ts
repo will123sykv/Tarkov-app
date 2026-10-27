@@ -15,12 +15,21 @@ export function useTodoPlan(
   objectives: ObjectiveProgress,
   groupOf: (mapId: string) => MapGroup | undefined,
   owned: ReadonlySet<string>,
-  have: Readonly<Record<string, number>>
+  have: Readonly<Record<string, number>>,
+  /** What the shared Have gives each quest's hand-over (since 1.66.0). */
+  handOverShare?: (questId: string, itemId: string, foundInRaid: boolean) => number
 ): TodoPlan {
   const { show, kinds } = settings.todo
   return useMemo(
-    () => todoPlan(rows, objectives, groupOf, { have, owned, hideBlocked: show === 'doable', kinds }),
-    [rows, objectives, groupOf, have, owned, show, kinds]
+    () =>
+      todoPlan(rows, objectives, groupOf, {
+        have,
+        handOverShare,
+        owned,
+        hideBlocked: show === 'doable',
+        kinds
+      }),
+    [rows, objectives, groupOf, have, handOverShare, owned, show, kinds]
   )
 }
 

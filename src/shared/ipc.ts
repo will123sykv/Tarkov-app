@@ -1,4 +1,4 @@
-import type { HideoutProgress } from './hideout'
+import type { HaveCounts, HaveKind, HideoutProgress } from './hideout'
 import type { KeyInventory } from './keys'
 import type { LogHistory, LogWatcherStatus } from './logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from './questProgress'
@@ -73,7 +73,9 @@ export const IPC = {
   progressInfo: 'progress:info',
   progressExport: 'progress:export',
   progressImport: 'progress:import',
-  progressOpenBackups: 'progress:open-backups'
+  progressOpenBackups: 'progress:open-backups',
+  progressBackups: 'progress:backups',
+  progressRestore: 'progress:restore'
 } as const
 
 /** Saved progress: its backups, and damaged files put back at startup (since 1.47.0). */
@@ -81,6 +83,13 @@ export interface ProgressInfo {
   /** When the newest backup was made, or null when there's none yet. */
   lastBackupAt: number | null
   recoveries: { file: 'player' | 'settings'; restoredFrom: number | null; keptAs: string }[]
+}
+
+/** A progress backup that can be put back (since 1.66.0). */
+export interface BackupInfo {
+  name: string
+  kind: 'daily' | 'weekly' | 'monthly' | 'before-import' | 'before-rescan' | 'before-restore'
+  at: number
 }
 
 /** What an export or import did; `cancelled` when the file dialog was closed. */
@@ -140,9 +149,10 @@ export interface TarkovApi {
   /** The player's hideout (station levels and items put aside), set by hand. */
   getHideoutProgress(gameMode: GameMode): Promise<HideoutProgress>
   setStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
-  setHideoutHave(gameMode: GameMode, itemId: string, count: number): Promise<HideoutProgress>
+  /** One count put aside: found-in-raid copies or bought ones (since 1.66.0; bought when not given). */
+  setHideoutHave(gameMode: GameMode, itemId: string, count: number, kind?: HaveKind): Promise<HideoutProgress>
   /** Several put-aside counts at once (item id → count; 0 clears it). */
-  setHideoutHaveMany(gameMode: GameMode, counts: Record<string, number>): Promise<HideoutProgress>
+  setHideoutHaveMany(gameMode: GameMode, counts: HaveCounts): Promise<HideoutProgress>
   /** The player's loyalty level with a trader (1–4), for what traders will sell them. */
   setTraderLevel(gameMode: GameMode, traderId: string, level: number): Promise<HideoutProgress>
   /** Build a station's level: set it and use up the items put aside for it. */
@@ -188,6 +198,10 @@ export interface TarkovApi {
   /** Replace the progress and settings with an exported file's (today's are backed up first). */
   importProgress(): Promise<ProgressFileResult>
   openBackupsFolder(): Promise<void>
+  /** The progress backups there are, newest first (since 1.66.0). */
+  listBackups(): Promise<BackupInfo[]>
+  /** Put a backup's progress and settings back (the current ones are backed up first). */
+  restoreBackup(name: string): Promise<{ ok: true } | { ok: false; error: string }>
   onPriceState(listener: (state: PriceState) => void): () => void
   onUpdaterStatus(listener: (status: UpdaterStatus) => void): () => void
 }

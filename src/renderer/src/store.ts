@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { dataModeFor } from '../../shared/gameModes'
 import { mergeSettings } from '../../shared/settings'
-import type { HideoutProgress } from '../../shared/hideout'
+import { haveCount, type HaveCounts, type HaveKind, type HideoutProgress } from '../../shared/hideout'
 import type { KeyInventory } from '../../shared/keys'
 import type { LogHistory, LogWatcherStatus } from '../../shared/logTypes'
 import type { ObjectiveProgress, ProgressEntry, QuestProgress } from '../../shared/questProgress'
@@ -100,7 +100,8 @@ interface AppStore {
   setQuestStatus(questId: string, status: ProgressEntry['status'] | null): Promise<void>
   markQuestsUpTo(questId: string): Promise<void>
   setStationLevel(stationId: string, level: number): Promise<void>
-  setHideoutHave(itemId: string, count: number): Promise<void>
+  /** One count put aside: found-in-raid copies or bought ones (since 1.66.0). */
+  setHideoutHave(itemId: string, count: number, kind?: HaveKind): Promise<void>
   setKey(keyId: string, list: keyof KeyInventory, on: boolean): Promise<void>
   /** Replace the keys the player has (read from screenshots). */
   setOwnedKeys(keyIds: string[]): Promise<void>
@@ -111,7 +112,7 @@ interface AppStore {
   openTodoMap(mapKey: string | null): void
   openCraftingStation(stationId: string | null): void
   openWeaponsMap(mapKey: string | null): void
-  setHideoutHaveMany(counts: Record<string, number>): Promise<void>
+  setHideoutHaveMany(counts: HaveCounts): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
   setTraderLevel(traderId: string, level: number): Promise<void>
   rescanLogs(): Promise<void>
@@ -486,10 +487,10 @@ export const useStore = create<AppStore>((set, get) => ({
   openCraftingStation: (craftingStation) => set({ craftingStation }),
   openWeaponsMap: (weaponsMap) => set({ weaponsMap }),
 
-  async setHideoutHave(itemId, count) {
+  async setHideoutHave(itemId, count, kind = 'any') {
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
-    const hideout = await window.api.setHideoutHave(gameMode, itemId, count)
+    const hideout = await window.api.setHideoutHave(gameMode, itemId, count, kind)
     set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
   },
 
@@ -499,27 +500,34 @@ export const useStore = create<AppStore>((set, get) => ({
     // Counted at once (a quick second click counts on top of the first); the saved counts replace them,
     // and a failed save puts these back.
     const before = get().hideoutProgress[gameMode]
-    if (before) {
-      const have = { ...before.have }
-      for (const [itemId, count] of Object.entries(counts)) {
-        if (count > 0) have[itemId] = count
-        else delete have[itemId]
+    const withCounts = (
+      progress: HideoutProgress,
+      from: HaveCounts,
+      back?: HideoutProgress
+    ): HideoutProgress => {
+      const next = { ...progress, have: { ...progress.have }, haveFir: { ...progress.haveFir } }
+      for (const kind of ['fir', 'any'] as const) {
+        const target = kind === 'fir' ? next.haveFir : next.have
+        for (const [itemId, count] of Object.entries(from[kind] ?? {})) {
+          // Putting back: the count it had before (none, if it had none).
+          const n = back ? haveCount(back, itemId, kind) : count
+          if (n > 0) target[itemId] = n
+          else delete target[itemId]
+        }
       }
-      set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: { ...before, have } } }))
+      return next
     }
+    if (before)
+      set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: withCounts(before, counts) } }))
     try {
       const hideout = await window.api.setHideoutHaveMany(gameMode, counts)
       set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
     } catch (err) {
-      if (before) {
-        const now = get().hideoutProgress[gameMode]
-        const have = { ...now?.have }
-        for (const itemId of Object.keys(counts)) {
-          if (before.have[itemId] !== undefined) have[itemId] = before.have[itemId]
-          else delete have[itemId]
-        }
-        if (now) set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: { ...now, have } } }))
-      }
+      const now = get().hideoutProgress[gameMode]
+      if (before && now)
+        set((s) => ({
+          hideoutProgress: { ...s.hideoutProgress, [gameMode]: withCounts(now, counts, before) }
+        }))
       throw err
     }
   },

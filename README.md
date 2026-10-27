@@ -82,9 +82,12 @@ next time you close the app.
   quest's panel in Quests, a key in Keys, an item in Loot). **Ctrl+1** to **Ctrl+9** and **Ctrl+0** switch tabs, in
   the order they're shown (not while you're typing in a box); hover a tab for its shortcut.
 - **Your progress is backed up.** Quests, objectives, hideout, items put aside, keys, loyalty, pins,
-  favourites and settings are copied to a `backups` folder once a day (the last 7 days are kept). If
-  the progress or settings file is ever damaged, the newest good backup is put back when the app
-  starts, the damaged file is kept beside it, and a message says so. **Export progress…** and
+  favourites and settings are copied to a `backups` folder each day, week and month (the last 7 days,
+  4 weeks and 6 months are kept), and just before an import, **Read all again** of the logs or a
+  restore replaces them. **Backups to put back…** (Settings, **Your progress**) lists them with
+  **Restore**, which backs up what's there first. If the progress or settings file is ever damaged,
+  the newest good backup is put back when the app starts, the damaged file is kept beside it, and a
+  message says so. **Export progress…** and
   **Import progress…** (Settings, **Your progress**) save it all to a file and load it back, to keep
   your own copy or move to another PC: importing backs up what's there first and keeps the PC's own
   game logs folder and tray settings. The tarkov-market key never leaves the PC.
@@ -271,10 +274,16 @@ station's level in the sidebar (the Stash starts at level 1).
 
 - **Items needed** totals every item your stations' next levels (or every level still to build)
   and your quests' hand-ins need, how many you've put aside (use **−**/**+**, type a number, or
-  **All**) and how many are still missing, with found-in-raid items flagged (and how many, when
+  **All**; an item that must be found in raid has two counters, **FIR** for found-in-raid copies
+  and **Bought** for the rest, and only FIR copies count towards it) and how many are still missing, with found-in-raid items flagged (and how many, when
   some take any) and the station levels and quests each is for (click a quest to open it). Rare
   items come first; the money the upgrades cost is in the summary line. **Found in raid only**
   narrows the list to items that must be found in raid, showing how many of each.
+- **One shared Have count:** what you've put aside is shared out in order: the upgrades in scope
+  first, then your active quests, then later upgrades, then the other quests, so two needs never
+  count the same copies (5 put aside for two needs of 5 covers one of them, not both). Upgrades,
+  quests, To do and your favourites all use the same split. Counts from before 1.66.0 became found
+  in raid, so nothing that was ticked off is unticked.
 - **Hideout + quests**, **Hideout only** or **Quests only** above the list: just what the hideout
   or just what your quests need, each counted on its own against what you've put aside. When the
   other needs some of an item too, the row says how many (**+2 for quests**), in amber when what
@@ -368,7 +377,7 @@ at a station you've built) and the copies that must be found in raid, marked **(
 needed is sold, marked **needed later** with what buying it back costs and where, the trader to
 trade with (**trade with Mechanic LL2**), or where to craft it: needing 3 found in raid and 2 more of an item you can buy, it keeps 3 and sells 2. Untick it to
 keep everything the hideout and your quests need. The totals say what selling the rest earns. **Add N kept items to Items needed** adds what
-you're keeping for the hideout and your quests to the **Have** counts (**Undo** takes them off
+you're keeping for the hideout and your quests to the **FIR** counts, as scav case and container loot is found in raid (**Undo** takes them off
 again). A haul that takes two screenshots can be read together with **Add another**. Click **Do**
 to sort the list by what to do (keep, then sell on the flea, then sell to a trader, then no buyer,
 the most valuable first in each), or any other column; the numbers stay the ones on the screenshot.
@@ -385,7 +394,7 @@ the highlight. The totals stay the whole haul's.
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,
 paste and drop all add to the same scan; **Start over** clears it. The panel lists how each count in
 Items needed would change, and **Update my counts** sets each item the hideout or a quest still needs
-(for any level or quest left) to the number your screenshots show. Items on the list that aren't in
+(for any level or quest left) to the number your screenshots show, as found in raid (bought counts are left alone). Items on the list that aren't in
 any screenshot go back to 0 (it asks first), so include every place you keep them; items nothing
 needs are left out, and so is money. **Undo** puts the old counts back. When a screenshot repeats rows from the
 one before (a stash page that didn't scroll far enough), those rows aren't counted twice (**Count
@@ -429,8 +438,8 @@ An opened station (or each one in List) has a card:
 
 When you put a craft on in the game, click its **Started** button (on a tile, on Craft next, on each
 row of the list and on each craft for profit) to keep Items to collect up to date. It counts one run:
-what the craft makes goes onto **Have** when your upgrades or quests need it, and what it uses comes
-off Have when you're keeping it (tools aren't used up, and ingredients you don't track are left alone).
+what the craft makes goes onto **Have** (found in raid, as crafted items are) when your upgrades or quests need it, and what it uses comes
+off Have (bought copies first) when you're keeping it (tools aren't used up, and ingredients you don't track are left alone).
 A notice at the bottom says what changed, with **Undo**.
 
 Two filters at the top narrow the lists for upgrades and quests (and so what's crafted next):

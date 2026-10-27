@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { dataModeFor, isDataMode, isGameMode } from '../shared/gameModes'
 import { IPC } from '../shared/ipc'
 import { TREND_INTERVALS } from '../shared/settings'
+import type { HaveCounts, HaveKind } from '../shared/hideout'
 import { MAX_KEYS } from '../shared/keys'
 import { handOverItemOf, type ProgressEntry } from '../shared/questProgress'
 import { MAX_OCR_IMAGE_BYTES, MAX_OCR_JOBS, type OcrJob } from '../shared/scanTypes'
@@ -60,6 +61,13 @@ function requireObjectiveId(value: unknown): string {
 function requireId(value: unknown, what: string): string {
   if (typeof value !== 'string' || !/^[0-9a-f]{24}$/i.test(value)) throw new Error(`Invalid ${what} id`)
   return value
+}
+
+/** Found-in-raid or bought copies (none given: bought, as before 1.66.0). */
+function requireHaveKind(value: unknown): HaveKind {
+  if (value === undefined || value === 'any') return 'any'
+  if (value === 'fir') return 'fir'
+  throw new Error('Invalid count kind')
 }
 
 function requireCount(value: unknown, max: number): number {
@@ -154,6 +162,19 @@ export function registerIpc(deps: {
   }))
   ipcMain.handle(IPC.progressOpenBackups, async () => {
     await shell.openPath(deps.backups.dir)
+  })
+  ipcMain.handle(IPC.progressBackups, () => deps.backups.list())
+  ipcMain.handle(IPC.progressRestore, async (_e, name: unknown) => {
+    try {
+      const backup = typeof name === 'string' ? await deps.backups.read(name) : null
+      if (!backup) throw new Error('That backup can’t be read.')
+      await deps.backups.before('restore')
+      await player.replace(backup.player)
+      if (backup.settings) await applySettings(backup.settings as SettingsPatch)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   })
   ipcMain.handle(IPC.progressExport, async (e) => {
     const win = BrowserWindow.fromWebContents(e.sender)
@@ -265,7 +286,14 @@ export function registerIpc(deps: {
       // Items handed over come off what the player has put aside.
       const { dataset } = await questData.get(dataModeFor(mode))
       const objective = dataset?.quests.find((q) => q.id === quest)?.objectives.find((o) => o.id === id)
-      return player.setObjective(mode, quest, id, count, objective ? handOverItemOf(objective) : null)
+      return player.setObjective(
+        mode,
+        quest,
+        id,
+        count,
+        objective ? handOverItemOf(objective) : null,
+        !!objective?.foundInRaid
+      )
     }
   )
   ipcMain.handle(IPC.questsPins, () => player.pins())
@@ -285,16 +313,31 @@ export function registerIpc(deps: {
       requireCount(level, 20)
     )
   )
-  ipcMain.handle(IPC.hideoutSetHave, (_e, gameMode: unknown, itemId: unknown, count: unknown) =>
-    player.setHave(requireGameMode(gameMode), requireId(itemId, 'item'), requireCount(count, 100_000))
+  ipcMain.handle(
+    IPC.hideoutSetHave,
+    (_e, gameMode: unknown, itemId: unknown, count: unknown, kind: unknown) =>
+      player.setHave(
+        requireGameMode(gameMode),
+        requireId(itemId, 'item'),
+        requireCount(count, 100_000),
+        requireHaveKind(kind)
+      )
   )
   ipcMain.handle(IPC.hideoutSetHaveMany, (_e, gameMode: unknown, counts: unknown) => {
     if (!counts || typeof counts !== 'object' || Array.isArray(counts)) throw new Error('Invalid counts')
-    const entries = Object.entries(counts)
-    if (entries.length > MAX_COUNT_CHANGES) throw new Error('Too many counts')
-    const valid = Object.fromEntries(
-      entries.map(([id, n]) => [requireId(id, 'item'), requireCount(n, 100_000)])
-    )
+    const valid: HaveCounts = {}
+    let total = 0
+    for (const kind of ['fir', 'any'] as const) {
+      const byKind = (counts as Record<string, unknown>)[kind]
+      if (byKind === undefined) continue
+      if (!byKind || typeof byKind !== 'object' || Array.isArray(byKind)) throw new Error('Invalid counts')
+      const entries = Object.entries(byKind)
+      total += entries.length
+      valid[kind] = Object.fromEntries(
+        entries.map(([id, n]) => [requireId(id, 'item'), requireCount(n, 100_000)])
+      )
+    }
+    if (total > MAX_COUNT_CHANGES) throw new Error('Too many counts')
     return player.setHaveMany(requireGameMode(gameMode), valid)
   })
   ipcMain.handle(IPC.hideoutSetTrader, (_e, gameMode: unknown, traderId: unknown, level: unknown) => {

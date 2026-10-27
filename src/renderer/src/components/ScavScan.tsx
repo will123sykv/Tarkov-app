@@ -754,10 +754,10 @@ export default function ScavScan({
   const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
   const setHighlight = (scanHighlight: ScanHighlight): void =>
     void updateSettings({ hideout: { ...settings.hideout, scanHighlight } })
-  const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.have) : null
+  const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.haveFir ?? {}) : null
   const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
   const added = advice.reduce((n, a) => n + a.stored, 0)
-  const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress.have) : null
+  const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress.haveFir ?? {}) : null
   const zeroed = stash?.changes.filter((c) => c.to === 0) ?? []
   const active = state.active !== null ? (shotsById.get(state.active) ?? null) : null
   const activeRepeat = active ? repeats.get(active.id) : undefined
@@ -874,7 +874,8 @@ export default function ScavScan({
   const save = async (counts: CountChange[], use: 'from' | 'to'): Promise<boolean> => {
     setSaving(true)
     try {
-      await setHaveMany(Object.fromEntries(counts.map((c) => [c.itemId, c[use]])))
+      // Loot from a raid or the scav case is found in raid, and so is what the stash shows (since 1.66.0).
+      await setHaveMany({ fir: Object.fromEntries(counts.map((c) => [c.itemId, c[use]])) })
       return true
     } catch (err) {
       patch({ error: `Couldn’t update Items needed: ${err instanceof Error ? err.message : String(err)}` })

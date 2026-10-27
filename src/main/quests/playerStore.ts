@@ -1,4 +1,11 @@
-import { EMPTY_HIDEOUT, type HideoutProgress } from '../../shared/hideout'
+import {
+  EMPTY_HIDEOUT,
+  haveCount,
+  usedUp,
+  type HaveCounts,
+  type HaveKind,
+  type HideoutProgress
+} from '../../shared/hideout'
 import { EMPTY_KEYS, MAX_KEYS, type KeyInventory } from '../../shared/keys'
 import type { FleaRecord, LogHistory, RaidRecord } from '../../shared/logTypes'
 import {
@@ -72,19 +79,39 @@ const keyList = (raw: unknown): string[] =>
     ? [...new Set(raw.filter((id): id is string => typeof id === 'string'))].slice(0, MAX_KEYS)
     : []
 
-/** `progress` with one item's count put aside set (0 or less clears it), noting when. */
-function withHave(progress: HideoutProgress, itemId: string, count: number, at: number): HideoutProgress {
+/**
+ * `progress` with one item's count put aside (of one kind: found in raid, or bought) set (0 or less
+ * clears it), noting when.
+ */
+function withHave(
+  progress: HideoutProgress,
+  itemId: string,
+  count: number,
+  at: number,
+  kind: HaveKind = 'any'
+): HideoutProgress {
   const have = { ...progress.have }
+  const haveFir = { ...progress.haveFir }
   const haveAt = { ...progress.haveAt }
+  const counts = kind === 'fir' ? haveFir : have
   const n = Math.min(MAX_HAVE, Math.max(0, Math.round(count)))
-  if (n > 0) {
-    have[itemId] = n
-    haveAt[itemId] = Math.max(at, haveAt[itemId] ?? 0)
-  } else {
-    delete have[itemId]
-    delete haveAt[itemId]
-  }
-  return { ...progress, have, haveAt }
+  if (n > 0) counts[itemId] = n
+  else delete counts[itemId]
+  if ((have[itemId] ?? 0) + (haveFir[itemId] ?? 0) > 0) haveAt[itemId] = Math.max(at, haveAt[itemId] ?? 0)
+  else delete haveAt[itemId]
+  return { ...progress, have, haveFir, haveAt }
+}
+
+/** `progress` with an item used up (or put back, when negative) as `usedUp` says. */
+function withUsedUp(
+  progress: HideoutProgress,
+  itemId: string,
+  count: number,
+  foundInRaid: boolean,
+  at: number
+): HideoutProgress {
+  const left = usedUp(progress, itemId, count, foundInRaid)
+  return withHave(withHave(progress, itemId, left.any, at, 'any'), itemId, left.fir, at, 'fir')
 }
 
 const STATUS: Record<'started' | 'failed' | 'completed', ProgressEntry['status']> = {
@@ -121,6 +148,17 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
               // completed before this version never come off them.
               if (!hideout.haveAt && Object.keys(hideout.have).length)
                 hideout.haveAt = Object.fromEntries(Object.keys(hideout.have).map((id) => [id, now()]))
+              // Before 1.66.0 one count held every copy: they're taken to be found in raid, so
+              // nothing ticked before shows as missing after (bought copies can be moved by hand).
+              // (Read off the saved file: the defaults say split.)
+              if (!raw.hideout?.[mode]?.haveSplit) {
+                const haveFir = { ...hideout.haveFir }
+                for (const [id, n] of Object.entries(hideout.have)) haveFir[id] = (haveFir[id] ?? 0) + n
+                hideout.haveFir = haveFir
+                hideout.have = {}
+                hideout.haveSplit = true
+              }
+              hideout.haveFir ??= {}
               return [mode, hideout]
             })
           ) as Saved['hideout'],
@@ -189,7 +227,8 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       questId: string,
       objectiveId: string,
       value: number,
-      handOverItem: string | null = null
+      handOverItem: string | null = null,
+      handOverFir = false
     ): Promise<ObjectiveProgress> {
       const d = await load()
       const before = d.objectives[mode][questId]?.[objectiveId] ?? 0
@@ -200,10 +239,8 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
         Math.min(MAX_OBJECTIVE, value)
       )
       const handed = (d.objectives[mode][questId]?.[objectiveId] ?? 0) - before
-      if (handOverItem && handed !== 0) {
-        const current = d.hideout[mode]
-        d.hideout[mode] = withHave(current, handOverItem, (current.have[handOverItem] ?? 0) - handed, now())
-      }
+      if (handOverItem && handed !== 0)
+        d.hideout[mode] = withUsedUp(d.hideout[mode], handOverItem, handed, handOverFir, now())
       await save()
       return d.objectives[mode]
     },
@@ -290,20 +327,26 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return d.hideout[mode]
     },
 
-    /** How many of an item the player has put aside for the hideout and quests. */
-    async setHave(mode: GameMode, itemId: string, count: number): Promise<HideoutProgress> {
+    /** How many of an item (found in raid, or bought) the player has put aside for the hideout and quests. */
+    async setHave(
+      mode: GameMode,
+      itemId: string,
+      count: number,
+      kind: HaveKind = 'any'
+    ): Promise<HideoutProgress> {
       const d = await load()
-      d.hideout[mode] = withHave(d.hideout[mode], itemId, count, now())
+      d.hideout[mode] = withHave(d.hideout[mode], itemId, count, now(), kind)
       await save()
       return d.hideout[mode]
     },
 
-    /** Several of those counts at once (0 clears one), e.g. from screenshots. */
-    async setHaveMany(mode: GameMode, counts: Record<string, number>): Promise<HideoutProgress> {
+    /** Several of those counts at once (0 clears one), e.g. from screenshots, of either kind. */
+    async setHaveMany(mode: GameMode, counts: HaveCounts): Promise<HideoutProgress> {
       const d = await load()
       const t = now()
-      for (const [itemId, count] of Object.entries(counts))
-        d.hideout[mode] = withHave(d.hideout[mode], itemId, count, t)
+      for (const kind of ['fir', 'any'] as const)
+        for (const [itemId, count] of Object.entries(counts[kind] ?? {}))
+          d.hideout[mode] = withHave(d.hideout[mode], itemId, count, t, kind)
       await save()
       return d.hideout[mode]
     },
@@ -314,16 +357,28 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
      */
     async handOver(
       mode: GameMode,
-      items: readonly { itemId: string; count: number }[],
+      items: readonly { itemId: string; count: number; foundInRaid?: boolean }[],
       at: number
     ): Promise<boolean> {
       const d = await load()
       let changed = false
-      for (const { itemId, count } of items) {
+      // Added up per item first: a quest handing one item over twice (once found in raid) takes both.
+      const byItem = new Map<string, { itemId: string; count: number; foundInRaid: boolean }[]>()
+      for (const item of items)
+        byItem.set(item.itemId, [
+          ...(byItem.get(item.itemId) ?? []),
+          { ...item, foundInRaid: !!item.foundInRaid }
+        ])
+      for (const [itemId, parts] of byItem) {
         const current = d.hideout[mode]
-        const have = current.have[itemId] ?? 0
-        if (count <= 0 || have <= 0 || (current.haveAt?.[itemId] ?? 0) >= at) continue
-        d.hideout[mode] = withHave(current, itemId, have - count, at)
+        if (haveCount(current, itemId) <= 0 || (current.haveAt?.[itemId] ?? 0) >= at) continue
+        let next = current
+        // Found-in-raid ones first, so a bought copy isn't taken for them.
+        for (const { count, foundInRaid } of [...parts].sort(
+          (a, b) => Number(b.foundInRaid) - Number(a.foundInRaid)
+        ))
+          if (count > 0) next = withUsedUp(next, itemId, count, foundInRaid, at)
+        d.hideout[mode] = next
         changed = true
       }
       if (changed) await save()
@@ -347,13 +402,15 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       mode: GameMode,
       stationId: string,
       level: number,
-      items: readonly { itemId: string; count: number }[]
+      items: readonly { itemId: string; count: number; foundInRaid?: boolean }[]
     ): Promise<HideoutProgress> {
       const d = await load()
       const t = now()
       let current = d.hideout[mode]
-      for (const { itemId, count } of items)
-        current = withHave(current, itemId, (current.have[itemId] ?? 0) - count, t)
+      for (const { itemId, count, foundInRaid } of [...items].sort(
+        (a, b) => Number(!!b.foundInRaid) - Number(!!a.foundInRaid)
+      ))
+        current = withUsedUp(current, itemId, count, !!foundInRaid, t)
       d.hideout[mode] = { ...current, levels: { ...current.levels, [stationId]: level } }
       await save()
       return d.hideout[mode]

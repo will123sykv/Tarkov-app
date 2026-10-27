@@ -8,7 +8,14 @@ import {
   type NeededCraft,
   type StationPlan
 } from '../../../shared/crafting'
-import { EMPTY_HIDEOUT, hideoutNeeds, stationLevel } from '../../../shared/hideout'
+import {
+  EMPTY_HIDEOUT,
+  haveCount,
+  hideoutNeeds,
+  stationLevel,
+  type HaveCounts,
+  type HaveKind
+} from '../../../shared/hideout'
 import { DEFAULT_SETTINGS } from '../../../shared/settings'
 import { nextSort } from '../../../shared/tableSort'
 import { neededItems } from '../../../shared/questProgress'
@@ -40,8 +47,8 @@ interface Started {
   id: number
   what: string
   station: string
-  before: Record<string, number>
-  after: Record<string, number>
+  before: HaveCounts
+  after: HaveCounts
   error: string | null
   /** Being undone: the notice stays until that's saved. */
   undoing: boolean
@@ -50,6 +57,12 @@ interface Started {
 }
 
 let startedId = 0
+
+/** The counts a start changes, by kind and item. */
+const changed = (counts: HaveCounts): [HaveKind, string][] =>
+  (['fir', 'any'] as const).flatMap((kind) =>
+    Object.keys(counts[kind] ?? {}).map((id) => [kind, id] as [HaveKind, string])
+  )
 
 const START_TITLE =
   "I've put this craft on: add what it makes to Have in Items to collect (when something needs it) and take off what it uses (when you're keeping it). One run."
@@ -226,15 +239,20 @@ export default function CraftingView({
   const message = (err: unknown): string => (err instanceof Error ? err.message : String(err))
   const startCraft = (craft: HideoutCraft, station: string): void => {
     // From the store's counts, which a start just before this one has already changed.
-    const have = useStore.getState().hideoutProgress[settings.gameMode]?.have ?? progress.have
-    const after = craftRunCounts(craft, have, tracked)
-    const before = Object.fromEntries(Object.keys(after).map((id) => [id, have[id] ?? 0]))
+    const current = useStore.getState().hideoutProgress[settings.gameMode] ?? progress
+    const after = craftRunCounts(craft, current, tracked)
+    const before: HaveCounts = Object.fromEntries(
+      Object.entries(after).map(([kind, counts]) => [
+        kind,
+        Object.fromEntries(Object.keys(counts).map((id) => [id, haveCount(current, id, kind as HaveKind)]))
+      ])
+    )
     const what = craft.outputs
       .map((o) => `${o.count > 1 ? `${o.count} × ` : ''}${items.get(o.itemId)?.name ?? 'Unknown item'}`)
       .join(', ')
     const id = ++startedId
     setStarted({ id, what, station, before, after, error: null, undoing: false, undoFailed: false })
-    if (!Object.keys(after).length) return
+    if (!Object.values(after).some((counts) => Object.keys(counts).length)) return
     setHaveMany(after).catch((err: unknown) =>
       setStarted((s) =>
         s?.id === id ? { ...s, error: `Couldn’t update Items to collect: ${message(err)}` } : s
@@ -431,15 +449,18 @@ export default function CraftingView({
               <span className="muted">
                 {' · '}
                 {started.error ??
-                  (Object.keys(started.after).length
+                  (changed(started.after).length
                     ? 'Have: ' +
-                      Object.keys(started.after)
-                        .map((id) => `${name(id)} ${started.before[id]} → ${started.after[id]}`)
+                      changed(started.after)
+                        .map(
+                          ([kind, id]) =>
+                            `${name(id)}${kind === 'fir' ? ' (found in raid)' : ''} ${started.before[kind]?.[id] ?? 0} → ${started.after[kind]?.[id] ?? 0}`
+                        )
                         .join(', ')
                     : 'nothing it makes or uses is counted in Items to collect')}
               </span>
             </span>
-            {Object.keys(started.after).length > 0 && (!started.error || started.undoFailed) && (
+            {changed(started.after).length > 0 && (!started.error || started.undoFailed) && (
               <button className="link" disabled={started.undoing} onClick={undoStart}>
                 {started.undoing ? 'Undoing…' : started.undoFailed ? 'Try again' : 'Undo'}
               </button>

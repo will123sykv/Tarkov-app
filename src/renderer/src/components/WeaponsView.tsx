@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { EMPTY_HIDEOUT } from '../../../shared/hideout'
 import { ofKind } from '../../../shared/questKind'
 import { gunsFor } from '../../../shared/settings'
 import { emptyMapPlan, type MapPlan } from '../../../shared/todo'
@@ -18,6 +17,7 @@ import {
 } from '../../../shared/weapons'
 import { mapGroups } from '../lib/mapGroups'
 import { useFriendKeys } from '../lib/useFriendKeys'
+import { useHaveTotals } from '../lib/useHaveShare'
 import { useItemLookup } from '../lib/useItemLookup'
 import { useQuestRows } from '../lib/useQuestRows'
 import { useKillPlan } from '../lib/useTodoPlan'
@@ -55,14 +55,14 @@ export default function WeaponsView({
   const rows = useMemo(() => ofKind(everyRow, settings.quests.kind), [everyRow, settings.quests.kind])
   const items = useItemLookup(priceState)
   const updateSettings = useStore((s) => s.updateSettings)
-  const progress = useStore((s) => s.hideoutProgress[settings.gameMode]) ?? EMPTY_HIDEOUT
   const { owned } = useFriendKeys(settings)
   const dataset = questState?.dataset ?? null
   const groups = useMemo(() => mapGroups(dataset?.maps ?? []), [dataset])
   const groupOf = useCallback((id: string) => groups.get(id), [groups])
-  const plan = useKillPlan(settings, rows, objectives, groupOf, owned, progress.have)
+  const haveAll = useHaveTotals(settings)
+  const plan = useKillPlan(settings, rows, objectives, groupOf, owned, haveAll)
   // Every quest's kills, for which maps still have any (a map hidden by Only quests I can do keeps its gun).
-  const allPlan = useKillPlan(settings, everyRow, objectives, groupOf, owned, progress.have, true)
+  const allPlan = useKillPlan(settings, everyRow, objectives, groupOf, owned, haveAll, true)
   // Maps with kills of their own that need particular weapons first, then the ones where only kills on
   // any map do, each in To do's order, then the other maps for kills on any map.
   const groupList = useMemo(() => [...groups.values()], [groups])

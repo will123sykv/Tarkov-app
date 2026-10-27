@@ -3,14 +3,13 @@ import { howToGet } from '../../../shared/hideout'
 import { neededItems, type ObjectiveProgress } from '../../../shared/questProgress'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import { useItemLookup } from '../lib/useItemLookup'
+import { useHaveShare } from '../lib/useHaveShare'
 import { useBuyContext, useCraftContext } from '../lib/useKeepList'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import type { QuestRow } from '../lib/useQuestRows'
 import { GetCell, getPrice } from './GetCell'
 import { SortHead } from './SortHeader'
-
-const NO_HAVE: Record<string, number> = {}
 
 /**
  * Items still to hand over or plant for active quests, with what's put aside
@@ -29,7 +28,8 @@ export default function NeededItems({
   priceState: PriceState | null
 }) {
   const selectQuest = useStore((s) => s.selectQuest)
-  const have = useStore((s) => s.hideoutProgress[settings.gameMode]?.have) ?? NO_HAVE
+  // What's put aside for each quest, shared with the hideout and other quests (since 1.66.0).
+  const share = useHaveShare(settings)
   const items = useItemLookup(priceState)
   const ctx = useBuyContext(settings, priceState)
   const cc = useCraftContext(settings, priceState)
@@ -45,20 +45,22 @@ export default function NeededItems({
   const listed = useMemo(
     () =>
       needed.map((n) => {
-        const got = have[n.itemId] ?? 0
+        const got = n.quests.reduce((sum, q) => sum + share.quest(q.questId, n.itemId, n.foundInRaid), 0)
+        const missing = Math.max(0, n.count - got)
         const get = howToGet(
           {
             itemId: n.itemId,
             needed: n.count,
-            missing: Math.max(0, n.count - got),
-            firNeeded: n.foundInRaid ? n.count : 0
+            missing,
+            firNeeded: n.foundInRaid ? n.count : 0,
+            missingFir: n.foundInRaid ? missing : 0
           },
           cc,
           ctx
         )
         return { n, got, get, name: items.get(n.itemId)?.name ?? null }
       }),
-    [needed, have, cc, ctx, items]
+    [needed, share, cc, ctx, items]
   )
   const columns = useMemo<SortColumn<(typeof listed)[number]>[]>(
     () => [

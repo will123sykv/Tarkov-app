@@ -40,8 +40,8 @@ const api: TarkovApi = {
   setFavourite: (gameMode, kind, id, on) => ipcRenderer.invoke(IPC.favouritesSet, gameMode, kind, id, on),
   setStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetLevel, gameMode, stationId, level),
-  setHideoutHave: (gameMode, itemId, count) =>
-    ipcRenderer.invoke(IPC.hideoutSetHave, gameMode, itemId, count),
+  setHideoutHave: (gameMode, itemId, count, kind) =>
+    ipcRenderer.invoke(IPC.hideoutSetHave, gameMode, itemId, count, kind),
   setHideoutHaveMany: (gameMode, counts) => ipcRenderer.invoke(IPC.hideoutSetHaveMany, gameMode, counts),
   setTraderLevel: (gameMode, traderId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetTrader, gameMode, traderId, level),
@@ -66,6 +66,8 @@ const api: TarkovApi = {
   exportProgress: () => ipcRenderer.invoke(IPC.progressExport),
   importProgress: () => ipcRenderer.invoke(IPC.progressImport),
   openBackupsFolder: () => ipcRenderer.invoke(IPC.progressOpenBackups),
+  listBackups: () => ipcRenderer.invoke(IPC.progressBackups),
+  restoreBackup: (name) => ipcRenderer.invoke(IPC.progressRestore, name),
   onPriceState: (listener) => subscribe(IPC.pricesState, listener),
   onUpdaterStatus: (listener) => subscribe(IPC.updaterStatus, listener)
 }
