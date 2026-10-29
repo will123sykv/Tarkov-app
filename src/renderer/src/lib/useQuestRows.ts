@@ -16,6 +16,7 @@ import { storyQuests } from '../../../shared/storyQuests'
 import { applyWikiCorrections } from '../../../shared/wikiCorrections'
 import { gameQuestIds, wikiQuestId, wikiQuestIdIn, wikiQuests } from '../../../shared/wikiQuests'
 import { useStore } from '../store'
+import { sharedMemo } from './sharedMemo'
 import { mapPlaces, raidMapLookup } from './storyMaps'
 
 export interface QuestRow {
@@ -38,7 +39,8 @@ export interface QuestRows {
 
 /**
  * Loads quest data and progress for the current game mode, and works out each quest's status.
- * Before the settings load (null), it waits and returns nothing.
+ * Before the settings load (null), it waits and returns nothing. The work is shared by every caller
+ * (since 1.71.0), so they all get the same objects.
  */
 export function useQuestRows(current: PublicSettings | null): QuestRows {
   const ready = current !== null
@@ -70,99 +72,147 @@ export function useQuestRows(current: PublicSettings | null): QuestRows {
   const dataset = questState?.dataset ?? null
   const level = settings.playerLevels[settings.gameMode]
   const faction = settings.quests.faction
-  const traders = useMemo(() => new Map((dataset?.traders ?? []).map((t) => [t.id, t])), [dataset])
+  // Each step is shared by every caller (sharedMemo), by the same inputs as its useMemo.
+  const traders = useMemo(
+    () => sharedMemo('traders', [dataset], () => new Map((dataset?.traders ?? []).map((t) => [t.id, t]))),
+    [dataset]
+  )
   const ctx = useMemo<QuestContext>(
-    () => ({ playerLevel: level, faction, traders }),
+    () => sharedMemo('ctx', [level, faction, traders], () => ({ playerLevel: level, faction, traders })),
     [level, faction, traders]
   )
   // Story chapters' hand-overs name their items: match them to the price data's items.
   const itemIds = useMemo(
-    () => new Map((priceItems ?? []).map((i) => [i.name.toLowerCase(), i.id])),
+    () =>
+      sharedMemo(
+        'itemIds',
+        [priceItems],
+        () => new Map((priceItems ?? []).map((i) => [i.name.toLowerCase(), i.id]))
+      ),
     [priceItems]
   )
   const traderIds = useMemo(
-    () => new Map((dataset?.traders ?? []).map((t) => [t.name.toLowerCase(), t.id])),
+    () =>
+      sharedMemo(
+        'traderIds',
+        [dataset],
+        () => new Map((dataset?.traders ?? []).map((t) => [t.name.toLowerCase(), t.id]))
+      ),
     [dataset]
   )
-  const places = useMemo(() => mapPlaces(dataset?.maps ?? []), [dataset])
+  const places = useMemo(
+    () => sharedMemo('places', [dataset], () => mapPlaces(dataset?.maps ?? [])),
+    [dataset]
+  )
   // tarkov.dev's quests, corrected from their wiki pages unless that's switched off.
   const correct = settings.quests.wikiCorrections
   const gameMode = settings.gameMode
-  const corrected = useMemo(() => {
-    const listed = dataset?.quests ?? []
-    if (!correct || !dataset?.wikiFacts) return listed
-    const questIds = new Map(
-      listed.flatMap((q) => {
-        const name = q.name.toLowerCase()
-        // tarkov.dev marks some with the zone ("… [PVP ZONE]"); the wiki doesn't.
-        const bare = name.replace(/\s*\[(pvp|pve) zone\]$/, '')
-        return [[name, q.id] as const, [bare, q.id] as const]
-      })
-    )
-    return applyWikiCorrections(listed, dataset.wikiFacts, {
-      gameMode,
-      questIds,
-      mapNames: new Map(dataset.maps.map((m) => [m.id, m.name])),
-      itemIds,
-      traderIds
-    })
-  }, [dataset, correct, gameMode, itemIds, traderIds])
-  const withWikiOnly = settings.quests.wikiOnlyQuests
-  const quests = useMemo(() => {
-    const listed = corrected
-    const story = storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins })
-    // Event quests added from the wiki, unless tarkov.dev lists them by now.
-    const names = new Set(listed.map((q) => q.name.toLowerCase()))
-    const pages = (wikiState?.quests ?? []).filter((w) => !names.has(w.name.toLowerCase()))
-    // Quests only the wiki has, unless tarkov.dev or an added event quest has them; the seasonal
-    // mode's only in it.
-    for (const w of pages) names.add(w.name.toLowerCase())
-    const only = withWikiOnly
-      ? (dataset?.wikiOnlyQuests ?? []).filter(
-          (w) => !names.has(w.name.toLowerCase()) && (!w.season || gameMode === 'season')
+  const corrected = useMemo(
+    () =>
+      sharedMemo('corrected', [dataset, correct, gameMode, itemIds, traderIds], () => {
+        const listed = dataset?.quests ?? []
+        if (!correct || !dataset?.wikiFacts) return listed
+        const questIds = new Map(
+          listed.flatMap((q) => {
+            const name = q.name.toLowerCase()
+            // tarkov.dev marks some with the zone ("… [PVP ZONE]"); the wiki doesn't.
+            const bare = name.replace(/\s*\[(pvp|pve) zone\]$/, '')
+            return [[name, q.id] as const, [bare, q.id] as const]
+          })
         )
-      : []
-    const gameIds = gameQuestIds(dataset?.otherQuestNames ?? {})
-    // For "after": by name, and by page title for the wiki's.
-    const questIds = new Map([
-      ...[...listed, ...story].map((q) => [q.name.toLowerCase(), q.id] as const),
-      ...pages.map((w) => [w.title.toLowerCase(), wikiQuestId(w.title)] as const),
-      ...only.flatMap((w) => {
-        const id = wikiQuestIdIn(w, { gameIds })
-        return [[w.title.toLowerCase(), id] as const, [w.name.toLowerCase(), id] as const]
-      })
-    ])
-    return [
-      ...listed,
-      ...story,
-      ...wikiQuests(pages, { itemIds, traderIds, questIds }),
-      ...wikiQuests(only, { itemIds, traderIds, questIds, gameIds }, { listed: true })
-    ]
-  }, [dataset, corrected, itemIds, traderIds, places, pins, wikiState, withWikiOnly, gameMode])
-  const questsById = useMemo(() => new Map(quests.map((q) => [q.id, q])), [quests])
-  const mapsById = useMemo(() => new Map((dataset?.maps ?? []).map((m) => [m.id, m])), [dataset])
+        return applyWikiCorrections(listed, dataset.wikiFacts, {
+          gameMode,
+          questIds,
+          mapNames: new Map(dataset.maps.map((m) => [m.id, m.name])),
+          itemIds,
+          traderIds
+        })
+      }),
+    [dataset, correct, gameMode, itemIds, traderIds]
+  )
+  const withWikiOnly = settings.quests.wikiOnlyQuests
+  const quests = useMemo(
+    () =>
+      sharedMemo(
+        'quests',
+        [dataset, corrected, itemIds, traderIds, places, pins, wikiState, withWikiOnly, gameMode],
+        () => {
+          const listed = corrected
+          const story = storyQuests(dataset?.storyChapters ?? [], { itemIds, traderIds, places, pins })
+          // Event quests added from the wiki, unless tarkov.dev lists them by now.
+          const names = new Set(listed.map((q) => q.name.toLowerCase()))
+          const pages = (wikiState?.quests ?? []).filter((w) => !names.has(w.name.toLowerCase()))
+          // Quests only the wiki has, unless tarkov.dev or an added event quest has them; the seasonal
+          // mode's only in it.
+          for (const w of pages) names.add(w.name.toLowerCase())
+          const only = withWikiOnly
+            ? (dataset?.wikiOnlyQuests ?? []).filter(
+                (w) => !names.has(w.name.toLowerCase()) && (!w.season || gameMode === 'season')
+              )
+            : []
+          const gameIds = gameQuestIds(dataset?.otherQuestNames ?? {})
+          // For "after": by name, and by page title for the wiki's.
+          const questIds = new Map([
+            ...[...listed, ...story].map((q) => [q.name.toLowerCase(), q.id] as const),
+            ...pages.map((w) => [w.title.toLowerCase(), wikiQuestId(w.title)] as const),
+            ...only.flatMap((w) => {
+              const id = wikiQuestIdIn(w, { gameIds })
+              return [[w.title.toLowerCase(), id] as const, [w.name.toLowerCase(), id] as const]
+            })
+          ])
+          return [
+            ...listed,
+            ...story,
+            ...wikiQuests(pages, { itemIds, traderIds, questIds }),
+            ...wikiQuests(only, { itemIds, traderIds, questIds, gameIds }, { listed: true })
+          ]
+        }
+      ),
+    [dataset, corrected, itemIds, traderIds, places, pins, wikiState, withWikiOnly, gameMode]
+  )
+  const questsById = useMemo(
+    () => sharedMemo('questsById', [quests], () => new Map(quests.map((q) => [q.id, q]))),
+    [quests]
+  )
+  const mapsById = useMemo(
+    () => sharedMemo('mapsById', [dataset], () => new Map((dataset?.maps ?? []).map((m) => [m.id, m]))),
+    [dataset]
+  )
   const rows = useMemo<QuestRow[]>(
     () =>
-      quests
-        .filter((q) => forFaction(q, ctx.faction))
-        .map((q) => ({ quest: q, status: questStatus(q, progress ?? {}, ctx, questsById) })),
+      sharedMemo('rows', [quests, progress, ctx, questsById], () =>
+        quests
+          .filter((q) => forFaction(q, ctx.faction))
+          .map((q) => ({ quest: q, status: questStatus(q, progress ?? {}, ctx, questsById) }))
+      ),
     [quests, progress, ctx, questsById]
   )
-  const raidMaps = useMemo(() => raidMapLookup(dataset?.maps ?? []), [dataset])
+  const raidMaps = useMemo(
+    () => sharedMemo('raidMaps', [dataset], () => raidMapLookup(dataset?.maps ?? [])),
+    [dataset]
+  )
   const detected = useMemo(
     () =>
-      detectObjectives(quests, {
-        playerLevel: level,
-        traderLevels,
-        progress: progress ?? {},
-        raids: raids ?? [],
-        raidMaps,
-        traderName: (id) => traders.get(id)?.name,
-        questName: (id) => questsById.get(id)?.name,
-        mapName: (id) => mapsById.get(id)?.name
-      }),
+      sharedMemo(
+        'detected',
+        [quests, level, traderLevels, progress, raids, raidMaps, traders, questsById, mapsById],
+        () =>
+          detectObjectives(quests, {
+            playerLevel: level,
+            traderLevels,
+            progress: progress ?? {},
+            raids: raids ?? [],
+            raidMaps,
+            traderName: (id) => traders.get(id)?.name,
+            questName: (id) => questsById.get(id)?.name,
+            mapName: (id) => mapsById.get(id)?.name
+          })
+      ),
     [quests, level, traderLevels, progress, raids, raidMaps, traders, questsById, mapsById]
   )
-  const objectives = useMemo(() => withDetected(ticked, detected), [ticked, detected])
+  const objectives = useMemo(
+    () => sharedMemo('objectives', [ticked, detected], () => withDetected(ticked, detected)),
+    [ticked, detected]
+  )
   return { questState, rows, ctx, questsById, mapsById, objectives, detected }
 }
