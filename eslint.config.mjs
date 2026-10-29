@@ -17,6 +17,11 @@ export default tseslint.config(
     }
   },
   {
+    // Node scripts (the app smoke test).
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { process: 'readonly', console: 'readonly' } }
+  },
+  {
     rules: {
       // Unused arguments named with a leading underscore are deliberate (event handlers' first argument).
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]

@@ -801,6 +801,7 @@ npm run format       # Prettier
 npm run build        # compile main, preload and renderer into out/
 npm run dist         # build a Windows installer into dist/ (run on Windows)
 npm run smoke:api    # check the live tarkov.dev data still matches what the app expects
+npm run smoke:app    # after a build: open every tab and Settings, failing on any error (Linux: xvfb-run -a)
 npm run data:containers  # regenerate the bundled container loot tables (see below)
 npm run data:container-images  # re-download container pictures from the Tarkov wiki
 npm run data:maps    # regenerate the bundled map projections from tarkov.dev
@@ -860,6 +861,8 @@ isn't named like the container, and an empty list means "no picture". Images of 
 CI (`.github/workflows/ci.yml`) runs on every push:
 
 - format check, typecheck, tests and a build;
+- an app smoke test: the built app, with an empty profile, goes through every tab, each tab's own
+  tabs and Settings, and fails on any error a page shows or logs;
 - a Windows installer build, attached to the run as an artifact;
 - a live tarkov.dev smoke test. This one doesn't block anything if tarkov.dev is down.
 
