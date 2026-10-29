@@ -260,7 +260,8 @@ export default function CraftingView({
       stationId: craft.stationId,
       craftId: craft.id,
       label: `${what} at the ${station}`,
-      seconds: craft.duration
+      // As long as the player's crafts take (since 1.71.0).
+      seconds: Math.round((craft.duration * settings.crafting.timePercent) / 100)
     }).catch((err: unknown) =>
       setStarted((s) => (s?.id === id ? { ...s, error: `Couldn’t time it: ${message(err)}` } : s))
     )

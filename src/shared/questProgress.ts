@@ -398,27 +398,38 @@ export function questMaps(quest: Quest): Set<string> {
   return maps
 }
 
+/** Traders some quest's rewards unlock (Jaeger, Ref, Lightkeeper, the BTR driver), with those quests. */
+export function traderUnlockQuests(
+  quests: readonly Pick<Quest, 'id' | 'name' | 'rewards'>[]
+): Map<string, Pick<Quest, 'id' | 'name'>[]> {
+  const unlockedBy = new Map<string, Pick<Quest, 'id' | 'name'>[]>()
+  for (const quest of quests)
+    for (const traderId of quest.rewards.traderUnlocks)
+      unlockedBy.set(traderId, [...(unlockedBy.get(traderId) ?? []), { id: quest.id, name: quest.name }])
+  return unlockedBy
+}
+
 /**
  * Traders the player hasn't unlocked yet, with the names of the quests that unlock each (since
  * 1.66.0): a trader some quest's rewards unlock (Jaeger, Ref, Lightkeeper, the BTR driver) is locked
- * until one of those quests is completed.
+ * until one of those quests is completed. The player can say so themselves (since 1.71.0): `true`
+ * unlocked, `false` locked, whatever their quests say.
  */
 export function lockedTraders(
   quests: readonly Pick<Quest, 'id' | 'name' | 'rewards'>[],
-  progress: QuestProgress | undefined
+  progress: QuestProgress | undefined,
+  overrides: Readonly<Record<string, boolean>> = {}
 ): Map<string, string[]> {
-  const unlockedBy = new Map<string, string[]>()
-  const unlocked = new Set<string>()
-  for (const quest of quests) {
-    for (const traderId of quest.rewards.traderUnlocks) {
-      if (progress?.[quest.id]?.status === 'completed') unlocked.add(traderId)
-      const names = unlockedBy.get(traderId) ?? []
-      names.push(quest.name)
-      unlockedBy.set(traderId, names)
-    }
+  const locked = new Map<string, string[]>()
+  for (const [traderId, by] of traderUnlockQuests(quests)) {
+    const auto = by.some((q) => progress?.[q.id]?.status === 'completed')
+    if (!(overrides[traderId] ?? auto))
+      locked.set(
+        traderId,
+        by.map((q) => q.name)
+      )
   }
-  for (const id of unlocked) unlockedBy.delete(id)
-  return unlockedBy
+  return locked
 }
 
 /** Which collector's quests the path view counts (since 1.66.0). */
@@ -439,6 +450,8 @@ export interface PathScores {
   left: number
   /** Target quests held up only by the player's level. */
   levelOnly: number
+  /** Target quests left that a key the player doesn't have holds up (since 1.71.0). */
+  blocked: number
   /** Quests to do now (active, available, or waiting only on level), most of the target first. */
   rows: PathRow[]
 }
@@ -453,7 +466,8 @@ const isTarget = (quest: Quest, target: PathTarget): boolean =>
  */
 export function pathScores(
   rows: readonly { quest: Quest; status: QuestStatus }[],
-  target: PathTarget
+  target: PathTarget,
+  blocked?: (quest: Quest) => boolean
 ): PathScores {
   const statusOf = new Map(rows.map((r) => [r.quest.id, r.status]))
   const dependents = new Map<string, Quest[]>()
@@ -490,11 +504,13 @@ export function pathScores(
   let done = 0
   let left = 0
   let waiting = 0
+  let held = 0
   const result: PathRow[] = []
   for (const { quest, status } of rows) {
     const mine = isTarget(quest, target)
     if (mine && status === 'completed') done++
     if (mine && open(status)) left++
+    if (mine && open(status) && blocked?.(quest)) held++
     if (mine && levelOnly(quest, status)) waiting++
     if (status !== 'active' && status !== 'available' && !levelOnly(quest, status)) continue
     const unlocks = counts(quest)
@@ -508,5 +524,5 @@ export function pathScores(
       rank(a.status) - rank(b.status) ||
       a.quest.name.localeCompare(b.quest.name)
   )
-  return { done, left, levelOnly: waiting, rows: result }
+  return { done, left, levelOnly: waiting, blocked: held, rows: result }
 }

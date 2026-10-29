@@ -40,6 +40,8 @@ const api: TarkovApi = {
   getCraftTimers: (gameMode) => ipcRenderer.invoke(IPC.craftsGet, gameMode),
   startCraftTimer: (gameMode, start) => ipcRenderer.invoke(IPC.craftsStart, gameMode, start),
   clearCraftTimer: (gameMode, stationId) => ipcRenderer.invoke(IPC.craftsClear, gameMode, stationId),
+  shiftCraftTimer: (gameMode, stationId, deltaMs) =>
+    ipcRenderer.invoke(IPC.craftsShift, gameMode, stationId, deltaMs),
   onCraftTimers: (listener) => subscribe(IPC.craftsChanged, listener),
   setFavourite: (gameMode, kind, id, on) => ipcRenderer.invoke(IPC.favouritesSet, gameMode, kind, id, on),
   setStationLevel: (gameMode, stationId, level) =>
@@ -49,6 +51,8 @@ const api: TarkovApi = {
   setHideoutHaveMany: (gameMode, counts) => ipcRenderer.invoke(IPC.hideoutSetHaveMany, gameMode, counts),
   setTraderLevel: (gameMode, traderId, level) =>
     ipcRenderer.invoke(IPC.hideoutSetTrader, gameMode, traderId, level),
+  setTraderUnlock: (gameMode, traderId, value) =>
+    ipcRenderer.invoke(IPC.hideoutSetTraderUnlock, gameMode, traderId, value),
   buildStationLevel: (gameMode, stationId, level) =>
     ipcRenderer.invoke(IPC.hideoutBuild, gameMode, stationId, level),
   readLabels: (jobs) => ipcRenderer.invoke(IPC.scanReadText, jobs),

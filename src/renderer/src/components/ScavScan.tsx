@@ -18,11 +18,13 @@ import {
   sellChecklist,
   sellsVia,
   stashCounts,
+  suggestedListPrice,
   traderColour,
   traderTotals,
   type CountChange,
   type ScanAdvice,
-  type ScanHighlight
+  type ScanHighlight,
+  type ShownChecklistGroup
 } from '../../../shared/scavAdvice'
 import { EMPTY_KEYS, keyScanChanges } from '../../../shared/keys'
 import type { OcrJob } from '../../../shared/scanTypes'
@@ -52,6 +54,7 @@ import {
 } from '../lib/scavScan'
 import { useBuyContext, useCraftContext, useKeepList } from '../lib/useKeepList'
 import { useKeyInfo } from '../lib/useKeyInfo'
+import { saveChecklist, useSavedChecklist } from '../lib/savedChecklist'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
@@ -143,6 +146,16 @@ const useScan = create<ScanState>(() => ({ mode: 'loot', itemsMode: 'loot', chec
 const patch = (p: Partial<ScanState>): void => useScan.setState(p)
 let nextKey = 1
 let nextShot = 1
+/** The checklist last kept, by its lines, and when it was made (so ticking it doesn't change that). */
+let keptChecklist: { lines: string; at: number } | null = null
+
+/** "13:20" today, "28 Oct 13:20" before. */
+function checklistTime(at: number): string {
+  const time = new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(at).toDateString() === new Date().toDateString()
+    ? time
+    : `${new Date(at).toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`
+}
 
 /** Open the scanner for counting everything the player has (from the Items needed list). */
 export function startStashCount(): void {
@@ -761,18 +774,46 @@ export default function ScavScan({
   const checking = shownRows.filter(unsure).length
   const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
   // What to sell, grouped for selling and ticked off as it goes (since 1.66.0); rows to check aren't in it.
-  const checklist =
+  const checklist: ShownChecklistGroup[] | null =
     mode === 'loot' && state.checklist
       ? sellChecklist(
           counted.filter((r) => !unsure(r)).map((r) => ({ itemId: r.itemId, advice: adviceOf.get(r.key)! }))
-        )
+        ).map((g) => ({
+          ...g,
+          lines: g.lines.map((l) => {
+            const item = items.get(l.itemId)
+            return {
+              ...l,
+              name: item?.name ?? 'Unknown item',
+              list:
+                g.via === 'flea' && item
+                  ? suggestedListPrice(
+                      item,
+                      evaluateItem(item, ctx).trader?.price ?? 0,
+                      priceState?.dataset?.fleaFeeRates
+                    )
+                  : null
+            }
+          })
+        }))
       : null
+  // Kept, ticks and all, for after the app closes (since 1.71.0): a new checklist replaces the last.
+  const checklistJson = checklist?.length ? JSON.stringify(checklist) : null
+  const gameMode = settings.gameMode
+  useEffect(() => {
+    if (!checklistJson) return
+    const groups = JSON.parse(checklistJson) as ShownChecklistGroup[]
+    const lines = JSON.stringify(groups.map((g) => g.lines.map((l) => [l.key, l.count])))
+    if (keptChecklist?.lines !== lines) keptChecklist = { lines, at: Date.now() }
+    saveChecklist({ at: keptChecklist.at, gameMode, groups, sold: [...state.sold] })
+  }, [checklistJson, state.sold, gameMode])
+  const saved = useSavedChecklist((s) => s.saved)
   const setHighlight = (scanHighlight: ScanHighlight): void =>
     void updateSettings({ hideout: { ...settings.hideout, scanHighlight } })
   const loot = mode === 'loot' ? lootAdditions(counted, advice, progress.haveFir ?? {}) : null
   const toAdd = loot?.changes.reduce((n, c) => n + c.to - c.from, 0) ?? 0
   const added = advice.reduce((n, a) => n + a.stored, 0)
-  const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress.haveFir ?? {}) : null
+  const stash = mode === 'stash' ? stashCounts(counted, allNeeds, progress) : null
   const zeroed = stash?.changes.filter((c) => c.to === 0) ?? []
   const active = state.active !== null ? (shotsById.get(state.active) ?? null) : null
   const activeRepeat = active ? repeats.get(active.id) : undefined
@@ -889,8 +930,17 @@ export default function ScavScan({
   const save = async (counts: CountChange[], use: 'from' | 'to'): Promise<boolean> => {
     setSaving(true)
     try {
-      // Loot from a raid or the scav case is found in raid, and so is what the stash shows (since 1.66.0).
-      await setHaveMany({ fir: Object.fromEntries(counts.map((c) => [c.itemId, c[use]])) })
+      // Loot from a raid or the scav case is found in raid (since 1.66.0); the stash sets totals, keeping
+      // bought copies as far as they fit (since 1.71.0).
+      const fir: Record<string, number> = {}
+      const any: Record<string, number> = {}
+      for (const c of counts) {
+        if (c.kinds) {
+          fir[c.itemId] = c.kinds[use].fir
+          any[c.itemId] = c.kinds[use].any
+        } else fir[c.itemId] = c[use]
+      }
+      await setHaveMany(Object.keys(any).length ? { fir, any } : { fir })
       return true
     } catch (err) {
       patch({ error: `Couldn’t update Items needed: ${err instanceof Error ? err.message : String(err)}` })
@@ -1073,56 +1123,82 @@ export default function ScavScan({
         </p>
       )}
       {!active ? (
-        <div className="empty scan-empty">
-          {mode === 'keys' ? (
-            <>
-              <p>
-                <strong>Tick your keys from screenshots</strong>
-              </p>
-              <p>
-                In game, open your key tool, keycard holder and any case you keep keys in, and take a
-                screenshot of each (and of stash pages with loose keys). Add them all here with{' '}
-                <em>Use latest screenshot</em>, open the pictures, paste (Ctrl+V) or drop them.
-              </p>
-              <p className="muted">
-                The app finds each key and reads its name (on your PC, nothing is uploaded). Then{' '}
-                <em>Update my keys</em> ticks the keys found in the Keys tab and unticks keys you&rsquo;d
-                ticked that aren&rsquo;t in any screenshot, so include every place you keep keys. Undo puts
-                your old list back.
-              </p>
-            </>
-          ) : mode === 'loot' ? (
-            <>
-              <p>
-                <strong>What to keep from your scav case</strong>
-              </p>
-              <p>
-                Take a screenshot in game of your scav case haul (or any container), then use{' '}
-                <em>Use latest screenshot</em>, open the picture, paste it (Ctrl+V) or drop it here.
-              </p>
-              <p className="muted">
-                The app finds each item, reads its name and count (on your PC, nothing is uploaded), says what
-                to keep for your hideout and active quests and what to sell, and can add what you keep to
-                Items needed.
-              </p>
-            </>
-          ) : (
-            <>
-              <p>
-                <strong>Count everything you have</strong>
-              </p>
-              <p>
-                Screenshot each page of your stash (scroll down between them) and every case or container you
-                keep hideout items in, open, and add them all here. Then update Items needed: each item on the
-                list gets the number your screenshots show.
-              </p>
-              <p className="muted">
-                Items on the list that aren&rsquo;t in any screenshot go back to 0, so include every place you
-                keep them. Rows a screenshot repeats from the one before aren&rsquo;t counted twice.
-              </p>
-            </>
+        <>
+          <div className="empty scan-empty">
+            {mode === 'keys' ? (
+              <>
+                <p>
+                  <strong>Tick your keys from screenshots</strong>
+                </p>
+                <p>
+                  In game, open your key tool, keycard holder and any case you keep keys in, and take a
+                  screenshot of each (and of stash pages with loose keys). Add them all here with{' '}
+                  <em>Use latest screenshot</em>, open the pictures, paste (Ctrl+V) or drop them.
+                </p>
+                <p className="muted">
+                  The app finds each key and reads its name (on your PC, nothing is uploaded). Then{' '}
+                  <em>Update my keys</em> ticks the keys found in the Keys tab and unticks keys you&rsquo;d
+                  ticked that aren&rsquo;t in any screenshot, so include every place you keep keys. Undo puts
+                  your old list back.
+                </p>
+              </>
+            ) : mode === 'loot' ? (
+              <>
+                <p>
+                  <strong>What to keep from your scav case</strong>
+                </p>
+                <p>
+                  Take a screenshot in game of your scav case haul (or any container), then use{' '}
+                  <em>Use latest screenshot</em>, open the picture, paste it (Ctrl+V) or drop it here.
+                </p>
+                <p className="muted">
+                  The app finds each item, reads its name and count (on your PC, nothing is uploaded), says
+                  what to keep for your hideout and active quests and what to sell, and can add what you keep
+                  to Items needed.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  <strong>Count everything you have</strong>
+                </p>
+                <p>
+                  Screenshot each page of your stash (scroll down between them) and every case or container
+                  you keep hideout items in, open, and add them all here. Then update Items needed: each item
+                  on the list gets the number your screenshots show.
+                </p>
+                <p className="muted">
+                  Items on the list that aren&rsquo;t in any screenshot go back to 0, so include every place
+                  you keep them. Rows a screenshot repeats from the one before aren&rsquo;t counted twice.
+                </p>
+              </>
+            )}
+          </div>
+          {/* The last sell checklist, still there after the app closed (since 1.71.0). */}
+          {mode === 'loot' && !shots.length && saved?.gameMode === gameMode && (
+            <SellChecklist
+              title={`Last sell checklist (${checklistTime(saved.at)})`}
+              groups={saved.groups}
+              ticked={new Set(saved.sold)}
+              onTick={(key, on) =>
+                saveChecklist({
+                  ...saved,
+                  sold: on ? [...new Set([...saved.sold, key])] : saved.sold.filter((k) => k !== key)
+                })
+              }
+              onClear={() => saveChecklist({ ...saved, sold: [] })}
+              actions={
+                <button
+                  className="link small"
+                  title="Forget this checklist"
+                  onClick={() => saveChecklist(null)}
+                >
+                  Clear
+                </button>
+              }
+            />
           )}
-        </div>
+        </>
       ) : (
         <div className="scan-body">
           <div className="scan-shot">
@@ -1390,7 +1466,6 @@ export default function ScavScan({
             {checklist && (
               <SellChecklist
                 groups={checklist}
-                items={items}
                 ticked={state.sold}
                 onTick={(key, on) => {
                   const sold = new Set(useScan.getState().sold)
@@ -1399,8 +1474,6 @@ export default function ScavScan({
                   patch({ sold })
                 }}
                 onClear={() => patch({ sold: new Set() })}
-                traderPrice={(item) => evaluateItem(item, ctx).trader?.price ?? 0}
-                rates={priceState?.dataset?.fleaFeeRates}
                 left={toCheck}
               />
             )}

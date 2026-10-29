@@ -450,6 +450,13 @@ describe('lockedTraders (since 1.66.0)', () => {
     }
     expect([...lockedTraders(quests, done).keys()]).toEqual(['ref'])
   })
+
+  it('goes by what the player says over their quests (since 1.71.0)', () => {
+    const done: QuestProgress = { intro: { status: 'completed', at: 1, source: 'manual' } }
+    expect([...lockedTraders(quests, {}, { jaeger: true }).keys()]).toEqual(['ref'])
+    expect([...lockedTraders(quests, done, { jaeger: false }).keys()]).toEqual(['jaeger', 'ref'])
+    expect([...lockedTraders(quests, done, { ref: true }).keys()]).toEqual([])
+  })
 })
 
 describe('pathScores (since 1.66.0)', () => {
@@ -484,6 +491,12 @@ describe('pathScores (since 1.66.0)', () => {
       ['f', 1],
       ['g', 1]
     ])
+  })
+
+  it('says how many of the target quests left a missing key holds up (since 1.71.0)', () => {
+    const scores = pathScores(rows, 'kappa', (q) => q.id === 'c' || q.id === 'done')
+    // Still counted as left; "done" is completed, so it isn't held up.
+    expect(scores).toMatchObject({ left: 6, blocked: 1 })
   })
 
   it('counts Lightkeeper quests instead when asked, leaving out quests that lead to none', () => {

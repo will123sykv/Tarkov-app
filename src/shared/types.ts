@@ -233,6 +233,11 @@ export interface CraftingSettings {
   layout: 'tiles' | 'list'
   /** A Windows notification when a craft put on with Started is done (since 1.66.0). */
   notifyDone: boolean
+  /**
+   * How long the player's crafts take, as a share of the listed time (100 to 60, in 5s): skills and
+   * hideout bonuses make them quicker. Started times crafts with it (since 1.71.0).
+   */
+  timePercent: number
 }
 
 export interface KeysSettings {

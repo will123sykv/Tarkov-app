@@ -1,7 +1,7 @@
 import { CURRENCIES } from './constants'
 import { fleaMarketFee, type FleaFeeRates } from './fleaFee'
-import type { HideoutNeed, KeepInfo, Scarcity } from './hideout'
-import type { LootItem } from './types'
+import { haveCount, type HideoutNeed, type HideoutProgress, type KeepInfo, type Scarcity } from './hideout'
+import type { GameMode, LootItem } from './types'
 import { evaluateItem, type ValuationContext } from './valuation'
 
 // What to do with items read off screenshots: for new loot (a scav case haul, a container), keep what
@@ -282,6 +282,11 @@ export interface CountChange {
   itemId: string
   from: number
   to: number
+  /**
+   * The found-in-raid and bought counts before and after, when both change (the stash's totals, since
+   * 1.71.0); without them, `from` and `to` are found-in-raid counts.
+   */
+  kinds?: { from: { fir: number; any: number }; to: { fir: number; any: number } }
 }
 
 /**
@@ -320,12 +325,14 @@ export interface StashCounts {
 /**
  * Everything the player has into the hideout's counts: each item any unbuilt level still needs
  * (`needs`, for every level left) is set to how many the screenshots show, and to 0 when they show
- * none. Items nothing on the list needs are left out, and so is money.
+ * none. Items nothing on the list needs are left out, and so is money. What the screenshots show is
+ * the total (since 1.71.0): copies counted as bought stay bought as far as they fit, the rest are found
+ * in raid, so bought copies aren't counted on top.
  */
 export function stashCounts(
   entries: readonly ScanEntry[],
   needs: readonly HideoutNeed[],
-  have: Readonly<Record<string, number>>
+  progress: Pick<HideoutProgress, 'have' | 'haveFir'>
 ): StashCounts {
   const listed = new Set(needs.filter((n) => !CURRENCIES[n.itemId]).map((n) => n.itemId))
   const seen = new Map<string, number>()
@@ -334,11 +341,104 @@ export function stashCounts(
   const changes: CountChange[] = []
   let unchanged = 0
   for (const itemId of listed) {
-    const from = have[itemId] ?? 0
+    const before = { fir: haveCount(progress, itemId, 'fir'), any: haveCount(progress, itemId, 'any') }
+    const from = before.fir + before.any
     const to = seen.get(itemId) ?? 0
-    if (from === to) unchanged++
-    else changes.push({ itemId, from, to })
+    const any = Math.min(before.any, to)
+    const after = { fir: to - any, any }
+    if (after.fir === before.fir && after.any === before.any) unchanged++
+    else changes.push({ itemId, from, to, kinds: { from: before, to: after } })
   }
   const ignored = [...seen.keys()].filter((id) => !listed.has(id) && !CURRENCIES[id]).length
   return { changes, unchanged, ignored }
+}
+
+/** A checklist line as shown: the item's name, and on the flea, a price to list it at. */
+export interface ShownChecklistLine extends ChecklistLine {
+  name: string
+  list: ListPrice | null
+}
+
+export interface ShownChecklistGroup extends Omit<ChecklistGroup, 'lines'> {
+  lines: ShownChecklistLine[]
+}
+
+/**
+ * The last sell checklist, kept after the app closes (since 1.71.0): its lines as they were shown, and
+ * the ones ticked off.
+ */
+export interface SavedChecklist {
+  /** When it was made (epoch ms). */
+  at: number
+  gameMode: GameMode
+  groups: ShownChecklistGroup[]
+  sold: string[]
+}
+
+const MAX_SAVED_LINES = 500
+
+function finite(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function savedListPrice(raw: unknown): ListPrice | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+  const price = finite(r?.price)
+  const fee = finite(r?.fee)
+  const net = finite(r?.net)
+  if (!r || price === null || fee === null || net === null) return null
+  return {
+    price,
+    fee,
+    net,
+    traderFloor: r.traderFloor === true,
+    wellUnderAverage: finite(r.wellUnderAverage)
+  }
+}
+
+/** A saved checklist as read back, or null when it isn't one. */
+export function sanitizeSavedChecklist(raw: unknown): SavedChecklist | null {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+  const at = finite(r?.at)
+  if (!r || at === null || !Array.isArray(r.groups)) return null
+  if (r.gameMode !== 'pvp' && r.gameMode !== 'pve' && r.gameMode !== 'season') return null
+  let left = MAX_SAVED_LINES
+  const groups: ShownChecklistGroup[] = []
+  for (const g of r.groups as unknown[]) {
+    const group = g && typeof g === 'object' ? (g as Record<string, unknown>) : null
+    if (!group || typeof group.id !== 'string' || !Array.isArray(group.lines)) continue
+    const via = group.via === 'flea' ? 'flea' : 'trader'
+    const lines: ShownChecklistLine[] = []
+    for (const l of group.lines as unknown[]) {
+      const line = l && typeof l === 'object' ? (l as Record<string, unknown>) : null
+      const count = finite(line?.count)
+      const each = finite(line?.each)
+      const total = finite(line?.total)
+      if (!line || typeof line.key !== 'string' || typeof line.itemId !== 'string') continue
+      if (count === null || each === null || total === null || left-- <= 0) continue
+      lines.push({
+        key: line.key,
+        itemId: line.itemId,
+        name: typeof line.name === 'string' ? line.name : 'Unknown item',
+        count,
+        each,
+        total,
+        list: via === 'flea' ? savedListPrice(line.list) : null
+      })
+    }
+    if (!lines.length) continue
+    groups.push({
+      id: group.id,
+      via,
+      trader: via === 'trader' ? group.id : null,
+      lines,
+      total: lines.reduce((n, l) => n + l.total, 0)
+    })
+  }
+  if (!groups.length) return null
+  const keys = new Set(groups.flatMap((g) => g.lines.map((l) => l.key)))
+  const sold = Array.isArray(r.sold)
+    ? r.sold.filter((k): k is string => typeof k === 'string' && keys.has(k))
+    : []
+  return { at, gameMode: r.gameMode, groups, sold }
 }

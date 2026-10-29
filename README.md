@@ -111,7 +111,8 @@ next time you close the app.
 - **Only traders you've unlocked.** Jaeger, Ref, Lightkeeper and the BTR Driver are only suggested
   (in Loot, Screenshots, Items to collect, crafting and To do) once a quest that unlocks them is
   done. Until then, the Trader column's hover says who would pay more once unlocked, and which
-  quest unlocks them.
+  quest unlocks them. If you don't track your quests in the app, set each one to **Unlocked** (or
+  **Locked**) on its card in Settings › Trader loyalty; **Auto** goes by your quests.
 - **Game modes.** Switch between PvP, PvE and PvP Season. Each mode keeps its own PMC level,
   because each is a separate character in game.
 - **Time in raid.** Next to the game modes, the two times a raid can start at right now (Tarkov's
@@ -405,7 +406,8 @@ the highlight. The totals stay the whole haul's.
 **Sell checklist** lists what to sell grouped for selling: **Flea market** first, then each trader
 in their colour, the most valuable first, with stacks of one item added up. Tick each off as you
 sell it (ticks are kept until **Start over**); each group and the whole list say how much is sold so
-far. Each flea item has a price to list it at: just under the lowest listing, rounded, but never so
+far. The last checklist is kept after the app closes: with no screenshot open, **Last sell checklist**
+shows it, ticks and all, until a new one replaces it or you **Clear** it. Each flea item has a price to list it at: just under the lowest listing, rounded, but never so
 low that it fetches less after the fee than a trader pays. Hover it for the fee and what you get,
 and a **Check price** badge warns when the lowest listing is well under the 24-hour average
 (perhaps a bait listing). Rows to check aren't listed until they're sorted out.
@@ -414,7 +416,7 @@ and a **Check price** badge warns when the lowest listing is well under the 24-h
 every case or container you keep hideout items in, open. **Add latest screenshot**, **Add picture…**,
 paste and drop all add to the same scan; **Start over** clears it. The panel lists how each count in
 Items needed would change, and **Update my counts** sets each item the hideout or a quest still needs
-(for any level or quest left) to the number your screenshots show, as found in raid (bought counts are left alone). Items on the list that aren't in
+(for any level or quest left) to the number your screenshots show: that's the total, with copies you'd counted as **Bought** kept bought as far as they fit and the rest found in raid, so nothing is counted twice. Items on the list that aren't in
 any screenshot go back to 0 (it asks first), so include every place you keep them; items nothing
 needs are left out, and so is money. **Undo** puts the old counts back. When a screenshot repeats rows from the
 one before (a stash page that didn't scroll far enough), those rows aren't counted twice (**Count
@@ -460,10 +462,11 @@ When you put a craft on in the game, click its **Started** button (on a tile, on
 row of the list and on each craft for profit) to keep Items to collect up to date. It counts one run:
 what the craft makes goes onto **Have** (found in raid, as crafted items are) when your upgrades or quests need it, and what it uses comes
 off Have (bought copies first) when you're keeping it (tools aren't used up, and ingredients you don't track are left alone).
-A notice at the bottom says what changed, with **Undo**. **Started** also times the craft (at its
-usual time; skills and bonuses can make it quicker): **Crafting now** at the top of the Hideout tab
+A notice at the bottom says what changed, with **Undo**. **Started** also times the craft: your
+Crafting skill and hideout bonuses make crafts quicker, so set **Your crafts take** (100% down to 60%
+of the listed time) in Settings › Hideout crafting. **Crafting now** at the top of the Hideout tab
 counts each down, one per station, then says **Ready**, with **Collected** to clear it (or **Cancel**
-before then). When one's done, a Windows notification says so (click it to open the app), from the
+before then); **−5 min** and **+5 min** move a timer to match the game's. When one's done, a Windows notification says so (click it to open the app), from the
 tray too with background recording on, and crafts that finished while the app was closed are said
 when it starts. Turn it off with **Notify me when crafts are done** in Settings › Hideout crafting.
 

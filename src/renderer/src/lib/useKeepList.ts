@@ -24,7 +24,9 @@ export function useLockedTraders(current: PublicSettings | null): ReadonlyMap<st
   // Straight from the store, so it's cheap to use anywhere.
   const quests = useStore((s) => s.questData[dataModeFor(settings.gameMode)]?.dataset?.quests)
   const progress = useStore((s) => s.questProgress[settings.gameMode])
-  return useMemo(() => lockedTraders(quests ?? [], progress), [quests, progress])
+  // What the player says over what their quests say (since 1.71.0).
+  const overrides = useStore((s) => s.hideoutProgress[settings.gameMode]?.traderUnlocks)
+  return useMemo(() => lockedTraders(quests ?? [], progress, overrides), [quests, progress, overrides])
 }
 
 /** How to value what the player sells: level, the flea, its fee and the traders unlocked. */

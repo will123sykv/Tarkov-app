@@ -447,9 +447,12 @@ describe('sanitizeSettings', () => {
       firOnly: false,
       currentOnly: false,
       layout: 'tiles',
-      notifyDone: true
+      notifyDone: true,
+      timePercent: 100
     })
     expect(sanitizeSettings({ crafting: { notifyDone: false } }).crafting.notifyDone).toBe(false)
+    expect(sanitizeSettings({ crafting: { timePercent: 80 } }).crafting.timePercent).toBe(80)
+    expect(sanitizeSettings({ crafting: { timePercent: 82 } }).crafting.timePercent).toBe(100)
     expect(
       sanitizeSettings({
         view: 'crafting',
@@ -481,7 +484,8 @@ describe('sanitizeSettings', () => {
       firOnly: false,
       currentOnly: false,
       layout: 'tiles',
-      notifyDone: true
+      notifyDone: true,
+      timePercent: 100
     })
   })
 

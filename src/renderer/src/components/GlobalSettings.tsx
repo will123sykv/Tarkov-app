@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { dataModeFor } from '../../../shared/gameModes'
 import { EMPTY_HIDEOUT } from '../../../shared/hideout'
-import { MIN_PROFIT_MINUTES, TREND_INTERVALS } from '../../../shared/settings'
+import { traderUnlockQuests } from '../../../shared/questProgress'
+import { CRAFT_TIME_PERCENTS, MIN_PROFIT_MINUTES, TREND_INTERVALS } from '../../../shared/settings'
 import type { PublicSettings, QuestSettings, TodoSettings, TrendSettings } from '../../../shared/types'
 import { useFriendKeys } from '../lib/useFriendKeys'
 import { useStore } from '../store'
@@ -141,6 +142,12 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
   const traders = useStore((s) => s.questData[dataModeFor(settings.gameMode)]?.dataset?.traders) ?? []
   const levels = useStore((s) => s.hideoutProgress[settings.gameMode]?.traders) ?? EMPTY_HIDEOUT.traders
   const setTraderLevel = useStore((s) => s.setTraderLevel)
+  // Traders a quest unlocks (Jaeger, Ref): unlocked as the quests say, or as the player says (since 1.71.0).
+  const quests = useStore((s) => s.questData[dataModeFor(settings.gameMode)]?.dataset?.quests)
+  const progress = useStore((s) => s.questProgress[settings.gameMode])
+  const unlocks = useStore((s) => s.hideoutProgress[settings.gameMode]?.traderUnlocks) ?? {}
+  const setTraderUnlock = useStore((s) => s.setTraderUnlock)
+  const unlockedBy = traderUnlockQuests(quests ?? [])
   // Traders with loyalty levels to reach (not the ones with a single level, like the BTR driver).
   // Quest data saved without the levels (an old save): LL1 to 4.
   const listed = traders
@@ -157,6 +164,9 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
         <ul className="loyalty-cards">
           {listed.map((t) => {
             const level = levels[t.id] ?? 1
+            const by = unlockedBy.get(t.id)
+            const auto = by?.some((q) => progress?.[q.id]?.status === 'completed')
+            const unlock = unlocks[t.id]
             return (
               <li key={t.id} className="loyalty-card">
                 <TraderPortrait name={t.name} src={t.imageLink} />
@@ -168,6 +178,24 @@ export function LoyaltySettingsSection({ settings }: { settings: PublicSettings 
                     options={t.choices.map((l) => [l, `LL${l}`, `Loyalty level ${l}`] as const)}
                     onChange={(l) => void setTraderLevel(t.id, l)}
                   />
+                  {by && (
+                    <>
+                      <Choice
+                        label={`${t.name} unlocked`}
+                        value={unlock === undefined ? 'auto' : unlock ? 'on' : 'off'}
+                        options={[
+                          ['auto', 'Auto', 'As your quests say'],
+                          ['on', 'Unlocked', 'Unlocked, whatever your quests say'],
+                          ['off', 'Locked', 'Locked, whatever your quests say']
+                        ]}
+                        onChange={(v) => void setTraderUnlock(t.id, v === 'auto' ? null : v === 'on')}
+                      />
+                      <small className="hint">
+                        Auto: unlocked once {by.map((q) => q.name).join(' or ')} is done (
+                        {auto ? 'done' : 'not yet'})
+                      </small>
+                    </>
+                  )}
                 </div>
               </li>
             )
@@ -212,8 +240,27 @@ export function CraftingSettingsSection({ settings }: { settings: PublicSettings
         Notify me when crafts are done
       </label>
       <p className="hint">
-        <em>Started</em> times the craft (at its usual time; skills and bonuses can make it quicker), and a
-        Windows notification says when it&rsquo;s done, from the tray too with background recording on.
+        <em>Started</em> times the craft, and a Windows notification says when it&rsquo;s done, from the tray
+        too with background recording on.
+      </p>
+      <label className="craft-time-percent">
+        <span>Your crafts take</span>
+        <select
+          value={c.timePercent}
+          onChange={(e) => void updateSettings({ crafting: { ...c, timePercent: Number(e.target.value) } })}
+        >
+          {CRAFT_TIME_PERCENTS.map((p) => (
+            <option key={p} value={p}>
+              {p}%
+            </option>
+          ))}
+        </select>
+        <span>of the listed time</span>
+      </label>
+      <p className="hint">
+        Your Crafting skill and hideout bonuses make crafts quicker. To find yours, compare a craft&rsquo;s
+        time in the game with the app&rsquo;s (listed at 1 h 40 min and 1 h 30 min in the game: 90%). A
+        running timer can also be moved 5 minutes at a time under <em>Crafting now</em>.
       </p>
     </section>
   )

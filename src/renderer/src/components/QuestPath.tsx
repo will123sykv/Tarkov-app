@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { pathScores, type PathTarget } from '../../../shared/questProgress'
-import type { QuestTrader } from '../../../shared/questTypes'
+import type { Quest, QuestTrader } from '../../../shared/questTypes'
 import type { QuestRow } from '../lib/useQuestRows'
 import { STATUS_BADGE, STATUS_LABEL } from '../lib/questUi'
 
@@ -17,7 +17,8 @@ export default function QuestPath({
   onSelect,
   lockText,
   filter,
-  note
+  note,
+  blocked
 }: {
   rows: readonly QuestRow[]
   traders: readonly QuestTrader[]
@@ -29,9 +30,12 @@ export default function QuestPath({
   filter: (row: QuestRow) => boolean
   /** Says what the sidebar filters by. */
   note: React.ReactNode
+  /** Held up by a key the player doesn't have (with Only quests I can do), to say how many. */
+  blocked?: (quest: Quest) => boolean
 }): React.JSX.Element {
   const [target, setTarget] = useState<PathTarget>('kappa')
-  const scores = useMemo(() => pathScores(rows, target), [rows, target])
+  // Every quest of the kind shown counts, as the Quests header has it (since 1.71.0).
+  const scores = useMemo(() => pathScores(rows, target, blocked), [rows, target, blocked])
   // Counted over every quest of the kind shown, so the numbers stay true; listed as the sidebar says.
   const listed = useMemo(() => scores.rows.filter(filter), [scores.rows, filter])
   const traderName = useMemo(() => new Map(traders.map((t) => [t.id, t.name])), [traders])
@@ -55,6 +59,7 @@ export default function QuestPath({
         <span className="muted">
           {label}: {scores.done} done · {scores.left} left
           {scores.levelOnly > 0 && ` · ${scores.levelOnly} waiting only on your level`}
+          {scores.blocked > 0 && ` · ${scores.blocked} held up by keys you don’t have`}
         </span>
       </div>
       <p className="hint quest-list-note">

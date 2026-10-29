@@ -6464,6 +6464,27 @@ p.quest-before.done {
   min-width: 0;
 }
 
+.craft-timer-shift {
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* Settings › Hideout crafting: how long the player's crafts take (since 1.71.0). */
+.craft-time-percent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.craft-time-percent select {
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 /* A raid with nothing left to tick off: said, then gone by itself (since 1.70.0). */
 .after-raid-notice {
   position: fixed;

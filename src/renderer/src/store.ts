@@ -118,11 +118,13 @@ interface AppStore {
   closeRaidEnded(): void
   startCraftTimer(start: CraftStart): Promise<void>
   clearCraftTimer(stationId: string): Promise<void>
+  shiftCraftTimer(stationId: string, deltaMs: number): Promise<void>
   openCraftingStation(stationId: string | null): void
   openWeaponsMap(mapKey: string | null): void
   setHideoutHaveMany(counts: HaveCounts): Promise<void>
   buildStationLevel(stationId: string, level: number): Promise<void>
   setTraderLevel(traderId: string, level: number): Promise<void>
+  setTraderUnlock(traderId: string, value: boolean | null): Promise<void>
   rescanLogs(): Promise<void>
   chooseLogsFolder(): Promise<void>
   selectQuest(questId: string | null): void
@@ -513,6 +515,12 @@ export const useStore = create<AppStore>((set, get) => ({
     const crafts = await window.api.clearCraftTimer(gameMode, stationId)
     set((s) => ({ craftTimers: { ...s.craftTimers, [gameMode]: crafts } }))
   },
+  async shiftCraftTimer(stationId, deltaMs) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const crafts = await window.api.shiftCraftTimer(gameMode, stationId, deltaMs)
+    set((s) => ({ craftTimers: { ...s.craftTimers, [gameMode]: crafts } }))
+  },
   openCraftingStation: (craftingStation) => set({ craftingStation }),
   openWeaponsMap: (weaponsMap) => set({ weaponsMap }),
 
@@ -565,6 +573,13 @@ export const useStore = create<AppStore>((set, get) => ({
     const gameMode = get().settings?.gameMode
     if (!gameMode) return
     const hideout = await window.api.setTraderLevel(gameMode, traderId, level)
+    set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
+  },
+
+  async setTraderUnlock(traderId, value) {
+    const gameMode = get().settings?.gameMode
+    if (!gameMode) return
+    const hideout = await window.api.setTraderUnlock(gameMode, traderId, value)
     set((s) => ({ hideoutProgress: { ...s.hideoutProgress, [gameMode]: hideout } }))
   },
 

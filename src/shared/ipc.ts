@@ -51,6 +51,7 @@ export const IPC = {
   hideoutSetHaveMany: 'hideout:set-have-many',
   hideoutBuild: 'hideout:build',
   hideoutSetTrader: 'hideout:set-trader',
+  hideoutSetTraderUnlock: 'hideout:set-trader-unlock',
   keysGet: 'keys:get',
   keysSet: 'keys:set',
   keysSetOwned: 'keys:set-owned',
@@ -60,6 +61,7 @@ export const IPC = {
   craftsGet: 'crafts:get',
   craftsStart: 'crafts:start',
   craftsClear: 'crafts:clear',
+  craftsShift: 'crafts:shift',
   craftsChanged: 'crafts:changed',
   scanReadText: 'scan:read-text',
   scanGridImage: 'scan:grid-image',
@@ -161,6 +163,8 @@ export interface TarkovApi {
   setHideoutHaveMany(gameMode: GameMode, counts: HaveCounts): Promise<HideoutProgress>
   /** The player's loyalty level with a trader (1–4), for what traders will sell them. */
   setTraderLevel(gameMode: GameMode, traderId: string, level: number): Promise<HideoutProgress>
+  /** Whether a trader a quest unlocks is unlocked (`null`: as the quests say; since 1.71.0). */
+  setTraderUnlock(gameMode: GameMode, traderId: string, value: boolean | null): Promise<HideoutProgress>
   /** Build a station's level: set it and use up the items put aside for it. */
   buildStationLevel(gameMode: GameMode, stationId: string, level: number): Promise<HideoutProgress>
   /** The keys the player has, and ones they want to get (per game mode). */
@@ -177,6 +181,8 @@ export interface TarkovApi {
   getCraftTimers(gameMode: GameMode): Promise<CraftTimer[]>
   startCraftTimer(gameMode: GameMode, start: CraftStart): Promise<CraftTimer[]>
   clearCraftTimer(gameMode: GameMode, stationId: string): Promise<CraftTimer[]>
+  /** A station's timer moved on (or back, negative) by so many ms (since 1.71.0). */
+  shiftCraftTimer(gameMode: GameMode, stationId: string, deltaMs: number): Promise<CraftTimer[]>
   onCraftTimers(listener: (update: { gameMode: GameMode; crafts: CraftTimer[] }) => void): () => void
   /** Star an item, an upgrade ("stationId:level") or a quest, or take the star off. */
   setFavourite(gameMode: GameMode, kind: FavouriteKind, id: string, on: boolean): Promise<Favourites>

@@ -733,6 +733,16 @@ describe('hideout progress', () => {
     expect(await reopened.hideout('season')).toEqual(EMPTY_HIDEOUT)
   })
 
+  it('keeps what the player says about traders a quest unlocks (since 1.71.0)', async () => {
+    const file = join(await tempDir(), 'player.json')
+    const store = createPlayerStore({ file })
+    await store.setTraderUnlock('pvp', 'jaeger', true)
+    await store.setTraderUnlock('pvp', 'ref', false)
+    expect((await store.setTraderUnlock('pvp', 'ref', null)).traderUnlocks).toEqual({ jaeger: true })
+    expect((await createPlayerStore({ file }).hideout('pvp')).traderUnlocks).toEqual({ jaeger: true })
+    expect((await createPlayerStore({ file }).hideout('pve')).traderUnlocks).toBeUndefined()
+  })
+
   it('sets several counts at once, clearing zeros and capping', async () => {
     const file = join(await tempDir(), 'player.json')
     const store = createPlayerStore({ file })

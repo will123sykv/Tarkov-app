@@ -432,19 +432,11 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
   )
   const selectedRow = everyRow.find((r) => r.quest.id === selected) ?? null
   const kappa = all.filter((r) => r.quest.kappaRequired)
-  // The Path tab (since 1.66.0) counts every quest of the kind shown; "Only quests I can do" leaves out
-  // ones a missing key holds up.
-  const pathRows = useMemo(
-    () =>
-      settings.todo.show === 'doable'
-        ? all.filter(
-            ({ quest, status }) =>
-              status === 'completed' ||
-              status === 'failed' ||
-              blockedByKeys(quest, owned, objectives).length === 0
-          )
-        : all,
-    [all, settings.todo.show, owned, objectives]
+  // Path (since 1.66.0) counts every quest of the kind shown, as the header does; with Only quests I
+  // can do, it says how many a missing key holds up, and leaves them out of its list (since 1.71.0).
+  const keyBlocked = useCallback(
+    (quest: Quest) => blockedByKeys(quest, owned, objectives).length > 0,
+    [owned, objectives]
   )
 
   return (
@@ -540,7 +532,8 @@ export default function QuestsView({ settings, priceState }: Props): React.JSX.E
           <div className="quests-main">
             {tab === 'path' ? (
               <QuestPath
-                rows={pathRows}
+                rows={all}
+                blocked={onlyDoable ? keyBlocked : undefined}
                 filter={matches}
                 note={filterNote}
                 traders={dataset?.traders ?? []}

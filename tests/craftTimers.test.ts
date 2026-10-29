@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createCraftNotifier } from '../src/main/craftTimers'
 import { createPlayerStore } from '../src/main/quests/playerStore'
-import { sanitizeCraftTimers, withTimer, type CraftTimer } from '../src/shared/craftTimers'
+import { sanitizeCraftTimers, shiftedTimer, withTimer, type CraftTimer } from '../src/shared/craftTimers'
 import {
   craftResources,
   FUEL_PER_HOUR,
@@ -94,6 +94,27 @@ describe('craft timers (since 1.66.0)', () => {
       ['booze', false]
     ])
     expect((await again.clearCraft('pvp', 'med')).map((t) => t.stationId)).toEqual(['booze'])
+  })
+
+  it('moves a timer on or back, never to before now, to be said again later (since 1.71.0)', async () => {
+    const timers = [timer('a', 10_000, { startedAt: 1_000 }), timer('b', 2_000, { notified: true })]
+    expect(shiftedTimer(timers, 'a', -300_000, 5_000)[0]).toMatchObject({ endsAt: 5_000, notified: false })
+    expect(shiftedTimer(timers, 'a', 300_000, 5_000)[0].endsAt).toBe(310_000)
+    // A craft said done, moved later: not done any more.
+    expect(shiftedTimer(timers, 'b', 300_000, 5_000)[1]).toMatchObject({ endsAt: 302_000, notified: false })
+    expect(shiftedTimer(timers, 'b', -300_000, 5_000)[1]).toMatchObject({ endsAt: 5_000, notified: true })
+
+    const file = join(await tempDir(), 'player.json')
+    let now = 1_000
+    const store = createPlayerStore({ file, now: () => now })
+    await store.startCraft('pvp', timer('booze', 600_000))
+    await store.startCraft('pvp', timer('med', 500_000))
+    now = 2_000
+    // Soonest first, after the move.
+    expect((await store.shiftCraft('pvp', 'med', 300_000)).map((t) => [t.stationId, t.endsAt])).toEqual([
+      ['booze', 600_000],
+      ['med', 800_000]
+    ])
   })
 
   it('says each craft once when it’s done, and waits for the next', async () => {

@@ -23,6 +23,11 @@ export interface HideoutProgress {
   /** Loyalty level per trader id, for what traders sell; a trader not in here is at level 1. */
   traders: Record<string, number>
   /**
+   * Traders the player says are unlocked (`true`) or not (`false`), whatever their quests say; one not
+   * in here goes by the quests (since 1.71.0).
+   */
+  traderUnlocks?: Record<string, boolean>
+  /**
    * When each count in `have` was last set or used up (epoch ms). A quest hand-over from before then
    * is already reflected in the count, so isn't taken off again. Since 1.14.0.
    */

@@ -1,39 +1,36 @@
-import type { FleaFeeRates } from '../../../shared/fleaFee'
-import { suggestedListPrice, traderColour, type ChecklistGroup } from '../../../shared/scavAdvice'
-import type { LootItem } from '../../../shared/types'
+import { traderColour, type ShownChecklistGroup } from '../../../shared/scavAdvice'
 import { formatRub } from '../lib/format'
 
 /**
  * What to sell from a scan, as a list to tick off while selling (since 1.66.0): the flea first, with a
- * price to list each at, then each trader in their colour.
+ * price to list each at, then each trader in their colour. The last one is kept after the app closes,
+ * ticks and all (since 1.71.0), so it's shown from its saved lines as well as from a scan.
  */
 export default function SellChecklist({
+  title = 'Sell checklist',
   groups,
-  items,
   ticked,
   onTick,
   onClear,
-  traderPrice,
-  rates,
-  left
+  left = 0,
+  actions
 }: {
-  groups: ChecklistGroup[]
-  items: ReadonlyMap<string, LootItem>
+  title?: string
+  groups: ShownChecklistGroup[]
   ticked: ReadonlySet<string>
   onTick: (key: string, on: boolean) => void
   onClear: () => void
-  /** What the best unlocked trader pays for one, so a listing never fetches less. */
-  traderPrice: (item: LootItem) => number
-  rates: FleaFeeRates | undefined
   /** Stacks to check first, which aren't listed. */
-  left: number
+  left?: number
+  /** More buttons for the head. */
+  actions?: React.ReactNode
 }): React.JSX.Element {
   const all = groups.flatMap((g) => g.lines)
   const done = all.filter((l) => ticked.has(l.key))
   return (
     <div className="sell-checklist">
       <div className="sell-checklist-head">
-        <strong>Sell checklist</strong>
+        <strong>{title}</strong>
         <span className="muted">
           {done.length} of {all.length} sold · {formatRub(done.reduce((n, l) => n + l.total, 0))} of{' '}
           {formatRub(all.reduce((n, l) => n + l.total, 0))}
@@ -44,6 +41,7 @@ export default function SellChecklist({
             Untick all
           </button>
         )}
+        {actions}
       </div>
       {groups.length === 0 && <p className="muted">Nothing to sell.</p>}
       {groups.map((g) => {
@@ -64,16 +62,14 @@ export default function SellChecklist({
             </h4>
             <ul>
               {g.lines.map((l) => {
-                const item = items.get(l.itemId)
-                const list =
-                  g.via === 'flea' && item ? suggestedListPrice(item, traderPrice(item), rates) : null
+                const list = l.list
                 const on = ticked.has(l.key)
                 return (
                   <li key={l.key} className={on ? 'done' : ''}>
                     <label className="check">
                       <input type="checkbox" checked={on} onChange={(e) => onTick(l.key, e.target.checked)} />
                       <span className="sell-name">
-                        {item?.name ?? 'Unknown item'}
+                        {l.name}
                         {l.count > 1 && <span className="muted"> ×{l.count}</span>}
                       </span>
                     </label>

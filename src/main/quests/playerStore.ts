@@ -1,4 +1,4 @@
-import { sanitizeCraftTimers, withTimer, type CraftTimer } from '../../shared/craftTimers'
+import { sanitizeCraftTimers, shiftedTimer, withTimer, type CraftTimer } from '../../shared/craftTimers'
 import {
   EMPTY_HIDEOUT,
   haveCount,
@@ -313,6 +313,14 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
       return d.crafts[mode]
     },
 
+    /** A station's timer moved on or back, to match the game's (since 1.71.0). */
+    async shiftCraft(mode: GameMode, stationId: string, deltaMs: number): Promise<CraftTimer[]> {
+      const d = await load()
+      d.crafts[mode] = sanitizeCraftTimers(shiftedTimer(d.crafts[mode], stationId, deltaMs, now()))
+      await save()
+      return d.crafts[mode]
+    },
+
     /** A station's craft collected (or no longer timed). */
     async clearCraft(mode: GameMode, stationId: string): Promise<CraftTimer[]> {
       const d = await load()
@@ -429,6 +437,18 @@ export function createPlayerStore(opts: { file: string; now?: () => number }) {
         ...current,
         traders: { ...current.traders, [traderId]: Math.min(4, Math.max(1, Math.round(level))) }
       }
+      await save()
+      return d.hideout[mode]
+    },
+
+    /** Say a trader is unlocked (`true`) or not (`false`) whatever the quests say; `null` goes by them. */
+    async setTraderUnlock(mode: GameMode, traderId: string, value: boolean | null): Promise<HideoutProgress> {
+      const d = await load()
+      const current = d.hideout[mode]
+      const traderUnlocks = { ...current.traderUnlocks }
+      if (value === null) delete traderUnlocks[traderId]
+      else traderUnlocks[traderId] = value
+      d.hideout[mode] = { ...current, traderUnlocks }
       await save()
       return d.hideout[mode]
     },

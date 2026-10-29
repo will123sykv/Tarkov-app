@@ -62,4 +62,24 @@ export function withTimer(timers: readonly CraftTimer[], timer: CraftTimer): Cra
   return sanitizeCraftTimers([...timers.filter((t) => t.stationId !== timer.stationId), timer])
 }
 
+/**
+ * A station's timer moved on or back (since 1.71.0), never to before now. Moved later than now, it's
+ * not done any more, so it's said again when it is.
+ */
+export function shiftedTimer(
+  timers: readonly CraftTimer[],
+  stationId: string,
+  deltaMs: number,
+  now: number
+): CraftTimer[] {
+  return timers.map((t) => {
+    if (t.stationId !== stationId) return t
+    const endsAt = Math.max(now, t.startedAt, t.endsAt + deltaMs)
+    return { ...t, endsAt, notified: endsAt > now ? false : t.notified }
+  })
+}
+
+/** The most a nudge moves a timer by. */
+export const MAX_CRAFT_SHIFT_MS = 24 * 3600 * 1000
+
 export const EMPTY_CRAFT_TIMERS: readonly CraftTimer[] = []

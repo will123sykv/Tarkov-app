@@ -29,6 +29,7 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  sanitizeSavedChecklist,
   sellChecklist,
   sellsVia,
   stashCounts,
@@ -517,16 +518,37 @@ describe('what to keep and what to sell', () => {
         { itemId: null, count: 1 }
       ],
       [need('bolts'), need('screws'), need('ledx'), need('wires'), need(ROUBLES)],
-      { bolts: 1, screws: 2, ledx: 1, [ROUBLES]: 10 }
+      { have: {}, haveFir: { bolts: 1, screws: 2, ledx: 1, [ROUBLES]: 10 } }
     )
+    const kinds = (fromFir: number, fromAny: number, toFir: number, toAny: number) => ({
+      from: { fir: fromFir, any: fromAny },
+      to: { fir: toFir, any: toAny }
+    })
     expect(result).toEqual({
       changes: [
-        { itemId: 'bolts', from: 1, to: 7 },
-        { itemId: 'ledx', from: 1, to: 0 }
+        { itemId: 'bolts', from: 1, to: 7, kinds: kinds(1, 0, 7, 0) },
+        { itemId: 'ledx', from: 1, to: 0, kinds: kinds(1, 0, 0, 0) }
       ],
       unchanged: 2,
       ignored: 1
     })
+  })
+
+  it('sets totals: bought copies stay bought as far as they fit, not counted on top (since 1.71.0)', () => {
+    const need = (itemId: string) => ({ itemId }) as HideoutNeed
+    const changes = stashCounts(
+      [
+        { itemId: 'bolts', count: 3 },
+        { itemId: 'screws', count: 4 }
+      ],
+      [need('bolts'), need('screws'), need('ledx')],
+      { have: { bolts: 3, screws: 1, ledx: 2 }, haveFir: { screws: 1 } }
+    ).changes
+    expect(changes.map((c) => [c.itemId, c.from, c.to, c.kinds?.to])).toEqual([
+      // 3 bought and 3 seen: already right (not 6); see `unchanged`.
+      ['screws', 2, 4, { fir: 3, any: 1 }],
+      ['ledx', 2, 0, { fir: 0, any: 0 }]
+    ])
   })
 
   it('sells to traders before the flea opens', () => {
@@ -703,6 +725,37 @@ describe('the sell checklist (since 1.66.0)', () => {
       ['Mechanic', 50, [['Mechanic:bolts', 5, 50]]],
       ['Therapist', 90, [['Therapist:salewa', 1, 90]]]
     ])
+  })
+
+  it('reads back a kept checklist, dropping what isn’t one (since 1.71.0)', () => {
+    const list = { price: 100, fee: 5, net: 95, traderFloor: false, wellUnderAverage: null }
+    const saved = {
+      at: 1_000,
+      gameMode: 'pvp',
+      groups: [
+        {
+          id: 'flea',
+          via: 'flea',
+          trader: null,
+          total: 200,
+          lines: [
+            { key: 'flea:gpu', itemId: 'gpu', name: 'Graphics card', count: 2, each: 100, total: 200, list }
+          ]
+        },
+        {
+          id: 'Mechanic',
+          via: 'trader',
+          trader: 'Mechanic',
+          total: 0,
+          lines: [{ key: 'Mechanic:bolts', itemId: 'bolts', count: 'many' }]
+        }
+      ],
+      sold: ['flea:gpu', 'gone', 7]
+    }
+    expect(sanitizeSavedChecklist(saved)).toEqual({ ...saved, groups: [saved.groups[0]], sold: ['flea:gpu'] })
+    expect(sanitizeSavedChecklist({ ...saved, gameMode: 'arena' })).toBeNull()
+    expect(sanitizeSavedChecklist({ ...saved, groups: [saved.groups[1]] })).toBeNull()
+    expect(sanitizeSavedChecklist('nope')).toBeNull()
   })
 
   it('suggests a listing just under the lowest one, rounded', () => {

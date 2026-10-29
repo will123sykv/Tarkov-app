@@ -115,7 +115,8 @@ export const DEFAULT_SETTINGS: Settings = {
     firOnly: false,
     currentOnly: false,
     layout: 'tiles',
-    notifyDone: true
+    notifyDone: true,
+    timePercent: 100
   },
   sidebars: {},
   tableSorts: {}
@@ -378,6 +379,8 @@ function sanitizeTableSorts(raw: unknown): Record<string, ColumnSort> {
 
 /** The minimum times the Hideout tab's profit crafts can be set to (minutes). */
 export const MIN_PROFIT_MINUTES = [0, 15, 30, 45, 60, 120, 180, 240, 360] as const
+/** How long crafts take, as a share of the listed time (since 1.71.0). */
+export const CRAFT_TIME_PERCENTS = [100, 95, 90, 85, 80, 75, 70, 65, 60] as const
 const CRAFT_SORT_KEYS: CraftSortKey[] = [
   'priority',
   'item',
@@ -404,7 +407,10 @@ function sanitizeCrafting(raw: unknown): CraftingSettings {
     firOnly: r.firOnly === true,
     currentOnly: r.currentOnly === true,
     layout: r.layout === 'list' ? 'list' : 'tiles',
-    notifyDone: r.notifyDone !== false
+    notifyDone: r.notifyDone !== false,
+    timePercent: (CRAFT_TIME_PERCENTS as readonly unknown[]).includes(r.timePercent)
+      ? (r.timePercent as number)
+      : 100
   }
 }
 
