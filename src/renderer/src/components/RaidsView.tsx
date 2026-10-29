@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { FleaRecord, RaidRecord } from '../../../shared/logTypes'
+import type { FleaRecord, RaidEnd, RaidRecord } from '../../../shared/logTypes'
 import type { PriceState, PublicSettings } from '../../../shared/types'
 import { formatDateTime, formatRub } from '../lib/format'
 import { useItemLookup } from '../lib/useItemLookup'
@@ -9,6 +9,14 @@ import { useStore } from '../store'
 import { LogStatusLine } from './LogStatusPanel'
 import Sidebar, { SidebarSection } from './Sidebar'
 import { SortHead } from './SortHeader'
+
+/** How a raid's end was known, for the duration's tooltip (since 1.70.0). */
+const ENDED_BY: Record<RaidEnd, string> = {
+  matchOver: 'The game said the raid was over',
+  menu: "The game didn't say the raid was over: it ended when you were back in the menu",
+  logsEnd: "The game didn't say the raid was over: its log stopped (closed or crashed)",
+  transit: 'A transit to another map ended this part of the raid'
+}
 
 const MAX_ROWS = 200
 
@@ -191,8 +199,11 @@ export default function RaidsView({
                         <td>{r.side === 'pmc' ? 'PMC' : r.side === 'scav' ? 'Scav' : '—'}</td>
                         <td className="num">{duration(r.queueSeconds)}</td>
                         <td className="num">{duration(r.loadSeconds)}</td>
-                        <td className="num">
+                        <td className="num" title={ENDED_BY[r.endedBy ?? 'matchOver']}>
                           {r.startedAt && r.endedAt ? duration((r.endedAt - r.startedAt) / 1000) : '—'}
+                          {r.endedBy && r.endedBy !== 'matchOver' && (
+                            <small>{r.endedBy === 'transit' ? 'transit' : 'not reported'}</small>
+                          )}
                         </td>
                       </tr>
                     ))}

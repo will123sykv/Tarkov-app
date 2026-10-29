@@ -20,7 +20,17 @@ export interface RaidRecord {
   foundAt: number
   startedAt: number | null
   endedAt: number | null
+  /**
+   * How the end was known (since 1.70.0): the game said so (`matchOver`), or it was worked out because
+   * the player was back in the menu, the game's log ended (closed or crashed), or a transit took them
+   * to another map. Absent in raids read before 1.70.0.
+   */
+  endedBy?: RaidEnd
+  /** The first leg's `foundAt` for every leg of one run across maps by transits (since 1.70.0). */
+  runId?: number
 }
+
+export type RaidEnd = 'matchOver' | 'menu' | 'logsEnd' | 'transit'
 
 export interface FleaRecord {
   kind: 'sold' | 'expired'
@@ -35,6 +45,10 @@ export interface FleaRecord {
 export interface RaidEnded {
   gameMode: GameMode
   raid: RaidRecord
+  /** Every map of the run, in order (more than one after transits; since 1.70.0). */
+  maps: string[]
+  /** When the run's first leg started (the raid's own start without transits). */
+  runStartedAt: number | null
 }
 
 /** Raids and flea activity read from the logs, for one game mode, newest first. */

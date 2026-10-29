@@ -1,4 +1,4 @@
-import type { FleaPayment, RaidRecord } from '../../shared/logTypes'
+import type { FleaPayment, RaidEnd, RaidRecord } from '../../shared/logTypes'
 import type { GameMode } from '../../shared/types'
 import type { LogEntry } from './parseLog'
 
@@ -25,13 +25,16 @@ export interface InterpreterState {
   /** Queue time seen before the match is created. */
   pendingQueue: number | null
   raid: RaidRecord | null
+  /** The time of the last entry read (since 1.70.0), to end a raid the log stopped in. */
+  lastT?: number | null
 }
 
 export const INITIAL_STATE: InterpreterState = {
   mode: null,
   pmcProfileId: null,
   pendingQueue: null,
-  raid: null
+  raid: null,
+  lastT: null
 }
 
 const QUEST_TYPES: Record<number, QuestStatusEvent> = { 10: 'started', 11: 'failed', 12: 'completed' }
@@ -96,14 +99,21 @@ export function interpretEntries(
   const state: InterpreterState = { ...initial, raid: initial.raid ? { ...initial.raid } : null }
   const events: LogEvent[] = []
   const mode = (): GameMode => state.mode ?? 'pvp'
-  const finishRaid = (endedAt: number | null): void => {
+  const finishRaid = (endedAt: number | null, endedBy?: RaidEnd): void => {
     if (!state.raid) return
-    events.push({ kind: 'raid', mode: mode(), raid: { ...state.raid, endedAt } })
+    events.push({
+      kind: 'raid',
+      mode: mode(),
+      raid: { ...state.raid, endedAt, ...(endedBy ? { endedBy } : {}) }
+    })
     state.raid = null
   }
+  // A raid under way: started, not over (the game doesn't always say it's over; since 1.70.0).
+  const inRaid = (): boolean => !!state.raid && state.raid.startedAt !== null
 
   for (const entry of entries) {
     const { message: m, t } = entry
+    state.lastT = t
 
     const session = /Session mode: ([^\s|]+)/.exec(m)
     if (session) {
@@ -114,7 +124,13 @@ export function interpretEntries(
       m
     )
     if (profile) {
+      // Back in the menu with a raid not reported over: it's over (as TarkovMonitor reads it).
+      if (inRaid()) finishRaid(t, 'menu')
       state.pmcProfileId = profile[1]
+      continue
+    }
+    if (m.includes('application|Init: pstrGameVersion:')) {
+      if (inRaid()) finishRaid(t, 'menu')
       continue
     }
 
@@ -155,19 +171,32 @@ export function interpretEntries(
       continue
     }
     if (m.includes('TRACE-NetworkGameCreate profileStatus')) {
-      // A new match: close any raid that never logged its end.
-      finishRaid(null)
+      // A new match while a raid is under way: a transit to another map, the same run going on (since
+      // 1.70.0). Otherwise close any raid that never started.
+      const transitFrom = inRaid() ? state.raid : null
+      if (transitFrom) finishRaid(t, 'transit')
+      else finishRaid(null)
       const profileId = /Profileid: (\w+)/i.exec(m)?.[1] ?? null
+      // PvE profiles don't match the one the menu logs reliably: unknown there rather than a scav.
+      const side =
+        profileId && state.pmcProfileId
+          ? profileId === state.pmcProfileId
+            ? 'pmc'
+            : mode() === 'pve'
+              ? null
+              : 'scav'
+          : null
       state.raid = {
         map: /Location: ([^,\s]+)/.exec(m)?.[1] ?? 'unknown',
         raidId: /shortId: ([A-Z0-9]{6})/.exec(m)?.[1] ?? null,
-        side: profileId && state.pmcProfileId ? (profileId === state.pmcProfileId ? 'pmc' : 'scav') : null,
+        side: transitFrom?.side ?? side,
         online: m.includes('RaidMode: Online'),
         queueSeconds: state.pendingQueue,
         loadSeconds: null,
         foundAt: t,
         startedAt: null,
-        endedAt: null
+        endedAt: null,
+        runId: transitFrom ? (transitFrom.runId ?? transitFrom.foundAt) : t
       }
       state.pendingQueue = null
       continue
@@ -186,8 +215,32 @@ export function interpretEntries(
       continue
     }
     if (m.includes('Got notification | UserMatchOver')) {
-      finishRaid(t)
+      finishRaid(t, 'matchOver')
     }
   }
   return { events, state }
+}
+
+/**
+ * The end of a log the game has finished with (it was closed, or crashed): a raid still under way ended
+ * then, at the last entry read (since 1.70.0). One that never started is dropped.
+ */
+export function finishLog(state: InterpreterState): { events: LogEvent[]; state: InterpreterState } {
+  const raid = state.raid
+  const next: InterpreterState = { ...state, raid: null }
+  if (!raid || raid.startedAt === null) return { events: [], state: next }
+  return {
+    events: [
+      {
+        kind: 'raid',
+        mode: state.mode ?? 'pvp',
+        raid: {
+          ...raid,
+          endedAt: Math.max(raid.startedAt, state.lastT ?? raid.startedAt),
+          endedBy: 'logsEnd'
+        }
+      }
+    ],
+    state: next
+  }
 }

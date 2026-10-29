@@ -56,3 +56,24 @@ describe('asking what got done after a raid (since 1.66.0)', () => {
     ])
   })
 })
+
+describe('runs across maps and raids not reported over (since 1.70.0)', () => {
+  it('waits for a run’s last leg, and asks about it with every map it went to', () => {
+    const leg = raid({ map: 'Woods', endedBy: 'transit', runId: 1, foundAt: 1 })
+    expect(raidsToAsk([leg], NOW, false, new Set())).toEqual([])
+    const last = raid({ map: 'bigmap', endedBy: 'matchOver', runId: 1, foundAt: 2 })
+    const asked = raidsToAsk([last], NOW, false, new Set(), () => ({
+      maps: ['Woods', 'bigmap'],
+      startedAt: 5
+    }))
+    expect(asked.map((r) => [r.raid.map, r.maps, r.runStartedAt])).toEqual([
+      ['bigmap', ['Woods', 'bigmap'], 5]
+    ])
+  })
+
+  it('asks about a raid whose end was worked out (back in the menu)', () => {
+    expect(raidsToAsk([raid({ endedBy: 'menu' })], NOW, false, new Set()).map((r) => r.maps)).toEqual([
+      ['bigmap']
+    ])
+  })
+})

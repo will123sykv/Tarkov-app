@@ -2,7 +2,7 @@ import { open, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LogWatcherStatus } from '../../shared/logTypes'
 import { readJsonFile, writeJsonFileAtomic } from '../jsonFile'
-import { INITIAL_STATE, interpretEntries, type InterpreterState, type LogEvent } from './interpret'
+import { finishLog, INITIAL_STATE, interpretEntries, type InterpreterState, type LogEvent } from './interpret'
 import { listLogFolders } from './locate'
 import { parseLogText, type LogEntry } from './parseLog'
 
@@ -126,10 +126,19 @@ export function createLogWatcher(deps: LogWatcherDeps) {
       entries.push(...taken)
       state.offsets[key] = offset + Buffer.byteLength(text.slice(0, consumed), 'utf8')
     }
-    if (!entries.length) return []
-    entries.sort((a, b) => a.t - b.t)
-    const { events, state: next } = interpretEntries(entries, state.folders[folder] ?? INITIAL_STATE)
-    state.folders[folder] = next
+    let events: LogEvent[] = []
+    let next = state.folders[folder] ?? INITIAL_STATE
+    if (entries.length) {
+      entries.sort((a, b) => a.t - b.t)
+      ;({ events, state: next } = interpretEntries(entries, next))
+    }
+    // A log the game has finished with (closed or crashed) ends a raid still under way (since 1.70.0).
+    if (finished) {
+      const end = finishLog(next)
+      events = [...events, ...end.events]
+      next = end.state
+    }
+    if (entries.length || finished) state.folders[folder] = next
     return events
   }
 

@@ -671,20 +671,27 @@ export function killObjectives(
 }
 
 /**
- * What a raid on one map could have got done (since 1.68.0), for the popup after it: the plan's steps on
- * that map (its group's key), then the ones for any map, leaving out quests taken off the map (Quests on
- * this map). Build the plan as the map does (`owned`, and `hideBlocked` with Only quests I can do).
+ * What a raid could have got done (since 1.68.0), for the popup after it: the plan's steps on each map it
+ * went to (their groups' keys, in order: more than one after transits since 1.70.0), then the ones for
+ * any map, leaving out quests taken off the map (Quests on this map). Build the plan as the map does
+ * (`owned`, and `hideBlocked` with Only quests I can do).
  */
 export function afterRaidSteps(
   plan: Pick<TodoPlan, 'maps' | 'anyMap'>,
-  groupKey: string | undefined,
+  groupKeys: readonly string[],
   hidden: ReadonlySet<string>
-): { here: TodoStep[]; anyMap: TodoStep[] } {
+): { maps: { key: string; steps: TodoStep[] }[]; anyMap: TodoStep[] } {
   const shown = (s: TodoStep): boolean => !hidden.has(s.quest.id)
-  const here = (groupKey ? plan.maps.find((p) => p.group.key === groupKey)?.steps : undefined) ?? []
-  const seen = new Set(here.map((s) => `${s.quest.id}:${s.objective.id}`))
+  const seen = new Set<string>()
+  const maps = [...new Set(groupKeys)].map((key) => {
+    const steps = (plan.maps.find((p) => p.group.key === key)?.steps ?? []).filter(
+      (s) => shown(s) && !seen.has(`${s.quest.id}:${s.objective.id}`)
+    )
+    for (const s of steps) seen.add(`${s.quest.id}:${s.objective.id}`)
+    return { key, steps }
+  })
   return {
-    here: here.filter(shown),
+    maps: maps.filter((m) => m.steps.length),
     anyMap: plan.anyMap.filter((s) => shown(s) && !seen.has(`${s.quest.id}:${s.objective.id}`))
   }
 }

@@ -1,7 +1,13 @@
 import { mkdir, readFile, rm, writeFile, appendFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { INITIAL_STATE, interpretEntries, sessionMode, type LogEvent } from '../src/main/logs/interpret'
+import {
+  finishLog,
+  INITIAL_STATE,
+  interpretEntries,
+  sessionMode,
+  type LogEvent
+} from '../src/main/logs/interpret'
 import {
   listLogFolders,
   createLogsLocator,
@@ -45,6 +51,8 @@ const APPLICATION = [
   line('18:06:00', 'application', 'GameStarted:1.0 real:1.0'),
   line('18:40:00', 'application', 'Something unrelated')
 ].join('\n')
+/** The session's first two lines: its game mode (PvE) and the PMC's profile. */
+const APPLICATION_HEAD = () => parseLogText(APPLICATION.split('\n').slice(0, 2).join('\n')).entries
 
 const NOTIFICATIONS = [
   notification('18:02:00', chat(10, `${questStarted} description 5935c25fb3acc3127c3d8cd9 0`)),
@@ -137,13 +145,17 @@ describe('interpretEntries', () => {
       loadSeconds: 38.25,
       foundAt: Date.parse('2026-09-20T18:05:01.123+01:00'),
       startedAt: Date.parse('2026-09-20T18:06:00.123+01:00'),
-      endedAt: Date.parse('2026-09-20T18:41:00.123+01:00')
+      endedAt: Date.parse('2026-09-20T18:41:00.123+01:00'),
+      endedBy: 'matchOver',
+      runId: Date.parse('2026-09-20T18:05:01.123+01:00')
     })
     expect(state).toMatchObject({ mode: 'pve', pmcProfileId: PMC, raid: null })
   })
 
   it('carries state across batches and marks other profiles as scav raids', () => {
-    const first = interpretEntries(parseLogText(APPLICATION.split('\n').slice(0, 2).join('\n')).entries)
+    // In PvP: PvE's profiles don't match the menu's reliably (since 1.70.0, below).
+    const pvp = APPLICATION.replace('Session mode: Pve', 'Session mode: Regular')
+    const first = interpretEntries(parseLogText(pvp.split('\n').slice(0, 2).join('\n')).entries)
     const scavRaid = [
       line(
         '19:00:00',
@@ -154,8 +166,69 @@ describe('interpretEntries', () => {
     ].join('\n')
     const second = interpretEntries(parseLogText(scavRaid).entries, first.state)
     expect(second.events).toMatchObject([
-      { kind: 'raid', mode: 'pve', raid: { map: 'Woods', side: 'scav', online: false } }
+      { kind: 'raid', mode: 'pvp', raid: { map: 'Woods', side: 'scav', online: false } }
     ])
+    const pve = interpretEntries(APPLICATION_HEAD(), INITIAL_STATE)
+    expect(interpretEntries(parseLogText(scavRaid).entries, pve.state).events).toMatchObject([
+      { kind: 'raid', mode: 'pve', raid: { map: 'Woods', side: null } }
+    ])
+  })
+
+  describe('ending raids the game doesn’t report over (since 1.70.0)', () => {
+    const started = APPLICATION.split('\n').slice(0, 6).join('\n')
+    const raidOf = (events: LogEvent[]) =>
+      events.filter((e): e is Extract<LogEvent, { kind: 'raid' }> => e.kind === 'raid').map((e) => e.raid)
+
+    it('ends one when the player is back in the menu', () => {
+      for (const back of [
+        `SelectProfile ProfileId:${PMC} AccountId:1234567`,
+        'Init: pstrGameVersion: 1.0.1.0.41234'
+      ]) {
+        const text = `${started}\n${line('18:44:00', 'application', back)}`
+        expect(raidOf(interpretEntries(parseLogText(text).entries).events)).toMatchObject([
+          { map: 'bigmap', endedAt: Date.parse('2026-09-20T18:44:00.123+01:00'), endedBy: 'menu' }
+        ])
+      }
+      // Not before it started: the profile line at the start of the session doesn't end anything.
+      const early = interpretEntries(parseLogText(APPLICATION.split('\n').slice(0, 4).join('\n')).entries)
+      expect(raidOf(early.events)).toEqual([])
+      expect(early.state.raid).not.toBeNull()
+    })
+
+    it('ends one when the game’s log ends (closed or crashed), at the last entry', () => {
+      const read = interpretEntries(
+        parseLogText(`${started}\n${line('18:30:00', 'application', 'still in raid')}`).entries
+      )
+      const end = finishLog(read.state)
+      expect(raidOf(end.events)).toMatchObject([
+        { endedAt: Date.parse('2026-09-20T18:30:00.123+01:00'), endedBy: 'logsEnd' }
+      ])
+      expect(end.state.raid).toBeNull()
+      // A match that never started is dropped.
+      const queued = interpretEntries(parseLogText(APPLICATION.split('\n').slice(0, 4).join('\n')).entries)
+      expect(finishLog(queued.state).events).toEqual([])
+    })
+
+    it('links the legs of a transit into one run, the first ending as the second is created', () => {
+      const text = [
+        started,
+        line(
+          '18:20:00',
+          'application',
+          `TRACE-NetworkGameCreate profileStatus: 'Profileid: ${PMC}, RaidMode: Online, Location: Woods, shortId: DEF456'`
+        ),
+        line('18:21:00', 'application', 'GameStarted:1.0 real:1.0'),
+        `${line('18:41:00', 'push-notifications', 'Got notification | UserMatchOver')}\n{ "location": "Woods" }`,
+        // Reported over twice: counted once.
+        line('18:41:30', 'push-notifications', 'Got notification | UserMatchOver')
+      ].join('\n')
+      const raids = raidOf(interpretEntries(parseLogText(text).entries).events)
+      const runId = Date.parse('2026-09-20T18:05:01.123+01:00')
+      expect(raids).toMatchObject([
+        { map: 'bigmap', endedBy: 'transit', endedAt: Date.parse('2026-09-20T18:20:00.123+01:00'), runId },
+        { map: 'Woods', endedBy: 'matchOver', side: 'pmc', runId }
+      ])
+    })
   })
 
   it('drops a match that was abandoned before it started', () => {
@@ -422,5 +495,42 @@ describe('createLogWatcher', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('a raid the game stopped logging in (since 1.70.0)', () => {
+  it('ends when the game starts a new session, at the last entry of the old one', async () => {
+    const root = await tempDir()
+    const logs = join(root, 'Logs')
+    const crashed = join(logs, 'log_2026.09.20_18-00-00_1.0')
+    await mkdir(crashed, { recursive: true })
+    // In raid when the game crashed: started, never reported over.
+    const started = APPLICATION.split('\n').slice(0, 6).join('\n')
+    await writeFile(
+      join(crashed, '2026.09.20_18-00-00_1.0 application.log'),
+      `${started}\n${line('18:30:00', 'application', 'last words')}\n`
+    )
+    const batches: LogEvent[][] = []
+    const watcher = createLogWatcher({
+      stateFile: join(root, 'state.json'),
+      locate: async () => logs,
+      onEvents: (events) => void batches.push(events)
+    })
+    await watcher.poll()
+    // The game's newest log may still be written: nothing yet.
+    expect(batches.flat().filter((e) => e.kind === 'raid')).toEqual([])
+    const next = join(logs, 'log_2026.09.20_19-00-00_1.0')
+    await mkdir(next, { recursive: true })
+    await writeFile(
+      join(next, '2026.09.20_19-00-00_1.0 application.log'),
+      `${line('19:00:00', 'application', 'Session mode: Pve')}\n`
+    )
+    await watcher.poll()
+    expect(batches.flat().filter((e) => e.kind === 'raid')).toMatchObject([
+      {
+        kind: 'raid',
+        raid: { map: 'bigmap', endedBy: 'logsEnd', endedAt: Date.parse('2026-09-20T18:30:00.123+01:00') }
+      }
+    ])
   })
 })

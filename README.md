@@ -527,8 +527,11 @@ game's logs don't say which keys you have, so tick them yourself.
 The app reads the log files Escape from Tarkov writes as you play. They stay on your PC: nothing
 is uploaded. It finds the game's `Logs` folder by itself (launcher and Steam installs); if it
 can't, choose it under **Game logs** in Settings (the Raids tab says how reading is going, with a
-link there). It's in
-the game's install folder, or its `build` folder.
+link there, and the status bar says when the logs can't be found or read). It's in
+the game's install folder, or its `build` folder. In the Raids tab, a raid's length says **not
+reported** when the game didn't log it as over (it ended when you were back in the menu, or when the
+game closed), and **transit** for the part of a raid before a transit to another map; point at it
+for which.
 
 - **Quests:** every quest, grouped by trader, marked **Available**, **Active**, **Locked** (with
   what unlocks it), **Completed** or **Failed** at your level. Quests you start, finish or fail in
@@ -562,7 +565,11 @@ the game's install folder, or its `build` folder.
   objective ticked.
 - **After a raid:** when the game's logs see a PMC raid end, a popup lists what your active quests
   had left on that map, and on any map, to tick off (or count up kills) there and then; it's saved
-  as you go, and **Done** or Esc closes it. Scav raids, raids that ended over 15 minutes ago and
+  as you go, and **Done** or Esc closes it. The game doesn't always say a raid is over (a crash,
+  quitting straight after, some PvE raids), so a raid also ends when you're back in the menu, or
+  when the game's log stops; a run across maps by transits is one raid, listing every map it went
+  to. A raid in another game mode than the app shows asks to switch to it first, and when there's
+  nothing left to tick off a short notice says so instead. Scav raids, raids that ended over 15 minutes ago and
   reading the logs again from scratch don't ask. It follows the map's filters: quests taken off the
   map (**Quests on this map**) and of the kind not shown (All · Story · Side) are left out, and with
   **Only quests I can do** so is a quest a key you don't have holds up (friends' keys count with

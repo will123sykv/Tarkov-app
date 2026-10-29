@@ -640,24 +640,43 @@ describe('afterRaidSteps (since 1.68.0)', () => {
   const locked = quest('locked', [
     objective('room', 'visit', { zones: [{ map: CUSTOMS }] as never, requiredKeys: [[KEY]] })
   ])
+  const woods = quest('woods', [
+    objective('tree', 'visit', { maps: [WOODS], zones: [{ map: WOODS }] as never })
+  ])
   const anywhere = quest('anywhere', [objective('kill', 'shoot', { maps: [], count: 5 })])
-  const rows = [row(plain), row(locked), row(anywhere)]
+  const rows = [row(plain), row(locked), row(woods), row(anywhere)]
   const ids = (steps: { quest: Quest; objective: QuestObjective }[]): string[] =>
     steps.map((s) => `${s.quest.id}:${s.objective.id}`)
+  const here = (r: ReturnType<typeof afterRaidSteps>, key: string): string[] =>
+    ids(r.maps.find((m) => m.key === key)?.steps ?? [])
 
   it('lists the map’s steps then any map’s, leaving out quests taken off the map', () => {
     const plan = todoPlan(rows, {}, groupOf)
-    expect(ids(afterRaidSteps(plan, 'customs', new Set()).here)).toEqual(['plain:visit', 'locked:room'])
-    expect(ids(afterRaidSteps(plan, 'customs', new Set()).anyMap)).toEqual(['anywhere:kill'])
-    const hidden = afterRaidSteps(plan, 'customs', new Set(['plain', 'anywhere']))
-    expect([ids(hidden.here), ids(hidden.anyMap)]).toEqual([['locked:room'], []])
-    expect(ids(afterRaidSteps(plan, undefined, new Set()).here)).toEqual([])
+    const all = afterRaidSteps(plan, ['customs'], new Set())
+    expect([here(all, 'customs'), ids(all.anyMap)]).toEqual([
+      ['plain:visit', 'locked:room'],
+      ['anywhere:kill']
+    ])
+    const hidden = afterRaidSteps(plan, ['customs'], new Set(['plain', 'anywhere']))
+    expect([here(hidden, 'customs'), ids(hidden.anyMap)]).toEqual([['locked:room'], []])
+    expect(afterRaidSteps(plan, [], new Set()).maps).toEqual([])
+  })
+
+  it('lists every map a run went to by transits, in order (since 1.70.0)', () => {
+    const run = afterRaidSteps(todoPlan(rows, {}, groupOf), ['woods', 'customs'], new Set())
+    expect(run.maps.map((m) => [m.key, ids(m.steps)])).toEqual([
+      ['woods', ['woods:tree']],
+      ['customs', ['plain:visit', 'locked:room']]
+    ])
   })
 
   it('leaves out a quest a key you don’t have holds up, with Only quests I can do', () => {
     const doable = todoPlan(rows, {}, groupOf, { owned: new Set(), hideBlocked: true })
-    expect(ids(afterRaidSteps(doable, 'customs', new Set()).here)).toEqual(['plain:visit'])
+    expect(here(afterRaidSteps(doable, ['customs'], new Set()), 'customs')).toEqual(['plain:visit'])
     const withKey = todoPlan(rows, {}, groupOf, { owned: new Set([KEY]), hideBlocked: true })
-    expect(ids(afterRaidSteps(withKey, 'customs', new Set()).here)).toEqual(['plain:visit', 'locked:room'])
+    expect(here(afterRaidSteps(withKey, ['customs'], new Set()), 'customs')).toEqual([
+      'plain:visit',
+      'locked:room'
+    ])
   })
 })

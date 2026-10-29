@@ -5,6 +5,7 @@ import { dataModeFor } from '../shared/gameModes'
 import { handOversLeft, haveTotals } from '../shared/hideout'
 import { IPC } from '../shared/ipc'
 import type { ContainerLootData } from '../shared/containerData'
+import type { RaidRecord } from '../shared/logTypes'
 import type { GameMode } from '../shared/types'
 import { createContainerService } from './containers'
 import containerLootData from './data/containerLoot.json'
@@ -194,9 +195,28 @@ async function bootstrap(): Promise<void> {
       }
       for (const gameMode of handedIn)
         send(IPC.hideoutProgressChanged, { gameMode, hideout: await player.hideout(gameMode) })
-      // A PMC raid just ended: offer to tick off what got done on its map (since 1.66.0).
-      if (settings.get().quests.askAfterRaid)
-        for (const ended of raidsToAsk(events, Date.now(), reset, askedRaids)) send(IPC.logsRaidEnded, ended)
+      // A PMC raid just ended: offer to tick off what got done on its maps (since 1.66.0; every map a
+      // run went to by transits since 1.70.0, from the raids just saved).
+      if (settings.get().quests.askAfterRaid) {
+        const modes = [...new Set(events.flatMap((e) => (e.kind === 'raid' ? [e.mode] : [])))]
+        const saved = new Map(
+          await Promise.all(modes.map(async (m) => [m, (await player.history(m)).raids] as const))
+        )
+        const run = (mode: GameMode, raid: RaidRecord): { maps: string[]; startedAt: number | null } => {
+          const legs = [
+            ...(raid.runId === undefined
+              ? []
+              : (saved.get(mode) ?? []).filter((r) => r.runId === raid.runId)),
+            raid
+          ].sort((a, b) => a.foundAt - b.foundAt)
+          return {
+            maps: [...new Set(legs.map((r) => r.map))],
+            startedAt: legs.find((r) => r.startedAt !== null)?.startedAt ?? null
+          }
+        }
+        for (const ended of raidsToAsk(events, Date.now(), reset, askedRaids, run))
+          send(IPC.logsRaidEnded, ended)
+      }
     },
     onStatus: (status) => send(IPC.logsStatusChanged, status)
   })

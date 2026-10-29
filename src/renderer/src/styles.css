@@ -923,6 +923,10 @@ button.link {
   text-overflow: ellipsis;
 }
 
+.statusbar-warn {
+  color: var(--warn);
+}
+
 .statusbar-count,
 .statusbar-level,
 .statusbar-refresh {
@@ -6458,4 +6462,23 @@ p.quest-before.done {
 .craft-timer-label {
   flex: 1 1 240px;
   min-width: 0;
+}
+
+/* A raid with nothing left to tick off: said, then gone by itself (since 1.70.0). */
+.after-raid-notice {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 45%);
+  font-size: 13px;
 }
