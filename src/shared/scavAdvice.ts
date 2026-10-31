@@ -124,13 +124,39 @@ export function scanTotals(advice: readonly ScanAdvice[]): ScanTotals {
   return totals
 }
 
-/** Which stacks the Screenshots page highlights (since 1.64.0): all, or just what to sell one way. */
-export type ScanHighlight = 'all' | 'flea' | 'traders'
+/**
+ * Which stacks the Screenshots page highlights (since 1.64.0): all, just what to sell one way, or what
+ * to drop in raid first (since 1.72.0).
+ */
+export type ScanHighlight = 'all' | 'flea' | 'traders' | 'drop'
 
 /** Whether a stack is one the highlight picks out: some of it sold on the flea, or to a trader. */
 export function sellsVia(advice: ScanAdvice, highlight: ScanHighlight): boolean {
   if (highlight === 'all') return true
+  if (highlight === 'drop') return false
   return advice.sell > 0 && advice.via === (highlight === 'flea' ? 'flea' : 'trader')
+}
+
+/** A stack to rank for dropping: what all of it sells for, and the slots it takes. */
+export interface DropStack<K = string> {
+  key: K
+  /** Copies kept for the hideout or quests: a stack you need isn't one to drop. */
+  keep: number
+  value: number
+  /** Width × height; null when the size isn't known. */
+  slots: number | null
+}
+
+/**
+ * What to drop in raid first, to make room (since 1.72.0): stacks you don't need, the least worth for
+ * the space they take first (then the least worth), numbered from 1.
+ */
+export function dropOrder<K>(stacks: readonly DropStack<K>[]): Map<K, number> {
+  const ranked = stacks
+    .filter((s) => s.keep === 0 && s.slots !== null && s.slots > 0)
+    .map((s) => ({ ...s, perSlot: s.value / s.slots! }))
+    .sort((a, b) => a.perSlot - b.perSlot || a.value - b.value)
+  return new Map(ranked.map((s, i) => [s.key, i + 1]))
 }
 
 /** What goes to each trader: how many stacks and for how much, in the order they're first read. */

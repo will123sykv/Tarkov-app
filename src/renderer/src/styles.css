@@ -3481,6 +3481,23 @@ button.link.small {
   fill: color-mix(in srgb, var(--trader) 14%, transparent);
 }
 
+/* What to drop in raid first, numbered (since 1.72.0). */
+.scan-box.drop rect {
+  stroke: var(--bad);
+  fill: color-mix(in srgb, var(--bad) 18%, transparent);
+}
+
+.scan-box.drop text {
+  font-size: 20px;
+  fill: #ffd9d1;
+}
+
+.badge.drop-rank {
+  margin-right: 6px;
+  background: color-mix(in srgb, var(--bad) 18%, transparent);
+  color: var(--bad);
+}
+
 .scan-box.hover rect {
   fill: rgba(200, 178, 122, 0.22);
   stroke: var(--accent-strong);

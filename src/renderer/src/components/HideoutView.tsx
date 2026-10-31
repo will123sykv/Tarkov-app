@@ -509,7 +509,8 @@ function UpgradeCard({
   traders,
   progress,
   items,
-  ctx
+  ctx,
+  elsewhere
 }: {
   station: HideoutStation
   level: HideoutLevel
@@ -519,6 +520,8 @@ function UpgradeCard({
   progress: HideoutProgress
   items: Items
   ctx: BuyContext
+  /** Other needs holding copies of a part (since 1.72.0). */
+  elsewhere: (itemId: string, foundInRaid: boolean) => { name: string; count: number }[]
 }): React.JSX.Element {
   const build = useStore((s) => s.buildStationLevel)
   const plan = status.state === 'short' ? status.craftAll : null
@@ -611,6 +614,8 @@ function UpgradeCard({
             const fir = level.items.find((i) => i.itemId === p.itemId)?.foundInRaid
             // Whether it can be bought only matters when it needn't be found in raid.
             const scarce = item && p.missing > p.find ? scarcity(item, ctx) : null
+            // Copies you have that went to other needs first, so the count doesn't look lost.
+            const held = p.missing > 0 ? elsewhere(p.itemId, !!fir) : []
             return (
               <li key={p.itemId} className={p.missing ? '' : 'done'}>
                 {item?.iconLink && <img src={item.iconLink} alt="" loading="lazy" />}
@@ -625,6 +630,15 @@ function UpgradeCard({
                         : p.locked.length
                           ? `Can’t buy yet: ${p.locked.join(', ')}`
                           : 'Nobody sells it'}
+                    </small>
+                  )}
+                  {held.length > 0 && (
+                    <small
+                      className="muted"
+                      title="What you have is shared: the upgrades you can build now come first, then the rest, then quests"
+                    >
+                      {held.reduce((n, h) => n + h.count, 0)} more put aside for{' '}
+                      {held.map((h) => `${h.name}${held.length > 1 ? ` (${h.count})` : ''}`).join(', ')}
                     </small>
                   )}
                   {p.find > 0 ? (
@@ -1097,6 +1111,7 @@ export default function HideoutView({
                 progress={progress}
                 items={items}
                 ctx={ctx}
+                elsewhere={(itemId, fir) => share.elsewhere(station.id, next.level, itemId, fir)}
               />
             ))}
             {maxed.length > 0 && (

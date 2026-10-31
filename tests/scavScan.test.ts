@@ -29,6 +29,7 @@ import {
   doRank,
   lootAdditions,
   scanTotals,
+  dropOrder,
   sanitizeSavedChecklist,
   sellChecklist,
   sellsVia,
@@ -774,5 +775,28 @@ describe('the sell checklist (since 1.66.0)', () => {
     expect(list.traderFloor).toBe(true)
     expect(list.net).toBeGreaterThanOrEqual(29_000)
     expect(list.wellUnderAverage).toBe(60_000)
+  })
+})
+
+describe('what to drop in raid first (since 1.72.0)', () => {
+  it('numbers stacks you don’t need by worth per slot, the least first', () => {
+    const order = dropOrder([
+      { key: 'gun', keep: 0, value: 60_000, slots: 6 }, // 10,000 a slot
+      { key: 'gpu', keep: 0, value: 200_000, slots: 2 }, // 100,000 a slot
+      { key: 'bolts', keep: 0, value: 20_000, slots: 1 }, // 20,000 a slot
+      { key: 'junk', keep: 0, value: 0, slots: 1 }, // nobody buys it
+      { key: 'cheap', keep: 0, value: 5_000, slots: 1 },
+      { key: 'tie', keep: 0, value: 10_000, slots: 1 }, // 10,000 a slot, worth less than the gun
+      { key: 'ledx', keep: 1, value: 1, slots: 1 }, // needed
+      { key: 'unknown', keep: 0, value: 1, slots: null }
+    ])
+    expect([...order]).toEqual([
+      ['junk', 1],
+      ['cheap', 2],
+      ['tie', 3],
+      ['gun', 4],
+      ['bolts', 5],
+      ['gpu', 6]
+    ])
   })
 })

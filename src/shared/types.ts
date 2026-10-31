@@ -292,7 +292,7 @@ export interface HideoutSettings {
    * Screenshots of new loot: highlight every item, or only what to sell on the flea, or to traders (a
    * colour each). Since 1.64.0.
    */
-  scanHighlight: 'all' | 'flea' | 'traders'
+  scanHighlight: 'all' | 'flea' | 'traders' | 'drop'
   /** Items needed, the next upgrades, crafts by profit (since 1.47.0), or the screenshot scanner. */
   tab: 'items' | 'upgrades' | 'crafts' | 'scav'
   /** Crafts: only the ones the player can make now (stations built, quests done). Since 1.47.0. */

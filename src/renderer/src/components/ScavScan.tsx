@@ -13,6 +13,7 @@ import {
   adviceWorth,
   adviseScan,
   doRank,
+  dropOrder,
   lootAdditions,
   scanTotals,
   sellChecklist,
@@ -765,12 +766,35 @@ export default function ScavScan({
   // New loot: every item, or only what to sell on the flea or to traders (since 1.64.0). The rows keep
   // their numbers; the others fade on the screenshot and leave the list.
   const highlight: ScanHighlight = mode === 'loot' ? settings.hideout.scanHighlight : 'all'
+  // What to drop in raid first, numbered (since 1.72.0): the least worth per slot, never what you need.
+  const drop =
+    highlight === 'drop'
+      ? dropOrder(
+          counted
+            .filter((r) => !unsure(r))
+            .map((r) => {
+              const a = adviceOf.get(r.key)!
+              const item = r.itemId ? items.get(r.itemId) : undefined
+              return {
+                key: r.key,
+                keep: a.keep,
+                value: adviceWorth(a),
+                slots: item?.width && item.height ? item.width * item.height : null
+              }
+            })
+        )
+      : null
   // Rows to check stay listed whatever the highlight: they may well be ones to sell that way.
   const picked = (r: ScanRow): boolean => {
     const a = adviceOf.get(r.key)
-    return !a || unsure(r) || sellsVia(a, highlight)
+    return !a || unsure(r) || (drop ? drop.has(r.key) : sellsVia(a, highlight))
   }
-  const shownRows = sorted(listed).filter(picked)
+  // Drop lists them in the order to drop (rows to check last).
+  const shownRows = drop
+    ? sorted(listed)
+        .filter(picked)
+        .sort((x, y) => (drop.get(x.key) ?? Infinity) - (drop.get(y.key) ?? Infinity))
+    : sorted(listed).filter(picked)
   const checking = shownRows.filter(unsure).length
   const byTrader = highlight === 'traders' ? traderTotals(listed.map((r) => adviceOf.get(r.key)!)) : []
   // What to sell, grouped for selling and ticked off as it goes (since 1.66.0); rows to check aren't in it.
@@ -1308,13 +1332,17 @@ export default function ScavScan({
                             ? 'keep'
                             : 'sell'
                   const t = r.tile
-                  // With a highlight, the rest fade; traders' items take their trader's colour.
-                  const shown = kind === 'off' || kind === 'check' || !a || sellsVia(a, highlight)
+                  // With a highlight, the rest fade; traders' items take their trader's colour. Drop
+                  // numbers the stacks to drop, in order, in place of the row numbers.
+                  const dropRank = drop?.get(r.key)
+                  const shown = drop
+                    ? kind === 'off' || kind === 'check' || dropRank !== undefined
+                    : kind === 'off' || kind === 'check' || !a || sellsVia(a, highlight)
                   const trader = highlight === 'traders' && kind !== 'check' && shown && a?.via === 'trader'
                   return (
                     <g
                       key={r.key}
-                      className={`scan-box ${shown ? (trader ? 'trader' : kind) : 'faded'} ${hover === r.key ? 'hover' : ''}`}
+                      className={`scan-box ${shown ? (trader ? 'trader' : dropRank ? 'drop' : kind) : 'faded'} ${hover === r.key ? 'hover' : ''}`}
                       style={
                         trader ? ({ '--trader': traderColour(a.trader) } as React.CSSProperties) : undefined
                       }
@@ -1328,9 +1356,9 @@ export default function ScavScan({
                         width={t.right - t.left - 2}
                         height={t.bottom - t.top - 2}
                       />
-                      {n && (
+                      {n && (!drop || dropRank) && (
                         <text x={t.left + 4} y={t.top + 4} dominantBaseline="hanging">
-                          {n}
+                          {dropRank ?? n}
                         </text>
                       )}
                     </g>
@@ -1411,7 +1439,12 @@ export default function ScavScan({
                       [
                         ['all', 'All', 'Every item: what to keep and what to sell'],
                         ['flea', 'Flea', 'Only what to sell on the flea'],
-                        ['traders', 'Traders', 'Only what to sell to traders, a colour each']
+                        ['traders', 'Traders', 'Only what to sell to traders, a colour each'],
+                        [
+                          'drop',
+                          'Drop',
+                          'What to drop in raid to make room, numbered: drop 1 first. Items you need aren’t highlighted'
+                        ]
                       ] as const
                     ).map(([id, text, title]) => (
                       <button
@@ -1428,8 +1461,10 @@ export default function ScavScan({
                   </div>
                   {highlight !== 'all' && (
                     <span className="muted">
-                      Showing {shownRows.length - checking} of {listed.length - toCheck}: to sell{' '}
-                      {highlight === 'flea' ? 'on the flea' : 'to traders'}
+                      Showing {shownRows.length - checking} of {listed.length - toCheck}:{' '}
+                      {highlight === 'drop'
+                        ? 'drop 1 first, the least worth per slot; items your hideout and quests need aren’t numbered'
+                        : `to sell ${highlight === 'flea' ? 'on the flea' : 'to traders'}`}
                       {checking > 0 && `, and ${checking} to check`} ·{' '}
                       <button className="link small" onClick={() => setHighlight('all')}>
                         Show all
@@ -1720,13 +1755,20 @@ export default function ScavScan({
                         ) : mode === 'stash' ? (
                           <Listed need={r.itemId ? needById.get(r.itemId) : undefined} item={item} />
                         ) : (
-                          <Advice
-                            trader={highlight === 'traders' && a.via === 'trader' ? a.trader : undefined}
-                            advice={a}
-                            item={item}
-                            firOnly={sellBuyable && !!r.itemId && getBack(r.itemId) !== null}
-                            getLater={getLater(r.itemId)}
-                          />
+                          <>
+                            {drop?.has(r.key) && (
+                              <span className="badge drop-rank" title="Drop the lowest numbers first">
+                                Drop {drop.get(r.key)}
+                              </span>
+                            )}
+                            <Advice
+                              trader={highlight === 'traders' && a.via === 'trader' ? a.trader : undefined}
+                              advice={a}
+                              item={item}
+                              firOnly={sellBuyable && !!r.itemId && getBack(r.itemId) !== null}
+                              getLater={getLater(r.itemId)}
+                            />
+                          </>
                         )}
                       </td>
                       {mode !== 'keys' && (

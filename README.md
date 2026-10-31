@@ -290,8 +290,11 @@ station's level in the sidebar (the Stash starts at level 1).
   items come first; the money the upgrades cost is in the summary line. **Found in raid only**
   narrows the list to items that must be found in raid, showing how many of each.
 - **One shared Have count:** what you've put aside is shared out in order: the upgrades in scope
-  first, then your active quests, then later upgrades, then the other quests, so two needs never
-  count the same copies (5 put aside for two needs of 5 covers one of them, not both). Upgrades,
+  first (the ones you can build now before those waiting on another station or trader loyalty),
+  then your active quests, then later upgrades, then the other quests, so two needs never count the
+  same copies (5 put aside for two needs of 5 covers one of them, not both). Found-in-raid copies
+  go to the needs that must be found in raid first. An upgrade's item that went short because
+  other needs hold your copies says so: **3 more put aside for Bitcoin farm 1**. Upgrades,
   quests, To do and your favourites all use the same split. Counts from before 1.66.0 became found
   in raid, so nothing that was ticked off is unticked.
 - **Hideout + quests**, **Hideout only** or **Quests only** above the list: just what the hideout
@@ -395,7 +398,10 @@ you're keeping for the hideout and your quests to the **FIR** counts, as scav ca
 again). A haul that takes two screenshots can be read together with **Add another**. Click **Do**
 to sort the list by what to do (keep, then sell on the flea, then sell to a trader, then no buyer,
 the most valuable first in each), or any other column; the numbers stay the ones on the screenshot.
-**Highlight: All · Flea · Traders** (remembered) picks out what to sell one way: **Flea** keeps only
+**Highlight: All · Flea · Traders · Drop** (remembered) picks out what to sell one way, or what
+to drop in raid to make room: **Drop** numbers the stacks you don't need on the screenshot and in
+the list, the least worth for the slots they take first (drop 1 first), and leaves what your
+hideout and quests need alone. Otherwise it picks out what to sell one way: **Flea** keeps only
 the items to sell on the flea bright on the screenshot and in the list, and **Traders** only the
 ones to sell to traders, each trader in its own colour (Prapor red, Therapist pink, Skier light
 blue, Peacekeeper teal, Mechanic orange, Ragman purple, Jaeger green, Ref yellow, Fence grey) on

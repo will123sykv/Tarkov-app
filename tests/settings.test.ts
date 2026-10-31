@@ -629,6 +629,7 @@ describe('sanitizeSettings', () => {
       sanitizeSettings({ hideout: { scanHighlight } }).hideout.scanHighlight
     expect(highlight('flea')).toBe('flea')
     expect(highlight('traders')).toBe('traders')
+    expect(highlight('drop')).toBe('drop')
     expect(highlight('prapor')).toBe('all')
     expect(highlight(undefined)).toBe('all')
   })
