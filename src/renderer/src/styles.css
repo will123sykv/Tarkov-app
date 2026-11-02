@@ -3354,6 +3354,19 @@ button.link.small {
   font-size: 12px;
 }
 
+/* Picking an item for a label: remembered, and set on the others read the same way (since 1.73.0). */
+.scan-pick-note {
+  margin: 6px 0 0;
+  color: var(--ok);
+  font-size: 13px;
+}
+
+.scan-right,
+.scan-remembered {
+  margin-left: 6px;
+  font-size: 11px;
+}
+
 .scan-error {
   margin: 0;
   padding: 6px 10px;

@@ -56,6 +56,7 @@ import {
 import { useBuyContext, useCraftContext, useKeepList } from '../lib/useKeepList'
 import { useKeyInfo } from '../lib/useKeyInfo'
 import { saveChecklist, useSavedChecklist } from '../lib/savedChecklist'
+import { forgetPicks, rememberPick, rememberedPick, rowsLike, useScanPicks } from '../lib/scanPicks'
 import { useTableSort, type SortColumn } from '../lib/useTableSort'
 import { useStore } from '../store'
 import ScarceBadge from './ScarceBadge'
@@ -87,6 +88,8 @@ interface ScanRow {
   read: string
   /** Units of the stack added to the hideout's counts. */
   stored: number
+  /** The item was picked for this label before, and remembered (since 1.73.0). */
+  remembered?: boolean
 }
 
 interface Shot {
@@ -225,22 +228,27 @@ async function readShot(
   })
   const texts = jobs.length ? await window.api.readLabels(jobs) : []
   const sized = items.filter((i) => i.width && i.height)
+  const byId = new Map(items.map((i) => [i.id, i]))
   const read = tiles.map(({ grid, tile }, i) => {
     const name = texts[slots[i].name]?.text ?? ''
     const countText = texts[slots[i].count]
     const matches = matchName(name, tile.w, tile.h, sized)
+    // An item picked for this label before wins (since 1.73.0): no picture check needed.
+    const rememberedId = rememberedPick(name, tile.w, tile.h)
+    const remembered = rememberedId ? (byId.get(rememberedId) ?? null) : null
     return {
       grid,
       tile,
       name,
       count: countText ? parseCount(countText.text, countText.confidence) : 1,
       matches,
-      check: nameIsSure(matches) ? null : shortlist(matches)
+      remembered,
+      check: remembered || nameIsSure(matches) ? null : shortlist(matches)
     }
   })
   const pictures = await loadPictures([...new Set(read.flatMap((r) => r.check?.map((m) => m.item.id) ?? []))])
   const rows = read.map((r): ScanRow => {
-    let pick = pickItem(r.matches)
+    let pick = r.remembered ? { item: r.remembered, confidence: 'high' as const } : pickItem(r.matches)
     let guesses: NameMatch[] = r.matches
     if (r.check) {
       const distances = r.check.map((m) => {
@@ -261,7 +269,8 @@ async function readShot(
       confidence: pick.confidence,
       guesses: [...new Set(ids)].slice(0, 4),
       read: r.name,
-      stored: 0
+      stored: 0,
+      ...(r.remembered ? { remembered: true } : {})
     }
   })
   return { grids, rows }
@@ -911,6 +920,42 @@ export default function ScavScan({
     patch({ rows: useScan.getState().rows.map((r) => (r.key === key ? { ...r, ...change } : r)) })
   const removeRow = (key: number): void =>
     patch({ rows: useScan.getState().rows.filter((r) => r.key !== key) })
+  // The item for a row, remembered for its label and set on every row read the same way (since 1.73.0).
+  const [pickNote, setPickNote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!pickNote) return
+    const id = setTimeout(() => setPickNote(null), 6000)
+    return () => clearTimeout(id)
+  }, [pickNote])
+  const pickFor = (row: ScanRow, itemId: string): void => {
+    if (row.tile) rememberPick(row.read, row.tile.w, row.tile.h, itemId)
+    const rows = useScan.getState().rows
+    const like = new Set(rowsLike(rows, row).map((r) => r.key))
+    patch({
+      rows: rows.map((r) =>
+        like.has(r.key)
+          ? {
+              ...r,
+              itemId,
+              confidence: 'high',
+              remembered: false,
+              // Another item: what was added for the old one isn't this one's (Undo still takes the old
+              // one's off).
+              ...(itemId !== r.itemId ? { stored: 0 } : {})
+            }
+          : r
+      )
+    })
+    const others = like.size - 1
+    setPickNote(
+      others > 0
+        ? `${items.get(itemId)?.name ?? 'That item'}: also set on ${others} other stack${others === 1 ? '' : 's'} read the same way, and remembered for next time.`
+        : row.tile && row.read.trim()
+          ? `${items.get(itemId)?.name ?? 'That item'}: remembered for that label next time.`
+          : null
+    )
+  }
+  const remembered = Object.keys(useScanPicks((st) => st.picks)).length
   const addRow = (): void => {
     const key = nextKey++
     patch({
@@ -1139,6 +1184,11 @@ export default function ScavScan({
         <span className="muted scan-status">{status}</span>
       </div>
       {state.error && <p className="scan-error">{state.error}</p>}
+      {pickNote && (
+        <p className="scan-pick-note" role="status">
+          {pickNote}
+        </p>
+      )}
       {active?.error && <p className="scan-error">{active.error}</p>}
       {noSizes && (
         <p className="scan-error">
@@ -1196,6 +1246,20 @@ export default function ScavScan({
                   you keep them. Rows a screenshot repeats from the one before aren&rsquo;t counted twice.
                 </p>
               </>
+            )}
+            {/* Items picked for labels it wasn't sure of (since 1.73.0). */}
+            {remembered > 0 && (
+              <p className="muted scan-picks">
+                Remembers {remembered} item{remembered === 1 ? '' : 's'} you picked for labels it wasn&rsquo;t
+                sure of ·{' '}
+                <button
+                  className="link small"
+                  title="Forget them: those labels are read afresh"
+                  onClick={forgetPicks}
+                >
+                  Forget them
+                </button>
+              </p>
             )}
           </div>
           {/* The last sell checklist, still there after the app closed (since 1.71.0). */}
@@ -1700,8 +1764,27 @@ export default function ScavScan({
                               {item?.name ?? 'Unknown item'}
                             </button>
                             {check && item && (
-                              <span className="badge warn rare-badge" title={`Read as “${r.read}”`}>
-                                Check this one
+                              <>
+                                <span className="badge warn rare-badge" title={`Read as “${r.read}”`}>
+                                  Check this one
+                                </span>
+                                {(mode !== 'keys' || isKey(r.itemId)) && (
+                                  <button
+                                    className="link small scan-right"
+                                    title="It's this item: remember it for this label, and set it on the others read the same way"
+                                    onClick={() => pickFor(r, item.id)}
+                                  >
+                                    It&rsquo;s right
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            {r.remembered && !check && (
+                              <span
+                                className="muted scan-remembered"
+                                title="You picked this for the same label before. Click the name to change it"
+                              >
+                                remembered
                               </span>
                             )}
                             {picking === r.key && (
@@ -1710,13 +1793,7 @@ export default function ScavScan({
                                 guesses={r.guesses}
                                 prefer={mode === 'keys' ? isKey : undefined}
                                 onPick={(id) => {
-                                  // Another item: what was added for the old one isn't this one's (Undo
-                                  // still takes the old one's off).
-                                  updateRow(r.key, {
-                                    itemId: id,
-                                    confidence: 'high',
-                                    ...(id !== r.itemId ? { stored: 0 } : {})
-                                  })
+                                  pickFor(r, id)
                                   setPicking(null)
                                 }}
                                 onClose={() => setPicking(null)}

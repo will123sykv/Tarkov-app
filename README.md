@@ -432,7 +432,10 @@ list opens this. Whether an item was found in raid isn't read.
 
 In either mode, click an item's name to change it (the scanner's best guesses come first, or
 search), edit a count, remove a row or add an item it missed. Items it's unsure of are outlined in
-amber and marked **Check this one**. If a screenshot shows more than one window (say the stash and a
+amber and marked **Check this one**: **It's right** confirms the guess. An item you pick or confirm is
+remembered for that label (and size), so later scans read it right, and it's set on every other
+stack in the scan read the same way; those rows say **remembered**. With no screenshot open, a line
+says how many it remembers, with **Forget them**. If a screenshot shows more than one window (say the stash and a
 container), new loot lists the smaller one and lets you tick the others (everything you have counts
 them all); **Scan part of it** lets you drag a box around the window you want. Calibrated on 1080p
 screenshots; other resolutions and UI scales are scaled to match.
